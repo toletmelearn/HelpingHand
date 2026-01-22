@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Student;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class StudentController extends Controller
 {
@@ -183,37 +184,47 @@ public function importCSV(Request $request)
         return redirect()->back()->with('error', 'Unsupported file format. Please upload CSV or Excel file.');
     }
     
-    // Process data
-    foreach ($data as $index => $row) {
-        try {
-            // Skip header row
-            if ($index === 0) continue;
-            
-            // Skip empty rows
-            if (empty(array_filter($row))) continue;
-            
-            Student::create([
-                'name' => $row[1] ?? '',
-                'father_name' => $row[2] ?? '',
-                'mother_name' => $row[3] ?? '',
-                'date_of_birth' => isset($row[4]) ? $this->parseDate($row[4]) : '2000-01-01',
-                'aadhar_number' => $row[5] ?? '',
-                'phone' => $row[6] ?? '',
-                'gender' => isset($row[7]) ? strtolower(trim($row[7])) : 'male',
-                'category' => $row[8] ?? 'General',
-                'class' => $row[9] ?? '',
-                'section' => $row[10] ?? '',
-                'roll_number' => $row[11] ?? null,
-                'religion' => $row[12] ?? '',
-                'caste' => $row[13] ?? '',
-                'blood_group' => $row[14] ?? '',
-                'address' => $row[15] ?? ''
-            ]);
-            
-            $imported++;
-        } catch (\Exception $e) {
-            $errors[] = "Row " . ($index + 1) . ": " . $e->getMessage();
+    // Process data with transaction
+    \DB::beginTransaction();
+    try {
+        foreach ($data as $index => $row) {
+            try {
+                // Skip header row
+                if ($index === 0) continue;
+                
+                // Skip empty rows
+                if (empty(array_filter($row))) continue;
+                
+                Student::create([
+                    'name' => $row[1] ?? '',
+                    'father_name' => $row[2] ?? '',
+                    'mother_name' => $row[3] ?? '',
+                    'date_of_birth' => isset($row[4]) ? $this->parseDate($row[4]) : '2000-01-01',
+                    'aadhar_number' => $row[5] ?? '',
+                    'phone' => $row[6] ?? '',
+                    'gender' => isset($row[7]) ? strtolower(trim($row[7])) : 'male',
+                    'category' => $row[8] ?? 'General',
+                    'class' => $row[9] ?? '',
+                    'section' => $row[10] ?? '',
+                    'roll_number' => $row[11] ?? null,
+                    'religion' => $row[12] ?? '',
+                    'caste' => $row[13] ?? '',
+                    'blood_group' => $row[14] ?? '',
+                    'address' => $row[15] ?? ''
+                ]);
+                
+                $imported++;
+            } catch (\Exception $e) {
+                $errors[] = "Row " . ($index + 1) . ": " . $e->getMessage();
+                // Rollback on first error
+                \DB::rollBack();
+                return redirect()->back()->with('error', 'Import failed: ' . $e->getMessage())->with('import_errors', $errors);
+            }
         }
+        \DB::commit();
+    } catch (\Exception $e) {
+        \DB::rollBack();
+        return redirect()->back()->with('error', 'Import failed: ' . $e->getMessage());
     }
     
     $message = "✅ Successfully imported $imported students.";

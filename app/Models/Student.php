@@ -4,11 +4,12 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Student extends Model
 {
-    use HasFactory;
-
+    use HasFactory, SoftDeletes;
+    
     protected $fillable = [
         'name',
         'father_name', 
@@ -113,4 +114,21 @@ class Student extends Model
         ];
     }
     
+    // Define relationship with guardians
+    public function guardians()
+    {
+        return $this->belongsToMany(Guardian::class, 'student_guardian', 'student_id', 'guardian_id');
+    }
+    
+    // Define relationship with class
+    public function classManagement()
+    {
+        return $this->belongsTo(ClassManagement::class, 'class_name', 'name');
+    }
+    
+    // Define relationship with attendance
+    public function attendances()
+    {
+        return $this->hasMany(Attendance::class);
+    }
 }

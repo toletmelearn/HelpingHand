@@ -9,10 +9,11 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('teachers', function (Blueprint $table) {
+            $table->id();
             $table->string('name');
-$table->string('email')->unique();
-$table->string('phone');
-$table->string('designation');
+            $table->string('email')->unique();
+            $table->string('phone');
+            $table->string('designation');
 
             $table->string('qualification')->nullable();
 $table->string('subject_specialization')->nullable();
@@ -36,7 +37,8 @@ $table->date('date_of_birth')->nullable();
 $table->string('emergency_contact')->nullable();
 $table->string('educational_qualification')->nullable();
 $table->string('training_certificates')->nullable();
-
+            $table->string('status')->default('active'); // Status column
+            
             $table->timestamps();
             $table->softDeletes(); // deleted_at column
         });

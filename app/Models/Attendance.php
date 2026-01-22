@@ -163,14 +163,19 @@ class Attendance extends Model
     // Check if attendance is already marked for a class on a date
     public static function isMarked($class, $date, $period = null)
     {
-        $query = self::where('class', $class)
-            ->where('date', $date);
-
+        // When period is provided, check for that specific period
         if ($period) {
-            $query->where('period', $period);
+            return self::where('class', $class)
+                ->where('date', $date)
+                ->where('period', $period)
+                ->exists();
+        } else {
+            // When period is null, check if any attendance exists for the day
+            // This prevents marking full-day attendance multiple times
+            return self::where('class', $class)
+                ->where('date', $date)
+                ->exists();
         }
-
-        return $query->exists();
     }
 
     // Get today's attendance status for all students in a class

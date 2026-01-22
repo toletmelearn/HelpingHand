@@ -13,6 +13,7 @@ class Teacher extends Model
     protected $fillable = [
         'name',
         'email',
+        'password',
         'phone',
         'qualification',
         'subject_specialization',
@@ -47,6 +48,49 @@ class Teacher extends Model
         'salary' => 'decimal:2',
         'subjects' => 'array'
     ];
+    
+    // Hash password before saving
+    public function setPasswordAttribute($value)
+    {
+        $this->attributes['password'] = bcrypt($value);
+    }
+    
+    // Check if password matches
+    public function checkPassword($password)
+    {
+        return password_verify($password, $this->password);
+    }
+    
+    // Get the identifier that will be stored in the session
+    public function getAuthIdentifierName()
+    {
+        return 'id';
+    }
+    
+    public function getAuthIdentifier()
+    {
+        return $this->getKey();
+    }
+    
+    public function getAuthPassword()
+    {
+        return $this->password;
+    }
+    
+    public function getRememberToken()
+    {
+        return $this->remember_token;
+    }
+    
+    public function setRememberToken($value)
+    {
+        $this->remember_token = $value;
+    }
+    
+    public function getRememberTokenName()
+    {
+        return 'remember_token';
+    }
 
     // Get statistics
     public static function getStatistics()
@@ -176,5 +220,16 @@ public static function updateRules($id)
         'pan_number' => 'nullable|string|max:20',
     ];
 }
-
+    
+    // Define relationship with classes
+    public function classes()
+    {
+        return $this->belongsToMany(ClassManagement::class, 'class_teacher', 'teacher_id', 'class_id');
+    }
+    
+    // Define relationship with attendance
+    public function attendances()
+    {
+        return $this->hasMany(Attendance::class);
+    }
 }

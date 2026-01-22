@@ -7,6 +7,7 @@ use App\Models\Student;
 use App\Models\Teacher;
 use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Carbon\Carbon;
 
 class AttendanceController extends Controller
@@ -77,6 +78,66 @@ class AttendanceController extends Controller
      */
     public function store(Request $request)
     {
+        // Handle bulk marking if classes are provided
+        if ($request->filled('classes') && $request->filled('default_status')) {
+            $request->validate([
+                'date' => 'required|date',
+                'subject' => 'required|string',
+                'period' => 'nullable|string',
+                'classes' => 'required|array',
+                'classes.*' => 'string',
+                'default_status' => 'required|in:present,absent,late,half_day'
+            ]);
+            
+            $totalMarked = 0;
+            $errors = [];
+            
+            foreach ($request->classes as $class) {
+                // Check if attendance is already marked for this class and date
+                if (Attendance::isMarked($class, $request->date, $request->period)) {
+                    $errors[] = "Attendance for class $class on " . $request->date . " is already marked!";
+                    continue;
+                }
+                
+                // Get students in the class
+                $students = Student::where('class', $class)->get();
+                
+                if ($students->count() > 0) {
+                    $attendances = [];
+                    $timestamp = now();
+                    
+                    foreach ($students as $student) {
+                        $attendances[] = [
+                            'student_id' => $student->id,
+                            'date' => $request->date,
+                            'status' => $request->default_status,
+                            'remarks' => null,
+                            'period' => $request->period,
+                            'subject' => $request->subject,
+                            'class' => $class,
+                            'session' => date('Y') . '-' . (date('Y') + 1),
+                            'marked_by' => Auth::id(), // Current authenticated user
+                            'ip_address' => $request->ip(),
+                            'device_info' => $request->userAgent(),
+                            'created_at' => $timestamp,
+                            'updated_at' => $timestamp
+                        ];
+                    }
+                    
+                    Attendance::insert($attendances);
+                    $totalMarked += count($attendances);
+                }
+            }
+            
+            $message = "Successfully marked attendance for $totalMarked students.";
+            if (!empty($errors)) {
+                $message .= ' ' . implode(' ', $errors);
+            }
+            
+            return redirect()->route('attendance.index')->with('success', $message);
+        }
+        
+        // Handle individual marking
         $request->validate([
             'class' => 'required|string',
             'date' => 'required|date',
@@ -105,7 +166,7 @@ class AttendanceController extends Controller
                 'subject' => $request->subject,
                 'class' => $request->class,
                 'session' => date('Y') . '-' . (date('Y') + 1),
-                'marked_by' => 1, // Default user ID - adjust as needed
+                'marked_by' => Auth::id(), // Current authenticated user
                 'ip_address' => $request->ip(),
                 'device_info' => $request->userAgent(),
                 'created_at' => $timestamp,
@@ -172,9 +233,8 @@ class AttendanceController extends Controller
      */
     public function bulkMark(Request $request)
     {
-        // This would handle marking attendance for multiple classes at once
-        // Implementation depends on specific requirements
-        return view('attendance.bulk_mark');
+        $classes = Student::distinct()->pluck('class')->filter()->sortBy('class');
+        return view('attendance.bulk_mark', compact('classes'));
     }
 
     /**
