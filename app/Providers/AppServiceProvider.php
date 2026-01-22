@@ -3,7 +3,7 @@
 namespace App\Providers;
 
 use Illuminate\Support\ServiceProvider;
-use Illuminate\Support\Facades\View;
+use Illuminate\Support\Facades\Blade;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -20,10 +20,12 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        // Share academic session globally
-        View::share('current_academic_year', $this->getCurrentAcademicYear());
+        // Add custom blade directive for academic year
+        Blade::directive('academicYear', function () {
+            return "<?php echo app(App\Providers\AppServiceProvider::class)->getCurrentAcademicYear(); ?>";
+        });
     }
-    
+
     /**
      * Get current academic year in format YYYY-YY
      */
@@ -42,23 +44,5 @@ class AppServiceProvider extends ServiceProvider
         }
         
         return $startYear . '-' . substr($endYear, -2);
-    }
-    
-    /**
-     * Get academic years for dropdown
-     */
-    public function getAcademicYears($count = 5)
-    {
-        $years = [];
-        $currentYear = date('Y');
-        
-        for ($i = 0; $i < $count; $i++) {
-            $startYear = $currentYear - $i;
-            $endYear = $startYear + 1;
-            $yearKey = $startYear . '-' . substr($endYear, -2);
-            $years[$yearKey] = $yearKey;
-        }
-        
-        return $years;
     }
 }

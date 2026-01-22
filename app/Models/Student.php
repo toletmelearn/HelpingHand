@@ -5,130 +5,77 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use App\Models\User;
+use App\Models\Guardian;
+use App\Models\Attendance;
+use App\Models\Fee;
+use App\Models\Result;
 
 class Student extends Model
 {
     use HasFactory, SoftDeletes;
-    
+
     protected $fillable = [
-        'name',
-        'father_name', 
-        'mother_name',
-        'date_of_birth',
-        'aadhar_number',
-        'address',
-        'phone',
-        // New fields
-        'gender',
-        'category',
-        'class',
-        'section',
-        'roll_number',
-        'religion',
-        'caste',
-        'blood_group',
-        'nationality',
-        'medical_history',
-        'previous_school'
+        'name', 'father_name', 'mother_name', 'date_of_birth', 'aadhar_number', 
+        'phone', 'gender', 'category', 'class', 'section', 'roll_number', 
+        'religion', 'caste', 'blood_group', 'address', 'user_id'
     ];
 
-    protected $casts = [
-        'date_of_birth' => 'date',
+    protected $dates = ['date_of_birth'];
+
+    // Hidden attributes for security
+    protected $hidden = [
+        'created_at', 'updated_at', 'deleted_at'
     ];
 
-    // Get all unique classes
-    public static function getClasses()
+    // Append calculated attributes
+    protected $appends = ['full_name', 'age'];
+
+    // Relationships
+    public function user()
     {
-        return self::distinct()->orderBy('class')->pluck('class');
+        return $this->belongsTo(User::class);
     }
 
-    // Get students by class
-    public static function getByClass($class)
-    {
-        return self::where('class', $class)->orderBy('roll_number')->get();
-    }
-
-    // Get statistics
-    public static function getStatistics()
-    {
-        $total = self::count();
-        $male = self::where('gender', 'male')->count();
-        $female = self::where('gender', 'female')->count();
-        $other = self::where('gender', 'other')->count();
-        
-        return [
-            'total' => $total,
-            'male' => $male,
-            'female' => $female,
-            'other' => $other,
-            'male_percentage' => $total > 0 ? round(($male/$total)*100, 2) : 0,
-            'female_percentage' => $total > 0 ? round(($female/$total)*100, 2) : 0,
-            'class_wise' => self::getClassWiseStats(),
-            'category_wise' => self::getCategoryWiseStats(),
-            'gender_wise' => self::getGenderWiseStats()
-        ];
-    }
-
-    // Class-wise statistics
-    public static function getClassWiseStats()
-    {
-        $classes = self::selectRaw('class, COUNT(*) as total')
-            ->groupBy('class')
-            ->orderBy('class')
-            ->get()
-            ->map(function($item) {
-                $item->male = self::where('class', $item->class)->where('gender', 'male')->count();
-                $item->female = self::where('class', $item->class)->where('gender', 'female')->count();
-                $item->other = self::where('class', $item->class)->where('gender', 'other')->count();
-                return $item;
-            });
-        
-        return $classes;
-    }
-
-    // Category-wise statistics
-    public static function getCategoryWiseStats()
-    {
-        $categories = ['General', 'OBC', 'SC', 'ST'];
-        $stats = [];
-        
-        foreach ($categories as $category) {
-            $stats[$category] = [
-                'total' => self::where('category', $category)->count(),
-                'male' => self::where('category', $category)->where('gender', 'male')->count(),
-                'female' => self::where('category', $category)->where('gender', 'female')->count(),
-                'other' => self::where('category', $category)->where('gender', 'other')->count()
-            ];
-        }
-        
-        return $stats;
-    }
-
-    // Gender-wise statistics
-    public static function getGenderWiseStats()
-    {
-        return [
-            'male' => self::where('gender', 'male')->count(),
-            'female' => self::where('gender', 'female')->count(),
-            'other' => self::where('gender', 'other')->count()
-        ];
-    }
-    
-    // Define relationship with guardians
-    public function guardians()
+    public function guardian()
     {
         return $this->belongsToMany(Guardian::class, 'student_guardian', 'student_id', 'guardian_id');
     }
-    
-    // Define relationship with class
-    public function classManagement()
-    {
-        return $this->belongsTo(ClassManagement::class, 'class_name', 'name');
-    }
-    
-    // Define relationship with attendance
+
     public function attendances()
     {
         return $this->hasMany(Attendance::class);
+    }
+
+    public function fees()
+    {
+        return $this->hasMany(Fee::class);
+    }
+
+    public function results()
+    {
+        return $this->hasMany(Result::class);
+    }
+
+    // Accessors
+    public function getFullNameAttribute()
+    {
+        return $this->name . ' (' . $this->roll_number . ')';
+    }
+
+    public function getAgeAttribute()
+    {
+        return $this->date_of_birth ? $this->date_of_birth->age : null;
+    }
+
+    // Scopes
+    public function scopeActive($query)
+    {
+        return $query->whereNull('deleted_at');
+    }
+
+    public function scopeInClass($query, $class)
+    {
+        return $query->where('class', $class);
     }
 }

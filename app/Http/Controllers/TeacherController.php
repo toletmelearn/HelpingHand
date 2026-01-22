@@ -3,13 +3,18 @@
 namespace App\Http\Controllers;
 
 use App\Models\Teacher;
+use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Storage;
 
 class TeacherController extends Controller
 {
     // Display all teachers
     public function index()
     {
+        $this->authorize('viewAny', Teacher::class);
         $teachers = Teacher::all();
         return view('teachers.index', compact('teachers'));
     }
@@ -17,6 +22,7 @@ class TeacherController extends Controller
     // Show create form
     public function create()
     {
+        $this->authorize('create', Teacher::class);
         $subjects = ['Mathematics', 'Science', 'English', 'Hindi', 'Social Studies', 
                     'Physics', 'Chemistry', 'Biology', 'Computer Science', 'Physical Education'];
         $qualifications = ['B.Ed', 'M.Ed', 'B.Sc B.Ed', 'M.Sc B.Ed', 'Ph.D', 'Other'];
@@ -27,6 +33,7 @@ class TeacherController extends Controller
     // Store new teacher
     public function store(Request $request)
     {
+        $this->authorize('create', Teacher::class);
         $validated = $request->validate(
     Teacher::storeRules(),
     [
@@ -47,7 +54,7 @@ class TeacherController extends Controller
             $validated['profile_image'] = $imagePath;
         }
         
-        Teacher::create($validated);
+        $teacher = Teacher::create($validated);
         
         return redirect()->route('teachers.index')
                          ->with('success', 'Teacher added successfully!');
@@ -56,15 +63,17 @@ class TeacherController extends Controller
     // Show single teacher (route-model binding)
     public function show(Teacher $teacher)
     {
+        $this->authorize('view', $teacher);
         return view('teachers.show', compact('teacher'));
     }
 
     // Show edit form (route-model binding)
     public function edit(Teacher $teacher)
     {
+        $this->authorize('update', $teacher);
         $subjects = ['Mathematics', 'Science', 'English', 'Hindi', 'Social Studies', 
                     'Physics', 'Chemistry', 'Biology', 'Computer Science', 'Physical Education'];
-        $qualifications = ['B.Ed', 'M.Ed', 'B.Sc B.Ed', 'M.Sc B.Ed', 'Ph.D', 'Other'];
+        $qualifications = ['B.Ed', 'M.Ed', 'B.Sc B.Ed', 'M.Ed', 'Ph.D', 'Other'];
         
         return view('teachers.edit', compact('teacher', 'subjects', 'qualifications'));
     }
@@ -72,6 +81,7 @@ class TeacherController extends Controller
     // Update teacher (route-model binding)
     public function update(Request $request, Teacher $teacher)
     {
+        $this->authorize('update', $teacher);
         $validated = $request->validate(Teacher::updateRules($teacher->id));
 
         // Handle profile image update
@@ -94,6 +104,7 @@ class TeacherController extends Controller
     // Delete teacher (route-model binding)
     public function destroy(Teacher $teacher)
     {
+        $this->authorize('delete', $teacher);
         $teacher->delete();
 
         return redirect()->route('teachers.index')

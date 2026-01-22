@@ -1,21 +1,9 @@
-<?php
-
-namespace App\Http\Controllers;
-
-use App\Models\BellTiming;
-use App\Models\Student;
-use App\Models\User;
-use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
-use Carbon\Carbon;
-
-class BellTimingController extends Controller
-{
     /**
      * Display a listing of the bell timings.
      */
     public function index(Request $request)
     {
+        $this->authorize('viewAny', BellTiming::class);
         $query = BellTiming::with('createdBy');
         
         // Filter by day of week
@@ -55,6 +43,7 @@ class BellTimingController extends Controller
      */
     public function create()
     {
+        $this->authorize('create', BellTiming::class);
         $daysOfWeek = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
         $classSections = Student::distinct()->pluck('class')->filter()->sortBy('class');
         $currentYear = date('Y');
@@ -72,6 +61,7 @@ class BellTimingController extends Controller
      */
     public function store(Request $request)
     {
+        $this->authorize('create', BellTiming::class);
         $request->validate([
             'day_of_week' => 'required|in:Monday,Tuesday,Wednesday,Thursday,Friday,Saturday,Sunday',
             'period_name' => 'required|string|max:100',
@@ -122,6 +112,7 @@ class BellTimingController extends Controller
      */
     public function show(BellTiming $bellTiming)
     {
+        $this->authorize('view', $bellTiming);
         $bellTiming->load('createdBy');
         return view('bell-timing.show', compact('bellTiming'));
     }
@@ -131,6 +122,7 @@ class BellTimingController extends Controller
      */
     public function edit(BellTiming $bellTiming)
     {
+        $this->authorize('update', $bellTiming);
         $daysOfWeek = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
         $classSections = Student::distinct()->pluck('class')->filter()->sortBy('class');
         $currentYear = date('Y');
@@ -148,6 +140,7 @@ class BellTimingController extends Controller
      */
     public function update(Request $request, BellTiming $bellTiming)
     {
+        $this->authorize('update', $bellTiming);
         $request->validate([
             'day_of_week' => 'required|in:Monday,Tuesday,Wednesday,Thursday,Friday,Saturday,Sunday',
             'period_name' => 'required|string|max:100',
@@ -197,6 +190,7 @@ class BellTimingController extends Controller
      */
     public function destroy(BellTiming $bellTiming)
     {
+        $this->authorize('delete', $bellTiming);
         $bellTiming->delete();
 
         return redirect()->route('bell-timing.index')
@@ -208,6 +202,7 @@ class BellTimingController extends Controller
      */
     public function weeklyTimetable(Request $request)
     {
+        $this->authorize('viewAny', BellTiming::class);
         $classSection = $request->class_section;
         $academicYear = $request->academic_year ?: date('Y') . '-' . (date('Y') + 1);
         
@@ -230,6 +225,7 @@ class BellTimingController extends Controller
      */
     public function todaysSchedule(Request $request)
     {
+        $this->authorize('viewAny', BellTiming::class);
         $classSection = $request->class_section;
         $day = now()->format('l'); // Current day of week
         
@@ -245,6 +241,7 @@ class BellTimingController extends Controller
      */
     public function currentPeriod()
     {
+        $this->authorize('viewAny', BellTiming::class);
         $currentPeriod = BellTiming::getCurrentPeriod();
         
         return response()->json([
@@ -259,6 +256,7 @@ class BellTimingController extends Controller
      */
     public function bulkCreate(Request $request)
     {
+        $this->authorize('create', BellTiming::class);
         if ($request->isMethod('get')) {
             $daysOfWeek = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
             $classSections = Student::distinct()->pluck('class')->filter()->sortBy('class');

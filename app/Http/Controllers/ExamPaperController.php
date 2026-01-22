@@ -1,22 +1,9 @@
-<?php
-
-namespace App\Http\Controllers;
-
-use App\Models\ExamPaper;
-use App\Models\Student;
-use App\Models\Teacher;
-use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Facades\Validator;
-use Illuminate\Support\Facades\Auth;
-
-class ExamPaperController extends Controller
-{
     /**
      * Display a listing of the exam papers.
      */
     public function index(Request $request)
     {
+        $this->authorize('viewAny', ExamPaper::class);
         $query = ExamPaper::with(['uploadedBy', 'approvedBy']);
 
         // Apply filters
@@ -65,6 +52,7 @@ class ExamPaperController extends Controller
      */
     public function create()
     {
+        $this->authorize('create', ExamPaper::class);
         $subjects = Teacher::distinct()->pluck('subject_specialization')->filter()->sortBy('subject_specialization');
         $classSections = Student::distinct()->pluck('class')->filter()->sortBy('class');
         $examTypes = [
@@ -106,6 +94,7 @@ class ExamPaperController extends Controller
      */
     public function store(Request $request)
     {
+        $this->authorize('create', ExamPaper::class);
         $validator = Validator::make($request->all(), [
             'title' => 'required|string|max:255',
             'subject' => 'required|string|max:100',
@@ -207,6 +196,7 @@ class ExamPaperController extends Controller
      */
     public function show(ExamPaper $examPaper)
     {
+        $this->authorize('view', $examPaper);
         $examPaper->load(['uploadedBy', 'approvedBy']);
         return view('exam-papers.show', compact('examPaper'));
     }
@@ -216,6 +206,7 @@ class ExamPaperController extends Controller
      */
     public function edit(ExamPaper $examPaper)
     {
+        $this->authorize('update', $examPaper);
         $subjects = Teacher::distinct()->pluck('subject_specialization')->filter()->sortBy('subject_specialization');
         $classSections = Student::distinct()->pluck('class')->filter()->sortBy('class');
         $examTypes = [
@@ -257,6 +248,7 @@ class ExamPaperController extends Controller
      */
     public function update(Request $request, ExamPaper $examPaper)
     {
+        $this->authorize('update', $examPaper);
         $validator = Validator::make($request->all(), [
             'title' => 'required|string|max:255',
             'subject' => 'required|string|max:100',
@@ -357,6 +349,7 @@ class ExamPaperController extends Controller
      */
     public function destroy(ExamPaper $examPaper)
     {
+        $this->authorize('delete', $examPaper);
         // Delete the physical file
         if ($examPaper->file_path) {
             Storage::disk('public')->delete($examPaper->file_path);
@@ -373,6 +366,7 @@ class ExamPaperController extends Controller
      */
     public function download(ExamPaper $examPaper, Request $request)
     {
+        $this->authorize('view', $examPaper);
         // Check if user can access this file
         if (!$examPaper->canBeAccessedBy(Auth::user())) {
             abort(403, 'Unauthorized to access this file');
@@ -400,6 +394,7 @@ class ExamPaperController extends Controller
      */
     public function availableForClass(Request $request)
     {
+        $this->authorize('viewAny', ExamPaper::class);
         $classSection = $request->class_section;
         $academicYear = $request->academic_year ?: date('Y') . '-' . (date('Y') + 1);
 
@@ -419,6 +414,7 @@ class ExamPaperController extends Controller
      */
     public function search(Request $request)
     {
+        $this->authorize('viewAny', ExamPaper::class);
         $query = $request->input('query');
         $classSection = $request->input('class_section');
 
@@ -449,6 +445,7 @@ class ExamPaperController extends Controller
      */
     public function upcoming()
     {
+        $this->authorize('viewAny', ExamPaper::class);
         $upcomingExams = ExamPaper::getUpcomingExams(30); // Next 30 days
         return view('exam-papers.upcoming', compact('upcomingExams'));
     }
@@ -458,6 +455,7 @@ class ExamPaperController extends Controller
      */
     public function togglePublish(ExamPaper $examPaper)
     {
+        $this->authorize('update', $examPaper);
         $examPaper->is_published = !$examPaper->is_published;
         $examPaper->save();
 

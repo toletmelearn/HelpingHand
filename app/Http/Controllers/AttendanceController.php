@@ -17,6 +17,7 @@ class AttendanceController extends Controller
      */
     public function index(Request $request)
     {
+        $this->authorize('viewAny', Attendance::class);
         $query = Attendance::with(['student', 'teacher', 'markedBy']);
         
         // Filter by date
@@ -47,6 +48,7 @@ class AttendanceController extends Controller
      */
     public function create(Request $request)
     {
+        $this->authorize('create', Attendance::class);
         $date = $request->date ?? now()->toDateString();
         $class = $request->class;
         
@@ -78,6 +80,7 @@ class AttendanceController extends Controller
      */
     public function store(Request $request)
     {
+        $this->authorize('create', Attendance::class);
         // Handle bulk marking if classes are provided
         if ($request->filled('classes') && $request->filled('default_status')) {
             $request->validate([
@@ -185,6 +188,7 @@ class AttendanceController extends Controller
      */
     public function show(Attendance $attendance)
     {
+        $this->authorize('view', $attendance);
         $attendance->load(['student', 'teacher', 'markedBy']);
         return view('attendance.show', compact('attendance'));
     }
@@ -194,6 +198,7 @@ class AttendanceController extends Controller
      */
     public function reports(Request $request)
     {
+        $this->authorize('viewAny', Attendance::class);
         $date = $request->date ?? now()->toDateString();
         $class = $request->class;
         
@@ -219,6 +224,7 @@ class AttendanceController extends Controller
      */
     public function studentReport($studentId, Request $request)
     {
+        $this->authorize('view', [Attendance::class, Student::find($studentId)]);
         $month = $request->month ?? now()->month;
         $year = $request->year ?? now()->year;
         
@@ -233,6 +239,7 @@ class AttendanceController extends Controller
      */
     public function bulkMark(Request $request)
     {
+        $this->authorize('create', Attendance::class);
         $classes = Student::distinct()->pluck('class')->filter()->sortBy('class');
         return view('attendance.bulk_mark', compact('classes'));
     }
@@ -242,6 +249,7 @@ class AttendanceController extends Controller
      */
     public function export(Request $request)
     {
+        $this->authorize('viewAny', Attendance::class);
         $query = Attendance::query();
         
         if ($request->filled('from_date')) {
@@ -311,6 +319,7 @@ class AttendanceController extends Controller
      */
     public function destroy(Attendance $attendance)
     {
+        $this->authorize('delete', $attendance);
         $attendance->delete();
         
         return redirect()->route('attendance.index')

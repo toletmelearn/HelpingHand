@@ -13,6 +13,7 @@ class StudentController extends Controller
      */
     public function index()
     {
+        $this->authorize('viewAny', Student::class);
         $students = Student::all();
         return view('students.index', ['students' => $students]);
     }
@@ -22,6 +23,7 @@ class StudentController extends Controller
      */
     public function create()
     {
+        $this->authorize('create', Student::class);
         return view('students.create');
     }
 
@@ -30,15 +32,24 @@ class StudentController extends Controller
      */
     public function store(Request $request)
     {
+        $this->authorize('create', Student::class);
         // Validate the request data
         $validated = $request->validate([
             'name' => 'required|string|max:255',
             'father_name' => 'required|string|max:255',
             'mother_name' => 'required|string|max:255',
-            'date_of_birth' => 'required|date',
+            'date_of_birth' => 'required|date|before:today', // Ensure birth date is not in future
             'aadhar_number' => 'required|digits:12|unique:students',
             'address' => 'required|string',
-            'phone' => 'required|digits:10'
+            'phone' => 'required|digits:10',
+            'gender' => 'required|in:male,female,other',
+            'category' => 'required|in:General,OBC,SC,ST,Other',
+            'class' => 'required|string|max:50',
+            'section' => 'nullable|string|max:10',
+            'roll_number' => 'nullable|integer|unique:students',
+            'religion' => 'nullable|string|max:50',
+            'caste' => 'nullable|string|max:50',
+            'blood_group' => 'nullable|in:A+,A-,B+,B-,AB+,AB-,O+,O-,unknown'
         ]);
 
         // Create the student
@@ -54,6 +65,7 @@ class StudentController extends Controller
      */
     public function show($id)
     {
+        $this->authorize('view', [Student::class, Student::findOrFail($id)]);
         $student = Student::findOrFail($id);
         return view('students.show', ['student' => $student]);
     }
@@ -63,6 +75,7 @@ class StudentController extends Controller
      */
     public function edit($id)
     {
+        $this->authorize('update', [Student::class, Student::findOrFail($id)]);
         $student = Student::findOrFail($id);
         return view('students.edit', ['student' => $student]);
     }
@@ -72,16 +85,25 @@ class StudentController extends Controller
      */
     public function update(Request $request, $id)
     {
+        $this->authorize('update', [Student::class, Student::findOrFail($id)]);
         $student = Student::findOrFail($id);
         
         $validated = $request->validate([
             'name' => 'required|string|max:255',
             'father_name' => 'required|string|max:255',
             'mother_name' => 'required|string|max:255',
-            'date_of_birth' => 'required|date',
+            'date_of_birth' => 'required|date|before:today', // Ensure birth date is not in future
             'aadhar_number' => 'required|digits:12|unique:students,aadhar_number,'.$id,
             'address' => 'required|string',
-            'phone' => 'required|digits:10'
+            'phone' => 'required|digits:10',
+            'gender' => 'required|in:male,female,other',
+            'category' => 'required|in:General,OBC,SC,ST,Other',
+            'class' => 'required|string|max:50',
+            'section' => 'nullable|string|max:10',
+            'roll_number' => 'nullable|integer|unique:students,roll_number,'.$id,
+            'religion' => 'nullable|string|max:50',
+            'caste' => 'nullable|string|max:50',
+            'blood_group' => 'nullable|in:A+,A-,B+,B-,AB+,AB-,O+,O-,unknown'
         ]);
 
         $student->update($validated);
@@ -95,6 +117,7 @@ class StudentController extends Controller
      */
     public function destroy($id)
     {
+        $this->authorize('delete', [Student::class, Student::findOrFail($id)]);
         $student = Student::findOrFail($id);
         $student->delete();
         
