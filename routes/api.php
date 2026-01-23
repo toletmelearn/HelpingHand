@@ -21,12 +21,12 @@ use App\Http\Controllers\API\BellTimingController;
 // Version 1 API routes
 Route::prefix('v1')->group(function () {
     // Public routes
-    Route::get('/exam-papers/available/{classSection}', [ExamPaperController::class, 'availableForClass'])->name('api.exam-papers.available-for-class');
-    Route::post('/exam-papers/search', [ExamPaperController::class, 'search'])->name('api.exam-papers.search');
-    Route::get('/bell-timing/today/{classSection}', [BellTimingController::class, 'todaysSchedule'])->name('api.bell-timing.today');
+    Route::get('/exam-papers/available/{classSection}', [ExamPaperController::class, 'availableForClass'])->name('api.exam-papers.available-for-class')->middleware('throttle:10,1');
+    Route::post('/exam-papers/search', [ExamPaperController::class, 'search'])->name('api.exam-papers.search')->middleware('throttle:10,1');
+    Route::get('/bell-timing/today/{classSection}', [BellTimingController::class, 'todaysSchedule'])->name('api.bell-timing.today')->middleware('throttle:10,1');
     
     // Protected routes
-    Route::middleware('auth:sanctum')->group(function () {
+    Route::middleware(['auth:sanctum', 'throttle:60,1'])->group(function () {
         // Student routes
         Route::apiResource('students', StudentController::class);
         Route::get('/students/{id}/attendance', [StudentController::class, 'attendance'])->name('api.students.attendance');
@@ -54,6 +54,12 @@ Route::prefix('v1')->group(function () {
         Route::get('/bell-timing/weekly/{classSection}', [BellTimingController::class, 'weeklyTimetable'])->name('api.bell-timing.weekly');
         Route::get('/bell-timing/current-period', [BellTimingController::class, 'currentPeriod'])->name('api.bell-timing.current-period');
         Route::post('/bell-timing/bulk-create', [BellTimingController::class, 'bulkCreate'])->name('api.bell-timing.bulk-create');
+        
+        // Notification routes
+        Route::get('/notifications', [App\Http\Controllers\Api\NotificationController::class, 'index'])->name('api.notifications.index');
+        Route::put('/notifications/{id}/read', [App\Http\Controllers\Api\NotificationController::class, 'markAsRead'])->name('api.notifications.mark-as-read');
+        Route::put('/notifications/mark-all-read', [App\Http\Controllers\Api\NotificationController::class, 'markAllAsRead'])->name('api.notifications.mark-all-read');
+        Route::get('/notifications/unread-count', [App\Http\Controllers\Api\NotificationController::class, 'unreadCount'])->name('api.notifications.unread-count');
     });
 });
 

@@ -224,7 +224,7 @@ class ExamPaper extends Model
 
         return $query->orderBy('exam_date', 'desc')
                     ->orderBy('created_at', 'desc')
-                    ->get();
+                    ->paginate(15); // Changed from get() to paginate()
     }
 
     public static function getBySubjectAndClass($subject, $classSection, $academicYear = null)
@@ -257,7 +257,7 @@ class ExamPaper extends Model
                    ->where('exam_date', '>=', now())
                    ->where('exam_date', '<=', now()->addDays($days))
                    ->orderBy('exam_date')
-                   ->get();
+                   ->paginate(15); // Changed from get() to paginate()
     }
 
     public function getExamTypeInfo()

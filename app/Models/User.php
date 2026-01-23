@@ -6,6 +6,8 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Database\Eloquent\Relations\MorphMany;
+use Spatie\Activitylog\Traits\LogsActivity;
 use App\Models\Student;
 use App\Models\Teacher;
 use App\Models\Guardian;
@@ -110,5 +112,18 @@ class User extends Authenticatable
             }
         }
         return true;
+    }
+    
+    public function notifications()
+    {
+        return $this->morphMany(\Illuminate\Notifications\DatabaseNotification::class, 'notifiable')
+                    ->orderBy('created_at', 'desc');
+    }
+    
+    public function unreadNotifications()
+    {
+        return $this->morphMany(\Illuminate\Notifications\DatabaseNotification::class, 'notifiable')
+                    ->whereNull('read_at')
+                    ->orderBy('created_at', 'desc');
     }
 }

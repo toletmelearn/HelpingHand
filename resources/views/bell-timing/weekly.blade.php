@@ -14,6 +14,9 @@
             <a href="{{ route('bell-timing.create') }}" class="btn btn-primary">
                 <i class="bi bi-plus-circle"></i> Add Schedule
             </a>
+            <a href="{{ route('bell-timing.print') }}?class_section={{ request('class_section') }}&academic_year={{ request('academic_year') }}" class="btn btn-info ms-2">
+                <i class="bi bi-printer"></i> Print View
+            </a>
         </div>
     </div>
 

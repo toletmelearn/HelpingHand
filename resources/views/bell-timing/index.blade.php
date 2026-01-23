@@ -42,6 +42,9 @@
                 <a href="{{ route('bell-timing.weekly') }}" class="btn btn-info">
                     <i class="bi bi-calendar-week"></i> Weekly View
                 </a>
+                <a href="{{ route('bell-timing.print') }}" class="btn btn-info ms-2">
+                    <i class="bi bi-printer"></i> Print View
+                </a>
                 <a href="{{ route('bell-timing.bulk-create') }}" class="btn btn-success">
                     <i class="bi bi-file-earmark-plus"></i> Bulk Create
                 </a>

@@ -1,3 +1,16 @@
+<?php
+
+namespace App\Http\Controllers;
+
+use App\Models\BellTiming;
+use App\Models\Student;
+use App\Models\User;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
+use Carbon\Carbon;
+
+class BellTimingController extends Controller
+{
     /**
      * Display a listing of the bell timings.
      */
@@ -340,5 +353,26 @@
         return redirect()->route('bell-timing.index')
                          ->with('success', $message)
                          ->with('errors', $errors);
+    }
+
+    /**
+     * Display print-friendly timetable for a class.
+     */
+    public function printTimetable(Request $request)
+    {
+        $this->authorize('viewAny', BellTiming::class);
+        $classSection = $request->class_section;
+        $academicYear = $request->academic_year ?: date('Y') . '-' . (date('Y') + 1);
+
+        if ($classSection) {
+            $timetable = BellTiming::getTimetableForClass($classSection, $academicYear);
+        } else {
+            $timetable = collect();
+        }
+
+        $classSections = Student::distinct()->pluck('class')->filter()->sortBy('class');
+        $academicYears = BellTiming::distinct()->pluck('academic_year')->filter();
+
+        return view('bell-timing.print', compact('timetable', 'classSection', 'academicYear', 'classSections', 'academicYears'));
     }
 }

@@ -78,4 +78,61 @@ class Student extends Model
     {
         return $query->where('class', $class);
     }
+
+    /**
+     * Get statistics for the students dashboard
+     */
+    public static function getStatistics()
+    {
+        $total = self::count();
+        $male = self::where('gender', 'male')->count();
+        $female = self::where('gender', 'female')->count();
+        $other = self::where('gender', 'other')->count();
+
+        $malePercentage = $total > 0 ? round(($male / $total) * 100, 2) : 0;
+        $femalePercentage = $total > 0 ? round(($female / $total) * 100, 2) : 0;
+        $otherPercentage = $total > 0 ? round(($other / $total) * 100, 2) : 0;
+
+        // Class-wise distribution
+        $classWise = self::selectRaw('
+            class,
+            COUNT(*) as total,
+            SUM(CASE WHEN gender = "male" THEN 1 ELSE 0 END) as male,
+            SUM(CASE WHEN gender = "female" THEN 1 ELSE 0 END) as female,
+            SUM(CASE WHEN gender = "other" THEN 1 ELSE 0 END) as other
+        ')
+        ->groupBy('class')
+        ->orderBy('class')
+        ->get();
+
+        // Category-wise distribution
+        $categories = ['General', 'OBC', 'SC', 'ST'];
+        $categoryWise = [];
+        foreach ($categories as $category) {
+            $categoryData = self::where('category', $category)->get();
+            $categoryWise[$category] = [
+                'total' => $categoryData->count(),
+                'male' => $categoryData->where('gender', 'male')->count(),
+                'female' => $categoryData->where('gender', 'female')->count(),
+                'other' => $categoryData->where('gender', 'other')->count(),
+            ];
+        }
+
+        return [
+            'total' => $total,
+            'male' => $male,
+            'female' => $female,
+            'other' => $other,
+            'male_percentage' => $malePercentage,
+            'female_percentage' => $femalePercentage,
+            'other_percentage' => $otherPercentage,
+            'gender_wise' => [
+                'male' => $male,
+                'female' => $female,
+                'other' => $other,
+            ],
+            'class_wise' => $classWise,
+            'category_wise' => $categoryWise,
+        ];
+    }
 }

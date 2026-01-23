@@ -99,6 +99,27 @@ class BellTiming extends Model
         return '00:00';
     }
 
+    public function getDurationFormattedAttribute()
+    {
+        if ($this->start_time && $this->end_time) {
+            $start = strtotime($this->start_time->format('H:i:s'));
+            $end = strtotime($this->end_time->format('H:i:s'));
+            
+            if ($end >= $start) {
+                $duration = $end - $start;
+                $hours = floor($duration / 3600);
+                $minutes = floor(($duration % 3600) / 60);
+                
+                if ($hours > 0) {
+                    return $hours . 'h ' . $minutes . 'm';
+                } else {
+                    return $minutes . 'm';
+                }
+            }
+        }
+        return '0m';
+    }
+
     public function getDayOrderAttribute()
     {
         $daysOrder = [
@@ -207,6 +228,7 @@ class BellTiming extends Model
             return self::PERIOD_TYPE_REGULAR;
         }
     }
+
     
     /**
      * Get the user who created this bell timing.

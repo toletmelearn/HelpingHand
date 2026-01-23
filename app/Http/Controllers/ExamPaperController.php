@@ -1,3 +1,17 @@
+<?php
+
+namespace App\Http\Controllers;
+
+use App\Models\ExamPaper;
+use App\Models\Student;
+use App\Models\Teacher;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Facades\Auth;
+
+class ExamPaperController extends Controller
+{
     /**
      * Display a listing of the exam papers.
      */
@@ -386,7 +400,8 @@
         $examPaper->incrementDownloadCount();
 
         // Return file download
-        return Storage::disk('public')->download($examPaper->file_path, $examPaper->file_name);
+        $pathToFile = storage_path('app/public/' . $examPaper->file_path);
+        return response()->download($pathToFile, $examPaper->file_name);
     }
 
     /**
@@ -405,8 +420,9 @@
         }
 
         $classSections = Student::distinct()->pluck('class')->filter()->sortBy('class');
+        $academicYears = ExamPaper::distinct()->pluck('academic_year')->filter();
 
-        return view('exam-papers.available', compact('papers', 'classSection', 'academicYear', 'classSections'));
+        return view('exam-papers.available', compact('papers', 'classSection', 'academicYear', 'classSections', 'academicYears'));
     }
 
     /**

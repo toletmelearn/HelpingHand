@@ -141,4 +141,123 @@ class Teacher extends Model
             'profile_image' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
         ];
     }
+
+    /**
+     * Get statistics for the teachers dashboard
+     */
+    public static function getStatistics()
+    {
+        $total = self::count();
+        $male = self::where('gender', 'male')->count();
+        $female = self::where('gender', 'female')->count();
+        
+        // Wing-wise distribution (based on designation)
+        $wingWise = [
+            'primary' => [
+                'total' => 0,
+                'male' => 0,
+                'female' => 0,
+                'PRT' => 0,
+                'TGT' => 0,
+            ],
+            'junior' => [
+                'total' => 0,
+                'male' => 0,
+                'female' => 0,
+                'PRT' => 0,
+                'TGT' => 0,
+            ],
+            'senior' => [
+                'total' => 0,
+                'male' => 0,
+                'female' => 0,
+                'TGT' => 0,
+                'PGT' => 0,
+            ],
+        ];
+        
+        // Get all teachers and categorize them
+        $allTeachers = self::all();
+        foreach ($allTeachers as $teacher) {
+            $designation = strtoupper($teacher->designation);
+            $gender = $teacher->gender;
+            
+            // Determine wing based on designation
+            if (stripos($designation, 'PRT') !== false) {
+                $wing = 'primary';
+            } elseif (stripos($designation, 'TGT') !== false) {
+                // TGT can be in primary or junior, but let's assign to junior
+                $wing = 'junior';
+            } elseif (stripos($designation, 'PGT') !== false) {
+                $wing = 'senior';
+            } elseif (stripos($designation, 'PRIMARY') !== false) {
+                $wing = 'primary';
+            } elseif (stripos($designation, 'JUNIOR') !== false) {
+                $wing = 'junior';
+            } elseif (stripos($designation, 'SENIOR') !== false) {
+                $wing = 'senior';
+            } else {
+                // Default assignment - could be improved based on subject or department
+                $wing = 'junior'; // Default to junior
+            }
+            
+            $wingWise[$wing]['total']++;
+            if ($gender === 'male') {
+                $wingWise[$wing]['male']++;
+            } else {
+                $wingWise[$wing]['female']++;
+            }
+            
+            if (stripos($designation, 'PRT') !== false) {
+                $wingWise[$wing]['PRT']++;
+            } elseif (stripos($designation, 'TGT') !== false) {
+                $wingWise[$wing]['TGT']++;
+            } elseif (stripos($designation, 'PGT') !== false) {
+                $wingWise[$wing]['PGT']++;
+            }
+            
+            // Track type-wise distribution
+            if (!isset($typeWise[$teacher->designation])) {
+                $typeWise[$teacher->designation] = [
+                    'total' => 0,
+                    'male' => 0,
+                    'female' => 0,
+                ];
+            }
+            $typeWise[$teacher->designation]['total']++;
+            if ($gender === 'male') {
+                $typeWise[$teacher->designation]['male']++;
+            } else {
+                $typeWise[$teacher->designation]['female']++;
+            }
+        }
+        
+        // Type-wise distribution - collect from our categorized loop
+        $typeWise = [];
+        
+        // Gender by wing for charts
+        $genderWingWise = [
+            'primary' => [
+                'male' => $wingWise['primary']['male'],
+                'female' => $wingWise['primary']['female'],
+            ],
+            'junior' => [
+                'male' => $wingWise['junior']['male'],
+                'female' => $wingWise['junior']['female'],
+            ],
+            'senior' => [
+                'male' => $wingWise['senior']['male'],
+                'female' => $wingWise['senior']['female'],
+            ],
+        ];
+        
+        return [
+            'total' => $total,
+            'male' => $male,
+            'female' => $female,
+            'wing_wise' => $wingWise,
+            'type_wise' => $typeWise,
+            'gender_wing_wise' => $genderWingWise,
+        ];
+    }
 }

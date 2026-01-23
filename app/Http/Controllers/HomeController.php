@@ -15,20 +15,20 @@ class HomeController extends Controller
     public function index()
     {
         $user = Auth::user();
-        $dashboardData = [];
         
-        // Load dashboard based on user role
-        if ($user && ($user->hasRole('admin') || $user->hasRole('teacher'))) {
-            $dashboardData = [
-                'students' => \App\Models\Student::count(),
-                'teachers' => \App\Models\Teacher::count(),
-                'attendance' => \App\Models\Attendance::count(),
-                'bell_timing' => \App\Models\BellTiming::count(),
-                'exam_papers' => \App\Models\ExamPaper::count()
-            ];
+        // Redirect user based on their role
+        if ($user && $user->hasRole('admin')) {
+            return redirect()->route('admin.dashboard');
+        } elseif ($user && $user->hasRole('teacher')) {
+            return redirect()->route('teachers.dashboard');
+        } elseif ($user && $user->hasRole('student')) {
+            return redirect()->route('students.dashboard');
+        } elseif ($user && $user->hasRole('parent')) {
+            return redirect()->route('parent.dashboard');
+        } else {
+            // Default fallback
+            return redirect()->route('students.dashboard');
         }
-        
-        return view('home.index', compact('dashboardData'));
     }
 
     /**

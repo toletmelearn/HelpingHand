@@ -45,6 +45,20 @@ Route::middleware(['auth'])->group(function () {
     // Dashboard
     Route::get('/home', [HomeController::class, 'index'])->name('home');
     
+    // Role-specific dashboards
+    Route::get('/admin/dashboard', function () {
+        return view('admin-dashboard');
+    })->name('admin.dashboard');
+    
+    Route::get('/parent/dashboard', function () {
+        return view('parent-dashboard');
+    })->name('parent.dashboard');
+    
+    // Notification routes
+    Route::get('/notifications', [App\Http\Controllers\NotificationController::class, 'index'])->name('notifications.index');
+    Route::put('/notifications/{id}/read', [App\Http\Controllers\NotificationController::class, 'markAsRead'])->name('notifications.mark-as-read');
+    Route::put('/notifications/mark-all-read', [App\Http\Controllers\NotificationController::class, 'markAllAsRead'])->name('notifications.mark-all-read');
+    
     // =======================
     // STUDENT ROUTES
     // =======================
@@ -56,8 +70,9 @@ Route::middleware(['auth'])->group(function () {
         return view('students.dashboard', compact('stats'));
     })->name('students.dashboard');
     
-    // Student CSV
+    // Student CSV/Excel
     Route::get('/students/export/csv', [StudentController::class, 'exportCSV'])->name('students.export.csv');
+    Route::get('/students/export/excel', [StudentController::class, 'exportExcel'])->name('students.export.excel');
     Route::post('/students/import/csv', [StudentController::class, 'importCSV'])->name('students.import.csv');
     
     // =======================
@@ -81,28 +96,38 @@ Route::middleware(['auth'])->group(function () {
     // =======================
     // ATTENDANCE ROUTES
     // =======================
-    Route::resource('attendance', AttendanceController::class);
+    // IMPORTANT: Custom routes FIRST to avoid conflicts with resource routes
     Route::get('/attendance/reports', [AttendanceController::class, 'reports'])->name('attendance.reports');
     Route::get('/attendance/student/{studentId}/report', [AttendanceController::class, 'studentReport'])->name('attendance.student.report');
     Route::get('/attendance/bulk-mark', [AttendanceController::class, 'bulkMark'])->name('attendance.bulk');
     Route::get('/attendance/export', [AttendanceController::class, 'export'])->name('attendance.export');
     
+    // Resource routes LAST
+    Route::resource('attendance', AttendanceController::class);
+    
     // =======================
     // BELL TIMING ROUTES
     // =======================
-    Route::resource('bell-timing', BellTimingController::class);
+    // IMPORTANT: Custom routes FIRST to avoid conflicts
     Route::get('/bell-timing/weekly', [BellTimingController::class, 'weeklyTimetable'])->name('bell-timing.weekly');
     Route::get('/bell-timing/daily', [BellTimingController::class, 'todaysSchedule'])->name('bell-timing.daily');
     Route::get('/bell-timing/current-period', [BellTimingController::class, 'currentPeriod'])->name('bell-timing.current-period');
+    Route::get('/bell-timing/print', [BellTimingController::class, 'printTimetable'])->name('bell-timing.print');
     Route::match(['get', 'post'], '/bell-timing/bulk-create', [BellTimingController::class, 'bulkCreate'])->name('bell-timing.bulk-create');
+    
+    // Resource routes LAST
+    Route::resource('bell-timing', BellTimingController::class);
     
     // =======================
     // EXAM PAPER ROUTES
     // =======================
-    Route::resource('exam-papers', ExamPaperController::class);
+    // IMPORTANT: Custom routes FIRST to avoid conflicts
     Route::get('/exam-papers/download/{examPaper}', [ExamPaperController::class, 'download'])->name('exam-papers.download');
     Route::get('/exam-papers/available', [ExamPaperController::class, 'availableForClass'])->name('exam-papers.available');
     Route::get('/exam-papers/search', [ExamPaperController::class, 'search'])->name('exam-papers.search');
     Route::get('/exam-papers/upcoming', [ExamPaperController::class, 'upcoming'])->name('exam-papers.upcoming');
     Route::patch('/exam-papers/{examPaper}/toggle-publish', [ExamPaperController::class, 'togglePublish'])->name('exam-papers.toggle-publish');
+    
+    // Resource routes LAST
+    Route::resource('exam-papers', ExamPaperController::class);
 });
