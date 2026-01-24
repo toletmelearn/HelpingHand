@@ -86,13 +86,31 @@
                             <a href="{{ route('exam-papers.index') }}" class="btn btn-warning w-100">Exam Papers</a>
                         </div>
                         <div class="col-md-3 mb-3">
-                            <a href="{{ route('users.index') ?? '#' }}" class="btn btn-dark w-100">Manage Users</a>
+                            <a href="{{ route('users.index') }}" class="btn btn-dark w-100">Manage Users</a>
                         </div>
                         <div class="col-md-3 mb-3">
-                            <a href="{{ route('reports.index') ?? '#' }}" class="btn btn-light border w-100">Reports</a>
+                            <a href="{{ route('admin.exams.index') }}" class="btn btn-primary w-100">Manage Exams</a>
                         </div>
                         <div class="col-md-3 mb-3">
-                            <a href="{{ route('settings.index') ?? '#' }}" class="btn btn-outline-secondary w-100">Settings</a>
+                            <a href="{{ route('admin.results.index') }}" class="btn btn-success w-100">Manage Results</a>
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <a href="{{ route('admin.fees.index') }}" class="btn btn-warning w-100">Manage Fees</a>
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <a href="{{ route('admin.fee-structures.index') }}" class="btn btn-info w-100">Fee Structures</a>
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <a href="{{ route('profile.two-factor-authentication') }}" class="btn btn-outline-secondary w-100">Settings</a>
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <a href="{{ route('admin.role-permissions.index') }}" class="btn btn-dark w-100">Manage Permissions</a>
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <a href="{{ route('admin.admit-card-formats.index') }}" class="btn btn-info w-100">Admit Card Formats</a>
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <a href="{{ route('admin.admit-cards.index') }}" class="btn btn-warning w-100">Manage Admit Cards</a>
                         </div>
                     </div>
                 </div>

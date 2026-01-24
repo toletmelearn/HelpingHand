@@ -52,6 +52,26 @@ class Teacher extends Model
         return $this->belongsToMany(ClassManagement::class, 'class_teacher', 'teacher_id', 'class_id');
     }
 
+    public function documents()
+    {
+        return $this->hasMany(TeacherDocument::class);
+    }
+
+    public function experiences()
+    {
+        return $this->hasMany(TeacherExperience::class);
+    }
+
+    public function leaves()
+    {
+        return $this->hasMany(TeacherLeave::class);
+    }
+
+    public function salaries()
+    {
+        return $this->hasMany(TeacherSalary::class);
+    }
+
     // Accessors
     public function getFullNameAttribute()
     {

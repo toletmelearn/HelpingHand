@@ -94,4 +94,40 @@ class ExamPaperPolicy
     {
         return $user->hasRole('admin');
     }
+    
+    public function submit(User $user, ExamPaper $examPaper): bool
+    {
+        if ($user->hasRole('admin')) {
+            return true;
+        }
+        
+        if ($user->hasRole('teacher')) {
+            return $examPaper->uploaded_by === $user->id && $examPaper->status === 'draft';
+        }
+        
+        return false;
+    }
+    
+    public function approve(User $user, ExamPaper $examPaper): bool
+    {
+        return $user->hasRole('admin');
+    }
+    
+    public function lock(User $user, ExamPaper $examPaper): bool
+    {
+        return $user->hasRole('admin');
+    }
+    
+    public function clone(User $user, ExamPaper $examPaper): bool
+    {
+        if ($user->hasRole('admin')) {
+            return true;
+        }
+        
+        if ($user->hasRole('teacher')) {
+            return $examPaper->uploaded_by === $user->id;
+        }
+        
+        return false;
+    }
 }

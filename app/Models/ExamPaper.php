@@ -41,7 +41,16 @@ class ExamPaper extends Model
         'access_password',
         'valid_from',
         'valid_until',
-        'metadata'             // Additional metadata as JSON
+        'metadata',            // Additional metadata as JSON
+        'exam_id',             // Link to specific exam
+        'version',             // Version control
+        'status',              // draft, submitted, approved, locked, revoked
+        'revision_notes',      // Revision history
+        'print_count',         // Print tracking
+        'confidential_flag',   // Confidential marking
+        'template_used',       // Template used to create the paper
+        'questions_data',      // Store typed questions
+        'auto_calculated_total' // Auto-calculated total marks
     ];
 
     protected $casts = [
@@ -56,9 +65,15 @@ class ExamPaper extends Model
         'download_count' => 'integer',
         'duration_minutes' => 'integer',
         'total_marks' => 'integer',
+        'auto_calculated_total' => 'integer',
+        'print_count' => 'integer',
+        'version' => 'integer',
+        'confidential_flag' => 'boolean',
         'allowed_classes' => 'array',
         'marks_distribution' => 'array',
         'metadata' => 'array',
+        'questions_data' => 'array',
+        'revision_notes' => 'array',
         'created_at' => 'datetime',
         'updated_at' => 'datetime'
     ];
@@ -319,5 +334,79 @@ class ExamPaper extends Model
     public function exam()
     {
         return $this->belongsTo(Exam::class, 'exam_id');
+    }
+    
+    // Status transition methods
+    public function canTransitionTo($newStatus): bool
+    {
+        $transitions = [
+            'draft' => ['submitted'],
+            'submitted' => ['approved', 'rejected'],
+            'approved' => ['locked'],
+            'rejected' => ['draft'],
+            'locked' => [], // Locked papers cannot be changed
+        ];
+        
+        $currentTransitions = $transitions[$this->status] ?? [];
+        return in_array($newStatus, $currentTransitions);
+    }
+    
+    public function transitionTo($newStatus, $userId = null, $notes = ''): bool
+    {
+        if (!$this->canTransitionTo($newStatus)) {
+            return false;
+        }
+        
+        $updateData = ['status' => $newStatus];
+        
+        if ($newStatus === 'approved' && $userId) {
+            $updateData['approved_by'] = $userId;
+            $updateData['is_approved'] = true;
+        }
+        
+        // Add to revision history
+        $revisionHistory = $this->revision_notes ?? [];
+        $revisionHistory[] = [
+            'status' => $newStatus,
+            'changed_by' => $userId,
+            'changed_at' => now()->toISOString(),
+            'notes' => $notes,
+        ];
+        $updateData['revision_notes'] = $revisionHistory;
+        
+        return $this->update($updateData);
+    }
+    
+    // Auto-calculate total marks from questions data
+    public function calculateTotalMarks(): int
+    {
+        $total = 0;
+        $questions = $this->questions_data ?? [];
+        
+        foreach ($questions as $question) {
+            $total += intval($question['marks'] ?? 0);
+        }
+        
+        return $total;
+    }
+    
+    // Increment print count
+    public function incrementPrintCount()
+    {
+        $this->increment('print_count');
+    }
+    
+    // Check if teacher can edit
+    public function canTeacherEdit($teacherId): bool
+    {
+        // Teacher can only edit if they created it and it's still in draft/submitted status
+        return $this->created_by == $teacherId && in_array($this->status, ['draft', 'submitted', 'rejected']);
+    }
+    
+    // Check if admin can edit
+    public function canAdminEdit(): bool
+    {
+        // Admin can edit if not locked
+        return $this->status !== 'locked';
     }
 }

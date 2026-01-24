@@ -8,6 +8,7 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Spatie\Activitylog\Traits\LogsActivity;
+use Laravel\Fortify\TwoFactorAuthenticatable;
 use App\Models\Student;
 use App\Models\Teacher;
 use App\Models\Guardian;
@@ -15,7 +16,7 @@ use App\Models\Role;
 
 class User extends Authenticatable
 {
-    use HasFactory, Notifiable;
+    use HasFactory, Notifiable, TwoFactorAuthenticatable;
 
     /**
      * The attributes that are mass assignable.
@@ -31,7 +32,10 @@ class User extends Authenticatable
         'role',
         'status',
         'last_login_at',
-        'last_login_ip'
+        'last_login_ip',
+        'two_factor_secret',
+        'two_factor_recovery_codes',
+        'two_factor_confirmed_at'
     ];
 
     /**
@@ -42,6 +46,8 @@ class User extends Authenticatable
     protected $hidden = [
         'password',
         'remember_token',
+        'two_factor_secret',
+        'two_factor_recovery_codes'
     ];
 
     /**
@@ -52,7 +58,8 @@ class User extends Authenticatable
     protected $casts = [
         'email_verified_at' => 'datetime',
         'password' => 'hashed',
-        'last_login_at' => 'datetime'
+        'last_login_at' => 'datetime',
+        'two_factor_confirmed_at' => 'datetime'
     ];
 
     // Relationships
@@ -125,5 +132,29 @@ class User extends Authenticatable
         return $this->morphMany(\Illuminate\Notifications\DatabaseNotification::class, 'notifiable')
                     ->whereNull('read_at')
                     ->orderBy('created_at', 'desc');
+    }
+    
+    // Check if user has permission through roles
+    public function hasPermission($permissionName): bool
+    {
+        foreach ($this->roles as $role) {
+            if ($role->hasPermission($permissionName)) {
+                return true;
+            }
+        }
+        
+        return false;
+    }
+    
+    // Get all permissions for the user
+    public function getAllPermissions()
+    {
+        $permissions = collect();
+        
+        foreach ($this->roles as $role) {
+            $permissions = $permissions->merge($role->permissions);
+        }
+        
+        return $permissions->unique('id');
     }
 }

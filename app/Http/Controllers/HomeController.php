@@ -24,7 +24,7 @@ class HomeController extends Controller
         } elseif ($user && $user->hasRole('student')) {
             return redirect()->route('students.dashboard');
         } elseif ($user && $user->hasRole('parent')) {
-            return redirect()->route('parent.dashboard');
+            return redirect()->route('parents.dashboard');
         } else {
             // Default fallback
             return redirect()->route('students.dashboard');

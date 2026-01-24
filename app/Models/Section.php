@@ -2,24 +2,26 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Section extends Model
 {
+    use HasFactory, SoftDeletes;
+
     protected $fillable = [
-        'name', 'description', 'capacity', 'class_id', 'is_active'
+        'name',
+        'capacity',
+        'description'
     ];
-    
-    // Define relationship with students
-    public function students(): HasMany
+
+    protected $casts = [
+        'capacity' => 'integer',
+    ];
+
+    public function classes()
     {
-        return $this->hasMany(Student::class, 'section_id');
-    }
-    
-    // Define relationship with class
-    public function class()
-    {
-        return $this->belongsTo(ClassManagement::class, 'class_id');
+        return $this->hasMany(SchoolClass::class);
     }
 }

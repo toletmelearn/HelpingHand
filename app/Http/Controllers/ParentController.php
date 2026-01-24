@@ -50,11 +50,29 @@ class ParentController extends Controller
             abort(404, 'Child not found');
         }
         
-        $attendanceRecords = $child->attendances()->latest()->limit(30)->get();
-        $recentResults = $child->results()->latest()->limit(5)->get();
-        $feeHistory = $child->fees()->latest()->limit(10)->get();
+        // Calculate attendance stats
+        $totalDays = $child->attendances->count();
+        $presentDays = $child->attendances->where('status', 'present')->count();
+        $absentDays = $totalDays - $presentDays;
+        $attendancePercentage = $totalDays > 0 ? round(($presentDays / $totalDays) * 100, 2) : 0;
         
-        return view('parents.child-details', compact('child', 'attendanceRecords', 'recentResults', 'feeHistory'));
+        $attendanceStats = [
+            'total_days' => $totalDays,
+            'present_days' => $presentDays,
+            'absent_days' => $absentDays,
+            'percentage' => $attendancePercentage
+        ];
+        
+        // Get recent attendances
+        $recentAttendances = $child->attendances()->latest()->limit(10)->get();
+        
+        // Get all results
+        $results = $child->results()->with('exam')->get();
+        
+        // Get all fees
+        $fees = $child->fees()->get();
+        
+        return view('parents.child-details', compact('child', 'attendanceStats', 'recentAttendances', 'results', 'fees'));
     }
     
     /**

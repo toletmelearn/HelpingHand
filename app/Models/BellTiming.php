@@ -177,15 +177,29 @@ class BellTiming extends Model
 
     public static function getWeeklySchedule($classSection = null)
     {
-        $query = self::where('is_active', true)
-                     ->orderBy('getDayOrderAttribute')
-                     ->orderBy('order_index');
+        $query = self::where('is_active', true);
         
         if ($classSection) {
             $query->where('class_section', $classSection);
         }
         
-        return $query->get();
+        $results = $query->get();
+        
+        // Define day order mapping
+        $daysOrder = [
+            self::MONDAY => 1,
+            self::TUESDAY => 2,
+            self::WEDNESDAY => 3,
+            self::THURSDAY => 4,
+            self::FRIDAY => 5,
+            self::SATURDAY => 6,
+            self::SUNDAY => 7
+        ];
+        
+        // Sort by day order and then by order_index
+        return $results->sortBy(function ($item) use ($daysOrder) {
+            return $daysOrder[$item->day_of_week] ?? 99;
+        })->sortBy('order_index')->values();
     }
 
     public static function getTimetableForClass($classSection, $academicYear = null)
@@ -197,9 +211,23 @@ class BellTiming extends Model
             $query->where('academic_year', $academicYear);
         }
         
-        return $query->orderBy('getDayOrderAttribute')
-                    ->orderBy('order_index')
-                    ->get();
+        $results = $query->get();
+        
+        // Define day order mapping
+        $daysOrder = [
+            self::MONDAY => 1,
+            self::TUESDAY => 2,
+            self::WEDNESDAY => 3,
+            self::THURSDAY => 4,
+            self::FRIDAY => 5,
+            self::SATURDAY => 6,
+            self::SUNDAY => 7
+        ];
+        
+        // Sort by day order and then by order_index
+        return $results->sortBy(function ($item) use ($daysOrder) {
+            return $daysOrder[$item->day_of_week] ?? 99;
+        })->sortBy('order_index')->values();
     }
 
     public function getFormattedTimeRange()

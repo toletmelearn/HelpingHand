@@ -18,7 +18,7 @@ class Student extends Model
     protected $fillable = [
         'name', 'father_name', 'mother_name', 'date_of_birth', 'aadhar_number', 
         'phone', 'gender', 'category', 'class', 'section', 'roll_number', 
-        'religion', 'caste', 'blood_group', 'address', 'user_id'
+        'religion', 'caste', 'blood_group', 'address', 'user_id', 'is_verified'
     ];
 
     protected $dates = ['date_of_birth'];
@@ -55,6 +55,11 @@ class Student extends Model
     public function results()
     {
         return $this->hasMany(Result::class);
+    }
+
+    public function documents()
+    {
+        return $this->hasMany(StudentDocument::class);
     }
 
     // Accessors

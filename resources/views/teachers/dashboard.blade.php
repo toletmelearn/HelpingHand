@@ -1,34 +1,26 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Teachers Dashboard - HelpingHand</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <style>
-        .wing-card-primary { border-left: 4px solid #ff6b6b; }
-        .wing-card-junior { border-left: 4px solid #4ecdc4; }
-        .wing-card-senior { border-left: 4px solid #45b7d1; }
-        .type-card { border-radius: 10px; }
-    </style>
-</head>
-<body>
-    <div class="container-fluid mt-3">
-        <!-- Header -->
-        <div class="d-flex justify-content-between align-items-center mb-4">
-            <h1 class="h3">
-                👨‍🏫 Teachers Dashboard
-                <small class="text-muted fs-6">Staff Analytics</small>
-            </h1>
-            <div>
-                <a href="{{ url('/teachers') }}" class="btn btn-outline-info">
-                    📋 Teacher List
-                </a>
-                <a href="{{ url('/teachers/create') }}" class="btn btn-success ms-2">
-                    ➕ Add Teacher
-                </a>
-            </div>
+@extends('layouts.app')
+
+@section('title', 'Teacher Dashboard')
+
+@section('content')
+<div class="container mt-4">
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="h3">
+            👨‍🏫 Teachers Dashboard
+            <small class="text-muted fs-6">Staff Analytics</small>
+        </h1>
+        <div>
+            <a href="{{ url('/teachers') }}" class="btn btn-outline-info">
+                📋 Teacher List
+            </a>
+            <a href="{{ url('/teachers/create') }}" class="btn btn-success ms-2">   
+                ➕ Add Teacher
+            </a>
+            <a href="{{ route('teacher.results.index') }}" class="btn btn-primary ms-2">
+                📊 My Results
+            </a>
+        </div>
         </div>
 
         <!-- Overall Statistics -->
@@ -198,3 +190,34 @@
             },
             options: {
                 responsive
+            }
+        });
+
+        // Teacher Type Chart
+        const typeCtx = document.getElementById('typeChart').getContext('2d');
+        new Chart(typeCtx, {
+            type: 'doughnut',
+            data: {
+                labels: [
+                    @foreach($stats['type_wise'] as $type => $data)
+                        '{{ $type }}',
+                    @endforeach
+                ],
+                datasets: [{
+                    data: [
+                        @foreach($stats['type_wise'] as $type => $data)
+                            {{ $data['total'] }},
+                        @endforeach
+                    ],
+                    backgroundColor: [
+                        '#007bff', '#28a745', '#ffc107', '#dc3545', '#6f42c1', '#28a745'
+                    ]
+                }]
+            },
+            options: {
+                responsive
+            }
+        });
+    </script>
+</div>
+@endsection
