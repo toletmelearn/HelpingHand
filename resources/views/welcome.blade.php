@@ -179,39 +179,162 @@
 </section>
 
 <!-- Progress Section -->
-<section id="progress" class="py-5">
+<section id="progress" class="py-5 bg-light">
     <div class="container">
         <div class="text-center mb-5">
             <h2 class="display-5 fw-bold">Project Progress</h2>
-            <p class="lead">Continuous development and improvements</p>
+            <p class="lead text-muted">Continuous development and improvements</p>
         </div>
         
-        <div class="row justify-content-center">
-            <div class="col-md-8">
-                <div class="card">
-                    <div class="card-body">
-                        <h5 class="card-title">Overall Progress</h5>
-                        <div class="progress mb-3">
-                            <div class="progress-bar progress-bar-striped progress-bar-animated bg-success" role="progressbar" style="width: 95%" aria-valuenow="95" aria-valuemin="0" aria-valuemax="100">95%</div>
+        <div class="row g-4">
+            <div class="col-xl-3 col-md-6">
+                <div class="card h-100 shadow-sm border-0">
+                    <div class="card-body text-center p-4">
+                        <div class="position-relative d-inline-block mb-3">
+                            <div class="circle-progress" style="width: 100px; height: 100px;">
+                                <svg viewBox="0 0 36 36" class="circular-chart">
+                                    <path class="circle-bg" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+                                    <path class="circle" stroke="#28a745" stroke-width="3" stroke-dasharray="100, 100" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" />
+                                </svg>
+                                <div class="chart-label position-absolute top-50 start-50 translate-middle">
+                                    <span class="fw-bold">95%</span>
+                                </div>
+                            </div>
                         </div>
+                        <h5 class="card-title mt-3">Overall Progress</h5>
+                        <p class="text-muted small">Completed modules and features</p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-xl-3 col-md-6">
+                <div class="card h-100 shadow-sm border-0">
+                    <div class="card-body text-center p-4">
+                        <div class="position-relative d-inline-block mb-3">
+                            <div class="circle-progress" style="width: 100px; height: 100px;">
+                                <svg viewBox="0 0 36 36" class="circular-chart">
+                                    <path class="circle-bg" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+                                    <path class="circle" stroke="#007bff" stroke-width="3" stroke-dasharray="100, 100" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" />
+                                </svg>
+                                <div class="chart-label position-absolute top-50 start-50 translate-middle">
+                                    <span class="fw-bold">100%</span>
+                                </div>
+                            </div>
+                        </div>
+                        <h5 class="card-title mt-3">Student Module</h5>
+                        <p class="text-muted small">Complete with all features</p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-xl-3 col-md-6">
+                <div class="card h-100 shadow-sm border-0">
+                    <div class="card-body text-center p-4">
+                        <div class="position-relative d-inline-block mb-3">
+                            <div class="circle-progress" style="width: 100px; height: 100px;">
+                                <svg viewBox="0 0 36 36" class="circular-chart">
+                                    <path class="circle-bg" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+                                    <path class="circle" stroke="#28a745" stroke-width="3" stroke-dasharray="100, 100" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" />
+                                </svg>
+                                <div class="chart-label position-absolute top-50 start-50 translate-middle">
+                                    <span class="fw-bold">100%</span>
+                                </div>
+                            </div>
+                        </div>
+                        <h5 class="card-title mt-3">Teacher Module</h5>
+                        <p class="text-muted small">Fully operational</p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-xl-3 col-md-6">
+                <div class="card h-100 shadow-sm border-0">
+                    <div class="card-body text-center p-4">
+                        <div class="position-relative d-inline-block mb-3">
+                            <div class="circle-progress" style="width: 100px; height: 100px;">
+                                <svg viewBox="0 0 36 36" class="circular-chart">
+                                    <path class="circle-bg" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+                                    <path class="circle" stroke="#ffc107" stroke-width="3" stroke-dasharray="90, 100" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" />
+                                </svg>
+                                <div class="chart-label position-absolute top-50 start-50 translate-middle">
+                                    <span class="fw-bold">90%</span>
+                                </div>
+                            </div>
+                        </div>
+                        <h5 class="card-title mt-3">Advanced Features</h5>
+                        <p class="text-muted small">Ongoing enhancements</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Detailed Progress Bars -->
+        <div class="row mt-5">
+            <div class="col-12">
+                <div class="card shadow-sm border-0">
+                    <div class="card-body p-4">
+                        <h5 class="card-title mb-4">Module Development Status</h5>
                         
-                        <div class="progress mb-3 progress-bar-custom">
-                            <div class="progress-bar bg-primary" role="progressbar" style="width: 100%" aria-valuenow="100" aria-valuemin="0" aria-valuemax="100">Students Module</div>
-                        </div>
-                        <div class="progress mb-3 progress-bar-custom">
-                            <div class="progress-bar bg-success" role="progressbar" style="width: 100%" aria-valuenow="100" aria-valuemin="0" aria-valuemax="100">Teachers Module</div>
-                        </div>
-                        <div class="progress mb-3 progress-bar-custom">
-                            <div class="progress-bar bg-info" role="progressbar" style="width: 100%" aria-valuenow="100" aria-valuemin="0" aria-valuemax="100">Attendance System</div>
-                        </div>
-                        <div class="progress mb-3 progress-bar-custom">
-                            <div class="progress-bar bg-warning" role="progressbar" style="width: 100%" aria-valuenow="100" aria-valuemin="0" aria-valuemax="100">Bell Timing Management</div>
-                        </div>
-                        <div class="progress mb-3 progress-bar-custom">
-                            <div class="progress-bar bg-danger" role="progressbar" style="width: 100%" aria-valuenow="100" aria-valuemin="0" aria-valuemax="100">Exam Paper Upload</div>
-                        </div>
-                        <div class="progress progress-bar-custom">
-                            <div class="progress-bar bg-secondary" role="progressbar" style="width: 85%" aria-valuenow="85" aria-valuemin="0" aria-valuemax="100">Authentication & Authorization</div>
+                        <div class="row">
+                            <div class="col-md-6 mb-4">
+                                <div class="d-flex justify-content-between mb-2">
+                                    <span>Student Management</span>
+                                    <span class="text-success fw-bold">100%</span>
+                                </div>
+                                <div class="progress" style="height: 8px;">
+                                    <div class="progress-bar bg-success" role="progressbar" style="width: 100%"></div>
+                                </div>
+                            </div>
+                            
+                            <div class="col-md-6 mb-4">
+                                <div class="d-flex justify-content-between mb-2">
+                                    <span>Teacher Management</span>
+                                    <span class="text-success fw-bold">100%</span>
+                                </div>
+                                <div class="progress" style="height: 8px;">
+                                    <div class="progress-bar bg-success" role="progressbar" style="width: 100%"></div>
+                                </div>
+                            </div>
+                            
+                            <div class="col-md-6 mb-4">
+                                <div class="d-flex justify-content-between mb-2">
+                                    <span>Attendance System</span>
+                                    <span class="text-success fw-bold">100%</span>
+                                </div>
+                                <div class="progress" style="height: 8px;">
+                                    <div class="progress-bar bg-success" role="progressbar" style="width: 100%"></div>
+                                </div>
+                            </div>
+                            
+                            <div class="col-md-6 mb-4">
+                                <div class="d-flex justify-content-between mb-2">
+                                    <span>Exam Management</span>
+                                    <span class="text-success fw-bold">100%</span>
+                                </div>
+                                <div class="progress" style="height: 8px;">
+                                    <div class="progress-bar bg-success" role="progressbar" style="width: 100%"></div>
+                                </div>
+                            </div>
+                            
+                            <div class="col-md-6 mb-4">
+                                <div class="d-flex justify-content-between mb-2">
+                                    <span>Syllabus & Daily Teaching</span>
+                                    <span class="text-success fw-bold">100%</span>
+                                </div>
+                                <div class="progress" style="height: 8px;">
+                                    <div class="progress-bar bg-success" role="progressbar" style="width: 100%"></div>
+                                </div>
+                            </div>
+                            
+                            <div class="col-md-6 mb-4">
+                                <div class="d-flex justify-content-between mb-2">
+                                    <span>Admission Process</span>
+                                    <span class="text-primary fw-bold">95%</span>
+                                </div>
+                                <div class="progress" style="height: 8px;">
+                                    <div class="progress-bar bg-primary" role="progressbar" style="width: 95%"></div>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -219,6 +342,42 @@
         </div>
     </div>
 </section>
+
+<style>
+.circular-chart {
+    width: 100%;
+    height: 100%;
+}
+
+.circle-bg {
+    fill: none;
+    stroke: #eee;
+    stroke-width: 3;
+}
+
+.circle {
+    fill: none;
+    stroke-width: 3;
+    stroke-linecap: round;
+    animation: progress 1s ease-out forwards;
+}
+
+@keyframes progress {
+    0% {
+        stroke-dasharray: 0 100;
+    }
+}
+
+.chart-label {
+    font-size: 0.5em;
+    font-weight: bold;
+    text-anchor: middle;
+}
+
+.progress-bar {
+    transition: width 0.6s ease;
+}
+</style>
 
 <!-- CTA Section -->
 <section class="py-5 bg-primary text-white text-center">

@@ -134,18 +134,6 @@ class User extends Authenticatable
                     ->orderBy('created_at', 'desc');
     }
     
-    // Check if user has permission through roles
-    public function hasPermission($permissionName): bool
-    {
-        foreach ($this->roles as $role) {
-            if ($role->hasPermission($permissionName)) {
-                return true;
-            }
-        }
-        
-        return false;
-    }
-    
     // Get all permissions for the user
     public function getAllPermissions()
     {
@@ -156,5 +144,29 @@ class User extends Authenticatable
         }
         
         return $permissions->unique('id');
+    }
+    
+    // Check if user is class teacher for a specific class
+    public function isClassTeacherForClass($className)
+    {
+        return $this->classTeacherAssignments()
+                    ->where('assigned_class', $className)
+                    ->where('is_active', true)
+                    ->exists();
+    }
+    
+    // Get the active class teacher assignments for this user
+    public function classTeacherAssignments()
+    {
+        return $this->hasMany(\App\Models\ClassTeacherAssignment::class, 'teacher_id');
+    }
+    
+    // Get the class teacher assignment for a specific class
+    public function getClassTeacherAssignmentForClass($className)
+    {
+        return $this->classTeacherAssignments()
+                    ->where('assigned_class', $className)
+                    ->where('is_active', true)
+                    ->first();
     }
 }

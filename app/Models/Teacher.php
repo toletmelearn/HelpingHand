@@ -72,6 +72,16 @@ class Teacher extends Model
         return $this->hasMany(TeacherSalary::class);
     }
 
+    public function absentSubstitutions()
+    {
+        return $this->hasMany(\App\Models\TeacherSubstitution::class, 'absent_teacher_id');
+    }
+
+    public function substituteSubstitutions()
+    {
+        return $this->hasMany(\App\Models\TeacherSubstitution::class, 'substitute_teacher_id');
+    }
+
     // Accessors
     public function getFullNameAttribute()
     {

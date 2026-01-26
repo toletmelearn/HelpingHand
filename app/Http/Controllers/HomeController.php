@@ -3,79 +3,63 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
+use App\Models\AuditLog;
+use App\Models\ClassTeacherAssignment;
+use App\Models\FieldPermission;
+use App\Models\User;
 
 class HomeController extends Controller
 {
+    /**
+     * Create a new controller instance.
+     *
+     * @return void
+     */
     public function __construct()
     {
-        // Middleware is handled in the route group in routes/web.php
+        $this->middleware('auth');
     }
-    
+
+    /**
+     * Show the application dashboard.
+     *
+     * @return \Illuminate\Contracts\Support\Renderable
+     */
     public function index()
     {
-        $user = Auth::user();
+        // Get audit log stats for the dashboard
+        $todayChanges = AuditLog::whereDate('performed_at', now()->toDateString())->count();
+        $mostEditedRecords = AuditLog::selectRaw('model_type, model_id, count(*) as count')
+                                    ->groupBy('model_type', 'model_id')
+                                    ->orderByDesc('count')
+                                    ->take(5)
+                                    ->get();
         
-        // Redirect user based on their role
-        if ($user && $user->hasRole('admin')) {
-            return redirect()->route('admin.dashboard');
-        } elseif ($user && $user->hasRole('teacher')) {
-            return redirect()->route('teachers.dashboard');
-        } elseif ($user && $user->hasRole('student')) {
-            return redirect()->route('students.dashboard');
-        } elseif ($user && $user->hasRole('parent')) {
-            return redirect()->route('parents.dashboard');
-        } else {
-            // Default fallback
-            return redirect()->route('students.dashboard');
-        }
-    }
-
-    /**
-     * Show the form for creating a new resource.
-     */
-    public function create()
-    {
-        //
-    }
-
-    /**
-     * Store a newly created resource in storage.
-     */
-    public function store(Request $request)
-    {
-        //
-    }
-
-    /**
-     * Display the specified resource.
-     */
-    public function show(string $id)
-    {
-        //
-    }
-
-    /**
-     * Show the form for editing the specified resource.
-     */
-    public function edit(string $id)
-    {
-        //
-    }
-
-    /**
-     * Update the specified resource in storage.
-     */
-    public function update(Request $request, string $id)
-    {
-        //
-    }
-
-    /**
-     * Remove the specified resource from storage.
-     */
-    public function destroy(string $id)
-    {
-        //
+        $topEditingUsers = AuditLog::selectRaw('user_id, user_type, count(*) as count')
+                                  ->groupBy('user_id', 'user_type')
+                                  ->orderByDesc('count')
+                                  ->take(5)
+                                  ->get();
+        
+        $lockedRecords = ClassTeacherAssignment::where('is_active', false)->count();
+        
+        // Additional stats
+        $totalTeachers = User::role('teacher')->count();
+        $totalStudents = User::role('student')->count();
+        $activeClassTeachers = ClassTeacherAssignment::where('is_active', true)->count();
+        $totalFieldPermissions = FieldPermission::count();
+        $todayAuditLogs = AuditLog::whereDate('performed_at', now()->toDateString())->count();
+        
+        return view('home', compact(
+            'todayChanges',
+            'mostEditedRecords', 
+            'topEditingUsers',
+            'lockedRecords',
+            'totalTeachers',
+            'totalStudents',
+            'activeClassTeachers',
+            'totalFieldPermissions',
+            'todayAuditLogs'
+        ));
     }
 }

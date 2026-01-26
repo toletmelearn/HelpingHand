@@ -98,6 +98,20 @@ class PermissionSeeder extends Seeder
             'delete-exam-paper-templates',
             'toggle-template-status',
             'preview-exam-paper-templates',
+            
+            // Daily teaching work permissions
+            'view-daily-teaching-work',
+            'create-daily-teaching-work',
+            'edit-daily-teaching-work',
+            'delete-daily-teaching-work',
+            'download-daily-teaching-work-attachments',
+            
+            // Syllabus permissions
+            'view-syllabi',
+            'create-syllabi',
+            'edit-syllabi',
+            'delete-syllabi',
+            'view-syllabus-progress-report',
         ];
         
         foreach ($permissions as $permission) {
@@ -122,6 +136,9 @@ class PermissionSeeder extends Seeder
             $teacherRole->grantPermission('can-mark-attendance');
             $teacherRole->grantPermission('view-students');
             $teacherRole->grantPermission('view-attendance');
+            $teacherRole->grantPermission('view-daily-teaching-work');
+            $teacherRole->grantPermission('create-daily-teaching-work');
+            $teacherRole->grantPermission('download-daily-teaching-work-attachments');
         }
         
         if ($classTeacherRole) {
@@ -130,6 +147,9 @@ class PermissionSeeder extends Seeder
             $classTeacherRole->grantPermission('can-view-fee-status');
             $classTeacherRole->grantPermission('view-students');
             $classTeacherRole->grantPermission('edit-students');
+            $classTeacherRole->grantPermission('view-daily-teaching-work');
+            $classTeacherRole->grantPermission('view-syllabi');
+            $classTeacherRole->grantPermission('view-syllabus-progress-report');
         }
         
         if ($accountantRole) {
@@ -145,6 +165,7 @@ class PermissionSeeder extends Seeder
             $accountantRole->grantPermission('delete-fee-structures');
             $accountantRole->grantPermission('view-admit-cards');
             $accountantRole->grantPermission('view-admit-card-formats');
+            $accountantRole->grantPermission('view-daily-teaching-work');
         }
     }
 }
