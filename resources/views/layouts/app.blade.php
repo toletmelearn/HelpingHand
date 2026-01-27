@@ -42,6 +42,12 @@
             transform: scale(1.05);
             box-shadow: 0 5px 15px rgba(0,0,0,0.1);
         }
+        .navbar-nav .nav-link {
+            transition: color 0.2s;
+        }
+        .navbar-nav .nav-link:hover {
+            color: #f8f9fa !important;
+        }
     </style>
 </head>
 <body>
@@ -49,7 +55,7 @@
     <nav class="navbar navbar-expand-lg navbar-dark" style="background-color: #2c3e50;">
         <div class="container">
             <a class="navbar-brand" href="{{ url('/') }}">
-                🫱 HelpingHand
+                📚 HelpingHand
             </a>
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
                 <span class="navbar-toggler-icon"></span>
@@ -116,24 +122,6 @@
                         </ul>
                     </li>
 
-                    <!-- Bell Timing Dropdown -->
-                    <li class="nav-item dropdown">
-                        <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
-                            <i class="bi bi-alarm"></i> Bell Timing
-                        </a>
-                        <ul class="dropdown-menu">
-                            <li><a class="dropdown-item" href="{{ route('bell-timing.index') }}">
-                                <i class="bi bi-list"></i> Bell Schedules
-                            </a></li>
-                            <li><a class="dropdown-item" href="{{ route('bell-timing.create') }}">
-                                <i class="bi bi-plus-circle"></i> Add Schedule
-                            </a></li>
-                            <li><a class="dropdown-item" href="{{ route('bell-timing.weekly') }}">
-                                <i class="bi bi-calendar-week"></i> Weekly View
-                            </a></li>
-                        </ul>
-                    </li>
-
                     <!-- Academics Dropdown -->
                     <li class="nav-item dropdown">
                         <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
@@ -166,57 +154,149 @@
                             <li><a class="dropdown-item" href="{{ route('admin.syllabi.progress-report') }}">
                                 <i class="bi bi-bar-chart"></i> Progress Report
                             </a></li>
+                        </ul>
+                    </li>
+                    
+                    <!-- Biometric System -->
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
+                            <i class="bi bi-fingerprint"></i> Biometric
+                        </a>
+                        <ul class="dropdown-menu">
+                            <!-- Basic Biometric Management -->
+                            <li><a class="dropdown-item" href="{{ route('admin.teacher-biometrics.index') }}">
+                                <i class="bi bi-speedometer2"></i> Dashboard Overview
+                            </a></li>
+                            <li><a class="dropdown-item" href="{{ route('admin.teacher-biometrics.create') }}">
+                                <i class="bi bi-plus-circle"></i> Add Manual Record
+                            </a></li>
+                            <li><a class="dropdown-item" href="{{ route('admin.teacher-biometrics.settings') }}">
+                                <i class="bi bi-gear"></i> Rule Configuration
+                            </a></li>
+                            <li><a class="dropdown-item" href="{{ route('admin.teacher-biometrics.reports') }}">
+                                <i class="bi bi-bar-chart"></i> Reports & Analytics
+                            </a></li>
                             <li><hr class="dropdown-divider"></li>
-                            <!-- Bell Schedule -->
-                            <li><a class="dropdown-item" href="{{ route('admin.bell-schedules.index') }}">
-                                <i class="bi bi-alarm"></i> Bell Schedule
+                            <!-- Device Management -->
+                            <li><a class="dropdown-item" href="{{ route('admin.biometric-devices.index') }}">
+                                <i class="bi bi-hdd-network"></i> Device Management
                             </a></li>
-                            <li><a class="dropdown-item" href="{{ route('admin.special-day-overrides.index') }}">
-                                <i class="bi bi-calendar-event"></i> Special Day Overrides
-                            </a></li>
-                            <li><a class="dropdown-item" href="{{ route('admin.bell-schedules.live-monitor') }}">
-                                <i class="bi bi-speedometer2"></i> Live Bell Monitor
+                            <li><a class="dropdown-item" href="{{ route('admin.sync-monitor.index') }}">
+                                <i class="bi bi-wifi"></i> Live Sync Monitor
                             </a></li>
                             <li><hr class="dropdown-divider"></li>
-                            <!-- Class Teacher Control -->
-                            <li><a class="dropdown-item" href="{{ route('admin.class-teacher-assignments.index') }}">
-                                <i class="bi bi-chalkboard-teacher"></i> Class Teacher Control
+                            <!-- Advanced Features -->
+                            <li><a class="dropdown-item" href="{{ route('admin.analytics.index') }}">
+                                <i class="bi bi-bar-chart-line"></i> Analytics Dashboard
                             </a></li>
-                            <li><a class="dropdown-item" href="{{ route('admin.field-permissions.index') }}">
-                                <i class="bi bi-shield-lock"></i> Edit Permissions
+                            <li><a class="dropdown-item" href="{{ route('admin.performance.index') }}">
+                                <i class="bi bi-award"></i> Performance Scores
                             </a></li>
                             <li><hr class="dropdown-divider"></li>
-                            <!-- Teacher Substitution -->
-                            <li><a class="dropdown-item" href="{{ route('admin.teacher-substitutions.index') }}">
-                                <i class="bi bi-exchange"></i> Teacher Substitution
+                            <!-- Reports & Configuration -->
+                            <li><a class="dropdown-item" href="{{ route('admin.reports.index') }}">
+                                <i class="bi bi-file-earmark-pdf"></i> Reports & Exports
                             </a></li>
-                            <li><a class="dropdown-item" href="{{ route('admin.teacher-substitutions.today') }}">
-                                <i class="bi bi-calendar-day"></i> Today's Substitutions
+                            <li><a class="dropdown-item" href="{{ route('admin.notifications.index') }}">
+                                <i class="bi bi-bell"></i> Notification Rules
                             </a></li>
-                            <li><a class="dropdown-item" href="{{ route('admin.teacher-substitutions.absence-overview') }}">
-                                <i class="bi bi-clipboard-data"></i> Absence Overview
+                            <li><hr class="dropdown-divider"></li>
+                            <!-- Data Upload -->
+                            <li><a class="dropdown-item" href="#" data-bs-toggle="modal" data-bs-target="#uploadModalHeader">
+                                <i class="bi bi-upload"></i> Upload CSV Data
                             </a></li>
                         </ul>
                     </li>
-
-                    <!-- Admin Dropdown -->
+                    
+                    <!-- Budget Management -->
                     <li class="nav-item dropdown">
                         <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
-                            <i class="bi bi-gear"></i> Admin
+                            <i class="bi bi-currency-dollar"></i> Budget
                         </a>
                         <ul class="dropdown-menu">
-                            <li><a class="dropdown-item" href="{{ route('admin.audit-logs.index') }}">
-                                <i class="bi bi-clipboard-data"></i> Class Teacher Logs
+                            <li><a class="dropdown-item" href="{{ route('budget.index') }}">
+                                <i class="bi bi-speedometer2"></i> Budget Dashboard
                             </a></li>
-                            <li><a class="dropdown-item" href="{{ route('admin.audit-logs.index') }}">
-                                <i class="bi bi-journal-text"></i> Student Change History
+                            <li><a class="dropdown-item" href="{{ route('budgets.index') }}">
+                                <i class="bi bi-wallet2"></i> Budget Plans
                             </a></li>
-                            <li><a class="dropdown-item" href="{{ route('admin.field-permissions.index') }}">
-                                <i class="bi bi-shield-lock"></i> Permission Manager
+                            <li><a class="dropdown-item" href="{{ route('budget-categories.index') }}">
+                                <i class="bi bi-tags"></i> Categories
+                            </a></li>
+                            <li><a class="dropdown-item" href="{{ route('expenses.index') }}">
+                                <i class="bi bi-receipt"></i> Expenses
                             </a></li>
                             <li><hr class="dropdown-divider"></li>
-                            <li><a class="dropdown-item" href="{{ route('admin.field-permissions.index') }}">
-                                <i class="bi bi-shield-check"></i> Audit & Compliance
+                            <li><a class="dropdown-item" href="{{ route('budget.reports') }}">
+                                <i class="bi bi-file-bar-graph"></i> Budget Reports
+                            </a></li>
+                        </ul>
+                    </li>
+                    
+                    <!-- Inventory Management -->
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
+                            <i class="bi bi-box-seam"></i> Inventory
+                        </a>
+                        <ul class="dropdown-menu">
+                            <li><a class="dropdown-item" href="{{ route('admin.inventory.index') }}">
+                                <i class="bi bi-speedometer2"></i> Inventory Dashboard
+                            </a></li>
+                            <li><a class="dropdown-item" href="{{ route('admin.assets.index') }}">
+                                <i class="bi bi-list"></i> Asset Master
+                            </a></li>
+                            <li><a class="dropdown-item" href="{{ route('admin.inventory.furniture') }}">
+                                <i class="bi bi-chair"></i> Furniture
+                            </a></li>
+                            <li><a class="dropdown-item" href="{{ route('admin.inventory.lab-equipment') }}">
+                                <i class="bi bi-flask"></i> Lab Equipment
+                            </a></li>
+                            <li><a class="dropdown-item" href="{{ route('admin.inventory.electronics') }}">
+                                <i class="bi bi-laptop"></i> Electronics
+                            </a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item" href="{{ route('admin.inventory.reports') }}">
+                                <i class="bi bi-file-bar-graph"></i> Inventory Reports
+                            </a></li>
+                            <li><a class="dropdown-item" href="{{ route('admin.inventory.audit-logs') }}">
+                                <i class="bi bi-journal-text"></i> Audit Logs
+                            </a></li>
+                        </ul>
+                    </li>
+                    
+                    <!-- Certificate Management -->
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
+                            <i class="bi bi-award"></i> Certificates
+                        </a>
+                        <ul class="dropdown-menu">
+                            <li><a class="dropdown-item" href="{{ route('admin.certificates.index') }}">
+                                <i class="bi bi-file-earmark-text"></i> Certificate Management
+                            </a></li>
+                            <li><a class="dropdown-item" href="{{ route('admin.certificates.create') }}">
+                                <i class="bi bi-plus-circle"></i> Create Certificate
+                            </a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item" href="{{ route('admin.certificate-templates.index') }}">
+                                <i class="bi bi-layout-wtf"></i> Certificate Templates
+                            </a></li>
+                            <li><a class="dropdown-item" href="{{ route('admin.certificate-templates.create') }}">
+                                <i class="bi bi-file-earmark-plus"></i> Create Template
+                            </a></li>
+                        </ul>
+                    </li>
+                    
+                    <!-- Backup Management -->
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
+                            <i class="bi bi-cloud-arrow-up"></i> Backup
+                        </a>
+                        <ul class="dropdown-menu">
+                            <li><a class="dropdown-item" href="{{ route('admin.backups.index') }}">
+                                <i class="bi bi-cloud-download"></i> Backup Management
+                            </a></li>
+                            <li><a class="dropdown-item" href="{{ route('admin.backups.index') }}">
+                                <i class="bi bi-plus-circle"></i> Create Backup
                             </a></li>
                         </ul>
                     </li>
@@ -237,8 +317,9 @@
                                 <li><a class="dropdown-item" href="{{ route('home') }}">
                                     <i class="bi bi-house-door"></i> Dashboard
                                 </a></li>
+                                <li><hr class="dropdown-divider"></li>
                                 <li><a class="dropdown-item" href="{{ route('profile.two-factor-authentication') }}">
-                                    <i class="bi bi-shield-lock"></i> Two-Factor Auth
+                                    <i class="bi bi-shield-lock"></i> Security Settings
                                 </a></li>
                                 <li><hr class="dropdown-divider"></li>
                                 <li><a class="dropdown-item" href="{{ route('logout') }}" 
@@ -271,3 +352,33 @@
     @yield('scripts')
 </body>
 </html>
+
+<!-- Quick Upload Modal -->
+<div class="modal fade" id="uploadModalHeader" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Upload Biometric Data</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form action="{{ route('admin.teacher-biometrics.upload') }}" method="POST" enctype="multipart/form-data">
+                @csrf
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="quickFile" class="form-label">Select CSV/XLSX File</label>
+                        <input type="file" class="form-control" id="quickFile" name="file" accept=".csv,.xlsx,.xls" required>
+                        <div class="form-text">File should contain columns: Teacher ID, Date, First In Time, Last Out Time, Remarks</div>
+                    </div>
+                    <div class="mb-3 form-check">
+                        <input type="checkbox" class="form-check-input" id="quickOverwrite" name="overwrite" value="1">
+                        <label class="form-check-label" for="quickOverwrite">Overwrite existing records</label>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Upload</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>

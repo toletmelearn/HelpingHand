@@ -20,6 +20,9 @@
             <a href="{{ route('teacher.results.index') }}" class="btn btn-primary ms-2">
                 📊 My Results
             </a>
+            <a href="{{ route('teachers.biometric.dashboard') }}" class="btn btn-warning ms-2">
+                🕐 My Attendance
+            </a>
         </div>
         </div>
 
@@ -189,7 +192,7 @@
                 ]
             },
             options: {
-                responsive
+                responsive: true
             }
         });
 
@@ -215,7 +218,7 @@
                 }]
             },
             options: {
-                responsive
+                responsive: true
             }
         });
     </script>
