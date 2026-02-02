@@ -1,4 +1,4 @@
-@extends('layouts.app')
+﻿@extends('layouts.admin')
 
 @section('title', 'Fee Structure Management')
 
@@ -41,7 +41,7 @@
                                     <td>{{ $feeStructure->name }}</td>
                                     <td>{{ $feeStructure->class_name }}</td>
                                     <td>{{ $feeStructure->term }}</td>
-                                    <td>₹{{ number_format($feeStructure->amount, 2) }}</td>
+                                    <td>â‚¹{{ number_format($feeStructure->amount, 2) }}</td>
                                     <td>{{ $feeStructure->frequency }}</td>
                                     <td>{{ $feeStructure->valid_from->format('d M Y') }}</td>
                                     <td>{{ $feeStructure->valid_until->format('d M Y') }}</td>

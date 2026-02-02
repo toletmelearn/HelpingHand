@@ -1,4 +1,4 @@
-@extends('layouts.app')
+@extends('layouts.public')
 
 @section('title', 'HelpingHand - School Management System')
 
@@ -178,31 +178,23 @@
     </div>
 </section>
 
-<!-- Progress Section -->
-<section id="progress" class="py-5 bg-light">
+<!-- System Overview Section -->
+<section id="overview" class="py-5 bg-light">
     <div class="container">
         <div class="text-center mb-5">
-            <h2 class="display-5 fw-bold">Project Progress</h2>
-            <p class="lead text-muted">Continuous development and improvements</p>
+            <h2 class="display-5 fw-bold">System Overview</h2>
+            <p class="lead text-muted">Comprehensive school management solution</p>
         </div>
         
         <div class="row g-4">
             <div class="col-xl-3 col-md-6">
                 <div class="card h-100 shadow-sm border-0">
                     <div class="card-body text-center p-4">
-                        <div class="position-relative d-inline-block mb-3">
-                            <div class="circle-progress" style="width: 100px; height: 100px;">
-                                <svg viewBox="0 0 36 36" class="circular-chart">
-                                    <path class="circle-bg" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
-                                    <path class="circle" stroke="#28a745" stroke-width="3" stroke-dasharray="100, 100" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" />
-                                </svg>
-                                <div class="chart-label position-absolute top-50 start-50 translate-middle">
-                                    <span class="fw-bold">95%</span>
-                                </div>
-                            </div>
+                        <div class="feature-icon mx-auto mb-3 text-primary">
+                            <i class="bi bi-people" style="font-size: 2.5rem;"></i>
                         </div>
-                        <h5 class="card-title mt-3">Overall Progress</h5>
-                        <p class="text-muted small">Completed modules and features</p>
+                        <h5 class="card-title mt-3">Student Management</h5>
+                        <p class="text-muted">Complete student information management with records, photos, and academic tracking.</p>
                     </div>
                 </div>
             </div>
@@ -210,19 +202,11 @@
             <div class="col-xl-3 col-md-6">
                 <div class="card h-100 shadow-sm border-0">
                     <div class="card-body text-center p-4">
-                        <div class="position-relative d-inline-block mb-3">
-                            <div class="circle-progress" style="width: 100px; height: 100px;">
-                                <svg viewBox="0 0 36 36" class="circular-chart">
-                                    <path class="circle-bg" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
-                                    <path class="circle" stroke="#007bff" stroke-width="3" stroke-dasharray="100, 100" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" />
-                                </svg>
-                                <div class="chart-label position-absolute top-50 start-50 translate-middle">
-                                    <span class="fw-bold">100%</span>
-                                </div>
-                            </div>
+                        <div class="feature-icon mx-auto mb-3 text-success">
+                            <i class="bi bi-person-badge" style="font-size: 2.5rem;"></i>
                         </div>
-                        <h5 class="card-title mt-3">Student Module</h5>
-                        <p class="text-muted small">Complete with all features</p>
+                        <h5 class="card-title mt-3">Teacher Management</h5>
+                        <p class="text-muted">Comprehensive teacher profiles with qualifications, experience, and salary details.</p>
                     </div>
                 </div>
             </div>
@@ -230,19 +214,11 @@
             <div class="col-xl-3 col-md-6">
                 <div class="card h-100 shadow-sm border-0">
                     <div class="card-body text-center p-4">
-                        <div class="position-relative d-inline-block mb-3">
-                            <div class="circle-progress" style="width: 100px; height: 100px;">
-                                <svg viewBox="0 0 36 36" class="circular-chart">
-                                    <path class="circle-bg" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
-                                    <path class="circle" stroke="#28a745" stroke-width="3" stroke-dasharray="100, 100" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" />
-                                </svg>
-                                <div class="chart-label position-absolute top-50 start-50 translate-middle">
-                                    <span class="fw-bold">100%</span>
-                                </div>
-                            </div>
+                        <div class="feature-icon mx-auto mb-3 text-info">
+                            <i class="bi bi-calendar-check" style="font-size: 2.5rem;"></i>
                         </div>
-                        <h5 class="card-title mt-3">Teacher Module</h5>
-                        <p class="text-muted small">Fully operational</p>
+                        <h5 class="card-title mt-3">Attendance Tracking</h5>
+                        <p class="text-muted">Daily attendance management for students and teachers with reporting and analytics.</p>
                     </div>
                 </div>
             </div>
@@ -250,89 +226,46 @@
             <div class="col-xl-3 col-md-6">
                 <div class="card h-100 shadow-sm border-0">
                     <div class="card-body text-center p-4">
-                        <div class="position-relative d-inline-block mb-3">
-                            <div class="circle-progress" style="width: 100px; height: 100px;">
-                                <svg viewBox="0 0 36 36" class="circular-chart">
-                                    <path class="circle-bg" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
-                                    <path class="circle" stroke="#ffc107" stroke-width="3" stroke-dasharray="90, 100" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" />
-                                </svg>
-                                <div class="chart-label position-absolute top-50 start-50 translate-middle">
-                                    <span class="fw-bold">90%</span>
-                                </div>
-                            </div>
+                        <div class="feature-icon mx-auto mb-3 text-warning">
+                            <i class="bi bi-mortarboard" style="font-size: 2.5rem;"></i>
                         </div>
-                        <h5 class="card-title mt-3">Advanced Features</h5>
-                        <p class="text-muted small">Ongoing enhancements</p>
+                        <h5 class="card-title mt-3">Academic Management</h5>
+                        <p class="text-muted">Exam scheduling, result management, syllabus planning, and curriculum tracking.</p>
                     </div>
                 </div>
             </div>
         </div>
         
-        <!-- Detailed Progress Bars -->
+        <!-- Quick Stats -->
         <div class="row mt-5">
             <div class="col-12">
                 <div class="card shadow-sm border-0">
                     <div class="card-body p-4">
-                        <h5 class="card-title mb-4">Module Development Status</h5>
+                        <h5 class="card-title mb-4 text-center">Institution Statistics</h5>
                         
-                        <div class="row">
-                            <div class="col-md-6 mb-4">
-                                <div class="d-flex justify-content-between mb-2">
-                                    <span>Student Management</span>
-                                    <span class="text-success fw-bold">100%</span>
-                                </div>
-                                <div class="progress" style="height: 8px;">
-                                    <div class="progress-bar bg-success" role="progressbar" style="width: 100%"></div>
+                        <div class="row text-center">
+                            <div class="col-md-3 mb-4">
+                                <div class="stat-card p-3">
+                                    <div class="display-4 text-primary fw-bold">100%</div>
+                                    <p class="mb-0 mt-2">System Uptime</p>
                                 </div>
                             </div>
-                            
-                            <div class="col-md-6 mb-4">
-                                <div class="d-flex justify-content-between mb-2">
-                                    <span>Teacher Management</span>
-                                    <span class="text-success fw-bold">100%</span>
-                                </div>
-                                <div class="progress" style="height: 8px;">
-                                    <div class="progress-bar bg-success" role="progressbar" style="width: 100%"></div>
+                            <div class="col-md-3 mb-4">
+                                <div class="stat-card p-3">
+                                    <div class="display-4 text-success fw-bold">24/7</div>
+                                    <p class="mb-0 mt-2">Support Available</p>
                                 </div>
                             </div>
-                            
-                            <div class="col-md-6 mb-4">
-                                <div class="d-flex justify-content-between mb-2">
-                                    <span>Attendance System</span>
-                                    <span class="text-success fw-bold">100%</span>
-                                </div>
-                                <div class="progress" style="height: 8px;">
-                                    <div class="progress-bar bg-success" role="progressbar" style="width: 100%"></div>
+                            <div class="col-md-3 mb-4">
+                                <div class="stat-card p-3">
+                                    <div class="display-4 text-info fw-bold">1000+</div>
+                                    <p class="mb-0 mt-2">Students Managed</p>
                                 </div>
                             </div>
-                            
-                            <div class="col-md-6 mb-4">
-                                <div class="d-flex justify-content-between mb-2">
-                                    <span>Exam Management</span>
-                                    <span class="text-success fw-bold">100%</span>
-                                </div>
-                                <div class="progress" style="height: 8px;">
-                                    <div class="progress-bar bg-success" role="progressbar" style="width: 100%"></div>
-                                </div>
-                            </div>
-                            
-                            <div class="col-md-6 mb-4">
-                                <div class="d-flex justify-content-between mb-2">
-                                    <span>Syllabus & Daily Teaching</span>
-                                    <span class="text-success fw-bold">100%</span>
-                                </div>
-                                <div class="progress" style="height: 8px;">
-                                    <div class="progress-bar bg-success" role="progressbar" style="width: 100%"></div>
-                                </div>
-                            </div>
-                            
-                            <div class="col-md-6 mb-4">
-                                <div class="d-flex justify-content-between mb-2">
-                                    <span>Admission Process</span>
-                                    <span class="text-primary fw-bold">95%</span>
-                                </div>
-                                <div class="progress" style="height: 8px;">
-                                    <div class="progress-bar bg-primary" role="progressbar" style="width: 95%"></div>
+                            <div class="col-md-3 mb-4">
+                                <div class="stat-card p-3">
+                                    <div class="display-4 text-warning fw-bold">50+</div>
+                                    <p class="mb-0 mt-2">Schools Served</p>
                                 </div>
                             </div>
                         </div>
@@ -344,38 +277,12 @@
 </section>
 
 <style>
-.circular-chart {
-    width: 100%;
-    height: 100%;
+.stat-card {
+    transition: transform 0.3s ease;
 }
 
-.circle-bg {
-    fill: none;
-    stroke: #eee;
-    stroke-width: 3;
-}
-
-.circle {
-    fill: none;
-    stroke-width: 3;
-    stroke-linecap: round;
-    animation: progress 1s ease-out forwards;
-}
-
-@keyframes progress {
-    0% {
-        stroke-dasharray: 0 100;
-    }
-}
-
-.chart-label {
-    font-size: 0.5em;
-    font-weight: bold;
-    text-anchor: middle;
-}
-
-.progress-bar {
-    transition: width 0.6s ease;
+.stat-card:hover {
+    transform: translateY(-5px);
 }
 </style>
 

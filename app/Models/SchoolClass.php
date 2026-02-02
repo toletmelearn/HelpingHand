@@ -12,34 +12,44 @@ class SchoolClass extends Model
 
     protected $fillable = [
         'name',
-        'section_id',
-        'academic_session_id',
-        'teacher_id',
-        'description'
+        'class_order',
+        'description',
+        'is_active'
     ];
 
     protected $casts = [
-        'academic_session_id' => 'integer',
-        'teacher_id' => 'integer',
+        'class_order' => 'integer',
+        'is_active' => 'boolean',
     ];
 
-    public function section()
+    public function scopeActive($query)
     {
-        return $this->belongsTo(Section::class);
+        return $query->where('is_active', true);
     }
 
-    public function academicSession()
+    public function scopeOrderByOrder($query)
     {
-        return $this->belongsTo(AcademicSession::class);
-    }
-
-    public function teacher()
-    {
-        return $this->belongsTo(Teacher::class);
+        return $query->orderBy('class_order');
     }
 
     public function students()
     {
-        return $this->hasMany(Student::class);
+        return $this->hasMany(Student::class, 'class_id');
+    }
+
+    public function getNextClasses()
+    {
+        return self::where('class_order', '>', $this->class_order)
+                  ->active()
+                  ->orderByOrder()
+                  ->get();
+    }
+
+    public function getPreviousClasses()
+    {
+        return self::where('class_order', '<', $this->class_order)
+                  ->active()
+                  ->orderByOrder()
+                  ->get();
     }
 }

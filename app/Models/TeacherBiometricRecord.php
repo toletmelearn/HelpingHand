@@ -161,22 +161,64 @@ class TeacherBiometricRecord extends Model
         return $this->arrival_status === 'on_time' && $this->departure_status === 'on_time';
     }
 
-    // Audit Logging
+    // Audit Logging & Notifications
     public static function boot()
     {
         parent::boot();
         
         static::created(function ($model) {
             self::logActivity('create', $model);
+            self::sendBiometricNotifications($model, 'create');
         });
         
         static::updated(function ($model) {
             self::logActivity('update', $model);
+            self::sendBiometricNotifications($model, 'update');
         });
         
         static::deleted(function ($model) {
             self::logActivity('delete', $model);
         });
+    }
+    
+    /**
+     * Send biometric notifications based on the record status
+     */
+    protected static function sendBiometricNotifications($model, $action)
+    {
+        if (!$model->teacher) {
+            return;
+        }
+        
+        // Get biometric settings to check notification preferences
+        $settings = \App\Models\BiometricSetting::getActiveSettings();
+        if (!$settings) {
+            $settings = new \App\Models\BiometricSetting(\App\Models\BiometricSetting::getDefaultSettings());
+        }
+        
+        // Check if the record has late arrival
+        if ($model->arrival_status === 'late' && $settings->enable_late_arrival_notifications) {
+            $message = "You arrived {$model->late_minutes} minutes late on {$model->date->format('M j, Y')}. Please maintain punctuality.";
+            $model->teacher->sendBiometricNotification($model, 'late_arrival', $message);
+        }
+        
+        // Check if the record has early departure
+        if ($model->departure_status === 'early_exit' && $settings->enable_early_departure_notifications) {
+            $message = "You departed {$model->early_departure_minutes} minutes early on {$model->date->format('M j, Y')}. Please complete your scheduled hours.";
+            $model->teacher->sendBiometricNotification($model, 'early_departure', $message);
+        }
+        
+        // Check if the record has half day
+        if ($model->departure_status === 'half_day' && $settings->enable_half_day_notifications) {
+            $message = "Your working hours on {$model->date->format('M j, Y')} were recorded as a half day ({$model->calculated_duration} hours).";
+            $model->teacher->sendBiometricNotification($model, 'half_day', $message);
+        }
+        
+        // Send positive notification for on-time arrival and departure
+        if ($model->arrival_status === 'on_time' && $model->departure_status === 'on_time' && $settings->enable_performance_notifications) {
+            $message = "Great job! Your attendance on {$model->date->format('M j, Y')} was marked as on time with {$model->calculated_duration} hours worked.";
+            $model->teacher->sendBiometricNotification($model, 'on_time', $message);
+        }
     }
     
     protected static function logActivity($action, $model)
@@ -188,6 +230,9 @@ class TeacherBiometricRecord extends Model
                 'user_id' => auth()->guard()->id(),
                 'model_type' => get_class($model),
                 'model_id' => $model->id,
+                'field_name' => '',
+                'old_value' => '',
+                'new_value' => '',
                 'action' => $action,
                 'ip_address' => request()->ip(),
                 'user_agent' => request()->userAgent(),

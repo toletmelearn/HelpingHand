@@ -1,4 +1,4 @@
-@extends('layouts.app')
+﻿@extends('layouts.admin')
 
 @section('content')
 <div class="container">
@@ -96,7 +96,7 @@
                                 <td>{{ $asset->name }}</td>
                                 <td>{{ $asset->category->name ?? 'N/A' }}</td>
                                 <td>{{ $asset->vendor }}</td>
-                                <td>{{ $asset->cost ? '₹' . number_format($asset->cost, 2) : 'N/A' }}</td>
+                                <td>{{ $asset->cost ? 'â‚¹' . number_format($asset->cost, 2) : 'N/A' }}</td>
                                 <td>
                                     <span class="badge bg-{{ $asset->status === 'active' ? 'success' : ($asset->status === 'in_use' ? 'primary' : ($asset->status === 'under_repair' ? 'warning' : 'danger')) }}">
                                         {{ ucfirst(str_replace('_', ' ', $asset->status)) }}

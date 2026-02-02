@@ -10,10 +10,11 @@ use App\Models\Guardian;
 use App\Models\Attendance;
 use App\Models\Fee;
 use App\Models\Result;
+use App\Traits\Auditable;
 
 class Student extends Model
 {
-    use HasFactory, SoftDeletes;
+    use HasFactory, SoftDeletes, Auditable;
 
     protected $fillable = [
         'name', 'father_name', 'mother_name', 'date_of_birth', 'aadhar_number', 
@@ -62,6 +63,11 @@ class Student extends Model
         return $this->hasMany(StudentDocument::class);
     }
 
+    public function schoolClass()
+    {
+        return $this->belongsTo(SchoolClass::class, 'class_id');
+    }
+
     // Accessors
     public function getFullNameAttribute()
     {
@@ -89,55 +95,58 @@ class Student extends Model
      */
     public static function getStatistics()
     {
-        $total = self::count();
-        $male = self::where('gender', 'male')->count();
-        $female = self::where('gender', 'female')->count();
-        $other = self::where('gender', 'other')->count();
+        return cache()->remember('student_statistics', 3600, function() {
+            $total = self::count();
+            $male = self::where('gender', 'male')->count();
+            $female = self::where('gender', 'female')->count();
+            $other = self::where('gender', 'other')->count();
 
-        $malePercentage = $total > 0 ? round(($male / $total) * 100, 2) : 0;
-        $femalePercentage = $total > 0 ? round(($female / $total) * 100, 2) : 0;
-        $otherPercentage = $total > 0 ? round(($other / $total) * 100, 2) : 0;
+            $malePercentage = $total > 0 ? round(($male / $total) * 100, 2) : 0;
+            $femalePercentage = $total > 0 ? round(($female / $total) * 100, 2) : 0;
+            $otherPercentage = $total > 0 ? round(($other / $total) * 100, 2) : 0;
 
-        // Class-wise distribution
-        $classWise = self::selectRaw('
-            class,
-            COUNT(*) as total,
-            SUM(CASE WHEN gender = "male" THEN 1 ELSE 0 END) as male,
-            SUM(CASE WHEN gender = "female" THEN 1 ELSE 0 END) as female,
-            SUM(CASE WHEN gender = "other" THEN 1 ELSE 0 END) as other
-        ')
-        ->groupBy('class')
-        ->orderBy('class')
-        ->get();
+            // Class-wise distribution
+            $classWise = self::selectRaw(' 
+                class, 
+                COUNT(*) as total,
+                SUM(CASE WHEN gender = "male" THEN 1 ELSE 0 END) as male,
+                SUM(CASE WHEN gender = "female" THEN 1 ELSE 0 END) as female,
+                SUM(CASE WHEN gender = "other" THEN 1 ELSE 0 END) as other
+            ')
+            ->whereNull('deleted_at')
+            ->groupBy('class')
+            ->orderBy('class')
+            ->get();
 
-        // Category-wise distribution
-        $categories = ['General', 'OBC', 'SC', 'ST'];
-        $categoryWise = [];
-        foreach ($categories as $category) {
-            $categoryData = self::where('category', $category)->get();
-            $categoryWise[$category] = [
-                'total' => $categoryData->count(),
-                'male' => $categoryData->where('gender', 'male')->count(),
-                'female' => $categoryData->where('gender', 'female')->count(),
-                'other' => $categoryData->where('gender', 'other')->count(),
-            ];
-        }
+            // Category-wise distribution
+            $categories = ['General', 'OBC', 'SC', 'ST'];
+            $categoryWise = [];
+            foreach ($categories as $category) {
+                $categoryData = self::where('category', $category)->get();
+                $categoryWise[$category] = [
+                    'total' => $categoryData->count(),
+                    'male' => $categoryData->where('gender', 'male')->count(),
+                    'female' => $categoryData->where('gender', 'female')->count(),
+                    'other' => $categoryData->where('gender', 'other')->count(),
+                ];
+            }
 
-        return [
-            'total' => $total,
-            'male' => $male,
-            'female' => $female,
-            'other' => $other,
-            'male_percentage' => $malePercentage,
-            'female_percentage' => $femalePercentage,
-            'other_percentage' => $otherPercentage,
-            'gender_wise' => [
+            return [
+                'total' => $total,
                 'male' => $male,
                 'female' => $female,
                 'other' => $other,
-            ],
-            'class_wise' => $classWise,
-            'category_wise' => $categoryWise,
-        ];
+                'male_percentage' => $malePercentage,
+                'female_percentage' => $femalePercentage,
+                'other_percentage' => $otherPercentage,
+                'gender_wise' => [
+                    'male' => $male,
+                    'female' => $female,
+                    'other' => $other,
+                ],
+                'class_wise' => $classWise,
+                'category_wise' => $categoryWise,
+            ];
+        });
     }
 }

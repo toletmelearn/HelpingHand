@@ -6,6 +6,7 @@ use App\Http\Controllers\API\TeacherController;
 use App\Http\Controllers\API\AttendanceController;
 use App\Http\Controllers\API\ExamPaperController;
 use App\Http\Controllers\API\BellTimingController;
+use App\Http\Controllers\API\GuardianController;
 
 /*
 |--------------------------------------------------------------------------
@@ -21,12 +22,12 @@ use App\Http\Controllers\API\BellTimingController;
 // Version 1 API routes
 Route::prefix('v1')->group(function () {
     // Public routes
-    Route::get('/exam-papers/available/{classSection}', [ExamPaperController::class, 'availableForClass'])->name('api.exam-papers.available-for-class')->middleware('throttle:10,1');
-    Route::post('/exam-papers/search', [ExamPaperController::class, 'search'])->name('api.exam-papers.search')->middleware('throttle:10,1');
-    Route::get('/bell-timing/today/{classSection}', [BellTimingController::class, 'todaysSchedule'])->name('api.bell-timing.today')->middleware('throttle:10,1');
+    Route::get('/exam-papers/available/{classSection}', [ExamPaperController::class, 'availableForClass'])->name('api.exam-papers.available-for-class')->middleware(['throttle:10,1', \App\Http\Middleware\ApiAccessControl::class]);
+    Route::post('/exam-papers/search', [ExamPaperController::class, 'search'])->name('api.exam-papers.search')->middleware(['throttle:10,1', \App\Http\Middleware\ApiAccessControl::class]);
+    Route::get('/bell-timing/today/{classSection}', [BellTimingController::class, 'todaysSchedule'])->name('api.bell-timing.today')->middleware(['throttle:10,1', \App\Http\Middleware\ApiAccessControl::class]);
     
     // Protected routes
-    Route::middleware(['auth:sanctum', 'throttle:60,1'])->group(function () {
+    Route::middleware(['auth:sanctum', 'throttle:60,1', \App\Http\Middleware\ApiAccessControl::class])->group(function () {
         // Student routes
         Route::apiResource('students', StudentController::class);
         Route::get('/students/{id}/attendance', [StudentController::class, 'attendance'])->name('api.students.attendance');
@@ -37,6 +38,9 @@ Route::prefix('v1')->group(function () {
         Route::apiResource('teachers', TeacherController::class);
         Route::get('/teachers/{id}/classes', [TeacherController::class, 'classes'])->name('api.teachers.classes');
         Route::get('/teachers/{id}/papers', [TeacherController::class, 'examPapers'])->name('api.teachers.papers');
+        Route::get('/teachers/{id}/subject-classes', [TeacherController::class, 'subjectClasses'])->name('api.teachers.subject-classes');
+        Route::get('/teachers/{id}/attendance-data', [TeacherController::class, 'attendanceData'])->name('api.teachers.attendance-data');
+        Route::get('/teachers/{id}/grading-data', [TeacherController::class, 'gradingData'])->name('api.teachers.grading-data');
         
         // Attendance routes
         Route::apiResource('attendance', AttendanceController::class);
@@ -60,6 +64,11 @@ Route::prefix('v1')->group(function () {
         Route::put('/notifications/{id}/read', [App\Http\Controllers\Api\NotificationController::class, 'markAsRead'])->name('api.notifications.mark-as-read');
         Route::put('/notifications/mark-all-read', [App\Http\Controllers\Api\NotificationController::class, 'markAllAsRead'])->name('api.notifications.mark-all-read');
         Route::get('/notifications/unread-count', [App\Http\Controllers\Api\NotificationController::class, 'unreadCount'])->name('api.notifications.unread-count');
+        
+        // Guardian routes (for parent dashboard)
+        Route::apiResource('guardians', GuardianController::class);
+        Route::get('/guardians/{id}/children', [GuardianController::class, 'children'])->name('api.guardians.children');
+        Route::get('/guardians/{id}/notifications', [GuardianController::class, 'notifications'])->name('api.guardians.notifications');
     });
 });
 

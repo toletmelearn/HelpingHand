@@ -1,4 +1,4 @@
-@extends('layouts.app')
+﻿@extends('layouts.admin')
 
 @section('content')
 <div class="container">
@@ -21,7 +21,7 @@
                             <p><strong>Name:</strong> {{ $asset->name }}</p>
                             <p><strong>Category:</strong> {{ $asset->category->name ?? 'N/A' }}</p>
                             <p><strong>Vendor:</strong> {{ $asset->vendor ?: 'N/A' }}</p>
-                            <p><strong>Cost:</strong> {{ $asset->cost ? '₹' . number_format($asset->cost, 2) : 'N/A' }}</p>
+                            <p><strong>Cost:</strong> {{ $asset->cost ? 'â‚¹' . number_format($asset->cost, 2) : 'N/A' }}</p>
                             <p><strong>Purchase Date:</strong> {{ $asset->purchase_date ? $asset->purchase_date->format('d M Y') : 'N/A' }}</p>
                         </div>
                         <div class="col-md-6">

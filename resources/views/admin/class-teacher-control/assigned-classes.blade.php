@@ -1,4 +1,4 @@
-@extends('layouts.app')
+﻿@extends('layouts.admin')
 
 @section('title', 'Assigned Classes - Class Teacher Control')
 

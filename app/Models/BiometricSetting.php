@@ -23,6 +23,11 @@ class BiometricSetting extends Model
         'exclude_breaks_from_working_hours',
         'is_active',
         'description',
+        'enable_late_arrival_notifications',
+        'enable_early_departure_notifications',
+        'enable_half_day_notifications',
+        'enable_performance_notifications',
+        'notification_preferences',
     ];
 
     protected $casts = [
@@ -37,6 +42,11 @@ class BiometricSetting extends Model
         'exclude_lunch_from_working_hours' => 'boolean',
         'exclude_breaks_from_working_hours' => 'boolean',
         'is_active' => 'boolean',
+        'enable_late_arrival_notifications' => 'boolean',
+        'enable_early_departure_notifications' => 'boolean',
+        'enable_half_day_notifications' => 'boolean',
+        'enable_performance_notifications' => 'boolean',
+        'notification_preferences' => 'array',
     ];
 
     // Ensure only one active setting
@@ -115,6 +125,11 @@ class BiometricSetting extends Model
             'early_departure_tolerance' => 30,
             'exclude_lunch_from_working_hours' => true,
             'exclude_breaks_from_working_hours' => true,
+            'enable_late_arrival_notifications' => true,
+            'enable_early_departure_notifications' => true,
+            'enable_half_day_notifications' => true,
+            'enable_performance_notifications' => true,
+            'notification_preferences' => [],
         ];
     }
 
@@ -132,6 +147,11 @@ class BiometricSetting extends Model
             'early_departure_tolerance' => 'required|integer|min:0|max:120',
             'exclude_lunch_from_working_hours' => 'boolean',
             'exclude_breaks_from_working_hours' => 'boolean',
+            'enable_late_arrival_notifications' => 'boolean',
+            'enable_early_departure_notifications' => 'boolean',
+            'enable_half_day_notifications' => 'boolean',
+            'enable_performance_notifications' => 'boolean',
+            'notification_preferences' => 'nullable|array',
             'description' => 'nullable|string|max:500',
         ];
         

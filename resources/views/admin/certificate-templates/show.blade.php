@@ -1,4 +1,4 @@
-@extends('layouts.app')
+﻿@extends('layouts.admin')
 
 @section('title', 'View Certificate Template - ' . $certificateTemplate->name)
 

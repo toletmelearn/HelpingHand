@@ -11,7 +11,7 @@
                     <h4>Furniture Management</h4>
                     <div>
                         <a href="{{ route('inventory.assets.create') }}" class="btn btn-primary">Add New Asset</a>
-                        <a href="{{ route('inventory.index') }}" class="btn btn-secondary">Back to Inventory</a>
+                        <a href="{{ route('admin.inventory.index') }}" class="btn btn-secondary">Back to Inventory</a>
                     </div>
                 </div>
                 <div class="card-body">

@@ -5,10 +5,11 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use App\Traits\Auditable;
 
 class ClassTeacherAssignment extends Model
 {
-    use HasFactory;
+    use HasFactory, Auditable;
 
     protected $fillable = [
         'teacher_id',
@@ -27,7 +28,7 @@ class ClassTeacherAssignment extends Model
     // Relationships
     public function teacher(): BelongsTo
     {
-        return $this->belongsTo(\App\Models\User::class, 'teacher_id');
+        return $this->belongsTo(Teacher::class, 'teacher_id');
     }
 
     // Scopes

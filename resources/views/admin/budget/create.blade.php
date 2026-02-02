@@ -1,4 +1,4 @@
-@extends('layouts.app')
+﻿@extends('layouts.admin')
 
 @section('content')
 <div class="container-fluid">
@@ -8,7 +8,7 @@
                 <div class="page-title-right">
                     <ol class="breadcrumb m-0">
                         <li class="breadcrumb-item"><a href="{{ route('home') }}">Home</a></li>
-                        <li class="breadcrumb-item"><a href="{{ route('budgets.index') }}">Budgets</a></li>
+                        <li class="breadcrumb-item"><a href="{{ route('admin.budgets.index') }}">Budgets</a></li>
                         <li class="breadcrumb-item active">Create Budget</li>
                     </ol>
                 </div>
@@ -107,15 +107,15 @@
                             <button type="button" class="btn btn-secondary" id="add-allocation">Add Category</button>
                             <div>
                                 <span class="me-2">Total Allocated:</span>
-                                <strong id="total-allocated">₹0.00</strong>
+                                <strong id="total-allocated">â‚¹0.00</strong>
                                 <span class="mx-2">/</span>
-                                <strong id="total-budget-amount">₹{{ number_format(old('total_amount', 0), 2) }}</strong>
+                                <strong id="total-budget-amount">â‚¹{{ number_format(old('total_amount', 0), 2) }}</strong>
                             </div>
                         </div>
 
                         <div class="mt-4">
                             <button type="submit" class="btn btn-primary">Create Budget</button>
-                            <a href="{{ route('budgets.index') }}" class="btn btn-secondary">Cancel</a>
+                            <a href="{{ route('admin.budgets.index') }}" class="btn btn-secondary">Cancel</a>
                         </div>
                     </form>
                 </div>
@@ -179,7 +179,7 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
         
-        document.getElementById('total-allocated').textContent = '₹' + total.toFixed(2);
+        document.getElementById('total-allocated').textContent = 'â‚¹' + total.toFixed(2);
         
         // Compare with total budget amount
         const budgetAmount = parseFloat(document.getElementById('total_amount').value) || 0;
@@ -196,7 +196,7 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Update budget amount display when input changes
     document.getElementById('total_amount').addEventListener('input', function() {
-        document.getElementById('total-budget-amount').textContent = '₹' + (parseFloat(this.value) || 0).toFixed(2);
+        document.getElementById('total-budget-amount').textContent = 'â‚¹' + (parseFloat(this.value) || 0).toFixed(2);
         calculateTotal();
     });
     

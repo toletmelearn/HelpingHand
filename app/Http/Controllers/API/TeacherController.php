@@ -143,4 +143,156 @@ class TeacherController extends BaseApiController
             return $this->error('Failed to retrieve exam papers: ' . $e->getMessage());
         }
     }
+
+    /**
+     * Get teacher's assigned subjects and classes.
+     */
+    public function subjectClasses(int $id): JsonResponse
+    {
+        try {
+            $teacher = Teacher::with([
+                'subjectAssignments.subject',
+                'classAssignments.schoolClass',
+                'lessonPlans'
+            ])->findOrFail($id);
+            
+            $result = [
+                'subjects' => $teacher->subjectAssignments->map(function($assignment) {
+                    return [
+                        'id' => $assignment->id,
+                        'subject' => $assignment->subject,
+                        'class' => $assignment->assigned_class,
+                        'section' => $assignment->assigned_section,
+                        'academic_session' => $assignment->academic_session,
+                    ];
+                }),
+                'classes' => $teacher->classAssignments->map(function($assignment) {
+                    return [
+                        'id' => $assignment->id,
+                        'class' => $assignment->assigned_class,
+                        'section' => $assignment->assigned_section,
+                        'academic_session' => $assignment->academic_session,
+                        'is_class_teacher' => $assignment->is_class_teacher,
+                        'students_count' => $assignment->schoolClass ? $assignment->schoolClass->students_count : 0,
+                    ];
+                }),
+                'lesson_plans' => $teacher->lessonPlans,
+            ];
+            
+            return $this->success($result, 'Subject and class assignments retrieved successfully');
+        } catch (\Exception $e) {
+            return $this->error('Failed to retrieve subject and class assignments: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Get teacher's attendance-related data.
+     */
+    public function attendanceData(int $id): JsonResponse
+    {
+        try {
+            $teacher = Teacher::with([
+                'classAssignments.schoolClass.students.attendances',
+                'subjectAssignments.attendances'
+            ])->findOrFail($id);
+            
+            $attendanceData = [
+                'classes' => [],
+                'attendance_records' => []
+            ];
+            
+            foreach ($teacher->classAssignments as $classAssignment) {
+                if ($classAssignment->schoolClass) {
+                    $classAttendance = [
+                        'class_id' => $classAssignment->schoolClass->id,
+                        'class_name' => $classAssignment->schoolClass->class_name,
+                        'section' => $classAssignment->schoolClass->section,
+                        'total_students' => $classAssignment->schoolClass->students->count(),
+                        'attendance_summary' => []
+                    ];
+                    
+                    foreach ($classAssignment->schoolClass->students as $student) {
+                        $studentAttendance = $student->attendances->groupBy('date')->map(function($dailyRecords) {
+                            return [
+                                'status' => $dailyRecords->first()->status ?? 'Absent',
+                                'check_in' => $dailyRecords->first()->check_in_time,
+                                'check_out' => $dailyRecords->first()->check_out_time,
+                            ];
+                        });
+                        
+                        $classAttendance['attendance_summary'][$student->id] = [
+                            'student_name' => $student->name,
+                            'attendance_records' => $studentAttendance
+                        ];
+                    }
+                    
+                    $attendanceData['classes'][] = $classAttendance;
+                }
+            }
+            
+            return $this->success($attendanceData, 'Attendance data retrieved successfully');
+        } catch (\Exception $e) {
+            return $this->error('Failed to retrieve attendance data: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Get teacher's grading and assessment data.
+     */
+    public function gradingData(int $id): JsonResponse
+    {
+        try {
+            $teacher = Teacher::with([
+                'subjectAssignments.examPapers',
+                'subjectAssignments.results',
+                'lessonPlans'
+            ])->findOrFail($id);
+            
+            $gradingData = [
+                'subjects' => [],
+                'exam_papers' => [],
+                'results' => []
+            ];
+            
+            foreach ($teacher->subjectAssignments as $subjectAssignment) {
+                $gradingData['subjects'][] = [
+                    'id' => $subjectAssignment->id,
+                    'subject' => $subjectAssignment->subject,
+                    'class' => $subjectAssignment->assigned_class,
+                    'section' => $subjectAssignment->assigned_section,
+                    'exam_papers_count' => $subjectAssignment->examPapers->count(),
+                    'results_count' => $subjectAssignment->results->count(),
+                ];
+                
+                foreach ($subjectAssignment->examPapers as $paper) {
+                    $gradingData['exam_papers'][] = [
+                        'id' => $paper->id,
+                        'title' => $paper->title,
+                        'subject' => $paper->subject,
+                        'class' => $paper->class,
+                        'marks' => $paper->total_marks,
+                        'exam_date' => $paper->exam_date,
+                        'graded_count' => $paper->results->count(),
+                        'total_students' => $paper->enrolledStudents->count(),
+                    ];
+                }
+                
+                foreach ($subjectAssignment->results as $result) {
+                    $gradingData['results'][] = [
+                        'id' => $result->id,
+                        'student_name' => $result->student->name,
+                        'subject' => $result->exam_paper->subject,
+                        'marks_obtained' => $result->marks_obtained,
+                        'total_marks' => $result->exam_paper->total_marks,
+                        'grade' => $result->grade,
+                        'exam_date' => $result->exam_paper->exam_date,
+                    ];
+                }
+            }
+            
+            return $this->success($gradingData, 'Grading data retrieved successfully');
+        } catch (\Exception $e) {
+            return $this->error('Failed to retrieve grading data: ' . $e->getMessage());
+        }
+    }
 }

@@ -364,7 +364,11 @@ The HelpingHand School Management System is a fully functional application with:
 
 The following enhancements are planned to upgrade this system to an enterprise-grade solution:
 
-### 🔐 Security Enhancements
+### � Performance Analytics
+**Status: Phase-2 Planned Module**  
+Performance Analytics: Planned module (routes exist but not yet production-stable)
+
+### �🔐 Security Enhancements
 - Two-Factor Authentication (2FA) for all user accounts
 - API rate limiting to prevent abuse
 - CORS configuration for secure cross-origin requests

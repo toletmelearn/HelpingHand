@@ -8,9 +8,12 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use App\Models\Section;
 use App\Models\Subject;
 use App\Models\Teacher;
+use App\Traits\Auditable;
 
 class ClassManagement extends Model
 {
+    use Auditable;
+    
     protected $fillable = [
         'name', 'section', 'stream', 'capacity', 'description', 'is_active'
     ];

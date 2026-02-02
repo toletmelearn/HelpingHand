@@ -1,0 +1,4 @@
+full_name,email,phone,aadhar,gender,date_of_birth,qualification,subjects,designation,employee_id,employment_type,wing,teacher_type,date_of_joining,monthly_salary,status,address,bank_account,ifsc,experience
+John Doe,john.doe@school.edu,9876543210,123456789012,male,1985-05-15,M.Ed,Maths,Science,TGT,EMP001,permanent,secondary,teaching,2020-06-01,45000,active,"123 Main St, City",123456789012,SBIN0001234,5
+Jane Smith,jane.smith@school.edu,9876543211,123456789013,female,1988-08-22,B.Ed,English,Hindi,PRT,EMP002,permanent,primary,teaching,2019-07-15,35000,active,"456 Oak Ave, City",123456789013,SBIN0001235,4
+Robert Johnson,robert.j@school.edu,9876543212,123456789014,male,1982-03-10,M.Sc,Physics,Chemistry,PGT,EMP003,contractual,senior,teaching,2021-01-10,55000,active,"789 Pine Rd, City",123456789014,SBIN0001236,8

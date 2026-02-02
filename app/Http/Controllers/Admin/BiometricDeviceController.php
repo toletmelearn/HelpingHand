@@ -21,8 +21,28 @@ class BiometricDeviceController extends Controller
     
     public function store(Request $request)
     {
-        // Implementation pending
-        return redirect()->route('admin.biometric-devices.index');
+        $request->validate([
+            'name' => 'required|string|max:255',
+            'ip_address' => 'required|ip',
+            'port' => 'nullable|integer|min:1|max:65535',
+            'device_type' => 'nullable|in:zkteco,essl,mantra,generic_rest',
+            'location' => 'nullable|string|max:255',
+            'status' => 'nullable|in:active,inactive,maintenance',
+            'description' => 'nullable|string',
+            'timeout' => 'nullable|integer|min:1|max:300',
+        ]);
+        
+        $request->merge([
+            'port' => $request->port ?: 4370,
+            'device_type' => $request->device_type ?: 'zkteco',
+            'status' => $request->status ?: 'active',
+            'timeout' => $request->timeout ?: 30,
+        ]);
+        
+        BiometricDevice::create($request->all());
+        
+        return redirect()->route('admin.biometric-devices.index')
+            ->with('success', 'Biometric device created successfully.');
     }
     
     public function show(BiometricDevice $biometricDevice)
@@ -37,8 +57,28 @@ class BiometricDeviceController extends Controller
     
     public function update(Request $request, BiometricDevice $biometricDevice)
     {
-        // Implementation pending
-        return redirect()->route('admin.biometric-devices.index');
+        $request->validate([
+            'name' => 'required|string|max:255',
+            'ip_address' => 'required|ip',
+            'port' => 'nullable|integer|min:1|max:65535',
+            'device_type' => 'nullable|in:zkteco,essl,mantra,generic_rest',
+            'location' => 'nullable|string|max:255',
+            'status' => 'nullable|in:active,inactive,maintenance',
+            'description' => 'nullable|string',
+            'timeout' => 'nullable|integer|min:1|max:300',
+        ]);
+        
+        $request->merge([
+            'port' => $request->port ?: 4370,
+            'device_type' => $request->device_type ?: 'zkteco',
+            'status' => $request->status ?: 'active',
+            'timeout' => $request->timeout ?: 30,
+        ]);
+        
+        $biometricDevice->update($request->all());
+        
+        return redirect()->route('admin.biometric-devices.index')
+            ->with('success', 'Biometric device updated successfully.');
     }
     
     public function destroy(BiometricDevice $biometricDevice)

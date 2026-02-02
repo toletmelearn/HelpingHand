@@ -1,4 +1,4 @@
-@extends('layouts.app')
+﻿@extends('layouts.admin')
 
 @section('title', 'Admit Card - ' . ($admitCard->exam->name ?? 'Exam'))
 

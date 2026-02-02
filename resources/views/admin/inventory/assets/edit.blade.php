@@ -1,4 +1,4 @@
-@extends('layouts.app')
+﻿@extends('layouts.admin')
 
 @section('content')
 <div class="container">
@@ -58,7 +58,7 @@
                             
                             <div class="col-md-6">
                                 <div class="mb-3">
-                                    <label for="cost" class="form-label">Cost (₹)</label>
+                                    <label for="cost" class="form-label">Cost (â‚¹)</label>
                                     <input type="number" class="form-control" id="cost" name="cost" value="{{ old('cost', $asset->cost) }}" step="0.01" min="0">
                                     @error('cost')
                                         <div class="text-danger">{{ $message }}</div>

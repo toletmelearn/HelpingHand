@@ -40,6 +40,9 @@
             <a href="{{ route('teachers.create') }}" class="btn btn-success">
                 ➕ Add New Teacher
             </a>
+            <a href="{{ route('admin.teachers.bulk-upload') }}" class="btn btn-primary ms-2">
+                📦 Bulk Upload Teachers
+            </a>
             <a href="{{ url('/') }}" class="btn btn-outline-secondary ms-2">
                 ← Home
             </a>

@@ -1,4 +1,4 @@
-@extends('layouts.app')
+﻿@extends('layouts.admin')
 
 @section('title', 'My Attendance & Performance')
 
@@ -21,9 +21,9 @@
                         <div class="col mr-2">
                             <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">
                                 Welcome Back</div>
-                            <div class="h5 mb-0 font-weight-bold text-gray-800">{{ Auth::user()->name }}</div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">{{ $teacher->name }}</div>
                             <div class="text-xs text-gray-500">
-                                Teacher ID: {{ Auth::user()->id }} | Email: {{ Auth::user()->email }}
+                                Teacher ID: {{ $teacher->id }} | Email: {{ $teacher->email }}
                             </div>
                         </div>
                         <div class="col-auto">
@@ -44,7 +44,7 @@
                         <div class="col mr-2">
                             <div class="text-xs font-weight-bold text-info text-uppercase mb-1">
                                 Total Days</div>
-                            <div class="h5 mb-0 font-weight-bold text-gray-800">22</div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">{{ $stats['total_days'] }}</div>
                         </div>
                         <div class="col-auto">
                             <i class="bi bi-calendar fa-2x text-gray-300"></i>
@@ -61,7 +61,7 @@
                         <div class="col mr-2">
                             <div class="text-xs font-weight-bold text-success text-uppercase mb-1">
                                 Present Days</div>
-                            <div class="h5 mb-0 font-weight-bold text-gray-800">20</div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">{{ $stats['present_days'] }}</div>
                         </div>
                         <div class="col-auto">
                             <i class="bi bi-check-circle fa-2x text-gray-300"></i>
@@ -78,7 +78,7 @@
                         <div class="col mr-2">
                             <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">
                                 Late Arrivals</div>
-                            <div class="h5 mb-0 font-weight-bold text-gray-800">3</div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">{{ $stats['late_arrivals'] }}</div>
                         </div>
                         <div class="col-auto">
                             <i class="bi bi-clock fa-2x text-gray-300"></i>
@@ -95,7 +95,7 @@
                         <div class="col mr-2">
                             <div class="text-xs font-weight-bold text-danger text-uppercase mb-1">
                                 Early Departs</div>
-                            <div class="h5 mb-0 font-weight-bold text-gray-800">2</div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">{{ $stats['early_departures'] }}</div>
                         </div>
                         <div class="col-auto">
                             <i class="bi bi-door-open fa-2x text-gray-300"></i>
@@ -112,7 +112,7 @@
                         <div class="col mr-2">
                             <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">
                                 Avg Hours</div>
-                            <div class="h5 mb-0 font-weight-bold text-gray-800">8.2</div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">{{ $stats['avg_working_hours'] }}</div>
                         </div>
                         <div class="col-auto">
                             <i class="bi bi-clock-history fa-2x text-gray-300"></i>
@@ -129,7 +129,7 @@
                         <div class="col mr-2">
                             <div class="text-xs font-weight-bold text-success text-uppercase mb-1">
                                 Attendance</div>
-                            <div class="h5 mb-0 font-weight-bold text-gray-800">90.9%</div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">{{ $stats['attendance_percentage'] }}%</div>
                         </div>
                         <div class="col-auto">
                             <i class="bi bi-graph-up fa-2x text-gray-300"></i>
@@ -151,14 +151,30 @@
                     <button class="btn btn-success" onclick="viewPerformanceTrends()">
                         <i class="bi bi-graph-up"></i> Performance Trends
                     </button>
+                    <a href="{{ route('teacher.biometric.notification-preferences') }}" class="btn btn-info">
+                        <i class="bi bi-gear"></i> Notification Preferences
+                    </a>
                 </div>
                 
                 <div>
                     <select class="form-select" id="monthFilter" onchange="changeMonth()">
-                        <option value="2026-01" selected>January 2026</option>
-                        <option value="2025-12">December 2025</option>
-                        <option value="2025-11">November 2025</option>
-                        <option value="2025-10">October 2025</option>
+                        @php
+                            $months = [];
+                            for($i = 0; $i < 12; $i++) {
+                                $month = now()->subMonths($i);
+                                $isSelected = $month->format('Y-m') == now()->format('Y-m');
+                                $months[] = [
+                                    'value' => $month->format('Y-m'),
+                                    'text' => $month->format('F Y'),
+                                    'selected' => $isSelected
+                                ];
+                            }
+                        @endphp
+                        @foreach($months as $month)
+                            <option value="{{ $month['value'] }}" {{ $month['selected'] ? 'selected' : '' }}>
+                                {{ $month['text'] }}
+                            </option>
+                        @endforeach
                     </select>
                 </div>
             </div>
@@ -199,51 +215,30 @@
                                 </tr>
                             </thead>
                             <tbody>
+                                @forelse($records as $record)
                                 <tr>
-                                    <td>Jan 27, 2026</td>
-                                    <td>Wednesday</td>
-                                    <td>08:45 AM</td>
-                                    <td>05:15 PM</td>
-                                    <td>8.5 hrs</td>
-                                    <td><span class="badge bg-success">On Time</span></td>
-                                    <td>Regular day</td>
+                                    <td>{{ $record->date->format('M d, Y') }}</td>
+                                    <td>{{ $record->date->format('l') }}</td>
+                                    <td>{{ $record->first_in_time ? $record->first_in_time->format('h:i A') : 'N/A' }}</td>
+                                    <td>{{ $record->last_out_time ? $record->last_out_time->format('h:i A') : 'N/A' }}</td>
+                                    <td>{{ $record->working_duration_formatted }}</td>
+                                    <td>
+                                        <span class="badge {{ $record->status_badge['class'] }}">
+                                            {{ $record->status_badge['text'] }}
+                                            @if($record->late_minutes > 0)
+                                                Late {{ $record->late_minutes }}m
+                                            @elseif($record->early_departure_minutes > 0)
+                                                Early {{ $record->early_departure_minutes }}m
+                                            @endif
+                                        </span>
+                                    </td>
+                                    <td>{{ $record->remarks ?: 'Regular day' }}</td>
                                 </tr>
+                                @empty
                                 <tr>
-                                    <td>Jan 26, 2026</td>
-                                    <td>Tuesday</td>
-                                    <td>08:55 AM</td>
-                                    <td>04:45 PM</td>
-                                    <td>8.0 hrs</td>
-                                    <td><span class="badge bg-warning">Late 5m</span></td>
-                                    <td>Traffic delay</td>
+                                    <td colspan="7" class="text-center">No attendance records found for the selected period.</td>
                                 </tr>
-                                <tr>
-                                    <td>Jan 25, 2026</td>
-                                    <td>Monday</td>
-                                    <td>08:30 AM</td>
-                                    <td>05:30 PM</td>
-                                    <td>9.0 hrs</td>
-                                    <td><span class="badge bg-success">Early In</span></td>
-                                    <td>Extra class</td>
-                                </tr>
-                                <tr>
-                                    <td>Jan 24, 2026</td>
-                                    <td>Sunday</td>
-                                    <td>Off</td>
-                                    <td>Off</td>
-                                    <td>0 hrs</td>
-                                    <td><span class="badge bg-secondary">Holiday</span></td>
-                                    <td>Weekly off</td>
-                                </tr>
-                                <tr>
-                                    <td>Jan 23, 2026</td>
-                                    <td>Saturday</td>
-                                    <td>09:00 AM</td>
-                                    <td>04:30 PM</td>
-                                    <td>7.5 hrs</td>
-                                    <td><span class="badge bg-warning">Early Out</span></td>
-                                    <td>Personal work</td>
-                                </tr>
+                                @endforelse
                             </tbody>
                         </table>
                     </div>
@@ -264,7 +259,7 @@
                         <div class="col-6">
                             <div class="card bg-primary text-white">
                                 <div class="card-body">
-                                    <h3 class="display-6">94.2%</h3>
+                                    <h3 class="display-6">{{ $stats['punctuality_score'] }}%</h3>
                                     <p class="card-text">Punctuality</p>
                                 </div>
                             </div>
@@ -272,7 +267,7 @@
                         <div class="col-6">
                             <div class="card bg-success text-white">
                                 <div class="card-body">
-                                    <h3 class="display-6">92.5%</h3>
+                                    <h3 class="display-6">{{ $stats['discipline_score'] }}%</h3>
                                     <p class="card-text">Discipline</p>
                                 </div>
                             </div>
@@ -282,7 +277,7 @@
                         <div class="col-6">
                             <div class="card bg-info text-white">
                                 <div class="card-body">
-                                    <h3 class="display-6">90.8%</h3>
+                                    <h3 class="display-6">{{ $stats['attendance_percentage'] }}%</h3>
                                     <p class="card-text">Consistency</p>
                                 </div>
                             </div>
@@ -290,7 +285,16 @@
                         <div class="col-6">
                             <div class="card bg-warning text-white">
                                 <div class="card-body">
-                                    <h3 class="display-6">B+</h3>
+                                    @php
+                                        $grade = '';
+                                        if($stats['discipline_score'] >= 90) $grade = 'A+';
+                                        elseif($stats['discipline_score'] >= 80) $grade = 'A';
+                                        elseif($stats['discipline_score'] >= 70) $grade = 'B+';
+                                        elseif($stats['discipline_score'] >= 60) $grade = 'B';
+                                        elseif($stats['discipline_score'] >= 50) $grade = 'C';
+                                        else $grade = 'D';
+                                    @endphp
+                                    <h3 class="display-6">{{ $grade }}</h3>
                                     <p class="card-text">Grade</p>
                                 </div>
                             </div>
@@ -310,31 +314,31 @@
                     <div class="row">
                         <div class="col-6">
                             <div class="text-center mb-3">
-                                <h4 class="text-primary">22</h4>
+                                <h4 class="text-primary">{{ $stats['total_days'] }}</h4>
                                 <p class="text-muted">Total Days</p>
                             </div>
                         </div>
                         <div class="col-6">
                             <div class="text-center mb-3">
-                                <h4 class="text-success">20</h4>
+                                <h4 class="text-success">{{ $stats['present_days'] }}</h4>
                                 <p class="text-muted">Present</p>
                             </div>
                         </div>
                         <div class="col-6">
                             <div class="text-center mb-3">
-                                <h4 class="text-warning">3</h4>
+                                <h4 class="text-warning">{{ $stats['late_arrivals'] }}</h4>
                                 <p class="text-muted">Late Arrivals</p>
                             </div>
                         </div>
                         <div class="col-6">
                             <div class="text-center mb-3">
-                                <h4 class="text-danger">2</h4>
+                                <h4 class="text-danger">{{ $stats['early_departures'] }}</h4>
                                 <p class="text-muted">Early Departs</p>
                             </div>
                         </div>
                         <div class="col-12">
                             <div class="text-center">
-                                <h4 class="text-info">8.2 hrs</h4>
+                                <h4 class="text-info">{{ $stats['avg_working_hours'] }} hrs</h4>
                                 <p class="text-muted">Avg. Daily Hours</p>
                             </div>
                         </div>
@@ -353,30 +357,21 @@
                 </div>
                 <div class="card-body">
                     <div class="list-group">
-                        <a href="#" class="list-group-item list-group-item-action">
+                        @forelse($notifications as $notification)
+                        <a href="{{ $notification['link'] }}" class="list-group-item list-group-item-action">
                             <div class="d-flex w-100 justify-content-between">
-                                <h6 class="mb-1">Late Arrival Alert</h6>
-                                <small class="text-muted">2 days ago</small>
+                                <h6 class="mb-1">{{ $notification['title'] }}</h6>
+                                <small class="text-muted">{{ $notification['timestamp'] }}</small>
                             </div>
-                            <p class="mb-1">You arrived 5 minutes late yesterday. Please maintain punctuality.</p>
-                            <small class="text-muted">Attendance Management</small>
+                            <p class="mb-1">{{ $notification['message'] }}</p>
+                            <small class="text-muted">{{ $notification['type'] }}</small>
                         </a>
-                        <a href="#" class="list-group-item list-group-item-action">
-                            <div class="d-flex w-100 justify-content-between">
-                                <h6 class="mb-1">Performance Reminder</h6>
-                                <small class="text-muted">1 week ago</small>
-                            </div>
-                            <p class="mb-1">Your punctuality score is 94.2%. Keep up the good work!</p>
-                            <small class="text-muted">HR Department</small>
-                        </a>
-                        <a href="#" class="list-group-item list-group-item-action">
-                            <div class="d-flex w-100 justify-content-between">
-                                <h6 class="mb-1">Monthly Summary Ready</h6>
-                                <small class="text-muted">2 weeks ago</small>
-                            </div>
-                            <p class="mb-1">Your January 2026 attendance summary is available for review.</p>
-                            <small class="text-muted">Admin Dashboard</small>
-                        </a>
+                        @empty
+                        <div class="text-center p-4">
+                            <i class="bi bi-bell-slash fs-1 text-muted"></i>
+                            <p class="text-muted">No recent notifications</p>
+                        </div>
+                        @endforelse
                     </div>
                 </div>
             </div>
@@ -432,13 +427,30 @@ function openAttendanceReport() {
 }
 
 function viewPerformanceTrends() {
-    alert('Performance trends would be displayed here');
+    // Fetch performance trends data via AJAX
+    fetch('{{ route("teacher.biometric.monthly-summary") }}')
+        .then(response => response.json())
+        .then(data => {
+            if(data.success) {
+                alert('Performance trends would show detailed analysis based on: ' + 
+                      'Total Days: ' + data.summary.total_days + ', ' +
+                      'Attendance: ' + data.summary.attendance_percentage + '%, ' +
+                      'Late Arrivals: ' + data.summary.late_arrivals);
+            }
+        })
+        .catch(error => {
+            console.error('Error fetching performance trends:', error);
+            alert('Could not load performance trends');
+        });
 }
 
 function changeMonth() {
     // Change month logic
     const month = document.getElementById('monthFilter').value;
     console.log('Month changed to: ' + month);
+    
+    // You could reload the page or fetch new data via AJAX
+    // window.location.href = '{{ url()->current() }}?month=' + month;
 }
 
 function downloadReport() {
@@ -452,18 +464,47 @@ function downloadReport() {
     btn.innerHTML = '<i class="bi bi-hourglass-split"></i> Preparing...';
     btn.disabled = true;
     
-    // Simulate download
-    setTimeout(() => {
-        // Hide modal
+    // Prepare form data for download
+    const formData = new FormData();
+    formData.append('type', reportType);
+    formData.append('format', format);
+    formData.append('month', document.getElementById('monthFilter').value);
+    formData.append('_token', '{{ csrf_token() }}');
+    
+    // Submit via POST to download endpoint
+    fetch('{{ route("teacher.biometric.dashboard") }}/download', {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => {
+        if (response.ok) {
+            return response.blob();
+        }
+        throw new Error('Download failed');
+    })
+    .then(blob => {
+        // Create download link
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.style.display = 'none';
+        a.href = url;
+        a.download = `${reportType}_report_${new Date().toISOString().slice(0, 10)}.${format === 'pdf' ? 'pdf' : 'xlsx'}`;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        
+        // Hide modal and reset button
         var modal = bootstrap.Modal.getInstance(document.getElementById('downloadReportModal'));
         modal.hide();
-        
-        // Show success
         btn.innerHTML = originalText;
         btn.disabled = false;
-        
-        alert(`Report downloaded successfully!\nType: ${reportType}\nFormat: ${format}`);
-    }, 2000);
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Error downloading report: ' + error.message);
+        btn.innerHTML = originalText;
+        btn.disabled = false;
+    });
 }
 </script>
 @endsection

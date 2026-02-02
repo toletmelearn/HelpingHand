@@ -1,4 +1,4 @@
-@extends('layouts.app')
+﻿@extends('layouts.admin')
 
 @section('content')
 <div class="container-fluid">
@@ -19,7 +19,7 @@
     <!-- Year Filter -->
     <div class="row mb-3">
         <div class="col-md-12">
-            <form method="GET" action="{{ route('budget.index') }}" class="row g-3">
+            <form method="GET" action="{{ route('admin.budget.index') }}" class="row g-3">
                 <div class="col-md-3">
                     <label for="year" class="form-label">Fiscal Year</label>
                     <select name="year" id="year" class="form-select">
@@ -171,7 +171,7 @@
                                     <td>{{ Str::limit($expense->title, 20) }}</td>
                                     <td>{{ $expense->budget->name ?? 'N/A' }}</td>
                                     <td>{{ $expense->category->name ?? 'N/A' }}</td>
-                                    <td>₹{{ number_format($expense->amount, 2) }}</td>
+                                    <td>â‚¹{{ number_format($expense->amount, 2) }}</td>
                                     <td>
                                         <span class="badge badge-{{ $expense->status_label == 'Approved' ? 'success' : ($expense->status_label == 'Pending' ? 'warning' : 'danger') }}">
                                             {{ $expense->status_label }}
@@ -247,7 +247,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     beginAtZero: true,
                     ticks: {
                         callback: function(value) {
-                            return '₹' + value.toLocaleString();
+                            return 'â‚¹' + value.toLocaleString();
                         }
                     }
                 }
@@ -319,7 +319,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     beginAtZero: true,
                     ticks: {
                         callback: function(value) {
-                            return '₹' + value.toLocaleString();
+                            return 'â‚¹' + value.toLocaleString();
                         }
                     }
                 }

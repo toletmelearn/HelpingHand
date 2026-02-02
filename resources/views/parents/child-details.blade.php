@@ -1,4 +1,4 @@
-@extends('layouts.app')
+﻿@extends('layouts.admin')
 
 @section('title', 'Child Details - ' . $child->name)
 
@@ -160,9 +160,9 @@
                                     @foreach($fees as $fee)
                                     <tr>
                                         <td>{{ $fee->fee_type }}</td>
-                                        <td>₹{{ $fee->amount }}</td>
-                                        <td>₹{{ $fee->paid_amount }}</td>
-                                        <td>₹{{ $fee->due_amount }}</td>
+                                        <td>â‚¹{{ $fee->amount }}</td>
+                                        <td>â‚¹{{ $fee->paid_amount }}</td>
+                                        <td>â‚¹{{ $fee->due_amount }}</td>
                                         <td>
                                             <span class="badge bg-{{ $fee->status === 'paid' ? 'success' : ($fee->status === 'partial' ? 'warning' : 'danger') }}">
                                                 {{ ucfirst($fee->status) }}

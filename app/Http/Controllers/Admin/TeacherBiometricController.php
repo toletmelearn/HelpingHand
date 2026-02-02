@@ -15,6 +15,9 @@ use Carbon\Carbon;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Response;
 use PhpOffice\PhpSpreadsheet\IOFactory;
+use Maatwebsite\Excel\Facades\Excel;
+use Barryvdh\DomPDF\Facade\Pdf;
+use Maatwebsite\Excel\Concerns\FromCollection;
 
 class TeacherBiometricController extends Controller
 {
@@ -272,11 +275,167 @@ class TeacherBiometricController extends Controller
         $format = $request->get('format', 'pdf');
         $startDate = $request->get('start_date', now()->startOfMonth()->toDateString());
         $endDate = $request->get('end_date', now()->toDateString());
+        $teacherId = $request->get('teacher_id');
         
-        // Implementation would depend on PDF/Excel packages
-        // This is a placeholder for the export functionality
+        $data = [];
+        $teachers = Teacher::orderBy('name')->get();
         
-        return redirect()->back()->with('info', 'Export functionality will be implemented in the next phase.');
+        switch ($type) {
+            case 'daily_summary':
+                $data = $this->generateDailySummary($startDate);
+                break;
+            case 'monthly_report':
+                $data = $this->generateMonthlyReport($teacherId, $startDate, $endDate);
+                break;
+            case 'late_arrival_report':
+                $data = $this->generateLateArrivalReport($startDate, $endDate);
+                break;
+            case 'early_departure_report':
+                $data = $this->generateEarlyDepartureReport($startDate, $endDate);
+                break;
+        }
+        
+        if ($format === 'excel') {
+            return $this->exportToExcel($data, $type, $startDate, $endDate, $teachers->find($teacherId));
+        } else {
+            return $this->exportToPDF($data, $type, $startDate, $endDate, $teachers->find($teacherId));
+        }
+    }
+    
+    private function exportToExcel($data, $type, $startDate, $endDate, $teacher = null)
+    {
+        $fileName = 'biometric_' . $type . '_' . $startDate . '_to_' . $endDate;
+        
+        if ($teacher) {
+            $fileName .= '_for_' . str_replace(' ', '_', strtolower($teacher->name));
+        }
+        
+        // Create a collection based on the report type
+        switch ($type) {
+            case 'daily_summary':
+                $collection = collect($data)->map(function ($item) {
+                    return [
+                        'Date' => $item['date'] ?? 'N/A',
+                        'Total Teachers' => $item['total_teachers'] ?? 0,
+                        'Present Today' => $item['present_today'] ?? 0,
+                        'Late Arrivals' => $item['late_arrivals'] ?? 0,
+                        'Early Departures' => $item['early_departures'] ?? 0,
+                        'Half Days' => $item['half_days'] ?? 0,
+                        'Avg Working Hours' => number_format($item['avg_working_hours'] ?? 0, 2)
+                    ];
+                });
+                break;
+            case 'monthly_report':
+                if ($teacher) {
+                    // For teacher-specific monthly report
+                    $records = TeacherBiometricRecord::where('teacher_id', $teacher->id)
+                        ->whereBetween('date', [$startDate, $endDate])
+                        ->get();
+                    
+                    $collection = $records->map(function ($record) {
+                        return [
+                            'Date' => $record->date->format('d-m-Y'),
+                            'Teacher' => $record->teacher->name ?? 'N/A',
+                            'First In Time' => $record->first_in_time ? $record->first_in_time->format('H:i') : 'N/A',
+                            'Last Out Time' => $record->last_out_time ? $record->last_out_time->format('H:i') : 'N/A',
+                            'Working Hours' => number_format($record->calculated_duration, 2),
+                            'Arrival Status' => ucfirst(str_replace('_', ' ', $record->arrival_status)),
+                            'Departure Status' => ucfirst(str_replace('_', ' ', $record->departure_status)),
+                            'Late Minutes' => $record->late_minutes ?? 0,
+                            'Early Departure Minutes' => $record->early_departure_minutes ?? 0,
+                        ];
+                    });
+                } else {
+                    // For general monthly summary
+                    $collection = collect([[
+                        'Total Records' => $data->total_records ?? 0,
+                        'Unique Teachers' => $data->unique_teachers ?? 0,
+                        'Total Late Arrivals' => $data->total_late ?? 0,
+                        'Total Early Departures' => $data->total_early ?? 0,
+                        'Average Working Hours' => number_format($data->avg_working_hours ?? 0, 2)
+                    ]]);
+                }
+                break;
+            case 'late_arrival_report':
+                $collection = collect($data)->map(function ($record) {
+                    return [
+                        'Teacher' => $record->teacher->name ?? 'N/A',
+                        'Date' => $record->date->format('d-m-Y'),
+                        'Arrival Time' => $record->first_in_time ? $record->first_in_time->format('H:i') : 'N/A',
+                        'Late Minutes' => $record->late_minutes ?? 0,
+                        'Status' => ucfirst(str_replace('_', ' ', $record->arrival_status)),
+                    ];
+                });
+                break;
+            case 'early_departure_report':
+                $collection = collect($data)->map(function ($record) {
+                    return [
+                        'Teacher' => $record->teacher->name ?? 'N/A',
+                        'Date' => $record->date->format('d-m-Y'),
+                        'Departure Time' => $record->last_out_time ? $record->last_out_time->format('H:i') : 'N/A',
+                        'Early Minutes' => $record->early_departure_minutes ?? 0,
+                        'Status' => ucfirst(str_replace('_', ' ', $record->departure_status)),
+                    ];
+                });
+                break;
+            default:
+                $collection = collect([]);
+        }
+        
+        return Excel::download(new class($collection) implements FromCollection {
+            private $data;
+            
+            public function __construct($data)
+            {
+                $this->data = $data;
+            }
+            
+            public function collection()
+            {
+                return $this->data;
+            }
+        }, $fileName . '.xlsx');
+    }
+    
+    private function exportToPDF($data, $type, $startDate, $endDate, $teacher = null)
+    {
+        $fileName = 'biometric_' . $type . '_' . $startDate . '_to_' . $endDate;
+        
+        if ($teacher) {
+            $fileName .= '_for_' . str_replace(' ', '_', strtolower($teacher->name));
+        }
+        
+        $reportTitle = '';
+        switch ($type) {
+            case 'daily_summary':
+                $reportTitle = 'Daily Summary Report';
+                break;
+            case 'monthly_report':
+                $reportTitle = $teacher ? 'Monthly Report for ' . $teacher->name : 'Monthly Summary Report';
+                break;
+            case 'late_arrival_report':
+                $reportTitle = 'Late Arrival Report';
+                break;
+            case 'early_departure_report':
+                $reportTitle = 'Early Departure Report';
+                break;
+            default:
+                $reportTitle = 'Biometric Report';
+        }
+        
+        $pdfData = [
+            'data' => $data,
+            'type' => $type,
+            'startDate' => $startDate,
+            'endDate' => $endDate,
+            'teacher' => $teacher,
+            'reportTitle' => $reportTitle,
+            'generatedAt' => now()->format('d-m-Y H:i:s')
+        ];
+        
+        $pdf = Pdf::loadView('admin.teacher-biometrics.export-pdf', $pdfData);
+        
+        return $pdf->download($fileName . '.pdf');
     }
     
     /**

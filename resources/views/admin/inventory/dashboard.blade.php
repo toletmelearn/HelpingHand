@@ -1,4 +1,4 @@
-@extends('layouts.app')
+﻿@extends('layouts.admin')
 
 @section('content')
 <div class="container">
@@ -61,7 +61,7 @@
                                     <h6 class="card-title"><i class="bi bi-box-seam text-primary"></i> Asset Master</h6>
                                     <div class="mt-3">
                                         <a href="{{ route('admin.assets.index') }}" class="btn btn-sm btn-outline-primary mb-2 d-block">View Assets</a>
-                                        <a href="{{ route('admin.inventory.assets.create') }}" class="btn btn-sm btn-outline-primary d-block">Add New Asset</a>
+                                        <a href="{{ route('admin.assets.create') }}" class="btn btn-sm btn-outline-primary d-block">Add New Asset</a>
                                     </div>
                                 </div>
                             </div>
@@ -87,7 +87,7 @@
                                     <h6 class="card-title"><i class="bi bi-chair text-warning"></i> Furniture</h6>
                                     <div class="mt-3">
                                         <a href="{{ route('admin.inventory.furniture') }}" class="btn btn-sm btn-outline-warning mb-2 d-block">Furniture Management</a>
-                                        <a href="{{ route('admin.inventory.assets.create') }}?category=furniture" class="btn btn-sm btn-outline-warning d-block">Add Furniture</a>
+                                        <a href="{{ route('admin.assets.create') }}?category=furniture" class="btn btn-sm btn-outline-warning d-block">Add Furniture</a>
                                     </div>
                                 </div>
                             </div>
@@ -100,7 +100,7 @@
                                     <h6 class="card-title"><i class="bi bi-flask text-info"></i> Lab Equipment</h6>
                                     <div class="mt-3">
                                         <a href="{{ route('admin.inventory.lab-equipment') }}" class="btn btn-sm btn-outline-info mb-2 d-block">Lab Equipment</a>
-                                        <a href="{{ route('admin.inventory.assets.create') }}?category=lab_equipment" class="btn btn-sm btn-outline-info d-block">Add Equipment</a>
+                                        <a href="{{ route('admin.assets.create') }}?category=lab_equipment" class="btn btn-sm btn-outline-info d-block">Add Equipment</a>
                                     </div>
                                 </div>
                             </div>
@@ -115,7 +115,7 @@
                                     <h6 class="card-title"><i class="bi bi-laptop text-danger"></i> Electronics</h6>
                                     <div class="mt-3">
                                         <a href="{{ route('admin.inventory.electronics') }}" class="btn btn-sm btn-outline-danger mb-2 d-block">Electronics</a>
-                                        <a href="{{ route('admin.inventory.assets.create') }}?category=electronics" class="btn btn-sm btn-outline-danger d-block">Add Electronics</a>
+                                        <a href="{{ route('admin.assets.create') }}?category=electronics" class="btn btn-sm btn-outline-danger d-block">Add Electronics</a>
                                     </div>
                                 </div>
                             </div>

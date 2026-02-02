@@ -1,4 +1,4 @@
-@extends('layouts.app')
+﻿@extends('layouts.admin')
 
 @section('content')
 <div class="container-fluid">
@@ -8,7 +8,7 @@
                 <div class="page-title-right">
                     <ol class="breadcrumb m-0">
                         <li class="breadcrumb-item"><a href="{{ route('home') }}">Home</a></li>
-                        <li class="breadcrumb-item"><a href="{{ route('budget.index') }}">Budget</a></li>
+                        <li class="breadcrumb-item"><a href="{{ route('admin.budget.index') }}">Budget</a></li>
                         <li class="breadcrumb-item active">Budget Plans</li>
                     </ol>
                 </div>
@@ -26,7 +26,7 @@
                             <h5 class="card-title mb-0">Budget Plans</h5>
                         </div>
                         <div class="col-md-6 text-end">
-                            <a href="{{ route('budgets.create') }}" class="btn btn-primary">
+                            <a href="{{ route('admin.budgets.create') }}" class="btn btn-primary">
                                 <i class="fas fa-plus"></i> Create New Budget
                             </a>
                         </div>
@@ -34,7 +34,7 @@
                 </div>
                 <div class="card-body">
                     <!-- Filters -->
-                    <form method="GET" action="{{ route('budgets.index') }}" class="row g-3 mb-4">
+                    <form method="GET" action="{{ route('admin.budgets.index') }}" class="row g-3 mb-4">
                         <div class="col-md-3">
                             <label for="fiscal_year" class="form-label">Fiscal Year</label>
                             <select name="fiscal_year" id="fiscal_year" class="form-select">
@@ -63,7 +63,7 @@
                         </div>
                         <div class="col-md-2 d-flex align-items-end">
                             <button type="submit" class="btn btn-primary me-2">Filter</button>
-                            <a href="{{ route('budgets.index') }}" class="btn btn-secondary">Clear</a>
+                            <a href="{{ route('admin.budgets.index') }}" class="btn btn-secondary">Clear</a>
                         </div>
                     </form>
 
@@ -95,10 +95,10 @@
                                         @endif
                                     </td>
                                     <td>{{ $budget->fiscal_year }}</td>
-                                    <td>₹{{ number_format($budget->total_amount, 2) }}</td>
-                                    <td>₹{{ number_format($budget->allocated_amount, 2) }}</td>
-                                    <td>₹{{ number_format($budget->spent_amount, 2) }}</td>
-                                    <td>₹{{ number_format($budget->allocated_amount - $budget->spent_amount, 2) }}</td>
+                                    <td>â‚¹{{ number_format($budget->total_amount, 2) }}</td>
+                                    <td>â‚¹{{ number_format($budget->allocated_amount, 2) }}</td>
+                                    <td>â‚¹{{ number_format($budget->spent_amount, 2) }}</td>
+                                    <td>â‚¹{{ number_format($budget->allocated_amount - $budget->spent_amount, 2) }}</td>
                                     <td>
                                         <span class="badge badge-{{ $budget->status == 'approved' ? 'success' : ($budget->status == 'draft' ? 'secondary' : ($budget->status == 'locked' ? 'warning' : 'danger')) }}">
                                             {{ $budget->status_label }}

@@ -12,7 +12,7 @@ trait Auditable
      */
     public static function bootAuditable()
     {
-        static::creating(function ($model) {
+        static::created(function ($model) {
             $auditLogService = new AuditLogService();
             $auditLogService->logCreation($model);
         });

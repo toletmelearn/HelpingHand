@@ -31,6 +31,7 @@ class InventoryController extends Controller
         
         $assetsByCategory = Asset::join('asset_categories', 'assets.category_id', '=', 'asset_categories.id')
                                ->select('asset_categories.name as category_name', DB::raw('COUNT(*) as count'))
+                               ->whereNull('assets.deleted_at')
                                ->groupBy('asset_categories.name')
                                ->get();
         
@@ -224,5 +225,69 @@ class InventoryController extends Controller
         $assets = Asset::all();
 
         return view('admin.inventory.audit-logs', compact('logs', 'users', 'assets'));
+    }
+    
+    /**
+     * Export audit logs to CSV
+     */
+    public function exportAuditLogs(Request $request)
+    {
+        $query = Activity::where('log_name', 'inventory')
+                         ->orderBy('created_at', 'desc');
+
+        // Apply same filters as auditLogs
+        if ($request->filled('search')) {
+            $query->where(function($q) use ($request) {
+                $q->where('description', 'LIKE', '%' . $request->search . '%')
+                  ->orWhere('ip_address', 'LIKE', '%' . $request->search . '%');
+            });
+        }
+
+        if ($request->filled('user_id')) {
+            $query->where('causer_id', $request->user_id);
+        }
+
+        if ($request->filled('asset_id')) {
+            $query->where('subject_id', $request->asset_id)
+                  ->where('subject_type', 'App\\Models\\Asset');
+        }
+
+        if ($request->filled('event')) {
+            $query->where('event', $request->event);
+        }
+
+        if ($request->filled('date_from')) {
+            $query->whereDate('created_at', '>=', $request->date_from);
+        }
+
+        if ($request->filled('date_to')) {
+            $query->whereDate('created_at', '<=', $request->date_to);
+        }
+
+        $logs = $query->get();
+        
+        $headers = [
+            'Content-Type' => 'text/csv',
+            'Content-Disposition' => 'attachment; filename="inventory_audit_logs_' . now()->format('Y-m-d_H-i-s') . '.csv"',
+        ];
+
+        $callback = function() use ($logs) {
+            $file = fopen('php://output', 'w');
+            fputcsv($file, ['Date', 'User', 'Event', 'Description', 'IP Address']);
+            
+            foreach ($logs as $log) {
+                fputcsv($file, [
+                    $log->created_at->format('Y-m-d H:i:s'),
+                    $log->causer?->name ?? 'System',
+                    $log->event,
+                    $log->description,
+                    $log->properties['ip'] ?? $log->ip_address ?? 'N/A'
+                ]);
+            }
+            
+            fclose($file);
+        };
+
+        return response()->stream($callback, 200, $headers);
     }
 }

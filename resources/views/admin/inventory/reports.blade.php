@@ -9,7 +9,7 @@
             <div class="card">
                 <div class="card-header d-flex justify-content-between align-items-center">
                     <h4>Inventory Reports</h4>
-                    <a href="{{ route('inventory.index') }}" class="btn btn-secondary">Back to Inventory</a>
+                    <a href="{{ route('admin.inventory.index') }}" class="btn btn-secondary">Back to Inventory</a>
                 </div>
                 <div class="card-body">
                     <div class="row">

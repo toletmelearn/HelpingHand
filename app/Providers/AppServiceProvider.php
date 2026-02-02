@@ -4,6 +4,7 @@ namespace App\Providers;
 
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Facades\Blade;
+use App\Console\Commands\RouteHealthCheck;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -12,7 +13,10 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        //
+        // Register custom commands
+        $this->commands([
+            RouteHealthCheck::class,
+        ]);
     }
 
     /**
@@ -22,7 +26,7 @@ class AppServiceProvider extends ServiceProvider
     {
         // Add custom blade directive for academic year
         Blade::directive('academicYear', function () {
-            return "<?php echo app(App\Providers\AppServiceProvider::class)->getCurrentAcademicYear(); ?>";
+            return "<?php echo app(App\\Providers\\AppServiceProvider::class)->getCurrentAcademicYear(); ?>";
         });
     }
 

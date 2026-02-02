@@ -1,4 +1,4 @@
-@extends('layouts.app')
+﻿@extends('layouts.admin')
 
 @section('title', 'Teacher Dashboard')
 
@@ -7,21 +7,21 @@
     <!-- Header -->
     <div class="d-flex justify-content-between align-items-center mb-4">
         <h1 class="h3">
-            👨‍🏫 Teachers Dashboard
+            ðŸ‘¨â€ðŸ« Teachers Dashboard
             <small class="text-muted fs-6">Staff Analytics</small>
         </h1>
         <div>
             <a href="{{ url('/teachers') }}" class="btn btn-outline-info">
-                📋 Teacher List
+                ðŸ“‹ Teacher List
             </a>
             <a href="{{ url('/teachers/create') }}" class="btn btn-success ms-2">   
-                ➕ Add Teacher
+                âž• Add Teacher
             </a>
             <a href="{{ route('teacher.results.index') }}" class="btn btn-primary ms-2">
-                📊 My Results
+                ðŸ“Š My Results
             </a>
             <a href="{{ route('teachers.biometric.dashboard') }}" class="btn btn-warning ms-2">
-                🕐 My Attendance
+                ðŸ• My Attendance
             </a>
         </div>
         </div>
@@ -61,11 +61,11 @@
             <div class="col-md-4 mb-3">
                 <div class="card wing-card-primary h-100">
                     <div class="card-body">
-                        <h5>🏫 Primary Wing</h5>
+                        <h5>ðŸ« Primary Wing</h5>
                         <h2>{{ $stats['wing_wise']['primary']['total'] }}</h2>
                         <div class="small">
-                            <span class="text-primary">♂ {{ $stats['wing_wise']['primary']['male'] }}</span> | 
-                            <span class="text-info">♀ {{ $stats['wing_wise']['primary']['female'] }}</span>
+                            <span class="text-primary">â™‚ {{ $stats['wing_wise']['primary']['male'] }}</span> | 
+                            <span class="text-info">â™€ {{ $stats['wing_wise']['primary']['female'] }}</span>
                         </div>
                         <div class="mt-2">
                             <span class="badge bg-primary">PRT: {{ $stats['wing_wise']['primary']['PRT'] }}</span>
@@ -77,11 +77,11 @@
             <div class="col-md-4 mb-3">
                 <div class="card wing-card-junior h-100">
                     <div class="card-body">
-                        <h5>📚 Junior Wing</h5>
+                        <h5>ðŸ“š Junior Wing</h5>
                         <h2>{{ $stats['wing_wise']['junior']['total'] }}</h2>
                         <div class="small">
-                            <span class="text-primary">♂ {{ $stats['wing_wise']['junior']['male'] }}</span> | 
-                            <span class="text-info">♀ {{ $stats['wing_wise']['junior']['female'] }}</span>
+                            <span class="text-primary">â™‚ {{ $stats['wing_wise']['junior']['male'] }}</span> | 
+                            <span class="text-info">â™€ {{ $stats['wing_wise']['junior']['female'] }}</span>
                         </div>
                         <div class="mt-2">
                             <span class="badge bg-primary">PRT: {{ $stats['wing_wise']['junior']['PRT'] }}</span>
@@ -93,11 +93,11 @@
             <div class="col-md-4 mb-3">
                 <div class="card wing-card-senior h-100">
                     <div class="card-body">
-                        <h5>🎓 Senior Wing</h5>
+                        <h5>ðŸŽ“ Senior Wing</h5>
                         <h2>{{ $stats['wing_wise']['senior']['total'] }}</h2>
                         <div class="small">
-                            <span class="text-primary">♂ {{ $stats['wing_wise']['senior']['male'] }}</span> | 
-                            <span class="text-info">♀ {{ $stats['wing_wise']['senior']['female'] }}</span>
+                            <span class="text-primary">â™‚ {{ $stats['wing_wise']['senior']['male'] }}</span> | 
+                            <span class="text-info">â™€ {{ $stats['wing_wise']['senior']['female'] }}</span>
                         </div>
                         <div class="mt-2">
                             <span class="badge bg-info">TGT: {{ $stats['wing_wise']['senior']['TGT'] }}</span>
@@ -111,7 +111,7 @@
         <!-- Teacher Type Statistics -->
         <div class="card mb-4">
             <div class="card-header">
-                <h5 class="mb-0">📋 Teacher Type Distribution</h5>
+                <h5 class="mb-0">ðŸ“‹ Teacher Type Distribution</h5>
             </div>
             <div class="card-body">
                 <div class="row">
@@ -127,8 +127,8 @@
                                 <h5>{{ $type }}</h5>
                                 <h2>{{ $data['total'] }}</h2>
                                 <div class="small">
-                                    <span>♂ {{ $data['male'] }}</span> | 
-                                    <span>♀ {{ $data['female'] }}</span>
+                                    <span>â™‚ {{ $data['male'] }}</span> | 
+                                    <span>â™€ {{ $data['female'] }}</span>
                                 </div>
                             </div>
                         </div>
@@ -143,7 +143,7 @@
             <div class="col-md-6 mb-3">
                 <div class="card">
                     <div class="card-header">
-                        <h5 class="mb-0">📊 Gender Distribution by Wing</h5>
+                        <h5 class="mb-0">ðŸ“Š Gender Distribution by Wing</h5>
                     </div>
                     <div class="card-body">
                         <canvas id="genderWingChart" height="250"></canvas>
@@ -153,7 +153,7 @@
             <div class="col-md-6 mb-3">
                 <div class="card">
                     <div class="card-header">
-                        <h5 class="mb-0">📈 Teacher Type Distribution</h5>
+                        <h5 class="mb-0">ðŸ“ˆ Teacher Type Distribution</h5>
                     </div>
                     <div class="card-body">
                         <canvas id="typeChart" height="250"></canvas>

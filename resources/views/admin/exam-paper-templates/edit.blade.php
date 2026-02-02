@@ -1,4 +1,4 @@
-@extends('layouts.app')
+﻿@extends('layouts.admin')
 
 @section('title', 'Edit Exam Paper Template - ' . $examPaperTemplate->name)
 

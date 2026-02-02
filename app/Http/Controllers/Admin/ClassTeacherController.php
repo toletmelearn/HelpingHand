@@ -115,7 +115,6 @@
             AuditLog::create([
                 'user_type' => $userRole,
                 'user_id' => auth()->id(),
-                'user_name' => auth()->user()->name,
                 'model_type' => Student::class,
                 'model_id' => $student->id,
                 'field_name' => $change['field'],
@@ -124,6 +123,7 @@
                 'action' => 'update',
                 'ip_address' => $request->ip(),
                 'user_agent' => $request->userAgent(),
+                'performed_at' => now(),
             ]);
         }
 

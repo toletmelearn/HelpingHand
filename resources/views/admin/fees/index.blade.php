@@ -1,4 +1,4 @@
-@extends('layouts.app')
+﻿@extends('layouts.admin')
 
 @section('title', 'Fee Management')
 
@@ -43,9 +43,9 @@
                                     <td>{{ $fee->feeStructure->name ?? 'N/A' }}</td>
                                     <td>{{ $fee->academic_year }}</td>
                                     <td>{{ $fee->term }}</td>
-                                    <td>₹{{ number_format($fee->amount, 2) }}</td>
-                                    <td>₹{{ number_format($fee->paid_amount, 2) }}</td>
-                                    <td>₹{{ number_format($fee->due_amount, 2) }}</td>
+                                    <td>â‚¹{{ number_format($fee->amount, 2) }}</td>
+                                    <td>â‚¹{{ number_format($fee->paid_amount, 2) }}</td>
+                                    <td>â‚¹{{ number_format($fee->due_amount, 2) }}</td>
                                     <td>
                                         <span class="badge bg-{{ $fee->status == 'paid' ? 'success' : ($fee->status == 'partial' ? 'warning' : 'danger') }}">
                                             {{ ucfirst($fee->status) }}

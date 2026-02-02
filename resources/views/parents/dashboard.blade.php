@@ -1,4 +1,4 @@
-@extends('layouts.app')
+﻿@extends('layouts.admin')
 
 @section('title', 'Parent Dashboard')
 
@@ -34,7 +34,7 @@
                         
                         @if($dashboardData[$child->id]['pending_fees'])
                             <p class="card-text text-danger">
-                                <strong>Pending Fees:</strong> ₹{{ $dashboardData[$child->id]['pending_fees'] }}
+                                <strong>Pending Fees:</strong> â‚¹{{ $dashboardData[$child->id]['pending_fees'] }}
                             </p>
                         @endif
                     </div>

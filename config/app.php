@@ -113,6 +113,7 @@ return [
          * Package Service Providers...
          */
         Laravel\Fortify\FortifyServiceProvider::class,
+        Laravel\Sanctum\SanctumServiceProvider::class,
 
         /*
          * Application Service Providers...

@@ -1,4 +1,4 @@
-@extends('layouts.app')
+﻿@extends('layouts.admin')
 
 @section('content')
 <div class="container-fluid">
@@ -8,7 +8,7 @@
                 <div class="page-title-right">
                     <ol class="breadcrumb m-0">
                         <li class="breadcrumb-item"><a href="{{ route('home') }}">Home</a></li>
-                        <li class="breadcrumb-item"><a href="{{ route('budgets.index') }}">Budgets</a></li>
+                        <li class="breadcrumb-item"><a href="{{ route('admin.budgets.index') }}">Budgets</a></li>
                         <li class="breadcrumb-item active">{{ $budget->name }}</li>
                     </ol>
                 </div>
@@ -54,19 +54,19 @@
                         <div class="col-md-4">
                             <div class="mb-3">
                                 <label class="form-label">Total Amount</label>
-                                <input type="text" class="form-control" value="₹{{ number_format($budget->total_amount, 2) }}" readonly>
+                                <input type="text" class="form-control" value="â‚¹{{ number_format($budget->total_amount, 2) }}" readonly>
                             </div>
                         </div>
                         <div class="col-md-4">
                             <div class="mb-3">
                                 <label class="form-label">Allocated Amount</label>
-                                <input type="text" class="form-control" value="₹{{ number_format($budget->allocated_amount, 2) }}" readonly>
+                                <input type="text" class="form-control" value="â‚¹{{ number_format($budget->allocated_amount, 2) }}" readonly>
                             </div>
                         </div>
                         <div class="col-md-4">
                             <div class="mb-3">
                                 <label class="form-label">Spent Amount</label>
-                                <input type="text" class="form-control" value="₹{{ number_format($budget->spent_amount, 2) }}" readonly>
+                                <input type="text" class="form-control" value="â‚¹{{ number_format($budget->spent_amount, 2) }}" readonly>
                             </div>
                         </div>
                     </div>
@@ -105,7 +105,7 @@
                     
                     @if($budget->isOverBudget())
                     <div class="alert alert-danger">
-                        <i class="fas fa-exclamation-triangle"></i> This budget is over budget by ₹{{ number_format($budget->getOverBudgetAmount(), 2) }}
+                        <i class="fas fa-exclamation-triangle"></i> This budget is over budget by â‚¹{{ number_format($budget->getOverBudgetAmount(), 2) }}
                     </div>
                     @endif
                     
@@ -161,9 +161,9 @@
                                 @forelse($categoryStats as $stat)
                                 <tr>
                                     <td>{{ $stat['category']->name }}</td>
-                                    <td>₹{{ number_format($stat['allocated'], 2) }}</td>
-                                    <td>₹{{ number_format($stat['spent'], 2) }}</td>
-                                    <td>₹{{ number_format($stat['remaining'], 2) }}</td>
+                                    <td>â‚¹{{ number_format($stat['allocated'], 2) }}</td>
+                                    <td>â‚¹{{ number_format($stat['spent'], 2) }}</td>
+                                    <td>â‚¹{{ number_format($stat['remaining'], 2) }}</td>
                                     <td>{{ $stat['utilization'] }}%</td>
                                     <td>
                                         <span class="badge badge-{{ $stat['utilization'] > 90 ? 'danger' : ($stat['utilization'] > 75 ? 'warning' : 'success') }}">
@@ -215,7 +215,7 @@
                                 <tr>
                                     <td>{{ $expense->title }}</td>
                                     <td>{{ $expense->category->name }}</td>
-                                    <td>₹{{ number_format($expense->amount, 2) }}</td>
+                                    <td>â‚¹{{ number_format($expense->amount, 2) }}</td>
                                     <td>{{ $expense->expense_date->format('d M Y') }}</td>
                                     <td>
                                         <span class="badge badge-{{ $expense->status == 'approved' ? 'success' : ($expense->status == 'pending' ? 'warning' : 'danger') }}">

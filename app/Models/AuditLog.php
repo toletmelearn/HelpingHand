@@ -8,6 +8,8 @@ use Illuminate\Database\Eloquent\Model;
 class AuditLog extends Model
 {
     use HasFactory;
+    
+    public $timestamps = false;
 
     protected $fillable = [
         'user_type',

@@ -64,6 +64,7 @@ class ReportGenerationService
                          SUM(CASE WHEN departure_status = "early_exit" THEN 1 ELSE 0 END) as early_exit_days,
                          SUM(CASE WHEN departure_status = "half_day" THEN 1 ELSE 0 END) as half_days,
                          AVG(calculated_duration) as avg_working_hours')
+            ->whereNull('deleted_at')
             ->groupBy('teachers.id', 'teachers.name', 'teachers.employee_id')
             ->orderBy('teachers.name')
             ->get();
