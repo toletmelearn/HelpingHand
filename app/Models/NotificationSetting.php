@@ -53,7 +53,13 @@ class NotificationSetting extends Model
     {
         return $query->where('notification_type', $notificationType);
     }
-
+    
+    // Route Model Binding
+    public function resolveRouteBinding($value, $field = null)
+    {
+        return $this->where('id', $value)->firstOrFail();
+    }
+    
     // Constants
     public const EVENT_TYPES = [
         'attendance_low' => 'Low Attendance Alert',
@@ -64,6 +70,12 @@ class NotificationSetting extends Model
         'birthday' => 'Birthday Wishes',
         'holiday' => 'Holiday Announcement',
         'event' => 'School Event',
+        'admission_enquiry_received' => 'Admission Enquiry Received',
+        'admission_interview_scheduled' => 'Admission Interview Scheduled',
+        'admission_confirmed' => 'Admission Confirmed',
+        'admission_rejected' => 'Admission Rejected / Closed',
+        'admission_admitted' => 'Student Admitted (Parent Portal Access)',
+        'admission_fee_received' => 'Admission Fee Payment Received',
     ];
 
     public const NOTIFICATION_TYPES = [
