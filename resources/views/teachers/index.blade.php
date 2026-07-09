@@ -40,12 +40,9 @@
             <a href="{{ route('admin.teachers.create') }}" class="btn btn-success">
                 ➕ Add New Teacher
             </a>
-            <a href="{{ route('admin.teachers.bulk-upload') }}" class="btn btn-primary ms-2">
-                📦 Bulk Upload Teachers
-            </a>
             @if(Route::has('imports.wizard'))
-                <a href="{{ route('imports.wizard', ['module' => 'teachers']) }}" class="btn btn-outline-secondary ms-2" title="The full Data Management import wizard: validation, conflict resolution, and history">
-                    📥 Teacher Import (Data Management)
+                <a href="{{ route('imports.wizard', ['module' => 'teachers']) }}" class="btn btn-primary ms-2" title="Add many teachers at once from a spreadsheet: mapping, preview, duplicate handling, and rollback">
+                    📥 Bulk Import Teachers
                 </a>
             @endif
             <a href="{{ url('/') }}" class="btn btn-outline-secondary ms-2">

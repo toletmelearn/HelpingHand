@@ -618,11 +618,12 @@ Route::middleware(['auth'])->group(function () {
         Route::get('id-cards/{id}/print', [App\Http\Controllers\Admin\IdCardController::class, 'print'])->name('id-cards.print');
         Route::post('id-cards/generate/{studentId}', [App\Http\Controllers\Admin\IdCardController::class, 'generateForStudent'])->name('id-cards.generate-for-student');
         
-        // Teacher bulk upload routes (must be before resource route)
-        Route::get('teachers/bulk-upload', [App\Http\Controllers\Admin\TeacherBulkUploadController::class, 'create'])->name('teachers.bulk-upload');
-        Route::post('teachers/bulk-upload', [App\Http\Controllers\Admin\TeacherBulkUploadController::class, 'store'])->name('teachers.bulk-upload.store');
-        Route::get('teachers/bulk-upload/sample', [App\Http\Controllers\Admin\TeacherBulkUploadController::class, 'downloadSample'])->name('teachers.bulk-upload.sample');
-        
+        // Legacy teacher bulk upload — retired in favor of the Universal Import Engine's
+        // Teacher Import (mapping, dry-run preview, conflict resolution, rollback, history).
+        // Routes kept as redirects so old bookmarks/links don't 404.
+        Route::get('teachers/bulk-upload', fn () => redirect()->route('imports.wizard', ['module' => 'teachers']))->name('teachers.bulk-upload');
+        Route::get('teachers/bulk-upload/sample', fn () => redirect()->route('imports.download-template', ['module' => 'teachers']))->name('teachers.bulk-upload.sample');
+
         Route::resource('teachers', TeacherController::class);
         Route::post('teachers/{teacher}/toggle-exam-head', [TeacherController::class, 'toggleExamHead'])->name('teachers.toggle-exam-head');
         Route::post('attendance/preflight', [AttendanceController::class, 'preflight'])->name('attendance.preflight');
