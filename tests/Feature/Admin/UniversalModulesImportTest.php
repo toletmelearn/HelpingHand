@@ -238,7 +238,7 @@ class UniversalModulesImportTest extends TestCase
     public function test_teacher_import_covers_full_hr_field_set()
     {
         $csvContent = "Name,Email,Phone,Aadhar Number,Employee ID,Designation,Qualification,Subject Specialization,Gender,Date of Birth,Date of Joining,Salary,Address,Status,Employment Type,Wing,Teacher Type,Bank Account Number,IFSC Code,Experience Details\n" .
-            "Priya Rao,priya.rao@school.com,9876543211,123456789012,EMP202,PGT,M.Sc,Physics,female,1988-04-10,2021-06-01,60000,Campus Housing,active,permanent,senior,teaching,123456789012,SBIN0002345,6 years\n";
+            "Priya Rao,priya.rao@school.com,9876543211,123456789012,EMP202,PGT,M.Sc,Physics,female,1988-04-10,2021-06-01,60000,Campus Housing,active,permanent,senior,PGT,123456789012,SBIN0002345,6 years\n";
 
         $file = UploadedFile::fake()->createWithContent('teachers_full.csv', $csvContent);
         $session = $this->importEngine->initializeSession('teachers', $file, $this->admin->id);
@@ -264,7 +264,7 @@ class UniversalModulesImportTest extends TestCase
             'employee_id' => 'EMP202',
             'aadhar_number' => '123456789012',
             'wing' => 'senior',
-            'teacher_type' => 'teaching',
+            'teacher_type' => 'PGT',
             'employment_type' => 'permanent',
             'bank_account_number' => '123456789012',
             'ifsc_code' => 'SBIN0002345',
@@ -309,6 +309,89 @@ class UniversalModulesImportTest extends TestCase
             'no_of_periods' => 24,
             'class_section' => 'Class 7-B',
             'responsibilities' => 'Exam Coordinator',
+        ]);
+    }
+
+    /**
+     * A real HR spreadsheet will have gaps -- a missing PAN here, a blank
+     * Aadhaar there. Only the teacher's name is a hard requirement at import
+     * time; every other blank cell must import as null rather than reject
+     * the row, so staff can fill it in later from the teacher's edit form.
+     */
+    public function test_teacher_import_tolerates_blank_optional_fields()
+    {
+        $csvContent = "Name,Email,Phone,Employee ID,Designation,Gender,Aadhar Number,PAN Number\n" .
+            "Bare Minimum,,,,,,,\n";
+
+        $file = UploadedFile::fake()->createWithContent('teachers_sparse.csv', $csvContent);
+        $session = $this->importEngine->initializeSession('teachers', $file, $this->admin->id);
+
+        $mappings = [
+            'name' => 'Name', 'email' => 'Email', 'phone' => 'Phone',
+            'employee_id' => 'Employee ID', 'designation' => 'Designation',
+            'gender' => 'Gender', 'aadhar_number' => 'Aadhar Number', 'pan_number' => 'PAN Number',
+        ];
+
+        $dryRunRes = $this->importEngine->dryRun($session->uuid, $mappings);
+        $this->assertEquals(1, $dryRunRes['success']);
+        $this->assertEquals(0, $dryRunRes['errors']);
+
+        $this->importEngine->execute($session->uuid, 'skip');
+
+        $this->assertDatabaseHas('teachers', [
+            'name' => 'Bare Minimum',
+            'email' => null,
+            'phone' => null,
+            'employee_id' => null,
+            'designation' => null,
+            'aadhar_number' => null,
+            'pan_number' => null,
+        ]);
+    }
+
+    /**
+     * Real HR spreadsheets are messy: an unparseable date, "PRT ART" in a
+     * numbers-only "No. of Periods" column, a mistyped PAN, a blank "Status"
+     * cell that would otherwise send an explicit NULL into a NOT NULL column.
+     * None of that should reject the row -- only 'name' is a hard requirement.
+     */
+    public function test_teacher_import_tolerates_malformed_optional_fields()
+    {
+        $csvContent = "Name,Employee ID,PAN Number,Date of Joining,No. of Periods,Status\n" .
+            "Rajendra Kumar,PNS7847,EOPPK7798Q1234,31.08.2024,I - V (CLUB ACTIVITY),\n" .
+            "Palash Biswas,PNS8684,,not-a-real-date,24,\n";
+
+        $file = UploadedFile::fake()->createWithContent('teachers_messy.csv', $csvContent);
+        $session = $this->importEngine->initializeSession('teachers', $file, $this->admin->id);
+
+        $mappings = [
+            'name' => 'Name', 'employee_id' => 'Employee ID', 'pan_number' => 'PAN Number',
+            'date_of_joining' => 'Date of Joining', 'no_of_periods' => 'No. of Periods', 'status' => 'Status',
+        ];
+
+        $dryRunRes = $this->importEngine->dryRun($session->uuid, $mappings);
+        $this->assertEquals(2, $dryRunRes['success']);
+        $this->assertEquals(0, $dryRunRes['errors']);
+
+        $this->importEngine->execute($session->uuid, 'skip');
+
+        $this->assertEquals(2, Teacher::count());
+
+        // "31.08.2024" parses fine; the non-numeric periods cell is dropped to null;
+        // blank status falls back to the DB default instead of erroring.
+        $this->assertDatabaseHas('teachers', [
+            'employee_id' => 'PNS7847',
+            'date_of_joining' => '2024-08-31 00:00:00',
+            'no_of_periods' => null,
+            'status' => 'active',
+        ]);
+
+        // Garbled date and a malformed-but-harmless PAN both degrade gracefully.
+        $this->assertDatabaseHas('teachers', [
+            'employee_id' => 'PNS8684',
+            'date_of_joining' => null,
+            'no_of_periods' => 24,
+            'status' => 'active',
         ]);
     }
 }

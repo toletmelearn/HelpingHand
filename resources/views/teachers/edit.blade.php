@@ -23,10 +23,10 @@
         <div class="d-flex justify-content-between align-items-center mb-4">
             <h2>✏️ Edit Teacher: {{ $teacher->name }}</h2>
             <div>
-                <a href="{{ url('/teachers') }}" class="btn btn-secondary">
+                <a href="{{ url('/admin/teachers') }}" class="btn btn-secondary">
                     ← Back to Teachers
                 </a>
-                <a href="{{ url('/teachers/' . $teacher->id) }}" class="btn btn-info ms-2">
+                <a href="{{ url('/admin/teachers/' . $teacher->id) }}" class="btn btn-info ms-2">
                     👁️ View
                 </a>
             </div>
@@ -54,7 +54,7 @@
         <!-- Edit Form -->
         <div class="card shadow">
             <div class="card-body">
-                <form action="{{ route('teachers.update', $teacher->id) }}" method="POST" enctype="multipart/form-data">
+                <form action="{{ route('admin.teachers.update', $teacher->id) }}" method="POST" enctype="multipart/form-data">
                     @csrf
                     @method('PUT')
 
@@ -129,14 +129,31 @@
 
                                 <div class="col-md-6 mb-3">
                                     <label class="form-label required">Aadhar Number</label>
-                                    <input type="text" name="aadhar_number" class="form-control" 
-                                           value="{{ old('aadhar_number', $teacher->aadhar_number) }}" 
+                                    <input type="text" name="aadhar_number" class="form-control"
+                                           value="{{ old('aadhar_number', $teacher->aadhar_number) }}"
                                            maxlength="12" required>
                                 </div>
 
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label">Relative Name (Father's / Husband's / Wife's Name)</label>
+                                    <input type="text" name="relative_name" class="form-control"
+                                           value="{{ old('relative_name', $teacher->relative_name) }}">
+                                </div>
+
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label">Emergency Contact Number</label>
+                                    <input type="tel" name="emergency_contact" class="form-control"
+                                           value="{{ old('emergency_contact', $teacher->emergency_contact) }}" maxlength="10">
+                                </div>
+
                                 <div class="col-12 mb-3">
-                                    <label class="form-label required">Address</label>
+                                    <label class="form-label required">Address for Correspondence</label>
                                     <textarea name="address" class="form-control" rows="3" required>{{ old('address', $teacher->address) }}</textarea>
+                                </div>
+
+                                <div class="col-12 mb-3">
+                                    <label class="form-label">Permanent Address</label>
+                                    <textarea name="permanent_address" class="form-control" rows="3">{{ old('permanent_address', $teacher->permanent_address) }}</textarea>
                                 </div>
                             </div>
 
@@ -167,6 +184,12 @@
                                             </option>
                                         @endforeach
                                     </select>
+                                </div>
+
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label">Educational Qualification (B.Ed with Subjects / Other)</label>
+                                    <input type="text" name="educational_qualification" class="form-control"
+                                           value="{{ old('educational_qualification', $teacher->educational_qualification) }}">
                                 </div>
 
                                 <div class="col-md-6 mb-3">
@@ -317,6 +340,59 @@
 </div>
 
 <!-- ========== END OF ADDED CODE ========== -->
+                            <!-- HR Master Data -->
+                            <h5 class="border-bottom pb-2 mb-3 mt-4">🗂️ HR Master Data</h5>
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label">Classes Taught with Subjects</label>
+                                    <textarea name="classes_taught" class="form-control" rows="2"
+                                              placeholder="e.g., Class 6-A Maths, Class 7-B Science">{{ old('classes_taught', $teacher->classes_taught) }}</textarea>
+                                </div>
+                                <div class="col-md-3 mb-3">
+                                    <label class="form-label">No. of Periods</label>
+                                    <input type="number" name="no_of_periods" class="form-control"
+                                           value="{{ old('no_of_periods', $teacher->no_of_periods) }}" min="0" max="60">
+                                </div>
+                                <div class="col-md-3 mb-3">
+                                    <label class="form-label">Class &amp; Section</label>
+                                    <input type="text" name="class_section" class="form-control"
+                                           value="{{ old('class_section', $teacher->class_section) }}" placeholder="e.g., 8-B">
+                                </div>
+                                <div class="col-12 mb-3">
+                                    <label class="form-label">Responsibilities</label>
+                                    <textarea name="responsibilities" class="form-control" rows="2">{{ old('responsibilities', $teacher->responsibilities) }}</textarea>
+                                </div>
+                            </div>
+                            <!-- Exam Control Toggles -->
+                            <div class="row mt-4">
+                                <div class="col-md-12">
+                                    <h5 class="border-bottom pb-2 mb-3">🎓 Examination Control</h5>
+                                    <div class="card bg-light p-3">
+                                        <div class="form-check form-switch mb-3">
+                                            <input class="form-check-input" type="checkbox" id="isExamHead" 
+                                                   name="is_exam_head" value="1"
+                                                   {{ old('is_exam_head', $teacher->is_exam_head) ? 'checked' : '' }}>
+                                            <label class="form-check-label fw-bold" for="isExamHead">
+                                                ☑️ Make Exam Head
+                                            </label>
+                                            <p class="text-muted small mb-0">
+                                                Grant this teacher permission to view result monitoring, edit marks, and approve results
+                                            </p>
+                                        </div>
+                                        <div class="form-check form-switch">
+                                            <input class="form-check-input" type="checkbox" id="isExamCellMember" 
+                                                   name="is_exam_cell_member" value="1"
+                                                   {{ old('is_exam_cell_member', $teacher->is_exam_cell_member) ? 'checked' : '' }}>
+                                            <label class="form-check-label fw-bold" for="isExamCellMember">
+                                                ☑️ Make Exam Cell Member
+                                            </label>
+                                            <p class="text-muted small mb-0">
+                                                Grant this teacher permission to manage exam arrangements, invigilation duties, and relieving shifts
+                                            </p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
                             <!-- Financial & Additional Details -->
                             <h5 class="border-bottom pb-2 mb-3 mt-4">💰 Financial & Additional Details</h5>
                             <div class="row">
@@ -355,7 +431,7 @@
                             
                             <!-- Danger Zone -->
                             <div>
-                                <form action="{{ route('teachers.destroy', $teacher->id) }}" 
+                                <form action="{{ route('admin.teachers.destroy', $teacher->id) }}" 
                                       method="POST" 
                                       class="d-inline"
                                       onsubmit="return confirm('Are you sure you want to delete this teacher? This action cannot be undone.');">
@@ -414,6 +490,43 @@
                 });
             });
         });
+        
+        // Exam Head Toggle Function
+        function toggleExamHead(isChecked) {
+            if (confirm('Are you sure you want to ' + (isChecked ? 'assign' : 'remove') + ' exam head status for this teacher?')) {
+                // Submit the form to toggle exam head status
+                const formData = new FormData();
+                formData.append('_token', '{{ csrf_token() }}');
+                formData.append('_method', 'POST');
+                formData.append('make_exam_head', isChecked ? '1' : '0');
+                
+                fetch('{{ route("admin.teachers.toggle-exam-head", $teacher->id) }}', {
+                    method: 'POST',
+                    body: formData,
+                    headers: {
+                        'Accept': 'application/json',
+                    },
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        // Show success message
+                        alert(data.message || 'Exam head status updated successfully!');
+                        // Reload page to update UI
+                        window.location.reload();
+                    } else {
+                        alert('Error updating exam head status: ' + (data.message || 'Unknown error'));
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('Error updating exam head status');
+                });
+            } else {
+                // Revert the checkbox if user cancels
+                document.getElementById('examHeadToggle').checked = !isChecked;
+            }
+        }
     </script>
 </body>
 </html>

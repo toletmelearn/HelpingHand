@@ -25,37 +25,88 @@ class TeacherImportDefinition implements ImportDefinitionInterface
 
     public function getValidationRules(array $rowData): array
     {
+        // 'name' is the only hard requirement. Every other field is intentionally
+        // just a loose string/length check here -- a malformed PAN, a non-numeric
+        // period count, or an unparseable date must NOT reject the whole row. Real
+        // HR spreadsheets are messy; sanitizeForWrite() below coerces or blanks out
+        // whatever doesn't fit its column so the row still imports, and the admin
+        // corrects individual fields later from the teacher's edit form.
         return [
             'name' => 'required|string|max:255',
-            'email' => 'required|email',
-            'phone' => 'nullable|digits:10',
-            'emergency_contact' => 'nullable|string|max:20',
-            'aadhar_number' => 'nullable|digits:12',
-            'pan_number' => 'nullable|regex:/^[A-Za-z]{5}[0-9]{4}[A-Za-z]$/',
-            'employee_id' => 'required|string|max:50',
-            'designation' => 'required|string|max:100',
-            'qualification' => 'nullable|string',
+            'email' => 'nullable|string|max:255',
+            'phone' => 'nullable|string|max:255',
+            'emergency_contact' => 'nullable|string|max:255',
+            'aadhar_number' => 'nullable|string|max:255',
+            'pan_number' => 'nullable|string|max:255',
+            'employee_id' => 'nullable|string|max:255',
+            'designation' => 'nullable|string|max:255',
+            'qualification' => 'nullable|string|max:255',
             'educational_qualification' => 'nullable|string|max:500',
-            'subject_specialization' => 'nullable|string',
-            'gender' => 'required|in:male,female,other',
-            'date_of_birth' => 'nullable|date',
+            'subject_specialization' => 'nullable|string|max:255',
+            'gender' => 'nullable|string|max:255',
+            'date_of_birth' => 'nullable|string|max:255',
             'relative_name' => 'nullable|string|max:255',
-            'date_of_joining' => 'nullable|date',
-            'salary' => 'nullable|numeric|min:0',
-            'address' => 'nullable|string|max:500',
-            'permanent_address' => 'nullable|string|max:500',
-            'status' => 'nullable|in:active,inactive',
-            'employment_type' => 'nullable|in:permanent,contractual',
-            'wing' => 'nullable|in:primary,secondary,senior',
-            'teacher_type' => 'nullable|in:teaching,non-teaching',
-            'bank_account_number' => 'nullable|string|max:50',
-            'ifsc_code' => 'nullable|string|max:20',
-            'experience_details' => 'nullable|string|max:500',
+            'date_of_joining' => 'nullable|string|max:255',
+            'salary' => 'nullable|string|max:255',
+            'address' => 'nullable|string|max:1000',
+            'permanent_address' => 'nullable|string|max:1000',
+            'status' => 'nullable|string|max:255',
+            'employment_type' => 'nullable|string|max:255',
+            'wing' => 'nullable|string|max:255',
+            'teacher_type' => 'nullable|string|max:255',
+            'bank_account_number' => 'nullable|string|max:255',
+            'ifsc_code' => 'nullable|string|max:255',
+            'experience_details' => 'nullable|string|max:1000',
             'classes_taught' => 'nullable|string|max:1000',
-            'no_of_periods' => 'nullable|integer|min:0|max:60',
+            'no_of_periods' => 'nullable|string|max:255',
             'class_section' => 'nullable|string|max:255',
             'responsibilities' => 'nullable|string|max:1000',
         ];
+    }
+
+    /**
+     * Coerce or blank out values that don't fit their target column's real type
+     * or constraints, so a single bad cell degrades gracefully instead of
+     * throwing a raw SQL error (or, previously, rejecting the whole row).
+     */
+    private function sanitizeForWrite(array $rowData): array
+    {
+        if (isset($rowData['email']) && !filter_var($rowData['email'], FILTER_VALIDATE_EMAIL)) {
+            $rowData['email'] = null;
+        }
+
+        foreach (['date_of_birth', 'date_of_joining'] as $dateField) {
+            if (!empty($rowData[$dateField])) {
+                try {
+                    $rowData[$dateField] = \Carbon\Carbon::parse($rowData[$dateField])->format('Y-m-d');
+                } catch (\Throwable $e) {
+                    $rowData[$dateField] = null;
+                }
+            }
+        }
+
+        if (isset($rowData['no_of_periods'])) {
+            $rowData['no_of_periods'] = preg_match('/\d+/', (string) $rowData['no_of_periods'], $m)
+                ? (int) $m[0]
+                : null;
+        }
+
+        if (isset($rowData['salary'])) {
+            $cleaned = preg_replace('/[^0-9.]/', '', (string) $rowData['salary']);
+            $rowData['salary'] = ($cleaned !== '' && is_numeric($cleaned)) ? $cleaned : null;
+        }
+
+        // 'status' is NOT NULL with a DB default of 'active' -- fall back to it
+        // explicitly rather than letting an empty cell send an explicit NULL,
+        // which would otherwise violate the column constraint.
+        if (empty($rowData['status'])) {
+            $rowData['status'] = 'active';
+        }
+
+        // Drop remaining nulls/blanks entirely (rather than passing them through
+        // as explicit NULL) so any other nullable-with-default column falls back
+        // to its DB default instead of an explicit NULL landing on the INSERT.
+        return array_filter($rowData, fn ($v) => $v !== null && $v !== '');
     }
 
     public function getCustomFields(): array
@@ -95,6 +146,8 @@ class TeacherImportDefinition implements ImportDefinitionInterface
 
     public function executeWrite(array $rowData, ImportSession $session, string $resolutionStrategy): array
     {
+        $rowData = $this->sanitizeForWrite($rowData);
+
         // Detect duplicate
         $dup = $this->conflictResolver->detectDuplicate('teachers', $rowData, $this->getDuplicateWeights());
 

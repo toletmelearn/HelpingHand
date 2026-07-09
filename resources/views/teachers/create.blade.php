@@ -16,7 +16,7 @@
     <div class="container mt-4">
         <div class="d-flex justify-content-between align-items-center mb-4">
             <h2>👨‍🏫 Add New Teacher</h2>
-            <a href="{{ url('/teachers') }}" class="btn btn-secondary">
+            <a href="{{ url('/admin/teachers') }}" class="btn btn-secondary">
                 ← Back to Teachers
             </a>
         </div>
@@ -50,7 +50,7 @@
     </div>
 @endif
 
-                <form action="{{ route('teachers.store') }}" method="POST" enctype="multipart/form-data">
+                <form action="{{ route('admin.teachers.store') }}" method="POST" enctype="multipart/form-data">
                     @csrf
 
                     <div class="row">
@@ -78,13 +78,25 @@
 
                             <div class="mb-3">
                                 <label class="form-label required">Aadhar Number</label>
-                                <input type="text" name="aadhar_number" class="form-control" 
+                                <input type="text" name="aadhar_number" class="form-control"
                                        value="{{ old('aadhar_number') }}" maxlength="12" required>
                             </div>
 
                             <div class="mb-3">
+                                <label class="form-label">Relative Name (Father's / Husband's / Wife's Name)</label>
+                                <input type="text" name="relative_name" class="form-control"
+                                       value="{{ old('relative_name') }}">
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label">Emergency Contact Number</label>
+                                <input type="tel" name="emergency_contact" class="form-control"
+                                       value="{{ old('emergency_contact') }}" maxlength="10">
+                            </div>
+
+                            <div class="mb-3">
                                 <label class="form-label">Profile Photo</label>
-                                <input type="file" name="profile_image" class="form-control" 
+                                <input type="file" name="profile_image" class="form-control"
                                        accept="image/*">
                             </div>
                         </div>
@@ -92,18 +104,24 @@
                         <!-- Professional Details -->
                         <div class="col-md-6">
                             <h5 class="border-bottom pb-2 mb-3">📚 Professional Details</h5>
-                            
+
                             <div class="mb-3">
                                 <label class="form-label required">Qualification</label>
                                 <select name="qualification" class="form-select" required>
                                     <option value="">Select Qualification</option>
                                     @foreach($qualifications as $qualification)
-                                        <option value="{{ $qualification }}" 
+                                        <option value="{{ $qualification }}"
                                             {{ old('qualification') == $qualification ? 'selected' : '' }}>
                                             {{ $qualification }}
                                         </option>
                                     @endforeach
                                 </select>
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label">Educational Qualification (B.Ed with Subjects / Other)</label>
+                                <input type="text" name="educational_qualification" class="form-control"
+                                       value="{{ old('educational_qualification') }}">
                             </div>
 
                             <div class="mb-3">
@@ -147,27 +165,58 @@
                             
                             <div class="row">
                                 <div class="col-md-6 mb-3">
-                                    <label class="form-label required">Address</label>
+                                    <label class="form-label required">Address for Correspondence</label>
                                     <textarea name="address" class="form-control" rows="3" required>{{ old('address') }}</textarea>
                                 </div>
 
                                 <div class="col-md-6 mb-3">
+                                    <label class="form-label">Permanent Address</label>
+                                    <textarea name="permanent_address" class="form-control" rows="3">{{ old('permanent_address') }}</textarea>
+                                </div>
+
+                                <div class="col-md-6 mb-3">
                                     <label class="form-label">Bank Account Number</label>
-                                    <input type="text" name="bank_account_number" class="form-control" 
+                                    <input type="text" name="bank_account_number" class="form-control"
                                            value="{{ old('bank_account_number') }}">
                                 </div>
 
                                 <div class="col-md-6 mb-3">
                                     <label class="form-label">IFSC Code</label>
-                                    <input type="text" name="ifsc_code" class="form-control" 
+                                    <input type="text" name="ifsc_code" class="form-control"
                                            value="{{ old('ifsc_code') }}">
                                 </div>
 
                                 <div class="col-md-6 mb-3">
-                                    <label class="form-label">Experience Details</label>
-                                    <textarea name="experience_details" class="form-control" rows="3">{{ old('experience_details') }}</textarea>
+                                    <label class="form-label required">Experience Details</label>
+                                    <textarea name="experience_details" class="form-control" rows="3" required>{{ old('experience_details') }}</textarea>
                                 </div>
                             </div>
+                        </div>
+                    </div>
+
+                    <!-- HR Master Data -->
+                    <div class="row mt-4">
+                        <div class="col-12">
+                            <h5 class="border-bottom pb-2 mb-3">🗂️ HR Master Data</h5>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Classes Taught with Subjects</label>
+                            <textarea name="classes_taught" class="form-control" rows="2"
+                                      placeholder="e.g., Class 6-A Maths, Class 7-B Science">{{ old('classes_taught') }}</textarea>
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <label class="form-label">No. of Periods</label>
+                            <input type="number" name="no_of_periods" class="form-control"
+                                   value="{{ old('no_of_periods') }}" min="0" max="60">
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <label class="form-label">Class &amp; Section</label>
+                            <input type="text" name="class_section" class="form-control"
+                                   value="{{ old('class_section') }}" placeholder="e.g., 8-B">
+                        </div>
+                        <div class="col-12 mb-3">
+                            <label class="form-label">Responsibilities</label>
+                            <textarea name="responsibilities" class="form-control" rows="2">{{ old('responsibilities') }}</textarea>
                         </div>
                     </div>
 <!-- ========== ADD THIS CODE TO CREATE FORM ========== -->
@@ -267,6 +316,37 @@
         <div class="mb-3">
             <label class="form-label">PAN Number</label>
             <input type="text" name="pan_number" class="form-control">
+        </div>
+    </div>
+</div>
+
+<!-- Exam Control Toggles -->
+<div class="row mt-4">
+    <div class="col-md-12">
+        <h5 class="border-bottom pb-2 mb-3">🎓 Examination Control</h5>
+        <div class="card bg-light p-3">
+            <div class="form-check form-switch mb-3">
+                <input class="form-check-input" type="checkbox" id="isExamHead" 
+                       name="is_exam_head" value="1"
+                       {{ old('is_exam_head') ? 'checked' : '' }}>
+                <label class="form-check-label fw-bold" for="isExamHead">
+                    ☑️ Make Exam Head
+                </label>
+                <p class="text-muted small mb-0">
+                    Grant this teacher permission to view result monitoring, edit marks, and approve results
+                </p>
+            </div>
+            <div class="form-check form-switch">
+                <input class="form-check-input" type="checkbox" id="isExamCellMember" 
+                       name="is_exam_cell_member" value="1"
+                       {{ old('is_exam_cell_member') ? 'checked' : '' }}>
+                <label class="form-check-label fw-bold" for="isExamCellMember">
+                    ☑️ Make Exam Cell Member
+                </label>
+                <p class="text-muted small mb-0">
+                    Grant this teacher permission to manage exam arrangements, invigilation duties, and relieving shifts
+                </p>
+            </div>
         </div>
     </div>
 </div>

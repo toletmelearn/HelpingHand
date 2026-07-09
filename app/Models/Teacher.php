@@ -62,6 +62,7 @@ class Teacher extends Authenticatable
         'date_of_joining' => 'date',
         'is_exam_head' => 'boolean',
         'is_exam_cell_member' => 'boolean',
+        'subjects' => 'array',
     ];
 
     // Hidden attributes for security
@@ -265,45 +266,45 @@ class Teacher extends Authenticatable
             'email' => 'required|email|unique:teachers,email',
             'phone' => 'required|digits:10',
             'address' => 'required|string',
-            'date_of_birth' => 'required|date|before:today',
+            'permanent_address' => 'nullable|string|max:500',
+            'relative_name' => 'nullable|string|max:255',
+            'date_of_birth' => 'nullable|date|before:today',
             'gender' => 'required|in:male,female,other',
             'qualification' => 'required|string|max:100',
+            'educational_qualification' => 'nullable|string|max:500',
             'experience_details' => 'required|string|max:500',
             'subject_specialization' => 'required|string|max:100',
+            'subjects' => 'nullable|array',
+            'subjects.*' => 'string|max:100',
+            'classes_taught' => 'nullable|string|max:1000',
+            'no_of_periods' => 'nullable|integer|min:0|max:60',
+            'class_section' => 'nullable|string|max:255',
+            'responsibilities' => 'nullable|string|max:1000',
             'designation' => 'required|string|max:100',
             'salary' => 'required|numeric|min:0',
             'date_of_joining' => 'required|date',
-            'status' => 'required|in:active,inactive,resigned',
-            'department' => 'nullable|string|max:100',
+            'status' => 'required|in:active,inactive,on_leave',
             'employee_id' => 'nullable|string|max:50|unique:teachers,employee_id',
+            'aadhar_number' => 'nullable|digits:12',
+            'pan_number' => 'nullable|regex:/^[A-Za-z]{5}[0-9]{4}[A-Za-z]$/',
+            'uan_number' => 'nullable|string|max:20',
+            'wing' => 'required|in:primary,junior,senior',
+            'teacher_type' => 'required|in:PRT,TGT,PGT,Other',
+            'employment_type' => 'required|in:permanent,contract,temporary,guest',
+            'bank_account_number' => 'nullable|string|max:50',
+            'ifsc_code' => 'nullable|string|max:20',
             'emergency_contact' => 'nullable|digits:10',
-            'emergency_contact_person' => 'nullable|string|max:255',
             'profile_image' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
         ];
     }
 
     public static function updateRules($id)
     {
-        return [
-            'name' => 'required|string|max:255',
-            'email' => 'required|email|unique:teachers,email,' . $id,
-            'phone' => 'required|digits:10',
-            'address' => 'required|string',
-            'date_of_birth' => 'required|date|before:today',
-            'gender' => 'required|in:male,female,other',
-            'qualification' => 'required|string|max:100',
-            'experience_details' => 'required|string|max:500',
-            'subject_specialization' => 'required|string|max:100',
-            'designation' => 'required|string|max:100',
-            'salary' => 'required|numeric|min:0',
-            'date_of_joining' => 'required|date',
-            'status' => 'required|in:active,inactive,resigned',
-            'department' => 'nullable|string|max:100',
-            'employee_id' => 'nullable|string|max:50|unique:teachers,employee_id,' . $id,
-            'emergency_contact' => 'nullable|digits:10',
-            'emergency_contact_person' => 'nullable|string|max:255',
-            'profile_image' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
-        ];
+        $rules = self::storeRules();
+        $rules['email'] = 'required|email|unique:teachers,email,' . $id;
+        $rules['employee_id'] = 'nullable|string|max:50|unique:teachers,employee_id,' . $id;
+
+        return $rules;
     }
 
     /**
