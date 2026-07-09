@@ -4,9 +4,14 @@
 
 @section('content')
 <div class="container">
-    <div class="d-flex justify-content-between align-items-center mb-4">
+    <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
         <h1>Subjects Management</h1>
-        <a href="{{ route('admin.subjects.create') }}" class="btn btn-primary">Create New Subject</a>
+        <div>
+            <a href="{{ route('admin.subjects.create') }}" class="btn btn-primary">Create New Subject</a>
+            @if(Route::has('imports.wizard'))
+                <a href="{{ route('imports.wizard', ['module' => 'subjects']) }}" class="btn btn-outline-secondary" title="Add many subjects at once from a spreadsheet">Bulk Import Instead</a>
+            @endif
+        </div>
     </div>
 
     @if(session('success'))

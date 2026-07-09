@@ -59,6 +59,18 @@
             font-size: 0.8rem;
             transition: transform 0.3s ease;
         }
+
+        .nav-subtitle {
+            font-size: 0.68rem;
+            font-weight: 400;
+            letter-spacing: normal;
+            color: var(--sidebar-muted);
+            opacity: 0.85;
+            margin-top: 2px;
+            padding-right: 20px;
+            white-space: normal;
+            line-height: 1.3;
+        }
         
         .sidebar-section.open .nav-header::after {
             transform: rotate(180deg);
@@ -129,6 +141,7 @@
     
     <div class="sidebar-content overflow-y-auto" id="sidebar-content" style="height: calc(100vh - 140px);">
         <ul class="nav flex-column">
+            @if(Auth::check())
             
             <!-- 🏫 1. DASHBOARD -->
             @if(Route::has('admin.dashboard'))
@@ -140,8 +153,42 @@
                 </a>
             </li>
             @endif
+
+            <!-- 📞 1.5 FRONT OFFICE / ENQUIRIES -->
+            @if(Auth::user()->hasRole('admin') || Auth::user()->hasRole('super-admin') || Auth::user()->hasRole('receptionist') || Auth::user()->hasRole('teacher') || Auth::user()->hasRole('clerk'))
+            <li class="nav-item">
+                <a class="nav-link text-white {{ request()->routeIs('admin.front-office.enquiries.*') ? 'active' : '' }}"
+                   href="{{ route('admin.front-office.enquiries.index') }}">
+                    <i class="bi bi-telephone-inbound-fill me-2"></i>
+                    <span>Front Office / Enquiries</span>
+                </a>
+            </li>
+            @endif
+
+            <!-- 🛡️ 1.6 GATEKEEPER / SECURITY TERMINAL -->
+            @if(Auth::user()->hasRole('admin') || Auth::user()->hasRole('super-admin') || Auth::user()->hasRole('receptionist') || Auth::user()->hasRole('guard') || Auth::user()->hasRole('teacher') || Auth::user()->hasRole('clerk'))
+            <li class="nav-item">
+                <a class="nav-link text-white {{ request()->routeIs('admin.front-office.gatekeeper') ? 'active' : '' }}" 
+                   href="{{ route('admin.front-office.gatekeeper') }}">
+                    <i class="bi bi-shield-check-fill me-2"></i>
+                    <span>Gatekeeper Terminal</span>
+                </a>
+            </li>
+            @endif
+
+            <!-- 📋 1.7 GUARD DUTY ROSTER -->
+            @if(Auth::user()->hasRole('admin') || Auth::user()->hasRole('super-admin') || Auth::user()->hasRole('receptionist'))
+            <li class="nav-item">
+                <a class="nav-link text-white {{ request()->routeIs('admin.front-office.duty-assignments.*') ? 'active' : '' }}" 
+                   href="{{ route('admin.front-office.duty-assignments.index') }}">
+                    <i class="bi bi-calendar-check-fill me-2"></i>
+                    <span>Guard Duty Roster</span>
+                </a>
+            </li>
+            @endif
             
             <!-- 🎓 2. STUDENT MANAGEMENT -->
+            @if(Auth::user()->hasRole('admin') || Auth::user()->hasPermission('view-students'))
             <li class="nav-item sidebar-section mt-3" data-section="students">
                 <div class="nav-header text-uppercase small px-3 py-2">
                     <i class="bi bi-people me-1"></i> Student Management
@@ -154,6 +201,15 @@
                                href="{{ route('admin.students.index') }}">
                                 <i class="bi bi-person-lines-fill me-2"></i>
                                 <span>Students</span>
+                            </a>
+                        </li>
+                        @endif
+                        @if(Route::has('admin.parents.index'))
+                        <li class="nav-item">
+                            <a class="nav-link text-white {{ request()->routeIs('admin.parents.*') ? 'active' : '' }}" 
+                               href="{{ route('admin.parents.index') }}">
+                                <i class="bi bi-person-fill-gear me-2"></i>
+                                <span>Parents</span>
                             </a>
                         </li>
                         @endif
@@ -178,8 +234,9 @@
                     </ul>
                 </div>
             </li>
-            
-            <!-- 👨‍🏫 3. TEACHER MANAGEMENT -->
+            @endif
+                 <!-- 👨‍🏫 3. TEACHER MANAGEMENT -->
+            @if(Auth::user()->hasRole('admin') || Auth::user()->hasPermission('view-teachers'))
             <li class="nav-item sidebar-section mt-3" data-section="teachers">
                 <div class="nav-header text-uppercase small px-3 py-2">
                     <i class="bi bi-person-badge me-1"></i> Teacher Management
@@ -189,7 +246,7 @@
                         @if(Route::has('admin.teachers.index'))
                         <li class="nav-item">
                             <a class="nav-link text-white {{ request()->routeIs('admin.teachers.*') ? 'active' : '' }}" 
-                               href="{{ route('admin.teachers.index') }}">
+                                href="{{ route('admin.teachers.index') }}">
                                 <i class="bi bi-people me-2"></i>
                                 <span>Teachers</span>
                             </a>
@@ -216,15 +273,245 @@
                     </ul>
                 </div>
             </li>
+            @endif
+
+            <!-- 👥 HR & PAYROLL -->
+            @if(Auth::user()->hasRole('admin') || Auth::user()->hasPermission('can-view-salary-data'))
+            <li class="nav-item sidebar-section mt-3" data-section="hr-payroll">
+                <div class="nav-header text-uppercase small px-3 py-2">
+                    <i class="bi bi-person-workspace me-1"></i> HR & Payroll
+                </div>
+                <div class="nav-collapse">
+                    <ul class="nav flex-column">
+                        @if(Route::has('admin.leaves.index'))
+                        <li class="nav-item">
+                            <a class="nav-link text-white {{ request()->routeIs('admin.leaves.*') ? 'active' : '' }}" 
+                               href="{{ route('admin.leaves.index') }}">
+                                <i class="bi bi-calendar-range me-2"></i>
+                                <span>Teacher Leaves</span>
+                            </a>
+                        </li>
+                        @endif
+                        @if(Route::has('admin.hr.payroll.index'))
+                        <li class="nav-item">
+                            <a class="nav-link text-white {{ request()->routeIs('admin.hr.payroll.*') ? 'active' : '' }}" 
+                               href="{{ route('admin.hr.payroll.index') }}">
+                                <i class="bi bi-wallet2 me-2"></i>
+                                <span>Payroll & Salaries</span>
+                            </a>
+                        </li>
+                        @endif
+                    </ul>
+                </div>
+            </li>
+            @endif
+
+            <!-- 🗄️ BULK IMPORT (was "Data Management" — renamed for clarity, see nav-subtitle) -->
+            @if(Auth::user()->hasRole(['admin', 'super-admin']))
+            <li class="nav-item sidebar-section mt-3" data-section="imports">
+                <div class="nav-header text-uppercase small px-3 py-2">
+                    <i class="bi bi-database-fill-gear me-1"></i> Bulk Import
+                    <div class="nav-subtitle text-lowercase">Upload a spreadsheet to add many records at once</div>
+                </div>
+                <div class="nav-collapse">
+                    <ul class="nav flex-column">
+                        @php
+                            $importEngine = app(\App\Services\Imports\ImportEngine::class);
+                            $statusColors = [
+                                'green' => 'text-success',
+                                'yellow' => 'text-warning',
+                                'red' => 'text-danger'
+                            ];
+                        @endphp
+                        <li class="nav-item">
+                            <a class="nav-link text-white {{ request()->routeIs('imports.dashboard') ? 'active' : '' }}" 
+                               href="{{ route('imports.dashboard') }}">
+                                <i class="bi bi-speedometer2 me-2"></i>
+                                <span>Import Dashboard</span>
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link text-white {{ request()->is('admin/imports/wizard/students') ? 'active' : '' }}" 
+                               href="{{ route('imports.wizard', ['module' => 'students']) }}">
+                                <i class="bi bi-mortarboard-fill me-2"></i>
+                                <span>Student Import</span>
+                                <span class="badge float-end mt-1 {{ $statusColors[$importEngine->getModuleStatus('students')] }}">●</span>
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link text-white {{ request()->is('admin/imports/wizard/teachers') ? 'active' : '' }}" 
+                               href="{{ route('imports.wizard', ['module' => 'teachers']) }}">
+                                <i class="bi bi-person-badge me-2"></i>
+                                <span>Teacher Import</span>
+                                <span class="badge float-end mt-1 {{ $statusColors[$importEngine->getModuleStatus('teachers')] }}">●</span>
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link text-white {{ request()->is('admin/imports/wizard/parents') ? 'active' : '' }}" 
+                               href="{{ route('imports.wizard', ['module' => 'parents']) }}">
+                                <i class="bi bi-people me-2"></i>
+                                <span>Parent Import</span>
+                                <span class="badge float-end mt-1 {{ $statusColors[$importEngine->getModuleStatus('parents')] }}">●</span>
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link text-white {{ request()->is('admin/imports/wizard/classes') ? 'active' : '' }}" 
+                               href="{{ route('imports.wizard', ['module' => 'classes']) }}">
+                                <i class="bi bi-building me-2"></i>
+                                <span>Class Import</span>
+                                <span class="badge float-end mt-1 {{ $statusColors[$importEngine->getModuleStatus('classes')] }}">●</span>
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link text-white {{ request()->is('admin/imports/wizard/sections') ? 'active' : '' }}" 
+                               href="{{ route('imports.wizard', ['module' => 'sections']) }}">
+                                <i class="bi bi-diagram-3 me-2"></i>
+                                <span>Section Import</span>
+                                <span class="badge float-end mt-1 {{ $statusColors[$importEngine->getModuleStatus('sections')] }}">●</span>
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link text-white {{ request()->is('admin/imports/wizard/subjects') ? 'active' : '' }}" 
+                               href="{{ route('imports.wizard', ['module' => 'subjects']) }}">
+                                <i class="bi bi-book-half me-2"></i>
+                                <span>Subject Import</span>
+                                <span class="badge float-end mt-1 {{ $statusColors[$importEngine->getModuleStatus('subjects')] }}">●</span>
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link text-white disabled opacity-50" href="javascript:void(0);">
+                                <i class="bi bi-calendar-check me-2"></i>
+                                <span>Academic Session Import <small class="text-xs text-warning">(Soon)</small></span>
+                                <span class="badge float-end mt-1 {{ $statusColors[$importEngine->getModuleStatus('academic-sessions')] }}">●</span>
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link text-white {{ request()->is('admin/imports/wizard/fee-structures') ? 'active' : '' }}" 
+                               href="{{ route('imports.wizard', ['module' => 'fee-structures']) }}">
+                                <i class="bi bi-cash-stack me-2"></i>
+                                <span>Fee Structure Import</span>
+                                <span class="badge float-end mt-1 {{ $statusColors[$importEngine->getModuleStatus('fee-structures')] }}">●</span>
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link text-white disabled opacity-50" href="javascript:void(0);">
+                                <i class="bi bi-wallet2 me-2"></i>
+                                <span>Fee Head Import <small class="text-xs text-warning">(Soon)</small></span>
+                                <span class="badge float-end mt-1 {{ $statusColors[$importEngine->getModuleStatus('fee-heads')] }}">●</span>
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link text-white disabled opacity-50" href="javascript:void(0);">
+                                <i class="bi bi-percent me-2"></i>
+                                <span>Discount Import <small class="text-xs text-warning">(Soon)</small></span>
+                                <span class="badge float-end mt-1 {{ $statusColors[$importEngine->getModuleStatus('discounts')] }}">●</span>
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link text-white disabled opacity-50" href="javascript:void(0);">
+                                <i class="bi bi-award me-2"></i>
+                                <span>Scholarship Import <small class="text-xs text-warning">(Soon)</small></span>
+                                <span class="badge float-end mt-1 {{ $statusColors[$importEngine->getModuleStatus('scholarships')] }}">●</span>
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link text-white {{ request()->is('admin/imports/wizard/routes') ? 'active' : '' }}" 
+                               href="{{ route('imports.wizard', ['module' => 'routes']) }}">
+                                <i class="bi bi-bus-front me-2"></i>
+                                <span>Transport Route Import</span>
+                                <span class="badge float-end mt-1 {{ $statusColors[$importEngine->getModuleStatus('routes')] }}">●</span>
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link text-white disabled opacity-50" href="javascript:void(0);">
+                                <i class="bi bi-geo-alt me-2"></i>
+                                <span>Transport Stop Import <small class="text-xs text-warning">(Soon)</small></span>
+                                <span class="badge float-end mt-1 {{ $statusColors[$importEngine->getModuleStatus('stops')] }}">●</span>
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link text-white disabled opacity-50" href="javascript:void(0);">
+                                <i class="bi bi-truck me-2"></i>
+                                <span>Vehicle Import <small class="text-xs text-warning">(Soon)</small></span>
+                                <span class="badge float-end mt-1 {{ $statusColors[$importEngine->getModuleStatus('vehicles')] }}">●</span>
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link text-white disabled opacity-50" href="javascript:void(0);">
+                                <i class="bi bi-person-workspace me-2"></i>
+                                <span>Staff Import <small class="text-xs text-warning">(Soon)</small></span>
+                                <span class="badge float-end mt-1 {{ $statusColors[$importEngine->getModuleStatus('staff')] }}">●</span>
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link text-white disabled opacity-50" href="javascript:void(0);">
+                                <i class="bi bi-person-fill-gear me-2"></i>
+                                <span>User Import <small class="text-xs text-warning">(Soon)</small></span>
+                                <span class="badge float-end mt-1 {{ $statusColors[$importEngine->getModuleStatus('users')] }}">●</span>
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link text-white {{ request()->routeIs('imports.history') ? 'active' : '' }}" 
+                               href="{{ route('imports.history') }}">
+                                <i class="bi bi-clock-history me-2"></i>
+                                <span>Import History</span>
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link text-white {{ request()->routeIs('imports.mapping-profiles') ? 'active' : '' }}" 
+                               href="{{ route('imports.mapping-profiles') }}">
+                                <i class="bi bi-file-earmark-diff me-2"></i>
+                                <span>Mapping Profiles</span>
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link text-white {{ request()->routeIs('imports.templates') ? 'active' : '' }}" 
+                               href="{{ route('imports.templates') }}">
+                                <i class="bi bi-file-earmark-spreadsheet me-2"></i>
+                                <span>Import Templates</span>
+                            </a>
+                        </li>
+                    </ul>
+                </div>
+            </li>
+            @endif
+
+            <!-- 🛠️ OPERATIONS CONTROL -->
+            @if(Auth::user()->hasRole(['admin', 'super-admin']))
+            <li class="nav-item sidebar-section mt-3" data-section="operations">
+                <div class="nav-header text-uppercase small px-3 py-2">
+                    <i class="bi bi-gear-wide-connected me-1"></i> Operations Control
+                </div>
+                <div class="nav-collapse">
+                    <ul class="nav flex-column">
+                        <li class="nav-item">
+                            <a class="nav-link text-white {{ request()->routeIs('operations.health') ? 'active' : '' }}" 
+                               href="{{ route('operations.health') }}">
+                                <i class="bi bi-heart-pulse me-2"></i>
+                                <span>System Health</span>
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link text-white {{ request()->routeIs('operations.settings') ? 'active' : '' }}" 
+                               href="{{ route('operations.settings') }}">
+                                <i class="bi bi-sliders me-2"></i>
+                                <span>ERP Config Center</span>
+                            </a>
+                        </li>
+                    </ul>
+                </div>
+            </li>
+            @endif
             
             <!-- 🧑‍🏫 4. ACADEMIC MANAGEMENT -->
+            @if(Auth::user()->hasRole(['admin', 'staff']) || Auth::user()->hasPermission('view-syllabi') || Auth::user()->hasPermission('view-daily-teaching-work'))
             <li class="nav-item sidebar-section mt-3" data-section="academic">
                 <div class="nav-header text-uppercase small px-3 py-2">
                     <i class="bi bi-mortarboard me-1"></i> Academic Management
                 </div>
                 <div class="nav-collapse">
                     <ul class="nav flex-column">
-                        @if(Route::has('admin.classes.index'))
+                        @if(Route::has('admin.classes.index') && (Auth::user()->hasRole(['admin', 'staff']) || Auth::user()->hasPermission('view-classes')))
                         <li class="nav-item">
                             <a class="nav-link text-white {{ request()->routeIs('admin.classes.*') ? 'active' : '' }}" 
                                href="{{ route('admin.classes.index') }}">
@@ -233,7 +520,7 @@
                             </a>
                         </li>
                         @endif
-                        @if(Route::has('admin.sections.index'))
+                        @if(Route::has('admin.sections.index') && (Auth::user()->hasRole(['admin', 'staff']) || Auth::user()->hasPermission('view-sections')))
                         <li class="nav-item">
                             <a class="nav-link text-white {{ request()->routeIs('admin.sections.*') ? 'active' : '' }}" 
                                href="{{ route('admin.sections.index') }}">
@@ -242,7 +529,7 @@
                             </a>
                         </li>
                         @endif
-                        @if(Route::has('admin.subjects.index'))
+                        @if(Route::has('admin.subjects.index') && (Auth::user()->hasRole(['admin', 'staff']) || Auth::user()->hasPermission('view-subjects')))
                         <li class="nav-item">
                             <a class="nav-link text-white {{ request()->routeIs('admin.subjects.*') ? 'active' : '' }}" 
                                href="{{ route('admin.subjects.index') }}">
@@ -251,7 +538,7 @@
                             </a>
                         </li>
                         @endif
-                        @if(Route::has('admin.academic-sessions.index'))
+                        @if(Route::has('admin.academic-sessions.index') && (Auth::user()->hasRole(['admin', 'staff']) || Auth::user()->hasPermission('view-academic-sessions')))
                         <li class="nav-item">
                             <a class="nav-link text-white {{ request()->routeIs('admin.academic-sessions.*') ? 'active' : '' }}" 
                                href="{{ route('admin.academic-sessions.index') }}">
@@ -260,7 +547,7 @@
                             </a>
                         </li>
                         @endif
-                        @if(Route::has('admin.syllabi.index'))
+                        @if(Route::has('admin.syllabi.index') && (Auth::user()->hasRole('admin') || Auth::user()->hasPermission('view-syllabi')))
                         <li class="nav-item">
                             <a class="nav-link text-white {{ request()->routeIs('admin.syllabi.*') ? 'active' : '' }}" 
                                href="{{ route('admin.syllabi.index') }}">
@@ -269,7 +556,7 @@
                             </a>
                         </li>
                         @endif
-                        @if(Route::has('admin.daily-teaching-work.index'))
+                        @if(Route::has('admin.daily-teaching-work.index') && (Auth::user()->hasRole('admin') || Auth::user()->hasPermission('view-daily-teaching-work')))
                         <li class="nav-item">
                             <a class="nav-link text-white {{ request()->routeIs('admin.daily-teaching-work.*') ? 'active' : '' }}" 
                                href="{{ route('admin.daily-teaching-work.index') }}">
@@ -278,7 +565,7 @@
                             </a>
                         </li>
                         @endif
-                        @if(Route::has('admin.lesson-plans.index'))
+                        @if(Route::has('admin.lesson-plans.index') && (Auth::user()->hasRole('admin') || Auth::user()->hasRole('teacher')))
                         <li class="nav-item">
                             <a class="nav-link text-white {{ request()->routeIs('admin.lesson-plans.*') ? 'active' : '' }}" 
                                href="{{ route('admin.lesson-plans.index') }}">
@@ -290,8 +577,10 @@
                     </ul>
                 </div>
             </li>
+            @endif
             
             <!-- 📅 5. ATTENDANCE SYSTEM -->
+            @if(Auth::user()->hasRole('admin') || Auth::user()->hasPermission('view-attendance'))
             <li class="nav-item sidebar-section mt-3" data-section="attendance">
                 <div class="nav-header text-uppercase small px-3 py-2">
                     <i class="bi bi-calendar-check me-1"></i> Attendance System
@@ -307,10 +596,10 @@
                             </a>
                         </li>
                         @endif
-                        @if(Route::has('admin.attendance.index'))
+                        @if(Route::has('admin.teacher-attendance.index'))
                         <li class="nav-item">
-                            <a class="nav-link text-white {{ request()->routeIs('admin.attendance.*') ? 'active' : '' }}" 
-                               href="{{ route('admin.attendance.index') }}">
+                            <a class="nav-link text-white {{ request()->routeIs('admin.teacher-attendance.*') ? 'active' : '' }}" 
+                               href="{{ route('admin.teacher-attendance.index') }}">
                                 <i class="bi bi-people me-2"></i>
                                 <span>Teacher Attendance</span>
                             </a>
@@ -319,8 +608,10 @@
                     </ul>
                 </div>
             </li>
+            @endif
             
             <!-- 🎓 6. EXAMINATION SYSTEM -->
+            @if(Auth::user()->hasRole('admin') || Auth::user()->hasPermission('view-exams') || Auth::user()->hasPermission('view-results') || Auth::user()->hasPermission('view-exam-papers'))
             <li class="nav-item sidebar-section mt-3" data-section="exams">
                 <div class="nav-header text-uppercase small px-3 py-2">
                     <i class="bi bi-clipboard me-1"></i> Examination System
@@ -329,10 +620,19 @@
                     <ul class="nav flex-column">
                         @if(Route::has('admin.exams.index'))
                         <li class="nav-item">
-                            <a class="nav-link text-white {{ request()->routeIs('admin.exams.*') ? 'active' : '' }}" 
+                            <a class="nav-link text-white {{ request()->routeIs('admin.exams.*') && !request()->routeIs('exams.arrangements.*') ? 'active' : '' }}" 
                                href="{{ route('admin.exams.index') }}">
                                 <i class="bi bi-clipboard me-2"></i>
                                 <span>Exams</span>
+                            </a>
+                        </li>
+                        @endif
+                        @if(Route::has('exams.arrangements.index'))
+                        <li class="nav-item">
+                            <a class="nav-link text-white {{ request()->routeIs('exams.arrangements.*') ? 'active' : '' }}" 
+                               href="{{ route('exams.arrangements.index') }}">
+                                <i class="bi bi-grid-3x3-gap me-2"></i>
+                                <span>Exam Arrangements</span>
                             </a>
                         </li>
                         @endif
@@ -390,17 +690,37 @@
                             </a>
                         </li>
                         @endif
+                        @if(Route::has('admin.configurations.index'))
+                        <li class="nav-item">
+                            <a class="nav-link text-white {{ request()->getRequestUri() == '/admin/configurations#config-card-exam' ? 'active' : '' }}" 
+                               href="{{ route('admin.configurations.index') }}#config-card-exam">
+                                <i class="bi bi-gear me-2"></i>
+                                <span>Exam Settings</span>
+                            </a>
+                        </li>
+                        @endif
                     </ul>
                 </div>
             </li>
+            @endif
             
             <!-- 💰 7. FEE MANAGEMENT -->
+            @if(Auth::user()->hasRole('admin') || Auth::user()->hasPermission('view-fees') || Auth::user()->hasPermission('can-manage-fees'))
             <li class="nav-item sidebar-section mt-3" data-section="fees">
                 <div class="nav-header text-uppercase small px-3 py-2">
                     <i class="bi bi-currency-dollar me-1"></i> Fee Management
                 </div>
                 <div class="nav-collapse">
                     <ul class="nav flex-column">
+                        @if(Route::has('admin.fees.dashboard'))
+                        <li class="nav-item">
+                            <a class="nav-link text-white {{ request()->routeIs('admin.fees.dashboard') ? 'active' : '' }}" 
+                               href="{{ route('admin.fees.dashboard') }}">
+                                <i class="bi bi-speedometer2 me-2"></i>
+                                <span>Accountant Dashboard</span>
+                            </a>
+                        </li>
+                        @endif
                         @if(Route::has('admin.fees.index'))
                         <li class="nav-item">
                             <a class="nav-link text-white {{ request()->routeIs('admin.fees.*') ? 'active' : '' }}" 
@@ -419,11 +739,76 @@
                             </a>
                         </li>
                         @endif
+                        @if(Route::has('admin.fees.demand-register'))
+                        <li class="nav-item">
+                            <a class="nav-link text-white {{ request()->routeIs('admin.fees.demand-register') ? 'active' : '' }}" 
+                               href="{{ route('admin.fees.demand-register') }}">
+                                <i class="bi bi-journal-text me-2"></i>
+                                <span>Fee Demand Register</span>
+                            </a>
+                        </li>
+                        @endif
+                        @if(Route::has('admin.fees.collection-register'))
+                        <li class="nav-item">
+                            <a class="nav-link text-white {{ request()->routeIs('admin.fees.collection-register') ? 'active' : '' }}" 
+                               href="{{ route('admin.fees.collection-register') }}">
+                                <i class="bi bi-cash-stack me-2"></i>
+                                <span>Daily Collection Register</span>
+                            </a>
+                        </li>
+                        @endif
+                        @if(Route::has('admin.fees.cashier-closings.index'))
+                        <li class="nav-item">
+                            <a class="nav-link text-white {{ request()->routeIs('admin.fees.cashier-closings.*') ? 'active' : '' }}" 
+                               href="{{ route('admin.fees.cashier-closings.index') }}">
+                                <i class="bi bi-lock me-2"></i>
+                                <span>Cashier Closing</span>
+                            </a>
+                        </li>
+                        @endif
+                        @if(Route::has('admin.fees.defaulters.dashboard'))
+                        <li class="nav-item">
+                            <a class="nav-link text-white {{ request()->routeIs('admin.fees.defaulters.dashboard') ? 'active' : '' }}" 
+                               href="{{ route('admin.fees.defaulters.dashboard') }}">
+                                <i class="bi bi-speedometer2 me-2"></i>
+                                <span>Defaulter Dashboard</span>
+                            </a>
+                        </li>
+                        @endif
+                        @if(Route::has('admin.fees.defaulters.index'))
+                        <li class="nav-item">
+                            <a class="nav-link text-white {{ request()->routeIs('admin.fees.defaulters.index') ? 'active' : '' }}" 
+                               href="{{ route('admin.fees.defaulters.index') }}">
+                                <i class="bi bi-exclamation-triangle me-2"></i>
+                                <span>Defaulter Registry</span>
+                            </a>
+                        </li>
+                        @endif
+                        @if(Route::has('admin.fees.year-closing.index'))
+                        <li class="nav-item">
+                            <a class="nav-link text-white {{ request()->routeIs('admin.fees.year-closing.index') ? 'active' : '' }}" 
+                               href="{{ route('admin.fees.year-closing.index') }}">
+                                <i class="bi bi-calendar-check me-2"></i>
+                                <span>Year-End Closing</span>
+                            </a>
+                        </li>
+                        @endif
+                        @if(Route::has('admin.fees.reports.index'))
+                        <li class="nav-item">
+                            <a class="nav-link text-white {{ request()->routeIs('admin.fees.reports.index') ? 'active' : '' }}" 
+                               href="{{ route('admin.fees.reports.index') }}">
+                                <i class="bi bi-file-earmark-bar-graph me-2"></i>
+                                <span>Finance Reports</span>
+                            </a>
+                        </li>
+                        @endif
                     </ul>
                 </div>
             </li>
+            @endif
             
             <!-- 📊 8. BUDGET & EXPENSES -->
+            @if(Auth::user()->hasRole('admin') || Auth::user()->hasRole('accountant') || Auth::user()->hasPermission('view-budgets'))
             <li class="nav-item sidebar-section mt-3" data-section="budget">
                 <div class="nav-header text-uppercase small px-3 py-2">
                     <i class="bi bi-pie-chart me-1"></i> Budget & Expenses
@@ -460,8 +845,10 @@
                     </ul>
                 </div>
             </li>
+            @endif
             
             <!-- 📚 9. LIBRARY MANAGEMENT -->
+            @if(Auth::user()->hasRole('admin') || Auth::user()->hasPermission('manage-library'))
             <li class="nav-item sidebar-section mt-3" data-section="library">
                 <div class="nav-header text-uppercase small px-3 py-2">
                     <i class="bi bi-book me-1"></i> Library Management
@@ -498,8 +885,10 @@
                     </ul>
                 </div>
             </li>
+            @endif
             
             <!-- 📦 10. INVENTORY MANAGEMENT -->
+            @if(Auth::user()->hasRole('admin') || Auth::user()->hasPermission('view-inventory'))
             <li class="nav-item sidebar-section mt-3" data-section="inventory">
                 <div class="nav-header text-uppercase small px-3 py-2">
                     <i class="bi bi-box-seam me-1"></i> Inventory Management
@@ -524,10 +913,10 @@
                             </a>
                         </li>
                         @endif
-                        @if(Route::has('admin.admin.inventory.categories.index'))
+                        @if(Route::has('admin.inventory.categories.index'))
                         <li class="nav-item">
-                            <a class="nav-link text-white {{ request()->routeIs('admin.admin.inventory.categories.*') ? 'active' : '' }}" 
-                               href="{{ route('admin.admin.inventory.categories.index') }}">
+                            <a class="nav-link text-white {{ request()->routeIs('admin.inventory.categories.*') ? 'active' : '' }}" 
+                               href="{{ route('admin.inventory.categories.index') }}">
                                 <i class="bi bi-folder me-2"></i>
                                 <span>Asset Categories</span>
                             </a>
@@ -536,8 +925,10 @@
                     </ul>
                 </div>
             </li>
+            @endif
             
             <!-- 📄 11. CERTIFICATE MANAGEMENT -->
+            @if(Auth::user()->hasRole('admin') || Auth::user()->hasPermission('view-certificates'))
             <li class="nav-item sidebar-section mt-3" data-section="certificates">
                 <div class="nav-header text-uppercase small px-3 py-2">
                     <i class="bi bi-award me-1"></i> Certificate Management
@@ -565,18 +956,20 @@
                     </ul>
                 </div>
             </li>
+            @endif
             
             <!-- 🔧 12. SYSTEM CONFIGURATION -->
+            @if(Auth::user()->hasRole('admin'))
             <li class="nav-item sidebar-section mt-3" data-section="settings">
                 <div class="nav-header text-uppercase small px-3 py-2">
                     <i class="bi bi-gear me-1"></i> System Configuration
                 </div>
                 <div class="nav-collapse">
                     <ul class="nav flex-column">
-                        @if(Route::has('admin.admin.configurations.index'))
+                        @if(Route::has('admin.configurations.index'))
                         <li class="nav-item">
-                            <a class="nav-link text-white {{ request()->routeIs('admin.admin.configurations.*') ? 'active' : '' }}" 
-                               href="{{ route('admin.admin.configurations.index') }}">
+                            <a class="nav-link text-white {{ request()->routeIs('admin.configurations.*') ? 'active' : '' }}" 
+                               href="{{ route('admin.configurations.index') }}">
                                 <i class="bi bi-sliders me-2"></i>
                                 <span>System Settings</span>
                             </a>
@@ -597,6 +990,24 @@
                                href="{{ route('admin.notification-settings.index') }}">
                                 <i class="bi bi-bell me-2"></i>
                                 <span>Notification Settings</span>
+                            </a>
+                        </li>
+                        @endif
+                        @if(Route::has('users.index'))
+                        <li class="nav-item">
+                            <a class="nav-link text-white {{ request()->routeIs('users.*') ? 'active' : '' }}" 
+                               href="{{ route('users.index') }}">
+                                <i class="bi bi-people me-2"></i>
+                                <span>User Management</span>
+                            </a>
+                        </li>
+                        @endif
+                        @if(Route::has('admin.accounts.index'))
+                        <li class="nav-item">
+                            <a class="nav-link text-white {{ request()->routeIs('admin.accounts.*') ? 'active' : '' }}" 
+                               href="{{ route('admin.accounts.index') }}">
+                                <i class="bi bi-shield-lock-fill me-2"></i>
+                                <span>Account Management</span>
                             </a>
                         </li>
                         @endif
@@ -684,8 +1095,10 @@
                     </ul>
                 </div>
             </li>
+            @endif
             
             <!-- 🔍 13. REPORTS & AUDIT -->
+            @if(Auth::user()->hasRole('admin') || Auth::user()->hasPermission('access-audit-logs'))
             <li class="nav-item sidebar-section mt-3" data-section="reports">
                 <div class="nav-header text-uppercase small px-3 py-2">
                     <i class="bi bi-file-bar-graph me-1"></i> Reports & Audit
@@ -723,8 +1136,10 @@
                     </ul>
                 </div>
             </li>
+            @endif
             
             <!-- ⚙️ 14. SYSTEM TOOLS -->
+            @if(Auth::user()->hasRole('admin'))
             <li class="nav-item sidebar-section mt-3" data-section="tools">
                 <div class="nav-header text-uppercase small px-3 py-2">
                     <i class="bi bi-tools me-1"></i> System Tools
@@ -779,6 +1194,38 @@
                     </ul>
                 </div>
             </li>
+            @endif
+            @endif
+
+            <!-- Dynamic Registry Sidebar Sections -->
+            @php
+                $registry = app(\App\Services\Registry\ErpRegistry::class);
+            @endphp
+            @if(Auth::check())
+            @foreach($registry->getSidebarEntries() as $sectionKey => $section)
+                @if(Auth::user()->hasRole($section['roles'] ?? ['admin', 'super-admin']))
+                <li class="nav-item sidebar-section mt-3" data-section="{{ $sectionKey }}">
+                    <div class="nav-header text-uppercase small px-3 py-2">
+                        <i class="bi {{ $section['icon'] ?? 'bi-box' }} me-1"></i> {{ $section['title'] }}
+                    </div>
+                    <div class="nav-collapse">
+                        <ul class="nav flex-column">
+                            @foreach($section['links'] as $link)
+                                @if(!isset($link['permission']) || Auth::user()->hasPermission($link['permission']))
+                                <li class="nav-item">
+                                    <a class="nav-link text-white {{ request()->getRequestUri() === $link['url'] || request()->path() === ltrim($link['url'], '/') ? 'active' : '' }}" href="{{ $link['url'] }}">
+                                        <i class="bi {{ $link['icon'] ?? 'bi-link' }} me-2"></i>
+                                        <span>{{ $link['title'] }}</span>
+                                    </a>
+                                </li>
+                                @endif
+                            @endforeach
+                        </ul>
+                    </div>
+                </li>
+                @endif
+            @endforeach
+            @endif
         </ul>
     </div>
     

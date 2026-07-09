@@ -12,6 +12,11 @@
                     <a href="{{ route('admin.classes.create') }}" class="btn btn-primary float-right">
                         <i class="fas fa-plus"></i> Add New Class
                     </a>
+                    @if(Route::has('imports.wizard'))
+                        <a href="{{ route('imports.wizard', ['module' => 'classes']) }}" class="btn btn-outline-secondary float-right me-2" title="Add many classes at once from a spreadsheet">
+                            <i class="fas fa-file-upload"></i> Bulk Import Instead
+                        </a>
+                    @endif
                 </div>
                 <div class="card-body">
                     @if(session('success'))
@@ -42,7 +47,7 @@
                                 @forelse($classes as $class)
                                     <tr>
                                         <td>{{ $class->id }}</td>
-                                        <td>{{ $class->name }}</td>
+                                        <td>{{ $class->display_name }}</td>
                                         <td>{{ $class->capacity ?: 'Unlimited' }}</td>
                                         <td>{{ Str::limit($class->description, 50) }}</td>
                                         <td>{{ $class->created_at->format('d M Y') }}</td>
@@ -65,9 +70,7 @@
                         </table>
                     </div>
 
-                    <div class="d-flex justify-content-center">
-                        {{ $classes->links() }}
-                    </div>
+
                 </div>
             </div>
         </div>

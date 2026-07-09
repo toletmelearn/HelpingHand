@@ -37,12 +37,17 @@
         </h1>
 
         <div>
-            <a href="{{ route('teachers.create') }}" class="btn btn-success">
+            <a href="{{ route('admin.teachers.create') }}" class="btn btn-success">
                 ➕ Add New Teacher
             </a>
             <a href="{{ route('admin.teachers.bulk-upload') }}" class="btn btn-primary ms-2">
                 📦 Bulk Upload Teachers
             </a>
+            @if(Route::has('imports.wizard'))
+                <a href="{{ route('imports.wizard', ['module' => 'teachers']) }}" class="btn btn-outline-secondary ms-2" title="The full Data Management import wizard: validation, conflict resolution, and history">
+                    📥 Teacher Import (Data Management)
+                </a>
+            @endif
             <a href="{{ url('/') }}" class="btn btn-outline-secondary ms-2">
                 ← Home
             </a>
@@ -137,17 +142,17 @@
                                         <div class="btn-group btn-group-sm">
 
                                             <!-- VIEW -->
-                                            <a href="{{ route('teachers.show', ['teacher' => $teacher->id]) }}" class="btn btn-outline-primary">
+                                            <a href="{{ route('admin.teachers.show', ['teacher' => $teacher->id]) }}" class="btn btn-outline-primary">
                                                 👁 View
                                             </a>
 
                                             <!-- EDIT -->
-                                            <a href="{{ route('teachers.edit', ['teacher' => $teacher->id]) }}" class="btn btn-outline-warning">
+                                            <a href="{{ route('admin.teachers.edit', ['teacher' => $teacher->id]) }}" class="btn btn-outline-warning">
                                                 ✏️ Edit
                                             </a>
 
                                             <!-- DELETE -->
-                                            <form action="{{ route('teachers.destroy', ['teacher' => $teacher->id]) }}" method="POST">
+                                            <form action="{{ route('admin.teachers.destroy', ['teacher' => $teacher->id]) }}" method="POST">
                                                 @csrf
                                                 @method('DELETE')
                                                 <button type="submit"
@@ -177,7 +182,7 @@
             <div class="card-body">
                 <h3>No Teachers Found</h3>
                 <p class="text-muted">Add your first teacher to begin.</p>
-                <a href="{{ route('teachers.create') }}" class="btn btn-success">
+                <a href="{{ route('admin.teachers.create') }}" class="btn btn-success">
                     ➕ Add Teacher
                 </a>
             </div>
