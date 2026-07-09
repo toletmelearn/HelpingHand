@@ -23,7 +23,7 @@ class HomeController extends Controller
      */
     public function __construct()
     {
-        $this->middleware('auth');
+        $this->middleware('auth')->except('welcome');
     }
 
     /**
@@ -33,6 +33,11 @@ class HomeController extends Controller
      */
     public function index()
     {
+        $user = auth()->user();
+        if ($user && ($user->hasRole('receptionist') || $user->hasRole('reception'))) {
+            return redirect()->route('admin.front-office.dashboard');
+        }
+
         // Get audit log stats for the dashboard
         $todayChanges = AuditLog::whereDate('performed_at', now()->toDateString())->count();
         $mostEditedRecords = AuditLog::selectRaw('model_type, model_id, count(*) as count')
@@ -65,6 +70,12 @@ class HomeController extends Controller
         $totalFieldPermissions = FieldPermission::count();
         $todayAuditLogs = AuditLog::whereDate('performed_at', now()->toDateString())->count();
         
+        // Fetch assigned enquiries for logged-in user as counsellor
+        $assignedEnquiries = \App\Models\AdmissionEnquiry::where('counsellor_id', $user->id)
+            ->latest()
+            ->take(5)
+            ->get();
+        
         return view('home', compact(
             'todayChanges',
             'mostEditedRecords', 
@@ -74,7 +85,8 @@ class HomeController extends Controller
             'totalStudents',
             'activeClassTeachers',
             'totalFieldPermissions',
-            'todayAuditLogs'
+            'todayAuditLogs',
+            'assignedEnquiries'
         ));
     }
     
@@ -91,8 +103,11 @@ class HomeController extends Controller
             'attendance' => Attendance::count(),
             'bell_timing' => BellTiming::count(),
             'exam_papers' => ExamPaper::count(),
+            'applications_this_month' => \App\Models\AdmissionEnquiry::whereMonth('created_at', now()->month)
+                ->whereYear('created_at', now()->year)
+                ->count(),
         ];
-        
+
         return view('welcome', compact('stats'));
     }
 }
