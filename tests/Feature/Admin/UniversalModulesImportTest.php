@@ -270,4 +270,45 @@ class UniversalModulesImportTest extends TestCase
             'ifsc_code' => 'SBIN0002345',
         ]);
     }
+
+    /**
+     * Teacher Import must also cover the school's HR master-data spreadsheet fields:
+     * PAN, emergency contact, relative name, correspondence/permanent address,
+     * educational qualification detail, and teaching-load/responsibility notes.
+     */
+    public function test_teacher_import_covers_hr_master_data_fields()
+    {
+        $csvContent = "Name,Email,Phone,Employee ID,Designation,Gender,PAN Number,Emergency Contact,Relative Name,Permanent Address,Educational Qualification,Classes Taught,Periods,Class Section,Responsibilities\n" .
+            "Anil Kumar,anil.kumar@school.com,9876500011,EMP303,TGT,male,ABCDE1234F,9998887770,Sunita Kumar,\"123 Village Road, District\",B.Ed in Mathematics,\"Class 6-8: Maths\",24,\"Class 7-B\",Exam Coordinator\n";
+
+        $file = UploadedFile::fake()->createWithContent('teachers_hr.csv', $csvContent);
+        $session = $this->importEngine->initializeSession('teachers', $file, $this->admin->id);
+
+        $mappings = [
+            'name' => 'Name', 'email' => 'Email', 'phone' => 'Phone', 'employee_id' => 'Employee ID', 'designation' => 'Designation',
+            'gender' => 'Gender', 'pan_number' => 'PAN Number', 'emergency_contact' => 'Emergency Contact',
+            'relative_name' => 'Relative Name', 'permanent_address' => 'Permanent Address',
+            'educational_qualification' => 'Educational Qualification', 'classes_taught' => 'Classes Taught',
+            'no_of_periods' => 'Periods', 'class_section' => 'Class Section', 'responsibilities' => 'Responsibilities',
+        ];
+
+        $dryRunRes = $this->importEngine->dryRun($session->uuid, $mappings);
+        $this->assertEquals(1, $dryRunRes['success']);
+        $this->assertEquals(0, $dryRunRes['errors']);
+
+        $this->importEngine->execute($session->uuid, 'skip');
+
+        $this->assertDatabaseHas('teachers', [
+            'employee_id' => 'EMP303',
+            'pan_number' => 'ABCDE1234F',
+            'emergency_contact' => '9998887770',
+            'relative_name' => 'Sunita Kumar',
+            'permanent_address' => '123 Village Road, District',
+            'educational_qualification' => 'B.Ed in Mathematics',
+            'classes_taught' => 'Class 6-8: Maths',
+            'no_of_periods' => 24,
+            'class_section' => 'Class 7-B',
+            'responsibilities' => 'Exam Coordinator',
+        ]);
+    }
 }

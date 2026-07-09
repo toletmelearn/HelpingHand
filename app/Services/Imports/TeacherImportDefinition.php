@@ -29,16 +29,21 @@ class TeacherImportDefinition implements ImportDefinitionInterface
             'name' => 'required|string|max:255',
             'email' => 'required|email',
             'phone' => 'nullable|digits:10',
+            'emergency_contact' => 'nullable|string|max:20',
             'aadhar_number' => 'nullable|digits:12',
+            'pan_number' => 'nullable|regex:/^[A-Za-z]{5}[0-9]{4}[A-Za-z]$/',
             'employee_id' => 'required|string|max:50',
             'designation' => 'required|string|max:100',
             'qualification' => 'nullable|string',
+            'educational_qualification' => 'nullable|string|max:500',
             'subject_specialization' => 'nullable|string',
             'gender' => 'required|in:male,female,other',
             'date_of_birth' => 'nullable|date',
+            'relative_name' => 'nullable|string|max:255',
             'date_of_joining' => 'nullable|date',
             'salary' => 'nullable|numeric|min:0',
-            'address' => 'nullable|string',
+            'address' => 'nullable|string|max:500',
+            'permanent_address' => 'nullable|string|max:500',
             'status' => 'nullable|in:active,inactive',
             'employment_type' => 'nullable|in:permanent,contractual',
             'wing' => 'nullable|in:primary,secondary,senior',
@@ -46,6 +51,10 @@ class TeacherImportDefinition implements ImportDefinitionInterface
             'bank_account_number' => 'nullable|string|max:50',
             'ifsc_code' => 'nullable|string|max:20',
             'experience_details' => 'nullable|string|max:500',
+            'classes_taught' => 'nullable|string|max:1000',
+            'no_of_periods' => 'nullable|integer|min:0|max:60',
+            'class_section' => 'nullable|string|max:255',
+            'responsibilities' => 'nullable|string|max:1000',
         ];
     }
 
@@ -65,16 +74,22 @@ class TeacherImportDefinition implements ImportDefinitionInterface
             'employee_id' => 100,
             'email' => 90,
             'aadhar_number' => 90,
+            'pan_number' => 85,
         ];
     }
 
     public function getTemplateHeaders(): array
     {
         return [
-            'Name', 'Email', 'Phone', 'Aadhar Number', 'Employee ID', 'Designation',
-            'Qualification', 'Subject Specialization', 'Gender', 'Date of Birth', 'Date of Joining',
-            'Salary', 'Address', 'Status', 'Employment Type', 'Wing', 'Teacher Type',
-            'Bank Account Number', 'IFSC Code', 'Experience Details',
+            'Name', 'Employee ID', 'Aadhar Number', 'PAN Number', 'Date of Birth',
+            "Relative Name (Father's / Husband's / Wife's Name)",
+            'Address for Correspondence', 'Permanent Address',
+            'Email', 'Phone', 'Emergency Contact Number', 'Date of Joining',
+            'Qualification', 'Educational Qualification (B.Ed with Subjects / Other)',
+            'Classes Taught with Subjects', 'No. of Periods', 'Class & Section', 'Responsibilities',
+            'Subject Specialization', 'Gender', 'Salary', 'Status', 'Employment Type',
+            'Wing', 'Teacher Type', 'Designation', 'Bank Account Number', 'IFSC Code',
+            'Experience Details',
         ];
     }
 

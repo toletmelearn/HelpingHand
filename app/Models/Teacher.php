@@ -21,9 +21,12 @@ class Teacher extends Authenticatable
         'email',
         'phone',
         'address',
+        'permanent_address',
         'date_of_birth',
+        'relative_name',
         'gender',
         'qualification',
+        'educational_qualification',
         'experience_details',
         'subject_specialization',
         'designation',
@@ -45,6 +48,11 @@ class Teacher extends Authenticatable
         'employment_type',
         'uan_number',
         'pan_number',
+        'emergency_contact',
+        'classes_taught',
+        'no_of_periods',
+        'class_section',
+        'responsibilities',
     ];
 
     protected $dates = ['date_of_birth', 'date_of_joining'];
