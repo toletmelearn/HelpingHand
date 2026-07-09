@@ -379,43 +379,7 @@
                             </a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link text-white disabled opacity-50" href="javascript:void(0);">
-                                <i class="bi bi-calendar-check me-2"></i>
-                                <span>Academic Session Import <small class="text-xs text-warning">(Soon)</small></span>
-                                <span class="badge float-end mt-1 {{ $statusColors[$importEngine->getModuleStatus('academic-sessions')] }}">●</span>
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link text-white {{ request()->is('admin/imports/wizard/fee-structures') ? 'active' : '' }}" 
-                               href="{{ route('imports.wizard', ['module' => 'fee-structures']) }}">
-                                <i class="bi bi-cash-stack me-2"></i>
-                                <span>Fee Structure Import</span>
-                                <span class="badge float-end mt-1 {{ $statusColors[$importEngine->getModuleStatus('fee-structures')] }}">●</span>
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link text-white disabled opacity-50" href="javascript:void(0);">
-                                <i class="bi bi-wallet2 me-2"></i>
-                                <span>Fee Head Import <small class="text-xs text-warning">(Soon)</small></span>
-                                <span class="badge float-end mt-1 {{ $statusColors[$importEngine->getModuleStatus('fee-heads')] }}">●</span>
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link text-white disabled opacity-50" href="javascript:void(0);">
-                                <i class="bi bi-percent me-2"></i>
-                                <span>Discount Import <small class="text-xs text-warning">(Soon)</small></span>
-                                <span class="badge float-end mt-1 {{ $statusColors[$importEngine->getModuleStatus('discounts')] }}">●</span>
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link text-white disabled opacity-50" href="javascript:void(0);">
-                                <i class="bi bi-award me-2"></i>
-                                <span>Scholarship Import <small class="text-xs text-warning">(Soon)</small></span>
-                                <span class="badge float-end mt-1 {{ $statusColors[$importEngine->getModuleStatus('scholarships')] }}">●</span>
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link text-white {{ request()->is('admin/imports/wizard/routes') ? 'active' : '' }}" 
+                            <a class="nav-link text-white {{ request()->is('admin/imports/wizard/routes') ? 'active' : '' }}"
                                href="{{ route('imports.wizard', ['module' => 'routes']) }}">
                                 <i class="bi bi-bus-front me-2"></i>
                                 <span>Transport Route Import</span>
@@ -423,35 +387,7 @@
                             </a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link text-white disabled opacity-50" href="javascript:void(0);">
-                                <i class="bi bi-geo-alt me-2"></i>
-                                <span>Transport Stop Import <small class="text-xs text-warning">(Soon)</small></span>
-                                <span class="badge float-end mt-1 {{ $statusColors[$importEngine->getModuleStatus('stops')] }}">●</span>
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link text-white disabled opacity-50" href="javascript:void(0);">
-                                <i class="bi bi-truck me-2"></i>
-                                <span>Vehicle Import <small class="text-xs text-warning">(Soon)</small></span>
-                                <span class="badge float-end mt-1 {{ $statusColors[$importEngine->getModuleStatus('vehicles')] }}">●</span>
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link text-white disabled opacity-50" href="javascript:void(0);">
-                                <i class="bi bi-person-workspace me-2"></i>
-                                <span>Staff Import <small class="text-xs text-warning">(Soon)</small></span>
-                                <span class="badge float-end mt-1 {{ $statusColors[$importEngine->getModuleStatus('staff')] }}">●</span>
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link text-white disabled opacity-50" href="javascript:void(0);">
-                                <i class="bi bi-person-fill-gear me-2"></i>
-                                <span>User Import <small class="text-xs text-warning">(Soon)</small></span>
-                                <span class="badge float-end mt-1 {{ $statusColors[$importEngine->getModuleStatus('users')] }}">●</span>
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link text-white {{ request()->routeIs('imports.history') ? 'active' : '' }}" 
+                            <a class="nav-link text-white {{ request()->routeIs('imports.history') ? 'active' : '' }}"
                                href="{{ route('imports.history') }}">
                                 <i class="bi bi-clock-history me-2"></i>
                                 <span>Import History</span>

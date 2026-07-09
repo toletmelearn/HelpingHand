@@ -33,11 +33,6 @@
                         <a href="{{ route('admin.fee-structures.create') }}" class="btn btn-primary">
                             <i class="fas fa-plus me-1"></i> Create Fee Structure
                         </a>
-                        @if(Route::has('imports.wizard'))
-                            <a href="{{ route('imports.wizard', ['module' => 'fee-structures']) }}" class="btn btn-outline-secondary" title="Add many fee structures at once from a spreadsheet">
-                                <i class="fas fa-file-upload me-1"></i> Bulk Import Instead
-                            </a>
-                        @endif
                     </div>
                 </div>
                 <div class="card-body">

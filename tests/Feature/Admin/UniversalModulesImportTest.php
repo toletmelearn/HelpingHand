@@ -11,7 +11,6 @@ use App\Models\Student;
 use App\Models\SchoolClass;
 use App\Models\Section;
 use App\Models\Subject;
-use App\Models\FeeStructure;
 use App\Models\Route;
 use App\Models\ImportSession;
 use App\Services\Imports\ImportEngine;
@@ -126,6 +125,11 @@ class UniversalModulesImportTest extends TestCase
         $parent = ParentModel::first();
         $this->assertEquals('Parent Name', $parent->name);
 
+        // Bulk-imported parents must not get a hardcoded, publicly-known password —
+        // ParentModel::password is the real Parent Portal login, unlike Teacher's.
+        $this->assertFalse(\Illuminate\Support\Facades\Hash::check('123456', $parent->password));
+        $this->assertTrue($parent->must_reset_password);
+
         // Verify relationship link on Student
         $student->refresh();
         $this->assertEquals($parent->id, $student->parent_id);
@@ -176,7 +180,7 @@ class UniversalModulesImportTest extends TestCase
         $this->assertEquals(0, SchoolClass::count());
     }
 
-    public function test_subject_and_fee_structure_and_route_import()
+    public function test_subject_and_route_import()
     {
         // Subject Ingestion
         $subjectCsv = "Name,Code,Type\n" .
@@ -191,20 +195,6 @@ class UniversalModulesImportTest extends TestCase
 
         $this->assertEquals(1, Subject::count());
         $this->assertDatabaseHas('subjects', ['code' => 'MATH101', 'subject_type' => 'scholastic']);
-
-        // Fee Structure Ingestion
-        $feeCsv = "Class Name,Year,Frequency\n" .
-                  "Class 10,2026-2027,monthly\n";
-
-        $feeFile = UploadedFile::fake()->createWithContent('fee_structures.csv', $feeCsv);
-        $feeSession = $this->importEngine->initializeSession('fee-structures', $feeFile, $this->admin->id);
-        $feeMappings = ['class_name' => 'Class Name', 'academic_year' => 'Year', 'frequency' => 'Frequency'];
-
-        $this->importEngine->dryRun($feeSession->uuid, $feeMappings);
-        $this->importEngine->execute($feeSession->uuid, 'skip');
-
-        $this->assertEquals(1, FeeStructure::count());
-        $this->assertDatabaseHas('fee_structures', ['class_name' => 'Class 10', 'academic_year' => '2026-2027']);
 
         // Route Ingestion
         $routeCsv = "Name,Start,End,Fare\n" .
@@ -222,11 +212,62 @@ class UniversalModulesImportTest extends TestCase
 
         // Rollback all
         $this->importEngine->rollback($routeSession->uuid);
-        $this->importEngine->rollback($feeSession->uuid);
         $this->importEngine->rollback($subjectSession->uuid);
 
         $this->assertEquals(0, Route::count());
-        $this->assertEquals(0, FeeStructure::count());
         $this->assertEquals(0, Subject::count());
+    }
+
+    /**
+     * Fee Structure Import was removed (2026-07): it only ever created an empty
+     * FeeStructure header with no fee items/amounts attached, so it was pulled
+     * from Data Management rather than left as a misleadingly "working" no-op.
+     */
+    public function test_fee_structure_import_is_not_registered()
+    {
+        $this->expectException(\InvalidArgumentException::class);
+        $this->importEngine->getDefinition('fee-structures');
+    }
+
+    /**
+     * Bulk-imported teachers must cover the same ground the old dedicated CSV
+     * uploader did (Aadhaar, wing, teacher type, employment type, bank details,
+     * experience) -- not just the handful of fields the universal engine's
+     * Teacher Import originally shipped with.
+     */
+    public function test_teacher_import_covers_full_hr_field_set()
+    {
+        $csvContent = "Name,Email,Phone,Aadhar Number,Employee ID,Designation,Qualification,Subject Specialization,Gender,Date of Birth,Date of Joining,Salary,Address,Status,Employment Type,Wing,Teacher Type,Bank Account Number,IFSC Code,Experience Details\n" .
+            "Priya Rao,priya.rao@school.com,9876543211,123456789012,EMP202,PGT,M.Sc,Physics,female,1988-04-10,2021-06-01,60000,Campus Housing,active,permanent,senior,teaching,123456789012,SBIN0002345,6 years\n";
+
+        $file = UploadedFile::fake()->createWithContent('teachers_full.csv', $csvContent);
+        $session = $this->importEngine->initializeSession('teachers', $file, $this->admin->id);
+
+        $mappings = [
+            'name' => 'Name', 'email' => 'Email', 'phone' => 'Phone',
+            'aadhar_number' => 'Aadhar Number', 'employee_id' => 'Employee ID', 'designation' => 'Designation',
+            'qualification' => 'Qualification', 'subject_specialization' => 'Subject Specialization',
+            'gender' => 'Gender', 'date_of_birth' => 'Date of Birth', 'date_of_joining' => 'Date of Joining',
+            'salary' => 'Salary', 'address' => 'Address', 'status' => 'Status',
+            'employment_type' => 'Employment Type', 'wing' => 'Wing', 'teacher_type' => 'Teacher Type',
+            'bank_account_number' => 'Bank Account Number', 'ifsc_code' => 'IFSC Code',
+            'experience_details' => 'Experience Details',
+        ];
+
+        $dryRunRes = $this->importEngine->dryRun($session->uuid, $mappings);
+        $this->assertEquals(1, $dryRunRes['success']);
+        $this->assertEquals(0, $dryRunRes['errors']);
+
+        $this->importEngine->execute($session->uuid, 'skip');
+
+        $this->assertDatabaseHas('teachers', [
+            'employee_id' => 'EMP202',
+            'aadhar_number' => '123456789012',
+            'wing' => 'senior',
+            'teacher_type' => 'teaching',
+            'employment_type' => 'permanent',
+            'bank_account_number' => '123456789012',
+            'ifsc_code' => 'SBIN0002345',
+        ]);
     }
 }

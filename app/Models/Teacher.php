@@ -3,7 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
-use Illuminate\Database\Eloquent\Model;
+use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use App\Models\User;
 use App\Models\Attendance;
@@ -12,22 +12,53 @@ use App\Models\ClassManagement;
 use App\Notifications\BiometricAlertNotification;
 use App\Traits\Auditable;
 
-class Teacher extends Model
+class Teacher extends Authenticatable
 {
     use HasFactory, SoftDeletes, Auditable;
 
     protected $fillable = [
-        'name', 'email', 'phone', 'address', 'date_of_birth', 'gender', 'qualification', 
-        'experience_years', 'subject_specialization', 'designation', 'salary', 'joining_date', 
-        'profile_image', 'status', 'department', 'employee_id', 'emergency_contact', 
-        'emergency_contact_person', 'password'
+        'name',
+        'email',
+        'phone',
+        'address',
+        'date_of_birth',
+        'gender',
+        'qualification',
+        'experience_details',
+        'subject_specialization',
+        'designation',
+        'salary',
+        'date_of_joining',
+        'profile_image',
+        'photo',
+        'status',
+        'is_exam_head',
+        'is_exam_cell_member',
+        'employee_id',
+        'password',
+        'aadhar_number',
+        'bank_account_number',
+        'ifsc_code',
+        'wing',
+        'teacher_type',
+        'subjects',
+        'employment_type',
+        'uan_number',
+        'pan_number',
     ];
 
-    protected $dates = ['date_of_birth', 'joining_date'];
+    protected $dates = ['date_of_birth', 'date_of_joining'];
+    
+    protected $casts = [
+        'date_of_birth' => 'date',
+        'date_of_joining' => 'date',
+        'is_exam_head' => 'boolean',
+        'is_exam_cell_member' => 'boolean',
+    ];
 
     // Hidden attributes for security
     protected $hidden = [
-        'password', 'remember_token', 'created_at', 'updated_at', 'deleted_at'
+        'password', 'remember_token'
     ];
 
     // Append calculated attributes
@@ -89,6 +120,11 @@ class Teacher extends Model
         return $this->hasMany(\App\Models\TeacherBiometricRecord::class);
     }
 
+    public function teacherAttendances()
+    {
+        return $this->hasMany(\App\Models\TeacherAttendance::class, 'teacher_id');
+    }
+
     public function sendBiometricNotification($record, $type, $message)
     {
         if ($this->user) {
@@ -112,6 +148,51 @@ class Teacher extends Model
         return collect();
     }
 
+    // Teacher Panel Relationships
+    public function teacherLogins()
+    {
+        return $this->hasMany(\App\Models\TeacherLogin::class);
+    }
+    
+    public function classSubjectAssignments()
+    {
+        return $this->hasMany(\App\Models\TeacherClassSubjectAssignment::class);
+    }
+
+    public function examHead()
+    {
+        return $this->hasOne(\App\Models\ExamHead::class);
+    }
+
+    public function isExamHead()
+    {
+        return $this->is_exam_head;
+    }
+
+    public function isExamCellMember()
+    {
+        return $this->is_exam_cell_member;
+    }
+
+    public function uploadedResults()
+    {
+        return $this->hasMany(\App\Models\Result::class, 'uploaded_by_teacher_id');
+    }
+
+    public function assignedClasses()
+    {
+        return $this->belongsToMany(\App\Models\SchoolClass::class, 'teacher_class_subject_assignments', 'teacher_id', 'class_id')
+            ->withPivot('subject_id', 'section_id', 'is_class_teacher')
+            ->select('school_classes.*')  // Select only school_classes columns
+            ->distinct();
+    }
+
+    public function assignedSubjects()
+    {
+        return $this->belongsToMany(\App\Models\Subject::class, 'teacher_class_subject_assignments', 'teacher_id', 'subject_id')
+            ->distinct();
+    }
+
     // Accessors
     public function getFullNameAttribute()
     {
@@ -120,15 +201,30 @@ class Teacher extends Model
 
     public function getAgeAttribute()
     {
-        return $this->date_of_birth ? $this->date_of_birth->age : null;
+        return $this->date_of_birth ? now()->diffInYears($this->date_of_birth) : null;
     }
 
     public function getYearsOfServiceAttribute()
     {
-        if ($this->joining_date) {
-            return $this->joining_date->diffInYears(now());
+        if ($this->date_of_joining) {
+            return $this->date_of_joining->diffInYears(now());
         }
         return 0;
+    }
+
+    // Photo helper method
+    public function getPhotoUrlAttribute()
+    {
+        if ($this->photo && file_exists(public_path('uploads/teachers/' . $this->photo))) {
+            return asset('uploads/teachers/' . $this->photo);
+        }
+        
+        if ($this->profile_image && file_exists(public_path('uploads/teachers/' . $this->profile_image))) {
+            return asset('uploads/teachers/' . $this->profile_image);
+        }
+        
+        // Default avatar
+        return asset('images/default-avatar.png');
     }
 
     // Scopes
@@ -164,11 +260,11 @@ class Teacher extends Model
             'date_of_birth' => 'required|date|before:today',
             'gender' => 'required|in:male,female,other',
             'qualification' => 'required|string|max:100',
-            'experience_years' => 'required|integer|min:0',
+            'experience_details' => 'required|string|max:500',
             'subject_specialization' => 'required|string|max:100',
             'designation' => 'required|string|max:100',
             'salary' => 'required|numeric|min:0',
-            'joining_date' => 'required|date',
+            'date_of_joining' => 'required|date',
             'status' => 'required|in:active,inactive,resigned',
             'department' => 'nullable|string|max:100',
             'employee_id' => 'nullable|string|max:50|unique:teachers,employee_id',
@@ -188,11 +284,11 @@ class Teacher extends Model
             'date_of_birth' => 'required|date|before:today',
             'gender' => 'required|in:male,female,other',
             'qualification' => 'required|string|max:100',
-            'experience_years' => 'required|integer|min:0',
+            'experience_details' => 'required|string|max:500',
             'subject_specialization' => 'required|string|max:100',
             'designation' => 'required|string|max:100',
             'salary' => 'required|numeric|min:0',
-            'joining_date' => 'required|date',
+            'date_of_joining' => 'required|date',
             'status' => 'required|in:active,inactive,resigned',
             'department' => 'nullable|string|max:100',
             'employee_id' => 'nullable|string|max:50|unique:teachers,employee_id,' . $id,

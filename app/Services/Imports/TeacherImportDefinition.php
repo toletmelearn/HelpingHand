@@ -28,15 +28,24 @@ class TeacherImportDefinition implements ImportDefinitionInterface
         return [
             'name' => 'required|string|max:255',
             'email' => 'required|email',
-            'phone' => 'nullable|string',
+            'phone' => 'nullable|digits:10',
+            'aadhar_number' => 'nullable|digits:12',
             'employee_id' => 'required|string|max:50',
             'designation' => 'required|string|max:100',
             'qualification' => 'nullable|string',
+            'subject_specialization' => 'nullable|string',
             'gender' => 'required|in:male,female,other',
             'date_of_birth' => 'nullable|date',
             'date_of_joining' => 'nullable|date',
-            'salary' => 'nullable|numeric',
-            'address' => 'nullable|string'
+            'salary' => 'nullable|numeric|min:0',
+            'address' => 'nullable|string',
+            'status' => 'nullable|in:active,inactive',
+            'employment_type' => 'nullable|in:permanent,contractual',
+            'wing' => 'nullable|in:primary,secondary,senior',
+            'teacher_type' => 'nullable|in:teaching,non-teaching',
+            'bank_account_number' => 'nullable|string|max:50',
+            'ifsc_code' => 'nullable|string|max:20',
+            'experience_details' => 'nullable|string|max:500',
         ];
     }
 
@@ -55,12 +64,18 @@ class TeacherImportDefinition implements ImportDefinitionInterface
         return [
             'employee_id' => 100,
             'email' => 90,
+            'aadhar_number' => 90,
         ];
     }
 
     public function getTemplateHeaders(): array
     {
-        return ['Name', 'Email', 'Phone', 'Employee ID', 'Designation', 'Qualification', 'Gender', 'Date of Birth', 'Date of Joining', 'Salary', 'Address'];
+        return [
+            'Name', 'Email', 'Phone', 'Aadhar Number', 'Employee ID', 'Designation',
+            'Qualification', 'Subject Specialization', 'Gender', 'Date of Birth', 'Date of Joining',
+            'Salary', 'Address', 'Status', 'Employment Type', 'Wing', 'Teacher Type',
+            'Bank Account Number', 'IFSC Code', 'Experience Details',
+        ];
     }
 
     public function executeWrite(array $rowData, ImportSession $session, string $resolutionStrategy): array
