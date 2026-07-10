@@ -1,0 +1,252 @@
+<?php
+
+namespace App\Services\Imports;
+
+use App\Contracts\Imports\ImportDefinitionInterface;
+use App\Models\AcademicSession;
+use App\Models\ImportSession;
+use App\Models\Student;
+use App\Models\SchoolClass;
+use App\Models\Section;
+use App\Models\ParentModel;
+use App\Models\StudentFinancialAccount;
+use Illuminate\Support\Facades\DB;
+
+class StudentImportDefinition implements ImportDefinitionInterface
+{
+    private ImportLookupCache $lookupCache;
+    private ImportConflictResolver $conflictResolver;
+
+    public function __construct(ImportLookupCache $lookupCache, ImportConflictResolver $conflictResolver)
+    {
+        $this->lookupCache = $lookupCache;
+        $this->conflictResolver = $conflictResolver;
+    }
+
+    public function getTargetModel(): string
+    {
+        return Student::class;
+    }
+
+    public function getValidationRules(array $rowData): array
+    {
+        return [
+            'name' => 'required|string|max:255',
+            'father_name' => 'required|string|max:255',
+            'mother_name' => 'required|string|max:255',
+            'date_of_birth' => 'required|date',
+            'gender' => 'required|in:male,female,other',
+            'mobile' => 'required|digits:10',
+            'phone' => 'nullable|digits:10',
+            'class' => 'required|string',
+            'section' => 'required|string',
+            'aadhar_number' => 'nullable|digits:12',
+            'roll_number' => 'nullable|integer',
+            'religion' => 'nullable|string',
+            'caste' => 'nullable|string',
+            'blood_group' => 'nullable|in:A+,A-,B+,B-,O+,O-,AB+,AB-',
+            'address' => 'required|string|max:500',
+            'admission_no' => 'nullable|string|max:100',
+            'sibling_admission_no' => 'nullable|string|max:100',
+            // Determines whether the fee module bills this student an Admission
+            // Fee (new) or only their normal Annual/Tuition Fee (old/continuing).
+            // Left blank or anything other than "NEW" defaults to "old" -- the
+            // same safe default used for every pre-existing student.
+            'admission_type' => 'nullable|string|max:20',
+        ];
+    }
+
+    public function getCustomFields(): array
+    {
+        return [];
+    }
+
+    public function getLookupCacheDefinitions(): array
+    {
+        return [
+            'school_classes' => function () {
+                return SchoolClass::pluck('id', 'name')->toArray();
+            },
+            'sections' => function () {
+                return Section::pluck('id', 'name')->toArray();
+            }
+        ];
+    }
+
+    public function getDuplicateWeights(): array
+    {
+        return [
+            'name_dob' => 80,
+            'mobile' => 70,
+        ];
+    }
+
+    public function getTemplateHeaders(): array
+    {
+        return ['Name', 'Father Name', 'Mother Name', 'Date of Birth', 'Gender', 'Mobile', 'Phone', 'Class', 'Section', 'Aadhar Number', 'Roll Number', 'Religion', 'Caste', 'Blood Group', 'Address', 'Sibling Admission No', 'Admission No', 'Admission Type (NEW/OLD)'];
+    }
+
+    public function executeWrite(array $rowData, ImportSession $session, string $resolutionStrategy): array
+    {
+        // 1. Resolve Class ID
+        $className = $rowData['class'];
+        $classId = $this->lookupCache->get('school_classes', $className, function () use ($className) {
+            return SchoolClass::where('name', $className)->value('id');
+        });
+
+        if (!$classId) {
+            throw new \Exception("Class '{$className}' not found in the system configuration.");
+        }
+
+        // 2. Resolve Section ID
+        $sectionName = $rowData['section'];
+        $sectionId = $this->lookupCache->get('sections', $sectionName, function () use ($sectionName) {
+            return Section::where('name', $sectionName)->value('id');
+        });
+
+        if (!$sectionId) {
+            throw new \Exception("Section '{$sectionName}' not found in the system configuration.");
+        }
+
+        // 3. Detect duplicate
+        $dup = $this->conflictResolver->detectDuplicate('students', $rowData, $this->getDuplicateWeights());
+
+        // 'admission_type' (NEW/OLD) isn't a real students column -- it's an
+        // instruction for which academic session (if any) to stamp as the
+        // student's admission_session_id, which is what the fee module uses to
+        // decide Admission Fee (new) vs. Annual Fee only (old/continuing).
+        $admissionTypeRaw = $rowData['admission_type'] ?? null;
+        unset($rowData['admission_type']);
+
+        if ($dup['status'] === 'duplicate') {
+            if ($resolutionStrategy === 'skip') {
+                return ['status' => 'skipped', 'id' => $dup['matched_id'], 'message' => "Skipped duplicate record: {$dup['reason']}"];
+            }
+
+            // Overwrite strategy
+            $student = Student::find($dup['matched_id']);
+            if ($student) {
+                $overwriteData = array_merge($rowData, [
+                    'class_id' => $classId,
+                    'school_class_id' => $classId,
+                    'section_id' => $sectionId,
+                ]);
+                // Only touch admission_session_id if this row actually specifies
+                // something -- a blank cell on a re-upload must not silently wipe
+                // out a value the admin already set.
+                if (trim((string) $admissionTypeRaw) !== '') {
+                    $overwriteData['admission_session_id'] = $this->resolveAdmissionSessionId($admissionTypeRaw);
+                }
+                $student->update($overwriteData);
+                return ['status' => 'updated', 'id' => $student->id, 'message' => 'Overwrote existing student record.'];
+            }
+        }
+
+        // 4. Handle sibling check / parent mapping
+        $parentId = null;
+        if (isset($rowData['sibling_admission_no']) && !empty($rowData['sibling_admission_no'])) {
+            $sibling = Student::where('admission_no', $rowData['sibling_admission_no'])->first();
+            if ($sibling) {
+                $parentId = $sibling->parent_id;
+            }
+        }
+
+        if (!$parentId && isset($rowData['mobile'])) {
+            $existingParent = ParentModel::where('phone', $rowData['mobile'])
+                ->orWhere('mobile', $rowData['mobile'])
+                ->first();
+            if ($existingParent) {
+                $parentId = $existingParent->id;
+            }
+        }
+
+        // 5. Create new student record
+        $studentData = array_merge($rowData, [
+            'class_id' => $classId,
+            'school_class_id' => $classId,
+            'section_id' => $sectionId,
+            'admission_session_id' => $this->resolveAdmissionSessionId($admissionTypeRaw),
+        ]);
+
+        if ($parentId) {
+            $studentData['parent_id'] = $parentId;
+        }
+
+        // Generate auto admission number if missing
+        if (!isset($studentData['admission_no']) || empty($studentData['admission_no'])) {
+            $latestId = Student::max('id') + 1;
+            $studentData['admission_no'] = 'ADM-' . date('Y') . '-' . str_pad($latestId, 4, '0', STR_PAD_LEFT);
+        }
+
+        // Ensure roll number is unique within class + section
+        if (isset($studentData['roll_number']) && !empty($studentData['roll_number'])) {
+            $rollExists = Student::where('class_id', $classId)
+                ->where('section_id', $sectionId)
+                ->where('roll_number', $studentData['roll_number'])
+                ->exists();
+            if ($rollExists) {
+                // If roll number exists, assign next available roll number or set to null
+                $studentData['roll_number'] = (Student::where('class_id', $classId)
+                    ->where('section_id', $sectionId)
+                    ->max('roll_number') ?? 0) + 1;
+            }
+        }
+
+        $student = Student::create($studentData);
+
+        // Record the created ID in session settings for rollback support
+        $settings = $session->settings ?? [];
+        $createdIds = $settings['created_student_ids'] ?? [];
+        $createdIds[] = $student->id;
+        $settings['created_student_ids'] = $createdIds;
+        $session->update(['settings' => $settings]);
+
+        return ['status' => 'created', 'id' => $student->id, 'message' => 'Successfully created student record.'];
+    }
+
+    /**
+     * Only an explicit "NEW" (any case) marks a student as newly admitted for
+     * the current academic session. Blank, "OLD", or anything unrecognized
+     * resolves to null -- the same "treat as continuing" default used for
+     * every student that predates this field.
+     */
+    private function resolveAdmissionSessionId(?string $rawAdmissionType): ?int
+    {
+        $normalized = strtoupper(trim((string) $rawAdmissionType));
+        if (!in_array($normalized, ['NEW', 'N'], true)) {
+            return null;
+        }
+
+        return AcademicSession::current()->value('id');
+    }
+
+    public function executeRollback(ImportSession $session): void
+    {
+        $settings = $session->settings ?? [];
+        $createdIds = $settings['created_student_ids'] ?? [];
+
+        if (!empty($createdIds)) {
+            DB::transaction(function () use ($createdIds) {
+                // 1. Delete associated student financial accounts
+                StudentFinancialAccount::whereIn('student_id', $createdIds)->delete();
+
+                // 2. Delete parents that are only linked to these deleted students
+                $parentIds = Student::whereIn('id', $createdIds)
+                    ->whereNotNull('parent_id')
+                    ->pluck('parent_id')
+                    ->unique();
+
+                // 3. Delete the students
+                Student::whereIn('id', $createdIds)->forceDelete();
+
+                // 4. Clean up orphan parents (parents with no remaining students)
+                foreach ($parentIds as $parentId) {
+                    $hasOtherStudents = Student::where('parent_id', $parentId)->exists();
+                    if (!$hasOtherStudents) {
+                        ParentModel::where('id', $parentId)->delete();
+                    }
+                }
+            });
+        }
+    }
+}

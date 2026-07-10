@@ -70,12 +70,28 @@
                         </div>
                     </div>
                     
+                    @php
+                        $canBulkDeleteStudents = auth()->user()->hasRole('admin') || auth()->user()->hasPermission('delete-students');
+                    @endphp
                     @if(isset($showingStudents) && $showingStudents)
                         <!-- Students Table View -->
+                        @if($canBulkDeleteStudents)
+                        <form id="bulkDeleteForm" action="{{ route('admin.students.bulk-destroy') }}" method="POST">
+                            @csrf
+                        </form>
+                        <div class="mb-2">
+                            <button type="button" id="bulkDeleteBtn" class="btn btn-danger btn-sm" disabled onclick="submitBulkDelete()">
+                                <i class="fas fa-trash"></i> Delete Selected (<span id="selectedCount">0</span>)
+                            </button>
+                        </div>
+                        @endif
                         <div class="table-responsive">
                             <table class="table table-bordered table-hover">
                                 <thead class="table-dark">
                                     <tr>
+                                        @if($canBulkDeleteStudents)
+                                        <th><input type="checkbox" id="selectAllStudents"></th>
+                                        @endif
                                         <th>Roll No</th>
                                         <th>Name</th>
                                         <th>Admission No</th>
@@ -88,7 +104,13 @@
                                 </thead>
                                 <tbody>
                                     @forelse($students as $student)
+                                    @php $canDeleteThisStudent = auth()->user()->can('delete', $student); @endphp
                                     <tr>
+                                        @if($canDeleteThisStudent)
+                                        <td><input type="checkbox" class="student-select-checkbox" value="{{ $student->id }}" onchange="updateBulkDeleteState()"></td>
+                                        @elseif($canBulkDeleteStudents)
+                                        <td></td>
+                                        @endif
                                         <td>{{ $student->roll_number ?: 'N/A' }}</td>
                                         <td>{{ $student->name }}</td>
                                         <td>{{ $student->admission_no ?: 'N/A' }}</td>
@@ -97,22 +119,22 @@
                                         <td>{{ $student->schoolClass->name ?? 'N/A' }}</td>
                                         <td>{{ $student->section ?: 'N/A' }}</td>
                                         <td>
-                                            <a href="{{ route('admin.students.show', $student->id) }}" 
+                                            <a href="{{ route('admin.students.show', $student->id) }}"
                                                class="btn btn-sm btn-info">
                                                 <i class="fas fa-eye"></i> View
                                             </a>
                                             @can('update', $student)
-                                            <a href="{{ route('admin.students.edit', $student->id) }}" 
+                                            <a href="{{ route('admin.students.edit', $student->id) }}"
                                                class="btn btn-sm btn-warning">
                                                 <i class="fas fa-edit"></i> Edit
                                             </a>
                                             @endcan
                                             @can('delete', $student)
-                                            <form action="{{ route('admin.students.destroy', $student->id) }}" 
+                                            <form action="{{ route('admin.students.destroy', $student->id) }}"
                                                   method="POST" style="display: inline;">
                                                 @csrf
                                                 @method('DELETE')
-                                                <button type="submit" 
+                                                <button type="submit"
                                                         class="btn btn-sm btn-danger"
                                                         onclick="return confirm('Are you sure you want to delete this student?')">
                                                     <i class="fas fa-trash"></i> Delete
@@ -123,13 +145,13 @@
                                     </tr>
                                     @empty
                                     <tr>
-                                        <td colspan="8" class="text-center">No students found</td>
+                                        <td colspan="9" class="text-center">No students found</td>
                                     </tr>
                                     @endforelse
                                 </tbody>
                             </table>
                         </div>
-                        
+
                         @if($students->count() > 0)
                         <div class="alert alert-info">
                             <strong>Total Students:</strong> {{ $students->count() }}
@@ -191,5 +213,39 @@ function applyFilters() {
     
     window.location.href = url + '?' + params.toString();
 }
+
+function updateBulkDeleteState() {
+    const btn = document.getElementById('bulkDeleteBtn');
+    if (!btn) return;
+    const checked = document.querySelectorAll('.student-select-checkbox:checked');
+    btn.disabled = checked.length === 0;
+    document.getElementById('selectedCount').textContent = checked.length;
+}
+
+function submitBulkDelete() {
+    const checked = document.querySelectorAll('.student-select-checkbox:checked');
+    if (checked.length === 0) return;
+    if (!confirm(`Are you sure you want to delete ${checked.length} selected student(s)? This cannot be undone easily.`)) return;
+
+    const form = document.getElementById('bulkDeleteForm');
+    checked.forEach(cb => {
+        const input = document.createElement('input');
+        input.type = 'hidden';
+        input.name = 'student_ids[]';
+        input.value = cb.value;
+        form.appendChild(input);
+    });
+    form.submit();
+}
+
+document.addEventListener('DOMContentLoaded', function () {
+    const selectAll = document.getElementById('selectAllStudents');
+    if (selectAll) {
+        selectAll.addEventListener('change', function () {
+            document.querySelectorAll('.student-select-checkbox').forEach(cb => cb.checked = selectAll.checked);
+            updateBulkDeleteState();
+        });
+    }
+});
 </script>
 @endsection

@@ -486,6 +486,8 @@ Route::middleware(['auth'])->group(function () {
         // Direct student CRUD routes for intuitive access
         Route::get('students/create', [App\Http\Controllers\Admin\AdminStudentController::class, 'create'])->name('students.create');
         Route::post('students', [App\Http\Controllers\Admin\AdminStudentController::class, 'store'])->name('students.store');
+        // Must come before the {student} wildcard routes below.
+        Route::post('students/bulk-destroy', [App\Http\Controllers\Admin\AdminStudentController::class, 'bulkDestroy'])->name('students.bulk-destroy');
         Route::get('students/{student}', [App\Http\Controllers\Admin\AdminStudentController::class, 'show'])->name('students.show');
         Route::get('students/{student}/edit', [App\Http\Controllers\Admin\AdminStudentController::class, 'edit'])->name('students.edit');
         Route::put('students/{student}', [App\Http\Controllers\Admin\AdminStudentController::class, 'update'])->name('students.update');

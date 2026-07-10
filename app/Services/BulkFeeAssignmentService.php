@@ -31,12 +31,15 @@ class BulkFeeAssignmentService
         // Resolve which AcademicSession this fee structure's year corresponds to,
         // so 'session_wise_admission' items (e.g. Admission Fee) can be limited to
         // students actually admitted in that session. If it can't be resolved
-        // (e.g. academic_year doesn't match any seeded session), fall back to the
-        // old behavior -- only the "already billed this year" dedup applies -- so
+        // (e.g. academic_year doesn't match any seeded session, or the
+        // academic_sessions table doesn't exist at all), fall back to the old
+        // behavior -- only the "already billed this year" dedup applies -- so
         // fee assignment never silently breaks for schools without session data.
-        $feeStructureSession = AcademicSession::where('code', $feeStructure->academic_year)
-            ->orWhere('name', $feeStructure->academic_year)
-            ->first();
+        $feeStructureSession = \Illuminate\Support\Facades\Schema::hasTable('academic_sessions')
+            ? AcademicSession::where('code', $feeStructure->academic_year)
+                ->orWhere('name', $feeStructure->academic_year)
+                ->first()
+            : null;
 
         // 2. Resolve fee structure items and their billing installments
         $itemsData = [];
@@ -123,7 +126,7 @@ class BulkFeeAssignmentService
                 // fee structure's session -- only they should receive 'session_wise_admission'
                 // items like Admission Fee. Continuing/promoted students (and any
                 // student whose admission_session_id is null) are excluded.
-                $newAdmissionStudentIds = $feeStructureSession
+                $newAdmissionStudentIds = ($feeStructureSession && \Illuminate\Support\Facades\Schema::hasColumn('students', 'admission_session_id'))
                     ? Student::whereIn('id', $chunk)
                         ->where('admission_session_id', $feeStructureSession->id)
                         ->pluck('id')

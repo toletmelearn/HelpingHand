@@ -3,6 +3,7 @@
 namespace Tests\Feature\Admin;
 
 use Tests\TestCase;
+use App\Models\AcademicSession;
 use App\Models\User;
 use App\Models\Role;
 use App\Models\Teacher;
@@ -393,5 +394,97 @@ class UniversalModulesImportTest extends TestCase
             'no_of_periods' => 24,
             'status' => 'active',
         ]);
+    }
+
+    /**
+     * The bulk Student import spreadsheet lets staff mark each row NEW or OLD so
+     * the fee module knows who owes an Admission Fee vs. only the Annual Fee.
+     * Only an explicit "NEW" should stamp the current academic session; blank
+     * or "OLD" (or anything else) must default to "old/continuing".
+     */
+    public function test_student_import_admission_type_column_sets_admission_session_id()
+    {
+        $session = AcademicSession::create([
+            'name' => '2026-2027', 'code' => '2026-2027',
+            'start_date' => '2026-04-01', 'end_date' => '2027-03-31',
+            'is_current' => true, 'is_active' => true,
+        ]);
+
+        SchoolClass::create(['name' => 'Class 6', 'class_order' => 6, 'is_active' => true]);
+        Section::create(['name' => 'A']);
+
+        $csvContent = "Name,Father Name,Mother Name,Date of Birth,Gender,Mobile,Class,Section,Address,Admission Type (NEW/OLD)\n" .
+            "New Kid,Father A,Mother A,2016-01-01,male,9998880001,Class 6,A,Somewhere,NEW\n" .
+            "Old Kid,Father B,Mother B,2015-01-01,female,9998880002,Class 6,A,Somewhere,OLD\n" .
+            "Blank Type Kid,Father C,Mother C,2015-06-01,male,9998880003,Class 6,A,Somewhere,\n";
+
+        $file = UploadedFile::fake()->createWithContent('students.csv', $csvContent);
+        $importSession = $this->importEngine->initializeSession('students', $file, $this->admin->id);
+
+        $mappings = [
+            'name' => 'Name', 'father_name' => 'Father Name', 'mother_name' => 'Mother Name',
+            'date_of_birth' => 'Date of Birth', 'gender' => 'Gender', 'mobile' => 'Mobile',
+            'class' => 'Class', 'section' => 'Section', 'address' => 'Address',
+            'admission_type' => 'Admission Type (NEW/OLD)',
+        ];
+
+        $dryRunRes = $this->importEngine->dryRun($importSession->uuid, $mappings);
+        $this->assertEquals(3, $dryRunRes['success']);
+        $this->assertEquals(0, $dryRunRes['errors']);
+
+        $this->importEngine->execute($importSession->uuid, 'skip');
+
+        $newKid = Student::where('name', 'New Kid')->firstOrFail();
+        $oldKid = Student::where('name', 'Old Kid')->firstOrFail();
+        $blankKid = Student::where('name', 'Blank Type Kid')->firstOrFail();
+
+        $this->assertEquals($session->id, $newKid->admission_session_id);
+        $this->assertNull($oldKid->admission_session_id);
+        $this->assertNull($blankKid->admission_session_id);
+    }
+
+    /** @test */
+    public function student_import_overwrite_preserves_admission_session_id_when_column_left_blank()
+    {
+        AcademicSession::create([
+            'name' => '2026-2027', 'code' => '2026-2027',
+            'start_date' => '2026-04-01', 'end_date' => '2027-03-31',
+            'is_current' => true, 'is_active' => true,
+        ]);
+        SchoolClass::create(['name' => 'Class 6', 'class_order' => 6, 'is_active' => true]);
+        Section::create(['name' => 'A']);
+
+        // First import: mark the student NEW.
+        $firstCsv = "Name,Father Name,Mother Name,Date of Birth,Gender,Mobile,Class,Section,Address,Admission Type (NEW/OLD)\n" .
+            "Repeat Kid,Father A,Mother A,2016-01-01,male,9998880011,Class 6,A,Somewhere,NEW\n";
+        $mappings = [
+            'name' => 'Name', 'father_name' => 'Father Name', 'mother_name' => 'Mother Name',
+            'date_of_birth' => 'Date of Birth', 'gender' => 'Gender', 'mobile' => 'Mobile',
+            'class' => 'Class', 'section' => 'Section', 'address' => 'Address',
+            'admission_type' => 'Admission Type (NEW/OLD)',
+        ];
+
+        $file1 = UploadedFile::fake()->createWithContent('students1.csv', $firstCsv);
+        $session1 = $this->importEngine->initializeSession('students', $file1, $this->admin->id);
+        $this->importEngine->dryRun($session1->uuid, $mappings);
+        $this->importEngine->execute($session1->uuid, 'skip');
+
+        $student = Student::where('name', 'Repeat Kid')->firstOrFail();
+        $this->assertNotNull($student->admission_session_id);
+
+        // Second import: same student (matches by name+dob), Admission Type left
+        // blank, resolved as 'overwrite' -- must NOT wipe the value just set.
+        $secondCsv = "Name,Father Name,Mother Name,Date of Birth,Gender,Mobile,Class,Section,Address,Admission Type (NEW/OLD)\n" .
+            "Repeat Kid,Father A,Mother A,2016-01-01,male,9998880011,Class 6,A,Updated Address,\n";
+        $file2 = UploadedFile::fake()->createWithContent('students2.csv', $secondCsv);
+        $session2 = $this->importEngine->initializeSession('students', $file2, $this->admin->id);
+        $this->importEngine->dryRun($session2->uuid, $mappings);
+        $this->importEngine->execute($session2->uuid, 'overwrite');
+
+        $this->assertEquals(1, Student::where('name', 'Repeat Kid')->count(), 'Overwrite must update the existing student, not create a second one.');
+
+        $student->refresh();
+        $this->assertNotNull($student->admission_session_id);
+        $this->assertEquals('Updated Address', $student->address);
     }
 }
