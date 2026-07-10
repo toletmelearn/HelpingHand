@@ -116,8 +116,8 @@ class Student extends Authenticatable
     }
 
     protected $fillable = [
-        'name', 'father_name', 'mother_name', 'date_of_birth', 'aadhar_number', 
-        'admission_no', 'phone', 'mobile', 'gender', 'category', 'class', 'section', 'roll_number', 
+        'name', 'father_name', 'mother_name', 'date_of_birth', 'aadhar_number',
+        'admission_no', 'admission_session_id', 'phone', 'mobile', 'gender', 'category', 'class', 'section', 'roll_number',
         'religion', 'caste', 'blood_group', 'address', 'user_id', 'is_verified',
         'guardian_name', 'class_id', 'section_id'
     ];
@@ -174,6 +174,23 @@ class Student extends Authenticatable
     public function documents()
     {
         return $this->hasMany(StudentDocument::class);
+    }
+
+    public function admissionSession()
+    {
+        return $this->belongsTo(AcademicSession::class, 'admission_session_id');
+    }
+
+    /**
+     * True only if this student was admitted during the given academic session --
+     * i.e. they are a genuinely new admission for that session, not a promoted
+     * or continuing student. Students admitted before this field existed have a
+     * null admission_session_id and are treated as continuing (never "new").
+     */
+    public function isNewAdmissionFor(AcademicSession $session): bool
+    {
+        return $this->admission_session_id !== null
+            && (int) $this->admission_session_id === (int) $session->id;
     }
 
     public function schoolClass()

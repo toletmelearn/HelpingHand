@@ -168,8 +168,9 @@ class AdminAdmissionController extends Controller
         }
 
         $tempParentPassword = \Illuminate\Support\Str::random(10);
+        $currentSession = \App\Models\AcademicSession::current()->first();
 
-        \Illuminate\Support\Facades\DB::transaction(function () use ($enquiry, $request, $class, $section, $admissionNo, $aadharNumber, $tempParentPassword) {
+        \Illuminate\Support\Facades\DB::transaction(function () use ($enquiry, $request, $class, $section, $admissionNo, $aadharNumber, $tempParentPassword, $currentSession) {
             $student = \App\Models\Student::create([
                 'name' => $enquiry->candidate_name,
                 'father_name' => $enquiry->parent_name,
@@ -187,6 +188,10 @@ class AdminAdmissionController extends Controller
                 'section' => $section->section,
                 'roll_number' => $request->roll_number,
                 'admission_no' => $admissionNo,
+                // Marks this student as a genuinely new admission for the current
+                // academic session -- the only signal the fee module has for
+                // deciding whether "Admission Fee" applies vs. a continuing student.
+                'admission_session_id' => $currentSession?->id,
                 'is_verified' => true,
             ]);
 
