@@ -11,6 +11,8 @@ class TeacherSalary extends Model
 {
     protected $fillable = [
         'teacher_id',
+        'pay_month',
+        'pay_year',
         'pay_scale',
         'basic_salary',
         'hra',
@@ -23,6 +25,8 @@ class TeacherSalary extends Model
         'esi_amount',
         'tax_deduction',
         'other_deductions',
+        'attendance_deduction_days',
+        'attendance_deduction_amount',
         'net_salary',
         'payment_status',
         'payment_date',
@@ -31,10 +35,13 @@ class TeacherSalary extends Model
         'paid_by',
         'remarks'
     ];
-    
+
     protected $dates = ['payment_date'];
-    
+
     protected $casts = [
+        'payment_date' => 'datetime',
+        'pay_month' => 'integer',
+        'pay_year' => 'integer',
         'basic_salary' => 'decimal:2',
         'hra' => 'decimal:2',
         'da' => 'decimal:2',
@@ -46,6 +53,8 @@ class TeacherSalary extends Model
         'esi_amount' => 'decimal:2',
         'tax_deduction' => 'decimal:2',
         'other_deductions' => 'decimal:2',
+        'attendance_deduction_days' => 'decimal:2',
+        'attendance_deduction_amount' => 'decimal:2',
         'net_salary' => 'decimal:2'
     ];
     

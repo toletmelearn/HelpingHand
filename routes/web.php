@@ -1425,6 +1425,7 @@ Route::middleware(['auth'])->group(function () {
     Route::put('/admin/hr/leaves/{id}', [\App\Http\Controllers\Admin\AdminTeacherLeaveController::class, 'update'])->name('admin.leaves.update');
     
     Route::get('/admin/hr/payroll', [\App\Http\Controllers\Admin\AdminPayrollController::class, 'index'])->name('admin.hr.payroll.index');
+    Route::get('/admin/hr/payroll/preview-deduction', [\App\Http\Controllers\Admin\AdminPayrollController::class, 'previewDeduction'])->name('admin.hr.payroll.preview-deduction');
     Route::post('/admin/hr/payroll/generate', [\App\Http\Controllers\Admin\AdminPayrollController::class, 'generate'])->name('admin.hr.payroll.generate');
     Route::get('/admin/hr/payroll/{salary}/pdf', [\App\Http\Controllers\Admin\AdminPayrollController::class, 'downloadSlip'])->name('admin.hr.payroll.pdf');
 });
