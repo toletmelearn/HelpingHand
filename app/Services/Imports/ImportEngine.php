@@ -123,6 +123,14 @@ class ImportEngine
         // Generate auto mapping suggestions
         $suggestedMappings = $this->generateSuggestedMappings($headers, $definition->getValidationRules([]));
 
+        // Parsing a large spreadsheet (especially .xlsx via PhpSpreadsheet) can
+        // take long enough that a DB connection opened earlier in the request
+        // (e.g. by session/auth middleware) sits idle past the underlying
+        // socket's timeout and gets dropped -- surfacing as "MySQL server has
+        // gone away" on this write even though nothing is actually wrong with
+        // the database. Force a fresh connection right before writing.
+        $this->ensureLiveConnection();
+
         return ImportSession::create([
             'uuid' => $uuid,
             'module' => $module,
@@ -161,6 +169,11 @@ class ImportEngine
         $extension = $session->settings['file_extension'];
         $rows = $this->readFileRows($filePath, $extension);
         $headers = array_shift($rows); // Remove header row
+
+        // The transaction below can't safely auto-reconnect on a lost
+        // connection, so make sure it's alive now, right after the
+        // potentially slow file parse.
+        $this->ensureLiveConnection();
 
         // Clear errors from previous runs
         $session->errors()->delete();
@@ -289,6 +302,11 @@ class ImportEngine
         $rows = $this->readFileRows($filePath, $extension);
         $headers = array_shift($rows);
 
+        // Each row below runs inside its own transaction, which can't safely
+        // auto-reconnect on a lost connection -- make sure it's alive now,
+        // right after the potentially slow file parse.
+        $this->ensureLiveConnection();
+
         $successCount = 0;
         $errorCount = 0;
         $processedCount = 0;
@@ -390,6 +408,21 @@ class ImportEngine
         $definition->executeRollback($session);
 
         $session->update(['status' => 'rolled_back']);
+    }
+
+    /**
+     * Verify the DB connection is actually alive and reconnect if it went
+     * stale (e.g. the underlying socket idled out during slow file parsing).
+     * Cheap on a healthy connection; avoids a spurious "server has gone away"
+     * on the very next write.
+     */
+    private function ensureLiveConnection(): void
+    {
+        try {
+            DB::connection()->select('SELECT 1');
+        } catch (\Throwable $e) {
+            DB::reconnect();
+        }
     }
 
     /**
