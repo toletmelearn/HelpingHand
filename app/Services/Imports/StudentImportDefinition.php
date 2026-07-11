@@ -16,11 +16,16 @@ class StudentImportDefinition implements ImportDefinitionInterface
 {
     private ImportLookupCache $lookupCache;
     private ImportConflictResolver $conflictResolver;
+    private ClassNameNormalizer $classNameNormalizer;
 
-    public function __construct(ImportLookupCache $lookupCache, ImportConflictResolver $conflictResolver)
-    {
+    public function __construct(
+        ImportLookupCache $lookupCache,
+        ImportConflictResolver $conflictResolver,
+        ClassNameNormalizer $classNameNormalizer
+    ) {
         $this->lookupCache = $lookupCache;
         $this->conflictResolver = $conflictResolver;
+        $this->classNameNormalizer = $classNameNormalizer;
     }
 
     public function getTargetModel(): string
@@ -141,9 +146,22 @@ class StudentImportDefinition implements ImportDefinitionInterface
             return SchoolClass::where('name', $className)->value('id');
         });
 
+        // Different schools write the same class differently in their own
+        // spreadsheets -- "1", "1st", "I", "One", "Grade 1", "Std 1" all mean
+        // "Class 1" to a human. Fall back to a normalized guess before giving
+        // up, rather than forcing an exact string match.
+        if (!$classId) {
+            $canonicalClassName = $this->classNameNormalizer->guessCanonicalName($className);
+            if ($canonicalClassName !== null) {
+                $classId = $this->lookupCache->get('school_classes', $canonicalClassName, function () use ($canonicalClassName) {
+                    return SchoolClass::where('name', $canonicalClassName)->value('id');
+                });
+            }
+        }
+
         if (!$classId) {
             $validClasses = SchoolClass::orderBy('class_order')->pluck('name')->implode(', ');
-            throw new \Exception("Class '{$className}' not found. It must exactly match one of the configured classes: {$validClasses}.");
+            throw new \Exception("Class '{$className}' not found. It must exactly match (or be a recognizable variant of, e.g. \"1st\", \"I\", \"One\") one of the configured classes: {$validClasses}.");
         }
 
         // 2. Resolve Section ID

@@ -669,12 +669,13 @@ class UniversalModulesImportTest extends TestCase
     }
 
     /**
-     * Reported directly: staff typed "1st" in the Class column (matching how
-     * they think of the grade), but the system's class is named "Class 1" --
-     * a plain "not found" error gave no clue what value would actually work.
-     * The error must now list the valid class names so the fix is
-     * self-explanatory. Also verify incidental whitespace no longer blocks
-     * an otherwise-exact match.
+     * Reported directly: a mismatched Class value gave a plain "not found"
+     * error with no clue what value would actually work. It must now list
+     * the valid class names so the fix is self-explanatory. Uses a value the
+     * normalizer genuinely can't resolve (out of the 1-12 range) so this
+     * keeps testing the true "not found" path rather than a recognized
+     * variant like "1st" (covered separately -- see
+     * test_student_import_accepts_common_class_name_variants).
      */
     public function test_student_import_class_not_found_error_lists_valid_class_names()
     {
@@ -682,7 +683,7 @@ class UniversalModulesImportTest extends TestCase
         Section::create(['name' => 'A']);
 
         $csv = "Name,Father Name,Mother Name,Date of Birth,Gender,Mobile,Class,Section,Address\n" .
-            "Mismatch Kid,Father M,Mother M,2016-01-01,male,9998880077,1st,A,Somewhere\n";
+            "Mismatch Kid,Father M,Mother M,2016-01-01,male,9998880077,Robotics Club,A,Somewhere\n";
 
         $file = UploadedFile::fake()->createWithContent('students_bad_class.csv', $csv);
         $session = $this->importEngine->initializeSession('students', $file, $this->admin->id);
@@ -697,7 +698,7 @@ class UniversalModulesImportTest extends TestCase
         $this->assertEquals(1, $dryRunRes['errors']);
 
         $error = ImportError::where('import_session_id', $session->id)->firstOrFail();
-        $this->assertStringContainsString("Class '1st' not found", $error->error_message);
+        $this->assertStringContainsString("Class 'Robotics Club' not found", $error->error_message);
         $this->assertStringContainsString('Class 1', $error->error_message);
     }
 
@@ -722,5 +723,82 @@ class UniversalModulesImportTest extends TestCase
         $dryRunRes = $this->importEngine->dryRun($session->uuid, $mappings);
         $this->assertEquals(1, $dryRunRes['success']);
         $this->assertEquals(0, $dryRunRes['errors']);
+    }
+
+    /**
+     * Reported directly, end-to-end: staff wrote plain "1" in the Class
+     * column (the system's configured class is "Class 1"). Different schools
+     * write the same class differently -- digit, ordinal, roman numeral, word
+     * name, with/without a "Class"/"Grade"/"Std" prefix -- none of that
+     * should be rejected as "not found" when it unambiguously means an
+     * existing configured class.
+     */
+    public function test_student_import_accepts_common_class_name_variants()
+    {
+        SchoolClass::create(['name' => 'Class 1', 'class_order' => 1, 'is_active' => true]);
+        SchoolClass::create(['name' => 'Class 11 Science', 'class_order' => 20, 'is_active' => true]);
+        Section::create(['name' => 'A']);
+
+        $csv = "Name,Father Name,Mother Name,Date of Birth,Gender,Mobile,Class,Section,Address\n" .
+            "Digit Kid,Father A,Mother A,2016-01-01,male,9998880001,1,A,Somewhere\n" .
+            "Ordinal Kid,Father B,Mother B,2016-01-02,male,9998880002,1st,A,Somewhere\n" .
+            "Roman Kid,Father C,Mother C,2016-01-03,male,9998880003,I,A,Somewhere\n" .
+            "Word Kid,Father D,Mother D,2016-01-04,male,9998880004,One,A,Somewhere\n" .
+            "Grade Kid,Father E,Mother E,2016-01-05,male,9998880005,Grade 1,A,Somewhere\n" .
+            "Std Kid,Father F,Mother F,2016-01-06,male,9998880006,Std 1,A,Somewhere\n" .
+            "Streamed Kid,Father G,Mother G,2016-01-07,male,9998880007,XI Science,A,Somewhere\n";
+
+        $file = UploadedFile::fake()->createWithContent('students_class_variants.csv', $csv);
+        $session = $this->importEngine->initializeSession('students', $file, $this->admin->id);
+
+        $mappings = [
+            'name' => 'Name', 'father_name' => 'Father Name', 'mother_name' => 'Mother Name',
+            'date_of_birth' => 'Date of Birth', 'gender' => 'Gender', 'mobile' => 'Mobile',
+            'class' => 'Class', 'section' => 'Section', 'address' => 'Address',
+        ];
+
+        $dryRunRes = $this->importEngine->dryRun($session->uuid, $mappings);
+        $this->assertEquals(7, $dryRunRes['success']);
+        $this->assertEquals(0, $dryRunRes['errors']);
+
+        $this->importEngine->execute($session->uuid, 'skip');
+
+        $classOneId = SchoolClass::where('name', 'Class 1')->value('id');
+        $classElevenScienceId = SchoolClass::where('name', 'Class 11 Science')->value('id');
+
+        foreach (['Digit Kid', 'Ordinal Kid', 'Roman Kid', 'Word Kid', 'Grade Kid', 'Std Kid'] as $name) {
+            $this->assertDatabaseHas('students', ['name' => $name, 'class_id' => $classOneId]);
+        }
+        $this->assertDatabaseHas('students', ['name' => 'Streamed Kid', 'class_id' => $classElevenScienceId]);
+    }
+
+    /**
+     * A bare "11"/"XI" with no stream must NOT be silently guessed -- this
+     * school has three separate 11th-grade classes (Science/Commerce/Arts)
+     * and guessing wrong would misplace the student.
+     */
+    public function test_student_import_does_not_guess_ambiguous_streamed_class()
+    {
+        SchoolClass::create(['name' => 'Class 11 Science', 'class_order' => 20, 'is_active' => true]);
+        SchoolClass::create(['name' => 'Class 11 Commerce', 'class_order' => 21, 'is_active' => true]);
+        Section::create(['name' => 'A']);
+
+        $csv = "Name,Father Name,Mother Name,Date of Birth,Gender,Mobile,Class,Section,Address\n" .
+            "Ambiguous Kid,Father A,Mother A,2016-01-01,male,9998880001,11,A,Somewhere\n";
+
+        $file = UploadedFile::fake()->createWithContent('students_ambiguous_class.csv', $csv);
+        $session = $this->importEngine->initializeSession('students', $file, $this->admin->id);
+
+        $mappings = [
+            'name' => 'Name', 'father_name' => 'Father Name', 'mother_name' => 'Mother Name',
+            'date_of_birth' => 'Date of Birth', 'gender' => 'Gender', 'mobile' => 'Mobile',
+            'class' => 'Class', 'section' => 'Section', 'address' => 'Address',
+        ];
+
+        $dryRunRes = $this->importEngine->dryRun($session->uuid, $mappings);
+        $this->assertEquals(1, $dryRunRes['errors']);
+
+        $error = ImportError::where('import_session_id', $session->id)->firstOrFail();
+        $this->assertStringContainsString("Class '11' not found", $error->error_message);
     }
 }
