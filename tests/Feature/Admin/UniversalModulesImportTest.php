@@ -837,4 +837,60 @@ class UniversalModulesImportTest extends TestCase
         $plainClass11Id = SchoolClass::where('name', 'Class 11')->value('id');
         $this->assertDatabaseHas('students', ['name' => 'Plain Eleven Kid', 'class_id' => $plainClass11Id]);
     }
+
+    /**
+     * Reported directly against a real roster: the Section column holds
+     * plain letters ("A", "B") for some students but stream-like labels
+     * ("COM", "Science (PCB)", "Science (PCM)", "Commerce", "Humanities")
+     * for others, plus a stray "XI-" typo in the Class column. A section is
+     * an arbitrary school-chosen label with no universal convention (unlike
+     * a class, which has a real, fixed academic meaning) -- there's no
+     * "wrong guess" risk in creating whatever the sheet says, so an
+     * unrecognized section must now auto-create rather than block the row.
+     */
+    public function test_student_import_auto_creates_unrecognized_sections()
+    {
+        SchoolClass::create(['name' => 'Class 11', 'class_order' => 14, 'is_active' => true]);
+        SchoolClass::create(['name' => 'Class 12', 'class_order' => 15, 'is_active' => true]);
+        Section::create(['name' => 'A']); // pre-existing, must not be duplicated
+
+        $csv = "Name,Father Name,Mother Name,Date of Birth,Gender,Mobile,Class,Section,Address\n" .
+            "Plain Section Kid,Father A,Mother A,2016-01-01,male,9998880001,XI,A,Somewhere\n" .
+            "Dashed Class Kid,Father B,Mother B,2016-01-02,male,9998880002,XI-,A,Somewhere\n" .
+            "Commerce Short Kid,Father C,Mother C,2016-01-03,male,9998880003,XI,COM,Somewhere\n" .
+            "PCB Kid,Father D,Mother D,2016-01-04,male,9998880004,XII,Science (PCB),Somewhere\n" .
+            "PCM Kid,Father E,Mother E,2016-01-05,male,9998880005,XII,Science (PCM),Somewhere\n" .
+            "Commerce Kid,Father F,Mother F,2016-01-06,male,9998880006,XII,Commerce,Somewhere\n" .
+            "Humanities Kid,Father G,Mother G,2016-01-07,male,9998880007,XII,Humanities,Somewhere\n";
+
+        $file = UploadedFile::fake()->createWithContent('students_new_sections.csv', $csv);
+        $session = $this->importEngine->initializeSession('students', $file, $this->admin->id);
+
+        $mappings = [
+            'name' => 'Name', 'father_name' => 'Father Name', 'mother_name' => 'Mother Name',
+            'date_of_birth' => 'Date of Birth', 'gender' => 'Gender', 'mobile' => 'Mobile',
+            'class' => 'Class', 'section' => 'Section', 'address' => 'Address',
+        ];
+
+        $dryRunRes = $this->importEngine->dryRun($session->uuid, $mappings);
+        $this->assertEquals(7, $dryRunRes['success']);
+        $this->assertEquals(0, $dryRunRes['errors']);
+
+        $this->importEngine->execute($session->uuid, 'skip');
+
+        $this->assertEquals(7, Student::whereIn('name', [
+            'Plain Section Kid', 'Dashed Class Kid', 'Commerce Short Kid',
+            'PCB Kid', 'PCM Kid', 'Commerce Kid', 'Humanities Kid',
+        ])->count());
+
+        // The pre-existing "A" section was reused, not duplicated.
+        $this->assertEquals(1, Section::where('name', 'A')->count());
+
+        foreach (['COM', 'Science (PCB)', 'Science (PCM)', 'Commerce', 'Humanities'] as $newSection) {
+            $this->assertDatabaseHas('sections', ['name' => $newSection]);
+        }
+
+        $dashedClassKid = Student::where('name', 'Dashed Class Kid')->firstOrFail();
+        $this->assertEquals(SchoolClass::where('name', 'Class 11')->value('id'), $dashedClassKid->class_id);
+    }
 }

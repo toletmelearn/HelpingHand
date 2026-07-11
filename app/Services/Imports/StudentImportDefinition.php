@@ -139,9 +139,9 @@ class StudentImportDefinition implements ImportDefinitionInterface
 
     public function executeWrite(array $rowData, ImportSession $session, string $resolutionStrategy): array
     {
-        // 1. Resolve Class ID -- trim incidental whitespace (a very common
-        // copy-paste artifact from spreadsheets) before matching.
-        $className = trim((string) $rowData['class']);
+        // 1. Resolve Class ID -- trim incidental whitespace and stray
+        // punctuation (e.g. a trailing "XI-" typo) before matching.
+        $className = trim((string) $rowData['class'], " \t\n\r\0\x0B-.");
         $classId = $this->lookupCache->get('school_classes', $className, function () use ($className) {
             return SchoolClass::where('name', $className)->value('id');
         });
@@ -164,16 +164,25 @@ class StudentImportDefinition implements ImportDefinitionInterface
             throw new \Exception("Class '{$className}' not found. It must exactly match (or be a recognizable variant of, e.g. \"1st\", \"I\", \"One\") one of the configured classes: {$validClasses}.");
         }
 
-        // 2. Resolve Section ID
-        $sectionName = trim((string) $rowData['section']);
-        $sectionId = $this->lookupCache->get('sections', $sectionName, function () use ($sectionName) {
-            return Section::where('name', $sectionName)->value('id');
-        });
-
-        if (!$sectionId) {
-            $validSections = Section::orderBy('name')->pluck('name')->implode(', ');
-            throw new \Exception("Section '{$sectionName}' not found. It must exactly match one of the configured sections: {$validSections}.");
+        // 2. Resolve Section ID. Unlike a class (a fixed, well-known academic
+        // level -- getting it wrong genuinely misplaces a student), a section
+        // is just an arbitrary school-chosen label with no universal
+        // convention: "A"/"B", "COM", "Science (PCB)", "Humanities" are all
+        // equally valid depending on how a given school organizes things.
+        // There's no "wrong guess" risk in creating whatever label the sheet
+        // actually says, so an unrecognized section is auto-created rather
+        // than blocking the row -- no school should be blocked from
+        // importing their roster just because their section-naming
+        // convention wasn't anticipated in advance.
+        $sectionName = trim((string) $rowData['section'], " \t\n\r\0\x0B-.");
+        if ($sectionName === '') {
+            throw new \Exception("Section is required (row's Section column is blank).");
         }
+
+        $sectionId = $this->lookupCache->get('sections', $sectionName, function () use ($sectionName) {
+            $section = Section::firstOrCreate(['name' => $sectionName]);
+            return $section->id;
+        });
 
         // 3. Detect duplicate
         $dup = $this->conflictResolver->detectDuplicate('students', $rowData, $this->getDuplicateWeights());
