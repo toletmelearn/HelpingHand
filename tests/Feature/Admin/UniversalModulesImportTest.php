@@ -615,4 +615,56 @@ class UniversalModulesImportTest extends TestCase
 
         $this->assertDatabaseHas('students', ['name' => 'Xlsx Kid', 'mobile' => '9998880099']);
     }
+
+    /**
+     * Real-world Excel files often have a "used range" far larger than their
+     * actual data -- a stray formatting click can make a sheet with 2 real
+     * rows report thousands of rows/columns to PhpSpreadsheet. The previous
+     * unbounded getRowIterator()/getCellIterator() walked that whole inflated
+     * range for every file, multiplying memory use for no reason. Verify a
+     * sheet with real data confined to a few cells, but formatting applied far
+     * beyond it, still parses to exactly the real data -- proving the
+     * getHighestDataRow/Column bound doesn't drop legitimate rows while it
+     * skips the phantom range.
+     */
+    public function test_student_import_ignores_inflated_worksheet_dimensions()
+    {
+        SchoolClass::create(['name' => 'Class 4', 'class_order' => 4, 'is_active' => true]);
+        Section::create(['name' => 'A']);
+
+        $spreadsheet = new \PhpOffice\PhpSpreadsheet\Spreadsheet();
+        $sheet = $spreadsheet->getActiveSheet();
+        $headers = ['Name', 'Father Name', 'Mother Name', 'Date of Birth', 'Gender', 'Mobile', 'Class', 'Section', 'Address'];
+        $sheet->fromArray($headers, null, 'A1');
+        $sheet->fromArray(['Bounded Kid', 'Father B', 'Mother B', '2016-09-10', 'male', '9998880088', 'Class 4', 'A', 'Somewhere'], null, 'A2');
+
+        // Simulate the real-world "accidentally formatted way beyond the data"
+        // case: a fill color applied out to column AZ and row 3000, with no
+        // actual data there.
+        $sheet->getStyle('A1:AZ3000')->getFill()
+            ->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)
+            ->getStartColor()->setRGB('EEEEEE');
+
+        $tmpPath = tempnam(sys_get_temp_dir(), 'xlsx_bloat_test_') . '.xlsx';
+        (new \PhpOffice\PhpSpreadsheet\Writer\Xlsx($spreadsheet))->save($tmpPath);
+        $fileBytes = file_get_contents($tmpPath);
+        unlink($tmpPath);
+
+        $file = UploadedFile::fake()->createWithContent('students_bloated.xlsx', $fileBytes);
+        $session = $this->importEngine->initializeSession('students', $file, $this->admin->id);
+
+        $mappings = [
+            'name' => 'Name', 'father_name' => 'Father Name', 'mother_name' => 'Mother Name',
+            'date_of_birth' => 'Date of Birth', 'gender' => 'Gender', 'mobile' => 'Mobile',
+            'class' => 'Class', 'section' => 'Section', 'address' => 'Address',
+        ];
+
+        $dryRunRes = $this->importEngine->dryRun($session->uuid, $mappings);
+        $this->assertEquals(1, $dryRunRes['success']);
+        $this->assertEquals(0, $dryRunRes['errors']);
+
+        $this->importEngine->execute($session->uuid, 'skip');
+
+        $this->assertEquals(1, Student::where('name', 'Bounded Kid')->count());
+    }
 }

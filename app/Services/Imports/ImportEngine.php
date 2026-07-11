@@ -453,13 +453,15 @@ class ImportEngine
     private function readFileRows(string $path, string $extension): array
     {
         // PhpSpreadsheet is memory-hungry even with setReadDataOnly() for a
-        // large, real (multi-hundred-row) school spreadsheet. Raise the limit
-        // for this operation only, rather than every request; leave it alone
+        // large, real (multi-hundred-row) school spreadsheet -- more so if the
+        // sheet's declared dimensions are inflated beyond its real data (see
+        // the getHighestDataRow/Column bounding below). Raise the limit for
+        // this operation only, rather than every request; leave it alone
         // entirely if the environment has already been configured higher.
         $currentLimitBytes = $this->iniBytes(ini_get('memory_limit'));
-        $floorBytes = 1024 * 1024 * 1024; // 1GB
+        $floorBytes = 2048 * 1024 * 1024; // 2GB
         if ($currentLimitBytes > 0 && $currentLimitBytes < $floorBytes) {
-            ini_set('memory_limit', '1024M');
+            ini_set('memory_limit', '2048M');
         }
 
         $realPath = Storage::path($path);
@@ -481,12 +483,36 @@ class ImportEngine
             // memory for no reason since only raw cell values are ever used.
             $reader = \PhpOffice\PhpSpreadsheet\IOFactory::createReaderForFile($realPath);
             $reader->setReadDataOnly(true);
+
+            // A "template" workbook frequently ships with extra sheets --
+            // instructions, dropdown-list sources, a summary tab -- that this
+            // code never reads (only the first/active sheet is ever used
+            // below). Without restricting which sheets get loaded,
+            // PhpSpreadsheet parses and holds *all* of them in memory
+            // regardless, which can dwarf the actual data sheet's own size.
+            if (method_exists($reader, 'listWorksheetNames') && method_exists($reader, 'setLoadSheetsOnly')) {
+                $sheetNames = $reader->listWorksheetNames($realPath);
+                if (!empty($sheetNames)) {
+                    $reader->setLoadSheetsOnly($sheetNames[0]);
+                }
+            }
+
             $spreadsheet = $reader->load($realPath);
             $worksheet = $spreadsheet->getActiveSheet();
 
-            foreach ($worksheet->getRowIterator() as $row) {
+            // A worksheet's *declared* dimensions (getHighestRow/Column) can be
+            // wildly larger than its actual data -- e.g. formatting or a stray
+            // click applied far beyond the real rows/columns in Excel. Iterating
+            // that full "used range" (the previous behavior) can multiply
+            // memory/time for a file that only genuinely has a few hundred data
+            // rows. getHighestDataRow/Column scan for where the real data
+            // actually ends and bound iteration to that instead.
+            $highestDataRow = $worksheet->getHighestDataRow();
+            $highestDataColumn = $worksheet->getHighestDataColumn();
+
+            foreach ($worksheet->getRowIterator(1, $highestDataRow) as $row) {
                 $rowData = [];
-                $cellIterator = $row->getCellIterator();
+                $cellIterator = $row->getCellIterator('A', $highestDataColumn);
                 $cellIterator->setIterateOnlyExistingCells(false);
 
                 foreach ($cellIterator as $cell) {
