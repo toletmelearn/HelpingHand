@@ -469,8 +469,26 @@ class ImportEngine
 
         if (in_array(strtolower($extension), ['csv', 'txt'])) {
             if (($handle = fopen($realPath, 'r')) !== false) {
+                // A CSV exported from a real Excel file can inherit that
+                // file's inflated "used range" as thousands of blank trailing
+                // lines (Excel writes every row in its declared dimensions,
+                // not just the rows with actual data) -- unlike the .xlsx
+                // path below, plain fgetcsv() has no equivalent bound at all,
+                // so a file with a few hundred real rows could still exhaust
+                // memory reading tens of thousands of empty ones. Stop once
+                // we've clearly run past the real data (a long run of fully
+                // blank rows), and cap total rows read as a hard backstop.
+                $consecutiveBlankRows = 0;
+                $maxRows = 50000;
                 while (($row = fgetcsv($handle, 1000, ',')) !== false) {
                     $rows[] = $row;
+
+                    $isBlank = empty(array_filter($row, fn ($cell) => trim((string) $cell) !== ''));
+                    $consecutiveBlankRows = $isBlank ? $consecutiveBlankRows + 1 : 0;
+
+                    if ($consecutiveBlankRows > 50 || count($rows) >= $maxRows) {
+                        break;
+                    }
                 }
                 fclose($handle);
             }

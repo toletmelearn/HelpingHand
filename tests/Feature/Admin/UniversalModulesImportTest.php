@@ -893,4 +893,46 @@ class UniversalModulesImportTest extends TestCase
         $dashedClassKid = Student::where('name', 'Dashed Class Kid')->firstOrFail();
         $this->assertEquals(SchoolClass::where('name', 'Class 11')->value('id'), $dashedClassKid->class_id);
     }
+
+    /**
+     * Reported directly: after switching to CSV to work around the .xlsx
+     * memory issue, the SAME "Allowed memory size exhausted" error happened
+     * again, immediately on upload -- a CSV exported from a real Excel file
+     * can inherit that file's inflated "used range" as thousands of blank
+     * trailing lines, which plain fgetcsv() (unlike the bounded .xlsx reader)
+     * had no protection against at all. Verify a CSV with real data followed
+     * by many thousands of blank lines still uploads correctly and doesn't
+     * read the whole blank tail into memory.
+     */
+    public function test_student_import_stops_reading_csv_after_a_long_run_of_blank_rows()
+    {
+        SchoolClass::create(['name' => 'Class 1', 'class_order' => 1, 'is_active' => true]);
+        Section::create(['name' => 'A']);
+
+        $headers = "Name,Father Name,Mother Name,Date of Birth,Gender,Mobile,Class,Section,Address\n";
+        $realRow = "Real Kid,Father A,Mother A,2016-01-01,male,9998880001,Class 1,A,Somewhere\n";
+        $blankRow = ",,,,,,,,\n";
+
+        $csv = $headers . $realRow . str_repeat($blankRow, 5000);
+
+        $file = UploadedFile::fake()->createWithContent('students_blank_tail.csv', $csv);
+        $session = $this->importEngine->initializeSession('students', $file, $this->admin->id);
+
+        // Stopped well short of reading all 5000 blank trailing rows (1 real
+        // row + up to 50 blank rows before the early-stop kicks in).
+        $this->assertLessThan(60, $session->total_rows);
+
+        $mappings = [
+            'name' => 'Name', 'father_name' => 'Father Name', 'mother_name' => 'Mother Name',
+            'date_of_birth' => 'Date of Birth', 'gender' => 'Gender', 'mobile' => 'Mobile',
+            'class' => 'Class', 'section' => 'Section', 'address' => 'Address',
+        ];
+
+        $dryRunRes = $this->importEngine->dryRun($session->uuid, $mappings);
+        $this->assertEquals(1, $dryRunRes['success']);
+        $this->assertEquals(0, $dryRunRes['errors']);
+
+        $this->importEngine->execute($session->uuid, 'skip');
+        $this->assertDatabaseHas('students', ['name' => 'Real Kid']);
+    }
 }
