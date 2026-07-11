@@ -667,4 +667,60 @@ class UniversalModulesImportTest extends TestCase
 
         $this->assertEquals(1, Student::where('name', 'Bounded Kid')->count());
     }
+
+    /**
+     * Reported directly: staff typed "1st" in the Class column (matching how
+     * they think of the grade), but the system's class is named "Class 1" --
+     * a plain "not found" error gave no clue what value would actually work.
+     * The error must now list the valid class names so the fix is
+     * self-explanatory. Also verify incidental whitespace no longer blocks
+     * an otherwise-exact match.
+     */
+    public function test_student_import_class_not_found_error_lists_valid_class_names()
+    {
+        SchoolClass::create(['name' => 'Class 1', 'class_order' => 1, 'is_active' => true]);
+        Section::create(['name' => 'A']);
+
+        $csv = "Name,Father Name,Mother Name,Date of Birth,Gender,Mobile,Class,Section,Address\n" .
+            "Mismatch Kid,Father M,Mother M,2016-01-01,male,9998880077,1st,A,Somewhere\n";
+
+        $file = UploadedFile::fake()->createWithContent('students_bad_class.csv', $csv);
+        $session = $this->importEngine->initializeSession('students', $file, $this->admin->id);
+
+        $mappings = [
+            'name' => 'Name', 'father_name' => 'Father Name', 'mother_name' => 'Mother Name',
+            'date_of_birth' => 'Date of Birth', 'gender' => 'Gender', 'mobile' => 'Mobile',
+            'class' => 'Class', 'section' => 'Section', 'address' => 'Address',
+        ];
+
+        $dryRunRes = $this->importEngine->dryRun($session->uuid, $mappings);
+        $this->assertEquals(1, $dryRunRes['errors']);
+
+        $error = ImportError::where('import_session_id', $session->id)->firstOrFail();
+        $this->assertStringContainsString("Class '1st' not found", $error->error_message);
+        $this->assertStringContainsString('Class 1', $error->error_message);
+    }
+
+    /** @test */
+    public function student_import_class_lookup_tolerates_incidental_whitespace()
+    {
+        SchoolClass::create(['name' => 'Class 2', 'class_order' => 2, 'is_active' => true]);
+        Section::create(['name' => 'A']);
+
+        $csv = "Name,Father Name,Mother Name,Date of Birth,Gender,Mobile,Class,Section,Address\n" .
+            "Whitespace Kid,Father W,Mother W,2016-01-01,male,9998880066, Class 2 ,A,Somewhere\n";
+
+        $file = UploadedFile::fake()->createWithContent('students_whitespace_class.csv', $csv);
+        $session = $this->importEngine->initializeSession('students', $file, $this->admin->id);
+
+        $mappings = [
+            'name' => 'Name', 'father_name' => 'Father Name', 'mother_name' => 'Mother Name',
+            'date_of_birth' => 'Date of Birth', 'gender' => 'Gender', 'mobile' => 'Mobile',
+            'class' => 'Class', 'section' => 'Section', 'address' => 'Address',
+        ];
+
+        $dryRunRes = $this->importEngine->dryRun($session->uuid, $mappings);
+        $this->assertEquals(1, $dryRunRes['success']);
+        $this->assertEquals(0, $dryRunRes['errors']);
+    }
 }

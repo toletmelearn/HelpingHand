@@ -134,24 +134,27 @@ class StudentImportDefinition implements ImportDefinitionInterface
 
     public function executeWrite(array $rowData, ImportSession $session, string $resolutionStrategy): array
     {
-        // 1. Resolve Class ID
-        $className = $rowData['class'];
+        // 1. Resolve Class ID -- trim incidental whitespace (a very common
+        // copy-paste artifact from spreadsheets) before matching.
+        $className = trim((string) $rowData['class']);
         $classId = $this->lookupCache->get('school_classes', $className, function () use ($className) {
             return SchoolClass::where('name', $className)->value('id');
         });
 
         if (!$classId) {
-            throw new \Exception("Class '{$className}' not found in the system configuration.");
+            $validClasses = SchoolClass::orderBy('class_order')->pluck('name')->implode(', ');
+            throw new \Exception("Class '{$className}' not found. It must exactly match one of the configured classes: {$validClasses}.");
         }
 
         // 2. Resolve Section ID
-        $sectionName = $rowData['section'];
+        $sectionName = trim((string) $rowData['section']);
         $sectionId = $this->lookupCache->get('sections', $sectionName, function () use ($sectionName) {
             return Section::where('name', $sectionName)->value('id');
         });
 
         if (!$sectionId) {
-            throw new \Exception("Section '{$sectionName}' not found in the system configuration.");
+            $validSections = Section::orderBy('name')->pluck('name')->implode(', ');
+            throw new \Exception("Section '{$sectionName}' not found. It must exactly match one of the configured sections: {$validSections}.");
         }
 
         // 3. Detect duplicate
