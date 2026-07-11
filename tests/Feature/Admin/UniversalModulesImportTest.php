@@ -13,6 +13,7 @@ use App\Models\SchoolClass;
 use App\Models\Section;
 use App\Models\Subject;
 use App\Models\Route;
+use App\Models\ImportError;
 use App\Models\ImportSession;
 use App\Services\Imports\ImportEngine;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -530,5 +531,33 @@ class UniversalModulesImportTest extends TestCase
         $this->assertEquals('1815', $student->admission_no);
         $this->assertNull($student->aadhar_number);
         $this->assertNull($student->roll_number);
+    }
+
+    /**
+     * dryRun() used to collect every failing row's error into one array and
+     * insert them all in a single SQL statement -- for a large real spreadsheet
+     * with many failing rows, that one statement could exceed the DB server's
+     * max_allowed_packet, which MySQL/MariaDB responds to by dropping the
+     * connection ("MySQL server has gone away") rather than a normal error.
+     * Errors are now inserted in small batches; verify none go missing.
+     */
+    public function test_dry_run_records_every_error_when_many_rows_fail_validation()
+    {
+        $rowCount = 250;
+        $csv = "Name,Class,Section\n";
+        for ($i = 1; $i <= $rowCount; $i++) {
+            // No 'class' value at all -- every row fails the 'class' required rule.
+            $csv .= "Student {$i},,\n";
+        }
+
+        $file = UploadedFile::fake()->createWithContent('students_bulk_fail.csv', $csv);
+        $session = $this->importEngine->initializeSession('students', $file, $this->admin->id);
+
+        $mappings = ['name' => 'Name', 'class' => 'Class', 'section' => 'Section'];
+
+        $dryRunRes = $this->importEngine->dryRun($session->uuid, $mappings);
+
+        $this->assertEquals($rowCount, $dryRunRes['errors']);
+        $this->assertEquals($rowCount, ImportError::where('import_session_id', $session->id)->count());
     }
 }

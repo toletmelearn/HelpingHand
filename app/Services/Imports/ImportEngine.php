@@ -241,9 +241,15 @@ class ImportEngine
             DB::rollBack();
         }
 
-        // Insert errors to DB after rollback
+        // Insert errors to DB after rollback, in small batches. A single bulk
+        // insert covering every failing row in a large spreadsheet can produce
+        // a SQL statement bigger than the server's max_allowed_packet, which
+        // MySQL/MariaDB responds to by dropping the connection outright
+        // ("MySQL server has gone away") rather than a normal query error.
         if (!empty($errorsToLog)) {
-            ImportError::insert($errorsToLog);
+            foreach (array_chunk($errorsToLog, 100) as $chunk) {
+                ImportError::insert($chunk);
+            }
         }
 
         $status = $errorCount > 0 ? 'failed' : 'validated';
