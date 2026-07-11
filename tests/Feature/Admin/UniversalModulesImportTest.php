@@ -560,4 +560,59 @@ class UniversalModulesImportTest extends TestCase
         $this->assertEquals($rowCount, $dryRunRes['errors']);
         $this->assertEquals($rowCount, ImportError::where('import_session_id', $session->id)->count());
     }
+
+    /**
+     * The reported "Allowed memory size ... exhausted" happened specifically
+     * on a real .xlsx upload -- no existing test exercised that code path at
+     * all (only .csv fixtures). readFileRows() now loads .xlsx via
+     * setReadDataOnly(true) instead of the default IOFactory::load(), which
+     * otherwise builds a full styles/formatting object graph for every cell.
+     * Verify a real xlsx file (built with actual styling, like a real
+     * school-produced spreadsheet) still parses correctly end-to-end.
+     */
+    public function test_student_import_parses_a_real_xlsx_file_with_styling()
+    {
+        SchoolClass::create(['name' => 'Class 3', 'class_order' => 3, 'is_active' => true]);
+        Section::create(['name' => 'A']);
+
+        $spreadsheet = new \PhpOffice\PhpSpreadsheet\Spreadsheet();
+        $sheet = $spreadsheet->getActiveSheet();
+        $headers = ['Name', 'Father Name', 'Mother Name', 'Date of Birth', 'Gender', 'Mobile', 'Class', 'Section', 'Address'];
+        $sheet->fromArray($headers, null, 'A1');
+        $sheet->fromArray(['Xlsx Kid', 'Father X', 'Mother X', '2017-03-05', 'female', '9998880099', 'Class 3', 'A', 'Somewhere'], null, 'A2');
+
+        // Apply real styling/formatting -- the actual memory cost IOFactory::load()
+        // pulls in that setReadDataOnly() is meant to skip.
+        $sheet->getStyle('A1:I1')->getFont()->setBold(true);
+        $sheet->getStyle('A1:I1')->getFill()
+            ->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)
+            ->getStartColor()->setRGB('CCCCCC');
+        foreach (range('A', 'I') as $col) {
+            $sheet->getColumnDimension($col)->setAutoSize(true);
+        }
+
+        $tmpPath = tempnam(sys_get_temp_dir(), 'xlsx_test_') . '.xlsx';
+        (new \PhpOffice\PhpSpreadsheet\Writer\Xlsx($spreadsheet))->save($tmpPath);
+        $fileBytes = file_get_contents($tmpPath);
+        unlink($tmpPath);
+
+        $file = UploadedFile::fake()->createWithContent('students_real.xlsx', $fileBytes);
+        $session = $this->importEngine->initializeSession('students', $file, $this->admin->id);
+
+        $this->assertEquals($headers, $session->settings['headers']);
+
+        $mappings = [
+            'name' => 'Name', 'father_name' => 'Father Name', 'mother_name' => 'Mother Name',
+            'date_of_birth' => 'Date of Birth', 'gender' => 'Gender', 'mobile' => 'Mobile',
+            'class' => 'Class', 'section' => 'Section', 'address' => 'Address',
+        ];
+
+        $dryRunRes = $this->importEngine->dryRun($session->uuid, $mappings);
+        $this->assertEquals(1, $dryRunRes['success']);
+        $this->assertEquals(0, $dryRunRes['errors']);
+
+        $this->importEngine->execute($session->uuid, 'skip');
+
+        $this->assertDatabaseHas('students', ['name' => 'Xlsx Kid', 'mobile' => '9998880099']);
+    }
 }

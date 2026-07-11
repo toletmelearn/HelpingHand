@@ -411,6 +411,28 @@ class ImportEngine
     }
 
     /**
+     * Convert a php.ini shorthand size ("512M", "1G", "-1" for unlimited)
+     * into a byte count. Returns -1 for unlimited.
+     */
+    private function iniBytes(string $value): int
+    {
+        $value = trim($value);
+        if ($value === '' || $value === '-1') {
+            return -1;
+        }
+
+        $unit = strtolower(substr($value, -1));
+        $number = (int) $value;
+
+        return match ($unit) {
+            'g' => $number * 1024 * 1024 * 1024,
+            'm' => $number * 1024 * 1024,
+            'k' => $number * 1024,
+            default => $number,
+        };
+    }
+
+    /**
      * Verify the DB connection is actually alive and reconnect if it went
      * stale (e.g. the underlying socket idled out during slow file parsing).
      * Cheap on a healthy connection; avoids a spurious "server has gone away"
@@ -430,6 +452,16 @@ class ImportEngine
      */
     private function readFileRows(string $path, string $extension): array
     {
+        // PhpSpreadsheet is memory-hungry even with setReadDataOnly() for a
+        // large, real (multi-hundred-row) school spreadsheet. Raise the limit
+        // for this operation only, rather than every request; leave it alone
+        // entirely if the environment has already been configured higher.
+        $currentLimitBytes = $this->iniBytes(ini_get('memory_limit'));
+        $floorBytes = 1024 * 1024 * 1024; // 1GB
+        if ($currentLimitBytes > 0 && $currentLimitBytes < $floorBytes) {
+            ini_set('memory_limit', '1024M');
+        }
+
         $realPath = Storage::path($path);
         $rows = [];
 
@@ -441,7 +473,15 @@ class ImportEngine
                 fclose($handle);
             }
         } else {
-            $spreadsheet = \PhpOffice\PhpSpreadsheet\IOFactory::load($realPath);
+            // setReadDataOnly() skips loading cell styles, formatting, and
+            // other presentation objects PhpSpreadsheet otherwise builds for
+            // every cell -- by far the largest source of memory usage for a
+            // real (styled, formatted) school-produced spreadsheet. Loading
+            // via IOFactory::load() directly, as before, kept all of that in
+            // memory for no reason since only raw cell values are ever used.
+            $reader = \PhpOffice\PhpSpreadsheet\IOFactory::createReaderForFile($realPath);
+            $reader->setReadDataOnly(true);
+            $spreadsheet = $reader->load($realPath);
             $worksheet = $spreadsheet->getActiveSheet();
 
             foreach ($worksheet->getRowIterator() as $row) {
@@ -454,6 +494,12 @@ class ImportEngine
                 }
                 $rows[] = $rowData;
             }
+
+            // Explicitly break the spreadsheet's internal object graph so its
+            // (still substantial) memory is freed immediately rather than
+            // lingering for the rest of the request.
+            $spreadsheet->disconnectWorksheets();
+            unset($spreadsheet, $worksheet, $reader);
         }
 
         return $this->cleanImportRows($rows);
