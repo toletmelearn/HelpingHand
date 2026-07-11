@@ -30,22 +30,29 @@ class StudentImportDefinition implements ImportDefinitionInterface
 
     public function getValidationRules(array $rowData): array
     {
+        // 'name', 'date_of_birth', 'class', and 'section' are the only hard
+        // requirements. Real HR/admission spreadsheets are frequently missing
+        // father/mother name, address, gender, or mobile for some rows -- none
+        // of that should block the whole row from importing. sanitizeForWrite()
+        // fills in a safe placeholder (or lets a DB default apply) for those,
+        // and the admin corrects the real value later from the student's edit
+        // form, exactly like the individual "Add Student" flow already allows.
         return [
             'name' => 'required|string|max:255',
-            'father_name' => 'required|string|max:255',
-            'mother_name' => 'required|string|max:255',
+            'father_name' => 'nullable|string|max:255',
+            'mother_name' => 'nullable|string|max:255',
             'date_of_birth' => 'required|date',
-            'gender' => 'required|in:male,female,other',
-            'mobile' => 'required|digits:10',
-            'phone' => 'nullable|digits:10',
+            'gender' => 'nullable|string|max:20',
+            'mobile' => 'nullable|string|max:20',
+            'phone' => 'nullable|string|max:20',
             'class' => 'required|string',
             'section' => 'required|string',
-            'aadhar_number' => 'nullable|digits:12',
-            'roll_number' => 'nullable|integer',
-            'religion' => 'nullable|string',
-            'caste' => 'nullable|string',
-            'blood_group' => 'nullable|in:A+,A-,B+,B-,O+,O-,AB+,AB-',
-            'address' => 'required|string|max:500',
+            'aadhar_number' => 'nullable|string|max:20',
+            'roll_number' => 'nullable|string|max:20',
+            'religion' => 'nullable|string|max:255',
+            'caste' => 'nullable|string|max:255',
+            'blood_group' => 'nullable|string|max:10',
+            'address' => 'nullable|string|max:500',
             'admission_no' => 'nullable|string|max:100',
             'sibling_admission_no' => 'nullable|string|max:100',
             // Determines whether the fee module bills this student an Admission
@@ -54,6 +61,45 @@ class StudentImportDefinition implements ImportDefinitionInterface
             // same safe default used for every pre-existing student.
             'admission_type' => 'nullable|string|max:20',
         ];
+    }
+
+    /**
+     * Coerce or fill in fields that don't fit their target column so a single
+     * messy cell degrades gracefully instead of blocking the whole row.
+     */
+    private function sanitizeForWrite(array $rowData, bool $isCreate): array
+    {
+        if (isset($rowData['roll_number']) && !is_numeric($rowData['roll_number'])) {
+            $rowData['roll_number'] = null;
+        }
+
+        if ($isCreate) {
+            // Brand new student -- no existing data to protect, so blank
+            // fields that are NOT NULL at the DB level (father_name,
+            // mother_name, address) get a clear placeholder instead of
+            // blocking the row. The admin fills in the real value later.
+            foreach (['father_name', 'mother_name', 'address'] as $field) {
+                if (empty($rowData[$field] ?? null)) {
+                    $rowData[$field] = 'Not Specified';
+                }
+            }
+            // gender is NOT NULL with a DB default -- drop a blank value
+            // entirely so the default applies instead of an explicit NULL.
+            if (empty($rowData['gender'] ?? null)) {
+                unset($rowData['gender']);
+            }
+        } else {
+            // Overwriting an existing student -- a blank cell must not erase
+            // data already on file, so omit it from the update rather than
+            // forcing a placeholder over a real value.
+            foreach (['father_name', 'mother_name', 'address', 'gender'] as $field) {
+                if (empty($rowData[$field] ?? null)) {
+                    unset($rowData[$field]);
+                }
+            }
+        }
+
+        return $rowData;
     }
 
     public function getCustomFields(): array
@@ -126,7 +172,7 @@ class StudentImportDefinition implements ImportDefinitionInterface
             // Overwrite strategy
             $student = Student::find($dup['matched_id']);
             if ($student) {
-                $overwriteData = array_merge($rowData, [
+                $overwriteData = array_merge($this->sanitizeForWrite($rowData, false), [
                     'class_id' => $classId,
                     'school_class_id' => $classId,
                     'section_id' => $sectionId,
@@ -161,7 +207,7 @@ class StudentImportDefinition implements ImportDefinitionInterface
         }
 
         // 5. Create new student record
-        $studentData = array_merge($rowData, [
+        $studentData = array_merge($this->sanitizeForWrite($rowData, true), [
             'class_id' => $classId,
             'school_class_id' => $classId,
             'section_id' => $sectionId,

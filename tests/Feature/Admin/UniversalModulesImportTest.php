@@ -487,4 +487,48 @@ class UniversalModulesImportTest extends TestCase
         $this->assertNotNull($student->admission_session_id);
         $this->assertEquals('Updated Address', $student->address);
     }
+
+    /**
+     * Real admission spreadsheets frequently leave father/mother name, address,
+     * Aadhaar, roll number, etc. blank for many rows -- exactly the shape
+     * reported in production ("EKANSH GUPTA","ANKIT GUPTA","SAKSHI GUPTA",
+     * "16-Apr-21","M","8077294244","8279824193","UKG","B",...,"" with a blank
+     * Address column). None of that should reject the row; only name, DOB,
+     * class, and section are hard requirements.
+     */
+    public function test_student_import_tolerates_blank_optional_fields_matching_real_spreadsheet()
+    {
+        SchoolClass::create(['name' => 'UKG', 'class_order' => 1, 'is_active' => true]);
+        Section::create(['name' => 'B']);
+
+        $headers = "Name,Father Name,Mother Name,Date of Birth,Gender,Mobile,Phone,Class,Section,Aadhar Number,Roll Number,Religion,Caste,Blood Group,Address,Sibling Admission No,Admission No,Admission Type (NEW/OLD)\n";
+        $row = "EKANSH GUPTA,ANKIT GUPTA,SAKSHI GUPTA,16-Apr-21,M,8077294244,8279824193,UKG,B,,,,,,,,1815,\n";
+
+        $file = UploadedFile::fake()->createWithContent('students_real.csv', $headers . $row);
+        $session = $this->importEngine->initializeSession('students', $file, $this->admin->id);
+
+        $mappings = [
+            'name' => 'Name', 'father_name' => 'Father Name', 'mother_name' => 'Mother Name',
+            'date_of_birth' => 'Date of Birth', 'gender' => 'Gender', 'mobile' => 'Mobile',
+            'phone' => 'Phone', 'class' => 'Class', 'section' => 'Section',
+            'aadhar_number' => 'Aadhar Number', 'roll_number' => 'Roll Number',
+            'religion' => 'Religion', 'caste' => 'Caste', 'blood_group' => 'Blood Group',
+            'address' => 'Address', 'sibling_admission_no' => 'Sibling Admission No',
+            'admission_no' => 'Admission No', 'admission_type' => 'Admission Type (NEW/OLD)',
+        ];
+
+        $dryRunRes = $this->importEngine->dryRun($session->uuid, $mappings);
+        $this->assertEquals(1, $dryRunRes['success']);
+        $this->assertEquals(0, $dryRunRes['errors']);
+
+        $this->importEngine->execute($session->uuid, 'skip');
+
+        $student = Student::where('name', 'EKANSH GUPTA')->firstOrFail();
+        $this->assertEquals('ANKIT GUPTA', $student->father_name);
+        $this->assertEquals('SAKSHI GUPTA', $student->mother_name);
+        $this->assertEquals('Not Specified', $student->address);
+        $this->assertEquals('1815', $student->admission_no);
+        $this->assertNull($student->aadhar_number);
+        $this->assertNull($student->roll_number);
+    }
 }
