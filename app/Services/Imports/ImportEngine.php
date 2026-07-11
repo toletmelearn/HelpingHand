@@ -497,6 +497,16 @@ class ImportEngine
                 }
             }
 
+            // Cap what PhpSpreadsheet actually allocates cell objects for
+            // DURING load() itself -- getHighestDataRow()/Column() bounding
+            // applied only *after* load() is too late, since PhpSpreadsheet
+            // has already built an in-memory object for every cell in the
+            // file's declared (and potentially wildly inflated) used range by
+            // then. No real import template needs more than 20,000 rows or
+            // column BZ (52 columns); anything beyond that is almost
+            // certainly stray formatting, not data.
+            $reader->setReadFilter(new BoundedRangeReadFilter());
+
             $spreadsheet = $reader->load($realPath);
             $worksheet = $spreadsheet->getActiveSheet();
 
