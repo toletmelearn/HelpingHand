@@ -132,7 +132,7 @@ class UniversalImportController extends Controller
     public function upload(string $module, Request $request)
     {
         $request->validate([
-            'file' => 'required|file|max:15360', // Max 15MB
+            'file' => 'required|file|max:25600', // Max 25MB -- a real school roster with formatting easily exceeds 15MB
         ]);
 
         $file = $request->file('file');

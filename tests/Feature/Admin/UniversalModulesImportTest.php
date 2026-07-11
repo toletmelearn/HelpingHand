@@ -988,4 +988,23 @@ class UniversalModulesImportTest extends TestCase
         $this->assertEquals(trim($longAddress), $longRowKid->address);
         $this->assertDatabaseHas('students', ['name' => 'Second Real Kid']);
     }
+
+    /**
+     * The upload size ceiling was 15MB -- a real, formatted school
+     * spreadsheet routinely exceeds that. Raised to 25MB; verify a file
+     * bigger than the old ceiling but under the new one is no longer
+     * rejected for its size specifically.
+     */
+    public function test_upload_endpoint_accepts_files_up_to_25mb()
+    {
+        // 20MB -- bigger than the old 15MB ceiling, comfortably under the new 25MB one.
+        $file = UploadedFile::fake()->create('large_roster.csv', 20 * 1024);
+
+        $response = $this->actingAs($this->admin)->post(
+            route('imports.wizard.upload', ['module' => 'students']),
+            ['file' => $file]
+        );
+
+        $response->assertJsonMissingValidationErrors('file');
+    }
 }

@@ -458,10 +458,23 @@ class ImportEngine
         // the getHighestDataRow/Column bounding below). Raise the limit for
         // this operation only, rather than every request; leave it alone
         // entirely if the environment has already been configured higher.
+        // 3GB gives real headroom above the 25MB upload ceiling (see
+        // UniversalImportController::upload()) so a large, legitimately
+        // data-dense file doesn't hit this even after every other bound
+        // (row/column caps, blank-row cutoff, fgetcsv fix) is already applied.
         $currentLimitBytes = $this->iniBytes(ini_get('memory_limit'));
-        $floorBytes = 2048 * 1024 * 1024; // 2GB
+        $floorBytes = 3072 * 1024 * 1024; // 3GB
         if ($currentLimitBytes > 0 && $currentLimitBytes < $floorBytes) {
-            ini_set('memory_limit', '2048M');
+            ini_set('memory_limit', '3072M');
+        }
+
+        // Some hosting environments cap script execution time far below what
+        // a large import can genuinely need (this dev environment has none,
+        // but a shared-hosting/php-fpm deployment might default to 30-60s).
+        // 0 means unlimited; only raise it, never lower an environment that's
+        // already configured more permissively.
+        if ((int) ini_get('max_execution_time') !== 0) {
+            @set_time_limit(600);
         }
 
         $realPath = Storage::path($path);
