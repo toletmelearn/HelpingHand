@@ -478,9 +478,21 @@ class ImportEngine
                 // memory reading tens of thousands of empty ones. Stop once
                 // we've clearly run past the real data (a long run of fully
                 // blank rows), and cap total rows read as a hard backstop.
+                // The line-length argument to fgetcsv() was hardcoded to 1000
+                // bytes. PHP silently SPLITS any line longer than that into
+                // multiple fgetcsv() reads rather than erroring -- so a single
+                // real row with a long address, a wide column set, or just
+                // enough columns to add up past 1000 bytes was being sliced
+                // into several fragments and each one counted as its own
+                // "row" here. That both explains a wildly inflated apparent
+                // row count (far beyond the real ~860 rows) and why the
+                // blank-row detection below never caught it: the fragments
+                // aren't blank, they're garbled pieces of real data. 0 means
+                // no line-length limit, the correct way to call this for a
+                // file whose row lengths aren't known in advance.
                 $consecutiveBlankRows = 0;
                 $maxRows = 50000;
-                while (($row = fgetcsv($handle, 1000, ',')) !== false) {
+                while (($row = fgetcsv($handle, 0, ',')) !== false) {
                     $rows[] = $row;
 
                     $isBlank = empty(array_filter($row, fn ($cell) => trim((string) $cell) !== ''));

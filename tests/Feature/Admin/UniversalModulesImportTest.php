@@ -935,4 +935,57 @@ class UniversalModulesImportTest extends TestCase
         $this->importEngine->execute($session->uuid, 'skip');
         $this->assertDatabaseHas('students', ['name' => 'Real Kid']);
     }
+
+    /**
+     * The actual root cause of the recurring memory exhaustion: readFileRows()
+     * called fgetcsv($handle, 1000, ',') -- PHP silently SPLITS any line
+     * longer than 1000 bytes into multiple fgetcsv() reads rather than
+     * erroring, so a single real row with a long address (or just enough
+     * columns to add up past 1000 bytes) was being fragmented into several
+     * "rows". This both inflated the apparent row count far beyond the real
+     * data and explained why the blank-row-detection fix didn't help: the
+     * fragments contain garbled real data, not blank cells, so they never
+     * tripped the "50 consecutive blank rows" counter. Verify a long row
+     * (deliberately over 1000 bytes) is read back as exactly ONE row.
+     */
+    public function test_student_import_does_not_split_long_csv_rows()
+    {
+        SchoolClass::create(['name' => 'Class 1', 'class_order' => 1, 'is_active' => true]);
+        Section::create(['name' => 'A']);
+
+        // Kept comfortably under each field's own validation limit
+        // (father_name/mother_name max:255, address max:500) individually --
+        // the point is the combined LINE exceeding 1000 bytes, not any one
+        // field being too long on its own.
+        $longFatherName = str_repeat('Ramachandran ', 19); // ~247 chars, under 255
+        $longMotherName = str_repeat('Padmavathi ', 23); // ~253 chars, under 255
+        $longAddress = str_repeat('Long address text. ', 24); // ~480 chars, under 500
+        $csv = "Name,Father Name,Mother Name,Date of Birth,Gender,Mobile,Class,Section,Address\n" .
+            "Long Row Kid,{$longFatherName},{$longMotherName},2016-01-01,male,9998880001,Class 1,A,{$longAddress}\n" .
+            "Second Real Kid,Father B,Mother B,2016-01-02,female,9998880002,Class 1,A,Somewhere\n";
+
+        $this->assertGreaterThan(1000, strlen($csv));
+
+        $file = UploadedFile::fake()->createWithContent('students_long_row.csv', $csv);
+        $session = $this->importEngine->initializeSession('students', $file, $this->admin->id);
+
+        // Exactly 2 data rows -- not fragmented into 3+ by the long address line.
+        $this->assertEquals(2, $session->total_rows);
+
+        $mappings = [
+            'name' => 'Name', 'father_name' => 'Father Name', 'mother_name' => 'Mother Name',
+            'date_of_birth' => 'Date of Birth', 'gender' => 'Gender', 'mobile' => 'Mobile',
+            'class' => 'Class', 'section' => 'Section', 'address' => 'Address',
+        ];
+
+        $dryRunRes = $this->importEngine->dryRun($session->uuid, $mappings);
+        $this->assertEquals(2, $dryRunRes['success']);
+        $this->assertEquals(0, $dryRunRes['errors']);
+
+        $this->importEngine->execute($session->uuid, 'skip');
+
+        $longRowKid = Student::where('name', 'Long Row Kid')->firstOrFail();
+        $this->assertEquals(trim($longAddress), $longRowKid->address);
+        $this->assertDatabaseHas('students', ['name' => 'Second Real Kid']);
+    }
 }
