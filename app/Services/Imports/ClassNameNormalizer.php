@@ -40,20 +40,37 @@ class ClassNameNormalizer
 
     /**
      * Best-guess canonical class name for a raw value, or null if it can't be
-     * confidently resolved (e.g. "11"/"XI" with no stream, when this school
-     * only has streamed 11th/12th classes -- guessing which stream would be
-     * silently misplacing a student into the wrong section).
+     * confidently resolved to a single candidate (e.g. gibberish, or a number
+     * outside 1-12). For legacy callers that only want one name; prefer
+     * guessCanonicalNames() when the caller can try several candidates.
      */
     public function guessCanonicalName(string $raw): ?string
+    {
+        return $this->guessCanonicalNames($raw)[0] ?? null;
+    }
+
+    /**
+     * Best-guess canonical class name(s) for a raw value, most specific
+     * first, or an empty array if it can't be resolved at all. Schools
+     * differ in how finely they configure classes: some school's "XI"/"11"
+     * (no stream given) should resolve straight to a plain "Class 11"; a
+     * DIFFERENT school with only streamed 11th-grade classes configured
+     * (Science/Commerce/Arts, no plain "Class 11") has no safe single
+     * answer for a bare "11" -- guessing a specific stream would silently
+     * misplace the student. Returning candidates in priority order lets the
+     * caller try each against what THIS school actually has configured,
+     * without ever guessing a stream that wasn't actually specified.
+     */
+    public function guessCanonicalNames(string $raw): array
     {
         $value = strtolower(trim($raw));
         $value = preg_replace('/\s+/', ' ', $value);
         if ($value === '') {
-            return null;
+            return [];
         }
 
         if (isset(self::PRE_PRIMARY_ALIASES[$value])) {
-            return self::PRE_PRIMARY_ALIASES[$value];
+            return [self::PRE_PRIMARY_ALIASES[$value]];
         }
 
         // Strip a leading "class"/"grade"/"standard"/"std"/"year" label.
@@ -65,7 +82,7 @@ class ClassNameNormalizer
         $stripped = trim($stripped, " -.");
 
         if (!preg_match('/^([a-z0-9]+)\s*([a-z]+)?\.?$/i', $stripped, $matches)) {
-            return null;
+            return [];
         }
 
         $numberToken = strtolower($matches[1]);
@@ -78,24 +95,28 @@ class ClassNameNormalizer
         } elseif (isset(self::ROMAN_NUMBERS[$numberToken])) {
             $number = self::ROMAN_NUMBERS[$numberToken];
         } else {
-            return null;
+            return [];
         }
 
         if ($number < 1 || $number > 12) {
-            return null;
+            return [];
         }
 
         if ($number < 11) {
-            return "Class {$number}";
+            return ["Class {$number}"];
         }
 
-        // 11th/12th are ambiguous without a stream on this school's setup
-        // (Science/Commerce/Arts are separate configured classes) -- don't
-        // guess which one a bare "11"/"XI" means.
+        // A stream was actually specified ("XI Science") -- that's the most
+        // specific, confident candidate.
         if ($streamToken !== null && isset(self::STREAM_ALIASES[$streamToken])) {
-            return "Class {$number} " . self::STREAM_ALIASES[$streamToken];
+            return ["Class {$number} " . self::STREAM_ALIASES[$streamToken]];
         }
 
-        return null;
+        // No stream given ("11", "XI"). Never guess which of
+        // Science/Commerce/Arts that means -- but DO offer the plain,
+        // unstreamed "Class 11"/"Class 12" as a candidate, for schools that
+        // configure 11th/12th without splitting by stream at all. The caller
+        // only succeeds with this if that plain class actually exists.
+        return ["Class {$number}"];
     }
 }

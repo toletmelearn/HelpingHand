@@ -801,4 +801,40 @@ class UniversalModulesImportTest extends TestCase
         $error = ImportError::where('import_session_id', $session->id)->firstOrFail();
         $this->assertStringContainsString("Class '11' not found", $error->error_message);
     }
+
+    /**
+     * Reported directly: a real roster had plain "XI"/"XII" (no stream) in
+     * the Class column. A school that configures 11th/12th WITHOUT splitting
+     * by stream (a plain "Class 11" exists, alongside or instead of the
+     * streamed variants) should have bare "XI"/"11" resolve straight to it --
+     * this is the safe case the ambiguity guard is meant to allow, as
+     * opposed to guessing a specific stream that was never mentioned.
+     */
+    public function test_student_import_resolves_bare_11_12_when_a_plain_class_exists()
+    {
+        SchoolClass::create(['name' => 'Class 11', 'class_order' => 14, 'is_active' => true]);
+        SchoolClass::create(['name' => 'Class 11 Science', 'class_order' => 20, 'is_active' => true]);
+        Section::create(['name' => 'A']);
+
+        $csv = "Name,Father Name,Mother Name,Date of Birth,Gender,Mobile,Class,Section,Address\n" .
+            "Plain Eleven Kid,Father A,Mother A,2016-01-01,male,9998880001,XI,A,Somewhere\n";
+
+        $file = UploadedFile::fake()->createWithContent('students_plain_class11.csv', $csv);
+        $session = $this->importEngine->initializeSession('students', $file, $this->admin->id);
+
+        $mappings = [
+            'name' => 'Name', 'father_name' => 'Father Name', 'mother_name' => 'Mother Name',
+            'date_of_birth' => 'Date of Birth', 'gender' => 'Gender', 'mobile' => 'Mobile',
+            'class' => 'Class', 'section' => 'Section', 'address' => 'Address',
+        ];
+
+        $dryRunRes = $this->importEngine->dryRun($session->uuid, $mappings);
+        $this->assertEquals(1, $dryRunRes['success']);
+        $this->assertEquals(0, $dryRunRes['errors']);
+
+        $this->importEngine->execute($session->uuid, 'skip');
+
+        $plainClass11Id = SchoolClass::where('name', 'Class 11')->value('id');
+        $this->assertDatabaseHas('students', ['name' => 'Plain Eleven Kid', 'class_id' => $plainClass11Id]);
+    }
 }

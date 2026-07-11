@@ -72,7 +72,7 @@ class ClassNameNormalizerTest extends TestCase
     /**
      * @dataProvider streamedClassProvider
      */
-    public function test_it_resolves_11th_and_12th_only_when_a_stream_is_given(string $raw, ?string $expected)
+    public function test_it_resolves_11th_and_12th_streams_when_given_and_offers_plain_class_when_not(string $raw, ?string $expected)
     {
         $this->assertEquals($expected, $this->normalizer->guessCanonicalName($raw));
     }
@@ -84,9 +84,16 @@ class ClassNameNormalizerTest extends TestCase
             'XI with commerce' => ['XI Commerce', 'Class 11 Commerce'],
             'twelve with arts' => ['Twelve Arts', 'Class 12 Arts'],
             '12th with sci abbreviation' => ['12th Sci', 'Class 12 Science'],
-            'bare 11 has no stream -- ambiguous, must not guess' => ['11', null],
-            'bare XI has no stream -- ambiguous, must not guess' => ['XI', null],
-            'bare 12 has no stream -- ambiguous, must not guess' => ['Class 12', null],
+            // A stream is never guessed when not specified -- but the plain,
+            // unstreamed class name IS offered as a candidate, for schools
+            // that configure 11th/12th without splitting by stream. Whether
+            // this actually resolves depends on whether that plain class
+            // exists in a given school's configuration (a DB-layer concern,
+            // not the normalizer's) -- the normalizer's job is only to never
+            // suggest a specific stream that wasn't given.
+            'bare 11 has no stream -- offers the plain class, never a stream' => ['11', 'Class 11'],
+            'bare XI has no stream -- offers the plain class, never a stream' => ['XI', 'Class 11'],
+            'bare 12 has no stream -- offers the plain class, never a stream' => ['Class 12', 'Class 12'],
         ];
     }
 
