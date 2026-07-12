@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Certificate;
 use App\Models\CertificateTemplate;
 use App\Models\Student;
+use App\Models\StudentStatus;
 use App\Models\Teacher;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -72,7 +73,31 @@ class CertificateController extends Controller
         $request->validate([
             'certificate_type' => 'required|in:tc,bonafide,character,experience',
             'recipient_type' => 'required|in:App\\Models\\Student,App\\Models\\Teacher',
-            'recipient_id' => 'required|exists:students,id,teachers,id',
+            'recipient_id' => [
+                'required',
+                function ($attribute, $value, $fail) use ($request) {
+                    $recipientType = $request->recipient_type;
+                    $exists = false;
+                    
+                    if ($recipientType === 'App\Models\Student') {
+                        $exists = \App\Models\Student::where('id', $value)->exists();
+                        
+                        // Check if certificate type is TC and student has a TC Hold
+                        if ($exists && $request->certificate_type === 'tc') {
+                            $defStage = \App\Models\DefaulterStage::where('student_id', $value)->first();
+                            if ($defStage && $defStage->stage === 'TC Hold') {
+                                $fail('Transfer Certificate cannot be generated. Student has an active TC Hold due to outstanding fee defaults.');
+                            }
+                        }
+                    } elseif ($recipientType === 'App\Models\Teacher') {
+                        $exists = \App\Models\Teacher::where('id', $value)->exists();
+                    }
+                    
+                    if (!$exists) {
+                        $fail('The selected recipient is invalid.');
+                    }
+                }
+            ],
             'template_id' => 'nullable|exists:certificate_templates,id',
             'content_data' => 'required|array',
             'content_data.*' => 'string',
@@ -183,9 +208,46 @@ class CertificateController extends Controller
         if (!$certificate->canBePublished()) {
             return back()->withErrors(['error' => 'Certificate cannot be published in its current state.']);
         }
-        
-        $certificate->publish();
-        
+
+        DB::transaction(function () use ($certificate) {
+            $certificate->publish();
+
+            // Publishing a Transfer Certificate is the actual leaving-school
+            // event -- nothing else in the codebase ever sets a student to
+            // tc_issued, though several gates (reports, terminal-status
+            // detection) already check for it. Mirrors the same
+            // future-dues-pruning StudentPromotionController::markAsPassedOut()
+            // does for "Passed Out", reusing the same tested service rather
+            // than duplicating withdrawal logic.
+            if ($certificate->certificate_type === 'tc' && $certificate->recipient_type === Student::class) {
+                $student = Student::find($certificate->recipient_id);
+                if ($student) {
+                    $today = now()->toDateString();
+
+                    $student->class_id = null;
+                    $student->school_class_id = null;
+                    $student->class = 'Left School (TC Issued)';
+                    $student->section_id = null;
+                    $student->section = null;
+                    $student->save();
+
+                    StudentStatus::create([
+                        'student_id' => $student->id,
+                        'status' => 'tc_issued',
+                        'status_date' => $today,
+                        'reason' => 'Transfer Certificate issued',
+                        'document_number' => $certificate->serial_number,
+                        'document_issue_date' => $today,
+                        'issued_by' => $certificate->approved_by !== null ? (string) $certificate->approved_by : null,
+                    ]);
+
+                    if (\Illuminate\Support\Facades\Schema::hasTable('student_fee_ledgers')) {
+                        (new \App\Services\StructureAdjustmentService())->withdrawStudent($student, $today);
+                    }
+                }
+            }
+        });
+
         return redirect()->back()->with('success', 'Certificate published successfully.');
     }
     
