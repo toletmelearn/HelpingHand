@@ -271,11 +271,40 @@ class AppServiceProvider extends ServiceProvider
         // Listen for slow DB queries and log them to Cache
         try {
             \Illuminate\Support\Facades\DB::listen(function ($query) {
-                if ($query->time > 50) {
+                try {
+                    if ($query->time <= 50) {
+                        return;
+                    }
+
+                    // Never log writes to the `cache` table itself. This
+                    // listener's own Cache::put() below is a query, and once
+                    // the stored payload gets large enough that write starts
+                    // taking >50ms too -- logging it would embed the entire
+                    // previous payload as this entry's "bindings", roughly
+                    // doubling the stored size every time it fires. That
+                    // runaway growth blew past the `cache.value` column's
+                    // capacity in production (a multi-hundred-row import
+                    // generates thousands of queries), and the resulting
+                    // exception propagated up through DB::listen into
+                    // whatever unrelated query triggered it.
+                    if (stripos($query->sql, '`cache`') !== false) {
+                        return;
+                    }
+
+                    // Bound the size of what a single slow query can ever
+                    // contribute, regardless of source, so this diagnostic
+                    // feature can never itself produce an oversized payload.
+                    $bindings = array_map(function ($binding) {
+                        $value = is_string($binding) ? $binding : json_encode($binding);
+                        return $value !== null && strlen($value) > 500
+                            ? substr($value, 0, 500) . '...(truncated)'
+                            : $binding;
+                    }, $query->bindings);
+
                     $slowQueries = \Illuminate\Support\Facades\Cache::get('perf_slow_queries', []);
                     $slowQueries[] = [
-                        'sql' => $query->sql,
-                        'bindings' => $query->bindings,
+                        'sql' => substr($query->sql, 0, 1000),
+                        'bindings' => $bindings,
                         'time' => $query->time,
                         'connection' => $query->connectionName,
                         'logged_at' => now()->toDateTimeString(),
@@ -284,6 +313,10 @@ class AppServiceProvider extends ServiceProvider
                         array_shift($slowQueries);
                     }
                     \Illuminate\Support\Facades\Cache::put('perf_slow_queries', $slowQueries, now()->addHours(24));
+                } catch (\Throwable $e) {
+                    // This is a best-effort diagnostics feature -- it must
+                    // never be able to break the query/request that
+                    // triggered it.
                 }
             });
         } catch (\Throwable $e) {

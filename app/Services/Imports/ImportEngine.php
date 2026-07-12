@@ -224,7 +224,7 @@ class ImportEngine
                         'import_session_id' => $session->id,
                         'row_number' => $rowNum,
                         'raw_row_data' => json_encode($row),
-                        'error_message' => implode(', ', $validator->errors()->all()),
+                        'error_message' => $this->truncateErrorMessage(implode(', ', $validator->errors()->all())),
                         'created_at' => now(),
                         'updated_at' => now()
                     ];
@@ -240,7 +240,7 @@ class ImportEngine
                             'import_session_id' => $session->id,
                             'row_number' => $rowNum,
                             'raw_row_data' => json_encode($row),
-                            'error_message' => $e->getMessage(),
+                            'error_message' => $this->truncateErrorMessage($e->getMessage()),
                             'created_at' => now(),
                             'updated_at' => now()
                         ];
@@ -366,7 +366,7 @@ class ImportEngine
                     'import_session_id' => $session->id,
                     'row_number' => $rowNum,
                     'raw_row_data' => $row,
-                    'error_message' => $e->getMessage()
+                    'error_message' => $this->truncateErrorMessage($e->getMessage())
                 ]);
                 $errorCount++;
             }
@@ -414,6 +414,23 @@ class ImportEngine
      * Convert a php.ini shorthand size ("512M", "1G", "-1" for unlimited)
      * into a byte count. Returns -1 for unlimited.
      */
+    /**
+     * `import_errors.error_message` is a TEXT column (65,535 byte cap). A
+     * caught exception's message is not bounded -- it can be a driver's
+     * QueryException with the full failing SQL (and bindings) interpolated
+     * into it, which for a large/odd row can run past that cap. An insert
+     * that overflows it throws uncaught and takes down the whole dry-run or
+     * execute request instead of just failing the one row, so every message
+     * is capped before it reaches the database.
+     */
+    private function truncateErrorMessage(string $message): string
+    {
+        $limit = 60000; // headroom under the 65,535-byte TEXT cap for multi-byte chars
+        return strlen($message) > $limit
+            ? substr($message, 0, $limit) . '...(truncated)'
+            : $message;
+    }
+
     private function iniBytes(string $value): int
     {
         $value = trim($value);

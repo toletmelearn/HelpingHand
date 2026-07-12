@@ -1007,4 +1007,30 @@ class UniversalModulesImportTest extends TestCase
 
         $response->assertJsonMissingValidationErrors('file');
     }
+
+    /**
+     * Reported directly: a dry-run request crashed with an uncaught
+     * SQLSTATE[22001] "Data too long for column 'error_message'" -- a caught
+     * exception's message (a QueryException, unbounded in length) exceeded
+     * the `import_errors.error_message` TEXT column's 65,535-byte cap, and
+     * that overflow was itself uncaught, taking down the whole request
+     * instead of just failing the one row. Every error message is now
+     * truncated before it reaches the database; verify a pathologically
+     * long message no longer breaks the insert.
+     */
+    public function test_dry_run_truncates_oversized_error_messages_instead_of_crashing()
+    {
+        $engine = app(ImportEngine::class);
+        $reflection = new \ReflectionMethod($engine, 'truncateErrorMessage');
+        $reflection->setAccessible(true);
+
+        $huge = str_repeat('x', 100000);
+        $result = $reflection->invoke($engine, $huge);
+
+        $this->assertLessThanOrEqual(65535, strlen($result));
+        $this->assertStringEndsWith('...(truncated)', $result);
+
+        $short = 'Class \'XI\' not found.';
+        $this->assertEquals($short, $reflection->invoke($engine, $short));
+    }
 }
