@@ -606,6 +606,7 @@ Route::middleware(['auth'])->group(function () {
                 Route::get('/mismatches', [App\Http\Controllers\Admin\FinanceReconciliationController::class, 'mismatches'])->name('mismatches');
                 Route::post('/bulk-assign', [App\Http\Controllers\Admin\FinanceReconciliationController::class, 'bulkAssign'])->name('bulk-assign');
                 Route::post('/rebuild-ledger', [App\Http\Controllers\Admin\FinanceReconciliationController::class, 'rebuildLedger'])->name('rebuild-ledger');
+                Route::post('/issue-refund', [App\Http\Controllers\Admin\FinanceReconciliationController::class, 'issueRefund'])->name('issue-refund');
             });
         });
         
