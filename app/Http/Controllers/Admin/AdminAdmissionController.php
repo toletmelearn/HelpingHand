@@ -206,6 +206,27 @@ class AdminAdmissionController extends Controller
             }
 
             $enquiry->update(['status' => 'admitted']);
+
+            // Admission never used to trigger fee billing at all -- a
+            // student was only ever billed if a staff member happened to
+            // create/copy a FeeStructure for their class AFTER they were
+            // already enrolled. Assign the class's active fee structure now,
+            // the same way FeeStructureController does when a structure is
+            // created, so a newly admitted student is billed from day one.
+            // No structure yet (fees not set up for this class/session) is a
+            // normal, expected state -- must never block admission itself.
+            $feeStructure = \App\Models\FeeStructure::where('class_name', $class->name)
+                ->where('status', 'active')
+                ->when($currentSession, fn ($q) => $q->where(function ($q2) use ($currentSession) {
+                    $q2->where('academic_year', $currentSession->code)
+                       ->orWhere('academic_year', $currentSession->name);
+                }))
+                ->latest('id')
+                ->first();
+
+            if ($feeStructure) {
+                \App\Services\BulkFeeAssignmentService::bulkAssign($feeStructure, [$student->id]);
+            }
         });
 
         activity()->causedBy(auth()->user())->performedOn($enquiry)
