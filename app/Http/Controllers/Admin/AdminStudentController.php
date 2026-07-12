@@ -442,19 +442,28 @@ class AdminStudentController extends Controller
                 $currentSession = \App\Models\AcademicSession::where('is_current', true)->first();
                 if ($currentSession) {
                     $classList = SchoolClass::where('academic_session_id', $currentSession->id)->orderBy('class_order')->get();
-                    $classNames = $classList->pluck('name')->toArray();
-                    $classManagementIds = \App\Models\ClassManagement::whereIn('name', $classNames)->pluck('id')->toArray();
-                    $sectionIds = \DB::table('class_sections')
-                        ->whereIn('class_management_id', $classManagementIds)
-                        ->pluck('section_id')
-                        ->toArray();
-                    if (!empty($sectionIds)) {
-                        $sections = Section::whereIn('id', $sectionIds)->orderBy('name')->get();
-                    } else {
-                        $sections = Section::orderBy('name')->get();
+
+                    // SchoolClass rows aren't required to carry an
+                    // academic_session_id (e.g. a school that hasn't set up
+                    // multi-session class scoping) -- when the session-scoped
+                    // query comes back empty, fall through to the unfiltered
+                    // list below rather than returning an empty dropdown that
+                    // makes class filtering look broken.
+                    if ($classList->isNotEmpty()) {
+                        $classNames = $classList->pluck('name')->toArray();
+                        $classManagementIds = \App\Models\ClassManagement::whereIn('name', $classNames)->pluck('id')->toArray();
+                        $sectionIds = \DB::table('class_sections')
+                            ->whereIn('class_management_id', $classManagementIds)
+                            ->pluck('section_id')
+                            ->toArray();
+                        if (!empty($sectionIds)) {
+                            $sections = Section::whereIn('id', $sectionIds)->orderBy('name')->get();
+                        } else {
+                            $sections = Section::orderBy('name')->get();
+                        }
+
+                        return [$classList, $sections];
                     }
-                    
-                    return [$classList, $sections];
                 }
             }
         } catch (\Exception $e) {}

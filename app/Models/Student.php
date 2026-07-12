@@ -29,6 +29,30 @@ class Student extends Authenticatable
             }
         });
 
+        // schoolClass() picks class_id vs school_class_id per-row based on
+        // which is null -- correct for a single lazy-loaded model, but
+        // Eloquent eager loading (Student::with('schoolClass')) resolves the
+        // foreign key column ONCE for the whole batch, so any row where only
+        // one of the two columns is set gets silently matched on the wrong
+        // column and shows no class at all. Keeping both columns in sync at
+        // write time, for every path (admin form, bulk import, anything
+        // added later), makes that inconsistency impossible rather than
+        // relying on every future write path remembering to set both.
+        static::saving(function ($student) {
+            if ($student->class_id !== null && $student->school_class_id === null) {
+                // Unlike school_class_id, class_id has no foreign key
+                // constraint -- some legacy/loosely-normalized rows carry a
+                // class_id that isn't a real school_classes row. Only copy
+                // it across when it actually resolves, so this sync can
+                // never itself cause a constraint-violation write failure.
+                if (\App\Models\SchoolClass::whereKey($student->class_id)->exists()) {
+                    $student->school_class_id = $student->class_id;
+                }
+            } elseif ($student->school_class_id !== null && $student->class_id === null) {
+                $student->class_id = $student->school_class_id;
+            }
+        });
+
         static::saved(function ($student) {
             // Guard against running in mocked test environments without all database tables/columns
             if (!\Illuminate\Support\Facades\Schema::hasTable('parents') ||
