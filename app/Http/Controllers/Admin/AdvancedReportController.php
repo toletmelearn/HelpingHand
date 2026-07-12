@@ -6,7 +6,8 @@ use App\Http\Controllers\Controller;
 use App\Models\AdvancedReport;
 use App\Models\Student;
 use App\Models\Teacher;
-use App\Models\Fee;
+use App\Models\FeeCollection;
+use App\Models\StudentFeeLedger;
 use App\Models\Attendance;
 use App\Models\Exam;
 use App\Models\Book;
@@ -17,6 +18,7 @@ use App\Models\Section;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use App\Support\Attendance\AttendanceCreditCalculator;
 
 class AdvancedReportController extends Controller
 {
@@ -109,47 +111,89 @@ class AdvancedReportController extends Controller
 
     private function getStudentAnalytics($sessionId, $classId, $sectionId, $dateFilter)
     {
-        $query = Student::query();
-        
-        if ($sessionId) {
-            $query->where('academic_session_id', $sessionId);
-        }
-        if ($classId) {
-            $query->where('class_id', $classId);
-        }
-        if ($sectionId) {
-            $query->where('section_id', $sectionId);
-        }
+        $baseQuery = $this->baseStudentAnalyticsQuery($sessionId, $classId, $sectionId);
 
         return [
-            'total_students' => $query->count(),
-            'new_admissions' => $query->whereBetween('created_at', $dateFilter)->count(),
-            'passed_out' => $query->where('status', 'passed_out')->count(),
-            'left_school' => $query->where('status', 'left_school')->count(),
-            'active_students' => $query->where('status', 'active')->count(),
+            'total_students' => (clone $baseQuery)->count(),
+            'new_admissions' => (clone $baseQuery)->whereBetween('created_at', $dateFilter)->count(),
+            'passed_out' => $this->countStudentsWithLatestStatus($baseQuery, 'passed_out'),
+            'left_school' => $this->countStudentsWithLatestStatus($baseQuery, 'left_school'),
+            'active_students' => $this->countActiveStudentsByLatestStatus($baseQuery),
         ];
+    }
+
+    private function baseStudentAnalyticsQuery($sessionId, $classId, $sectionId)
+    {
+        return Student::query()
+            ->when($sessionId, function ($query) use ($sessionId) {
+                $query->where('academic_session_id', $sessionId);
+            })
+            ->when($classId, function ($query) use ($classId) {
+                $query->where('class_id', $classId);
+            })
+            ->when($sectionId, function ($query) use ($sectionId) {
+                $query->where('section_id', $sectionId);
+            });
+    }
+
+    private function latestStudentStatusIdsSubquery()
+    {
+        return DB::table('student_statuses')
+            ->selectRaw('MAX(id)')
+            ->groupBy('student_id');
+    }
+
+    private function countStudentsWithLatestStatus($baseQuery, array|string $statuses): int
+    {
+        $statuses = (array) $statuses;
+
+        return (clone $baseQuery)
+            ->whereIn('students.id', function ($query) use ($statuses) {
+                $query->select('student_id')
+                    ->from('student_statuses')
+                    ->whereIn('id', $this->latestStudentStatusIdsSubquery())
+                    ->whereIn('status', $statuses);
+            })
+            ->count();
+    }
+
+    private function countActiveStudentsByLatestStatus($baseQuery): int
+    {
+        $inactiveStatuses = ['passed_out', 'left_school', 'inactive', 'tc_issued'];
+
+        return (clone $baseQuery)
+            ->whereNotIn('students.id', function ($query) use ($inactiveStatuses) {
+                $query->select('student_id')
+                    ->from('student_statuses')
+                    ->whereIn('id', $this->latestStudentStatusIdsSubquery())
+                    ->whereIn('status', $inactiveStatuses);
+            })
+            ->count();
     }
 
     private function getFeeAnalytics($sessionId, $classId, $sectionId, $dateFilter)
     {
-        $query = Fee::query();
-        
-        // Join with students if needed
+        $collectionsQuery = FeeCollection::query();
+        $ledgerQuery = StudentFeeLedger::query();
+
         if ($classId || $sectionId) {
-            $query->join('students', 'fees.student_id', '=', 'students.id');
+            $collectionsQuery->join('students', 'fee_collections.student_id', '=', 'students.id');
+            $ledgerQuery->join('students', 'student_fee_ledgers.student_id', '=', 'students.id');
             if ($classId) {
-                $query->where('students.class_id', $classId);
+                $collectionsQuery->where('students.class_id', $classId);
+                $ledgerQuery->where('students.class_id', $classId);
             }
             if ($sectionId) {
-                $query->where('students.section_id', $sectionId);
+                $collectionsQuery->where('students.section_id', $sectionId);
+                $ledgerQuery->where('students.section_id', $sectionId);
             }
         }
 
         return [
-            'total_fees_collected' => $query->where('status', 'paid')->sum('amount'),
-            'pending_dues' => $query->where('status', 'pending')->sum('amount'),
-            'overdue_fees' => $query->where('due_date', '<', now())->where('status', 'pending')->sum('amount'),
-            'payments_this_period' => $query->whereBetween('payment_date', $dateFilter)->where('status', 'paid')->count(),
+            'total_fees_collected' => (clone $collectionsQuery)->sum('fee_collections.final_amount'),
+            'pending_dues' => (clone $ledgerQuery)->where('student_fee_ledgers.unpaid_amount', '>', 0)->sum('student_fee_ledgers.unpaid_amount'),
+            'overdue_fees' => (clone $ledgerQuery)->where('student_fee_ledgers.date', '<', now())->where('student_fee_ledgers.unpaid_amount', '>', 0)->sum('student_fee_ledgers.unpaid_amount'),
+            'payments_this_period' => (clone $collectionsQuery)->whereBetween('fee_collections.payment_date', $dateFilter)->count(),
         ];
     }
 
@@ -164,15 +208,18 @@ class AdvancedReportController extends Controller
             $query->where('section_id', $sectionId);
         }
 
-        $totalRecords = $query->whereBetween('date', [$dateFilter[0], $dateFilter[1]])->count();
-        $presentRecords = $query->whereBetween('date', [$dateFilter[0], $dateFilter[1]])->where('status', 'present')->count();
+        $records = $query->whereBetween('date', [$dateFilter[0], $dateFilter[1]])->get(['status']);
+        $summary = AttendanceCreditCalculator::summarizeRecords($records, 'status');
         
         return [
-            'attendance_rate' => $totalRecords > 0 ? round(($presentRecords / $totalRecords) * 100, 2) : 0,
-            'total_attendance' => $totalRecords,
-            'present_count' => $presentRecords,
-            'absent_count' => $totalRecords - $presentRecords,
-            'late_arrivals' => $query->whereBetween('date', [$dateFilter[0], $dateFilter[1]])->where('status', 'late')->count(),
+            'attendance_rate' => $summary['attendance_rate'],
+            'total_attendance' => $summary['total_days'],
+            'present_count' => $summary['present_days'],
+            'absent_count' => $summary['absent_days'],
+            'late_arrivals' => $summary['late_days'],
+            'attendance_credit' => $summary['attendance_credit'],
+            'half_days' => $summary['half_days'],
+            'leave_days' => $summary['leave_days'],
         ];
     }
 
@@ -309,9 +356,51 @@ class AdvancedReportController extends Controller
             ->with('success', 'Advanced report deleted successfully.');
     }
 
-    public function export(Request $request, $format = 'pdf')
+    public function export(Request $request, AdvancedReport $advancedReport, $format = 'pdf')
     {
-        // This will be implemented with proper export functionality
-        return response()->json(['message' => 'Export functionality will be implemented']);
+        // Get filter parameters
+        $academicSessionId = $request->get('academic_session_id');
+        $classId = $request->get('class_id');
+        $sectionId = $request->get('section_id');
+        $dateRange = $request->get('date_range', 'this_month');
+
+        // Get date range
+        $dateFilter = $this->getDateRange($dateRange);
+
+        // Get all analytics data
+        $studentStats = $this->getStudentAnalytics($academicSessionId, $classId, $sectionId, $dateFilter);
+        $feeStats = $this->getFeeAnalytics($academicSessionId, $classId, $sectionId, $dateFilter);
+        $attendanceStats = $this->getAttendanceAnalytics($academicSessionId, $classId, $sectionId, $dateFilter);
+        $examStats = $this->getExamAnalytics($academicSessionId, $classId, $sectionId, $dateFilter);
+        $libraryStats = $this->getLibraryAnalytics($academicSessionId, $classId, $sectionId, $dateFilter);
+        $biometricStats = $this->getBiometricAnalytics($academicSessionId, $classId, $sectionId, $dateFilter);
+
+        $data = compact(
+            'studentStats', 'feeStats', 'attendanceStats', 
+            'examStats', 'libraryStats', 'biometricStats',
+            'academicSessionId', 'classId', 'sectionId', 'dateRange'
+        );
+
+        if ($format === 'pdf') {
+            return $this->exportPdf($data);
+        } elseif ($format === 'excel') {
+            return $this->exportExcel($data);
+        }
+
+        return redirect()->back()->with('error', 'Invalid export format');
+    }
+
+    private function exportPdf($data)
+    {
+        $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('admin.reports.advanced.export-pdf', $data);
+        return $pdf->download('advanced-report-' . now()->format('Y-m-d') . '.pdf');
+    }
+
+    private function exportExcel($data)
+    {
+        return \Maatwebsite\Excel\Facades\Excel::download(
+            new \App\Exports\AdvancedReportExport($data), 
+            'advanced-report-' . now()->format('Y-m-d') . '.xlsx'
+        );
     }
 }

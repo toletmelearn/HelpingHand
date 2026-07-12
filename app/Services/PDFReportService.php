@@ -7,6 +7,7 @@ use App\Models\Student;
 use App\Models\Teacher;
 use App\Models\Attendance;
 use App\Models\Result;
+use App\Support\Attendance\AttendanceCreditCalculator;
 
 class PDFReportService
 {
@@ -77,17 +78,6 @@ class PDFReportService
     }
 
     /**
-     * Generate fee collection summary report PDF
-     */
-    public function generateFeeCollectionReport()
-    {
-        $fees = \App\Models\Fee::with('student')->get();
-        
-        $pdf = Pdf::loadView('reports.fee-collection', compact('fees'));
-        return $pdf->download('fee-collection-report.pdf');
-    }
-
-    /**
      * Generate teacher report PDF
      */
     public function generateTeacherReport($teacherId)
@@ -103,19 +93,18 @@ class PDFReportService
      */
     private function calculateAttendanceStats($attendances)
     {
-        $totalDays = $attendances->count();
-        $presentDays = $attendances->where('status', 'present')->count();
-        $absentDays = $attendances->where('status', 'absent')->count();
-        $lateDays = $attendances->where('status', 'late')->count();
-        
-        $attendancePercentage = $totalDays > 0 ? ($presentDays / $totalDays) * 100 : 0;
+        $calcSummary = AttendanceCreditCalculator::summarizeRecords($attendances, 'status');
         
         return [
-            'total_days' => $totalDays,
-            'present_days' => $presentDays,
-            'absent_days' => $absentDays,
-            'late_days' => $lateDays,
-            'attendance_percentage' => round($attendancePercentage, 2)
+            'total_days' => $calcSummary['total_days'],
+            'present_days' => $calcSummary['present_days'],
+            'absent_days' => $calcSummary['absent_days'],
+            'late_days' => $calcSummary['late_days'],
+            'attendance_percentage' => $calcSummary['attendance_rate'],
+            'attendance_rate' => $calcSummary['attendance_rate'],
+            'attendance_credit' => $calcSummary['attendance_credit'],
+            'half_days' => $calcSummary['half_days'],
+            'leave_days' => $calcSummary['leave_days']
         ];
     }
 }

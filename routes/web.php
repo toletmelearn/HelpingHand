@@ -387,9 +387,6 @@ Route::middleware(['auth'])->group(function () {
     // Results Routes
     Route::get('results', [App\Http\Controllers\Admin\ResultController::class, 'index'])->name('results.index');
     
-    // Quarantined in Phase 1F: points to missing Admin\FeeController@payment and online payment flow is not ready.
-    // Route::post('fees/payment', [App\Http\Controllers\Admin\FeeController::class, 'payment'])->name('fees.payment');
-    
     // Teacher Biometric Dashboard
     Route::get('teachers/biometric/dashboard', [App\Http\Controllers\Teacher\BiometricController::class, 'dashboard'])->name('teachers.biometric.dashboard');
     
@@ -1005,8 +1002,6 @@ Route::middleware(['auth'])->group(function () {
         Route::get('class-teacher-control/student-records/{id}/edit', [App\Http\Controllers\Admin\ClassTeacherController::class, 'editStudent'])->name('class-teacher-control.edit-student');
         Route::put('class-teacher-control/student-records/{id}', [App\Http\Controllers\Admin\ClassTeacherController::class, 'updateStudent'])->name('class-teacher-control.update-student');
         
-        // Fee Management Routes
-        // Route::resource('fees', App\Http\Controllers\Admin\FeeController::class); // Commented out to avoid conflict with FeeCollectionController
         // Quarantined in Phase 1H: duplicate fee-structures resource; canonical registration already exists above.
         // Route::resource('fee-structures', App\Http\Controllers\Admin\FeeStructureController::class);
         
@@ -1633,10 +1628,6 @@ Route::middleware(['parent.auth'])->group(function () {
     Route::post('/parent/payments/stripe-checkout', [\App\Http\Controllers\Parent\ParentPaymentController::class, 'processStripePayment'])->name('parent.payments.stripe-checkout');
     Route::get('/parent/payments/stripe-success', [\App\Http\Controllers\Parent\ParentPaymentController::class, 'callbackSuccess'])->name('parent.payments.stripe-success');
 });
-
-Route::post('/stripe/webhook', [\App\Http\Controllers\PaymentController::class, 'handleWebhook'])
-    ->name('webhook.stripe')
-    ->withoutMiddleware([\App\Http\Middleware\VerifyCsrfToken::class]);
 
 Route::middleware(['auth'])->group(function () {
     Route::get('/student/dashboard', [\App\Http\Controllers\Admin\RoleDashboardController::class, 'studentDashboard'])->name('student.dashboard');
