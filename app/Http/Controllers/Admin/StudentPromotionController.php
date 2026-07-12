@@ -282,8 +282,9 @@ class StudentPromotionController extends Controller
         $originalClassLabel = $student->schoolClass->name ?? $student->class ?? 'Unknown';
         $passedOutBy = Auth::id();
         $remarks = $request->remarks ?? 'Student marked as passed out';
+        $today = now()->toDateString();
 
-        DB::transaction(function () use ($student, $currentSession, $originalClassLabel, $passedOutBy, $remarks) {
+        DB::transaction(function () use ($student, $currentSession, $originalClassLabel, $passedOutBy, $remarks, $today) {
             $student->class_id = null;
             $student->school_class_id = null;
             $student->class = 'Passed Out';
@@ -309,6 +310,20 @@ class StudentPromotionController extends Controller
                 'promoted_at' => now(),
                 'remarks' => $remarks,
             ]);
+
+            // This used to only clear the class fields and log the status
+            // change -- a passed-out student's future-dated ledger debits
+            // (next month's tuition, next term's fees, etc.) kept accruing
+            // forever with nothing to ever stop them. The code that prunes
+            // these correctly (StructureAdjustmentService::withdrawStudent())
+            // already existed, fully tested, but only ever fired via a hard
+            // Student::delete() -- not how staff actually mark someone as
+            // passed out. Past-dated (already-due) debits are deliberately
+            // left untouched -- this only stops FUTURE billing, it doesn't
+            // waive money already owed.
+            if (\Illuminate\Support\Facades\Schema::hasTable('student_fee_ledgers')) {
+                (new \App\Services\StructureAdjustmentService())->withdrawStudent($student, $today);
+            }
         });
 
         return redirect()->route('admin.student-promotions.index')
