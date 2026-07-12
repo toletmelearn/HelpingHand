@@ -605,8 +605,14 @@ Route::middleware(['auth'])->group(function () {
                 Route::post('/rebuild-ledger', [App\Http\Controllers\Admin\FinanceReconciliationController::class, 'rebuildLedger'])->name('rebuild-ledger');
                 Route::post('/issue-refund', [App\Http\Controllers\Admin\FinanceReconciliationController::class, 'issueRefund'])->name('issue-refund');
             });
+
+            // Security Deposit Refund Queue
+            Route::prefix('security-deposits')->name('security-deposits.')->group(function () {
+                Route::get('/', [App\Http\Controllers\Admin\SecurityDepositController::class, 'index'])->name('index');
+                Route::post('/{id}/resolve', [App\Http\Controllers\Admin\SecurityDepositController::class, 'resolve'])->name('resolve');
+            });
         });
-        
+
         // Payment Settings Routes
         Route::get('settings/payment', [App\Http\Controllers\Admin\PaymentSettingsController::class, 'showPaymentSettings'])->name('settings.payment');
         Route::post('settings/payment', [App\Http\Controllers\Admin\PaymentSettingsController::class, 'updatePaymentSettings'])->name('settings.payment.update');
