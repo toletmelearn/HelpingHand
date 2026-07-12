@@ -39,6 +39,14 @@ class Student extends Authenticatable
         // added later), makes that inconsistency impossible rather than
         // relying on every future write path remembering to set both.
         static::saving(function ($student) {
+            // Guard against test/mocked environments with a hand-built
+            // students table that predates this column (several FeeFinance
+            // tests build their own minimal schema without it).
+            if (!\Illuminate\Support\Facades\Schema::hasColumn('students', 'school_class_id')
+                || !\Illuminate\Support\Facades\Schema::hasColumn('students', 'class_id')) {
+                return;
+            }
+
             if ($student->class_id !== null && $student->school_class_id === null) {
                 // Unlike school_class_id, class_id has no foreign key
                 // constraint -- some legacy/loosely-normalized rows carry a
