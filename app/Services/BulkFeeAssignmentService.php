@@ -112,6 +112,24 @@ class BulkFeeAssignmentService
                     ->pluck('running_balance', 'student_id')
                     ->toArray();
 
+                // Already-assigned students must be skipped, not just left to
+                // fail the unique constraint on insert -- StudentFeeAssignment
+                // is inserted as a single raw multi-row statement per chunk,
+                // so ONE duplicate would previously throw and roll back the
+                // entire 100-student chunk, including every other,
+                // genuinely-new assignment in it.
+                $alreadyAssignedIds = StudentFeeAssignment::where('fee_structure_id', $feeStructure->id)
+                    ->where('academic_year', $feeStructure->academic_year)
+                    ->whereIn('student_id', $chunk)
+                    ->pluck('student_id')
+                    ->flip()
+                    ->toArray();
+                $chunk = array_values(array_diff($chunk, array_keys($alreadyAssignedIds)));
+
+                if (empty($chunk)) {
+                    return;
+                }
+
                 // Prefetch existing admission charges for students in the chunk for this academic session
                 $existingAdmissions = StudentFeeLedger::whereIn('student_id', $chunk)
                     ->where('academic_year', $feeStructure->academic_year)
