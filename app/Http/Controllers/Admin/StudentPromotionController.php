@@ -7,34 +7,30 @@ use Illuminate\Http\Request;
 use App\Models\Student;
 use App\Models\ClassManagement;
 use App\Models\AcademicSession;
+use App\Models\StudentStatus;
 use App\Models\StudentPromotionLog;
 use App\Models\SchoolClass;
+use App\Models\FeeStructure;
+use App\Services\StructureAdjustmentService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
 
 class StudentPromotionController extends Controller
 {
-    /**
-     * Display a listing of students eligible for promotion.
-     *
-     * @return \Illuminate\Http\Response
-     */
     public function index()
     {
-        // Get current academic session
         $currentSession = AcademicSession::current()->first();
         
-        // Get students grouped by current class
-        $studentsByClass = Student::select('class', DB::raw('COUNT(*) as total'))
+        $studentsByClass = Student::select('class_id', 'class', DB::raw('COUNT(*) as total'))
             ->whereNull('deleted_at')
-            ->groupBy('class')
-            ->orderBy('class')
+            ->whereNotNull('class_id')
+            ->groupBy('class_id', 'class')
+            ->orderBy('class_id')
             ->get();
         
         $classes = ClassManagement::orderBy('name')->get();
         
-        // Get recent promotion logs
         $recentPromotions = StudentPromotionLog::with(['student', 'promotedBy', 'academicSession'])
             ->orderBy('created_at', 'desc')
             ->limit(10)
@@ -43,120 +39,229 @@ class StudentPromotionController extends Controller
         return view('admin.student-promotion.index', compact('studentsByClass', 'classes', 'currentSession', 'recentPromotions'));
     }
 
-    /**
-     * Show the form for promoting students.
-     *
-     * @return \Illuminate\Http\Response
+    /*
+     * SHOW CREATE FORM
+     * Updated to pre-load data from SchoolClass table (which has 19 active classes)
      */
-    public function create()
+    public function create(Request $request)
     {
         $currentSession = AcademicSession::current()->first();
-        $currentClasses = SchoolClass::with('students')
-            ->whereHas('students')
-            ->active()
-            ->orderByOrder()
-            ->get();
-        $allClasses = SchoolClass::active()->orderByOrder()->get();
         
-        return view('admin.student-promotion.create', compact('currentSession', 'currentClasses', 'allClasses'));
+        // SOURCE: SchoolClass (Table school_classes, 19 rows) - Always load these
+        $currentClasses = SchoolClass::active()->orderByOrder()->get();
+        
+        // ALL CLASSES: include inactive for robust fallback - Always load these
+        $allClasses = SchoolClass::orderByOrder()->get();
+        
+        $selectedClass = null;
+        $preLoadedStudents = collect([]);
+        $preLoadedDestinations = collect([]);
+        $fromClassParam = $request->get('from_class');
+
+        if ($fromClassParam) {
+            $selectedClass = SchoolClass::where('id', $fromClassParam)
+                                      ->orWhere('name', $fromClassParam)
+                                      ->orWhere('name', str_replace('+', ' ', $fromClassParam))
+                                      ->first();
+
+            if ($selectedClass) {
+                // 1. Fetch Students
+                $preLoadedStudents = Student::where(function($q) use ($selectedClass) {
+                                            $q->where('class_id', $selectedClass->id)
+                                              ->orWhere('class', $selectedClass->name)
+                                              ->orWhere('class', 'like', $selectedClass->name . '%');
+                                        })
+                                        ->select('id', 'name', 'roll_number')
+                                        ->orderBy('name')
+                                        ->get();
+
+                // 2. Fetch Destinations from SchoolClass (Where data actually lives)
+                // Filter: Active, Order > Current (if strict) or All Others, or finally all classes
+                $preLoadedDestinations = SchoolClass::where('is_active', true)
+                                              ->where('class_order', '>', $selectedClass->class_order ?? 0)
+                                              ->orderBy('class_order')
+                                              ->get(['id', 'name']);
+
+                // Fallback: If no higher classes found, show ALL other active classes
+                if ($preLoadedDestinations->isEmpty()) {
+                    $preLoadedDestinations = SchoolClass::where('is_active', true)
+                                                  ->where('id', '!=', $selectedClass->id)
+                                                  ->orderBy('class_order')
+                                                  ->get(['id', 'name']);
+                }
+                
+                // Final Fallback: If still empty (e.g., only one active class exists), show ALL other classes (including inactive)
+                if ($preLoadedDestinations->isEmpty()) {
+                    $preLoadedDestinations = SchoolClass::where('id', '!=', $selectedClass->id)
+                                                   ->orderBy('class_order')
+                                                   ->get(['id', 'name']);
+                }
+            }
+        }
+        
+        return view('admin.student-promotion.create', compact('currentSession', 'currentClasses', 'allClasses', 'selectedClass', 'preLoadedStudents', 'preLoadedDestinations'));
     }
 
-    /**
-     * Promote students to next class.
-     *
-     * @param  \Illuminate\Http\Request  $request
-     * @return \Illuminate\Http\Response
-     */
     public function store(Request $request)
     {
         $request->validate([
+            'academic_session_id' => 'required|exists:academic_sessions,id',
             'from_class' => 'required|integer|exists:school_classes,id',
-            'to_class' => 'required|integer|exists:school_classes,id',
-            'academic_session_id' => 'nullable|exists:academic_sessions,id',
-            'students' => 'required|array',
+            'to_class' => 'required|integer|exists:school_classes,id', // Reverted to school_classes
+            'students' => 'required|array|min:1',
             'students.*' => 'exists:students,id',
-            'remarks' => 'nullable|string',
+            'remarks' => 'nullable|string|max:1000',
+        ], [
+            'academic_session_id.required' => 'Please select an academic session.',
+            'from_class.required' => 'Please select the source class.',
+            'to_class.required' => 'Please select the destination class.',
+            'students.required' => 'Please select at least one student to promote.',
         ]);
 
-        $currentSession = AcademicSession::current()->first();
-        $sessionId = $request->academic_session_id ?? $currentSession?->id;
-        
-        // Get source and destination classes
+        $sessionId = $request->academic_session_id;
+
+        // Get Both from SchoolClass (Data Confirmed)
         $sourceClass = SchoolClass::findOrFail($request->from_class);
         $destinationClass = SchoolClass::findOrFail($request->to_class);
         
-        // Verify that destination class has higher order
-        if ($destinationClass->class_order <= $sourceClass->class_order) {
-            return redirect()->back()
-                ->with('error', 'Destination class must have higher class order than source class');
+        if (($destinationClass->class_order ?? 0) <= ($sourceClass->class_order ?? 0)) {
+            return back()->withErrors(['to_class' => 'Destination class must be higher than source class.'])->withInput();
         }
         
-        // Get students before update
         $students = Student::whereIn('id', $request->students)->get();
-        
-        // Update selected students' class_id and class name
-        Student::whereIn('id', $request->students)
-            ->update([
-                'class_id' => $request->to_class,
-                'class' => $destinationClass->name
-            ]);
+        $promotedBy = Auth::id();
+        $remarks = $request->remarks;
 
-        // Log the promotions
-        foreach ($students as $student) {
-            StudentPromotionLog::create([
-                'student_id' => $student->id,
-                'academic_session_id' => $sessionId,
-                'from_class' => $sourceClass->name,
-                'to_class' => $destinationClass->name,
-                'promoted_by' => Auth::id(),
-                'promoted_at' => now(),
-                'remarks' => $request->remarks,
-            ]);
-        }
+        // Promotion used to only sync the class fields -- it never touched
+        // fee assignments at all, so a promoted student kept accruing dues
+        // under the OLD class's structure and never got billed for the new
+        // one unless a staff member separately re-ran fee assignment by
+        // hand (that's what the existing test for this does). This resolves
+        // the destination class's active structure for the session and
+        // reuses the already-tested, previously-orphaned
+        // StructureAdjustmentService::changeFeeStructure() to do it
+        // properly: drop the old structure's future-dated unpaid debits and
+        // bill the new one from today. No structure for the destination
+        // class yet is a normal, expected state and must never block
+        // promotion itself.
+        $session = AcademicSession::find($sessionId);
+        $newFeeStructure = ($session && \Illuminate\Support\Facades\Schema::hasTable('fee_structures'))
+            ? FeeStructure::where('class_name', $destinationClass->name)
+                ->where('status', 'active')
+                ->where(function ($q) use ($session) {
+                    $q->where('academic_year', $session->code)
+                      ->orWhere('academic_year', $session->name);
+                })
+                ->latest('id')
+                ->first()
+            : null;
+        $structureAdjustment = new StructureAdjustmentService();
+        $today = now()->toDateString();
+
+        DB::transaction(function () use ($students, $destinationClass, $sourceClass, $sessionId, $promotedBy, $remarks, $newFeeStructure, $structureAdjustment, $today) {
+            foreach ($students as $student) {
+                $student->class_id = $destinationClass->id;
+                $student->school_class_id = $destinationClass->id;
+                $student->class = $destinationClass->name;
+                $student->save();
+
+                StudentPromotionLog::create([
+                    'student_id' => $student->id,
+                    'academic_session_id' => $sessionId,
+                    'from_class' => $sourceClass->name,
+                    'to_class' => $destinationClass->name,
+                    'promoted_by' => $promotedBy,
+                    'promoted_at' => now(),
+                    'remarks' => $remarks,
+                ]);
+
+                if ($newFeeStructure) {
+                    $structureAdjustment->changeFeeStructure($student, $newFeeStructure, $today);
+                }
+            }
+        });
 
         return redirect()->route('admin.student-promotions.index')
             ->with('success', count($request->students) . ' students promoted from ' . $sourceClass->name . ' to ' . $destinationClass->name);
     }
 
-    /**
-     * Get students by class via AJAX.
-     *
-     * @param  int  $classId
-     * @return \Illuminate\Http\Response
-     */
-    public function getStudentsByClass($classId)
+    public function getStudentsByClass($class)
     {
-        $students = Student::where('class_id', $classId)->get();
+        $id = ($class instanceof SchoolClass) ? $class->id : $class;
+        $sourceClass = SchoolClass::find($id);
         
-        return response()->json([
-            'students' => $students
-        ]);
+        $students = Student::where(function($q) use ($id, $sourceClass) {
+                    $q->where('class_id', $id);
+                    if ($sourceClass && $sourceClass->name) {
+                        $q->orWhere('class', $sourceClass->name)
+                          ->orWhere('class', 'like', $sourceClass->name . '%');
+                    }
+                })
+            ->select('id', 'name', 'roll_number')
+            ->orderBy('name')
+            ->get();
+        
+        return response()->json(['students' => $students]);
     }
 
-    /**
-     * Get eligible destination classes for promotion.
-     *
-     * @param  int  $classId
-     * @return \Illuminate\Http\Response
+    /*
+    // OLD FUNCTION - COMMENTED OUT AS REQUESTED
+    // ...
+    */
+
+    /*
+     * AJAX Get Destination Classes
+     * Reverted to use SchoolClass table (19 rows detected)
      */
-    public function getDestinationClasses($classId)
+    public function getDestinationClasses($class)
     {
-        $sourceClass = SchoolClass::findOrFail($classId);
+        Log::info('getDestinationClasses called', ['param' => $class]);
 
-        $destinationClasses = SchoolClass::where('is_active', 1)
-            ->where('class_order', '>', $sourceClass->class_order)
-            ->orderBy('class_order')
-            ->get(['id', 'name']);
+        $id = ($class instanceof SchoolClass) ? $class->id : $class;
+        $sourceClass = SchoolClass::find($id);
+        
+        Log::info('Resolved Source Class', [
+            'id' => $id, 
+            'found' => $sourceClass ? 'Yes' : 'No',
+            'name' => $sourceClass->name ?? 'N/A',
+            'order' => $sourceClass->class_order ?? 'N/A'
+        ]);
 
-        return response()->json($destinationClasses);
+        if ($sourceClass) {
+            // Try Strict Promotion First
+            $destinations = SchoolClass::where('is_active', true)
+                ->where('class_order', '>', $sourceClass->class_order)
+                ->orderBy('class_order')
+                ->get(['id', 'name']);
+            
+            Log::info('Strict Query Result', ['count' => $destinations->count()]);
+
+            // Fallback: If strict yields nothing, return ALL others
+            if ($destinations->isEmpty()) {
+                Log::info('Strict failed, trying Fallback (All other active classes)');
+                $destinations = SchoolClass::where('is_active', true)
+                    ->where('id', '!=', $id)
+                    ->orderBy('class_order')
+                    ->get(['id', 'name']);
+            }
+            
+            // Final Fallback: Include inactive if still empty
+            if ($destinations->isEmpty()) {
+                Log::info('Active fallback empty, returning all classes excluding source');
+                $destinations = SchoolClass::where('id', '!=', $id)
+                    ->orderBy('class_order')
+                    ->get(['id', 'name']);
+            }
+            
+            Log::info('Final Result', ['count' => $destinations->count()]);
+            return response()->json($destinations);
+        }
+
+        // If no source class known, return all active classes
+        Log::info('Source class not found, returning all active classes');
+        return response()->json(SchoolClass::where('is_active', true)->orderBy('class_order')->get(['id', 'name']));
     }
 
-    /**
-     * Show promotion history for a specific student.
-     *
-     * @param  int  $studentId
-     * @return \Illuminate\Http\Response
-     */
     public function studentHistory($studentId)
     {
         $student = Student::findOrFail($studentId);
@@ -168,39 +273,43 @@ class StudentPromotionController extends Controller
         return view('admin.student-promotion.history', compact('student', 'promotions'));
     }
 
-    /**
-     * Mark student as passed out.
-     *
-     * @param  \Illuminate\Http\Request  $request
-     * @param  int  $studentId
-     * @return \Illuminate\Http\Response
-     */
     public function markAsPassedOut(Request $request, $studentId)
     {
-        $request->validate([
-            'remarks' => 'nullable|string',
-        ]);
+        $request->validate(['remarks' => 'nullable|string']);
 
         $student = Student::findOrFail($studentId);
         $currentSession = AcademicSession::current()->first();
-        
-        // Update student status
-        $student->update([
-            'status' => 'passed_out',
-            'class_id' => null,
-            'class' => 'Passed Out'
-        ]);
+        $originalClassLabel = $student->schoolClass->name ?? $student->class ?? 'Unknown';
+        $passedOutBy = Auth::id();
+        $remarks = $request->remarks ?? 'Student marked as passed out';
 
-        // Log the action
-        StudentPromotionLog::create([
-            'student_id' => $student->id,
-            'academic_session_id' => $currentSession?->id,
-            'from_class' => $student->schoolClass->name ?? $student->class,
-            'to_class' => 'Passed Out',
-            'promoted_by' => Auth::id(),
-            'promoted_at' => now(),
-            'remarks' => $request->remarks ?? 'Student marked as passed out',
-        ]);
+        DB::transaction(function () use ($student, $currentSession, $originalClassLabel, $passedOutBy, $remarks) {
+            $student->class_id = null;
+            $student->school_class_id = null;
+            $student->class = 'Passed Out';
+            $student->section_id = null;
+            $student->section = null;
+            $student->save();
+
+            StudentStatus::create([
+                'student_id' => $student->id,
+                'status' => 'passed_out',
+                'status_date' => now()->toDateString(),
+                'reason' => 'Passed out',
+                'remarks' => $remarks,
+                'issued_by' => $passedOutBy !== null ? (string) $passedOutBy : null,
+            ]);
+
+            StudentPromotionLog::create([
+                'student_id' => $student->id,
+                'academic_session_id' => $currentSession?->id,
+                'from_class' => $originalClassLabel,
+                'to_class' => 'Passed Out',
+                'promoted_by' => $passedOutBy,
+                'promoted_at' => now(),
+                'remarks' => $remarks,
+            ]);
+        });
 
         return redirect()->route('admin.student-promotions.index')
             ->with('success', 'Student ' . $student->name . ' marked as passed out');
