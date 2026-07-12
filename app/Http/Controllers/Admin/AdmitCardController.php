@@ -175,6 +175,9 @@ class AdmitCardController extends Controller
     public function bulkPublish(Request $request)
     {
         $ids = $request->input('ids', []);
+        if (is_string($ids)) {
+            $ids = explode(',', $ids);
+        }
         
         AdmitCard::whereIn('id', $ids)
                   ->update([
@@ -192,6 +195,9 @@ class AdmitCardController extends Controller
     public function bulkLock(Request $request)
     {
         $ids = $request->input('ids', []);
+        if (is_string($ids)) {
+            $ids = explode(',', $ids);
+        }
         
         AdmitCard::whereIn('id', $ids)->update(['status' => 'locked']);
         
@@ -219,6 +225,9 @@ class AdmitCardController extends Controller
     public function bulkRevoke(Request $request)
     {
         $ids = $request->input('ids', []);
+        if (is_string($ids)) {
+            $ids = explode(',', $ids);
+        }
         
         $updatedCount = 0;
         foreach ($ids as $id) {
@@ -229,5 +238,54 @@ class AdmitCardController extends Controller
         }
         
         return redirect()->back()->with('success', "{$updatedCount} selected admit cards revoked successfully.");
+    }
+
+    /**
+     * Block all students with outstanding fees from downloading admit cards.
+     */
+    public function blockDefaulters(Request $request)
+    {
+        $this->authorize('update', AdmitCard::class);
+        
+        $admitCards = AdmitCard::whereIn('status', ['published', 'locked'])->get();
+        $blockedCount = 0;
+        
+        foreach ($admitCards as $admitCard) {
+            // Was reading Student::fees() -- the legacy `fees` table, which
+            // nothing in the live fee flow writes to (confirmed: 0 rows
+            // live). This button silently found zero defaulters no matter
+            // how much anyone actually owed. The real, live balance is the
+            // ledger's debit-minus-credit total.
+            $outstandingFees = $admitCard->student ? \App\Services\LedgerService::getOutstandingBalance($admitCard->student->id) : 0;
+            if ($outstandingFees > 0) {
+                if ($admitCard->transitionTo('revoked', Auth::id())) {
+                    $blockedCount++;
+                }
+            }
+        }
+        
+        return redirect()->back()->with('success', "Successfully blocked {$blockedCount} fee defaulter student admit cards.");
+    }
+
+    /**
+     * Unblock all students with cleared fees.
+     */
+    public function unblockCleared(Request $request)
+    {
+        $this->authorize('update', AdmitCard::class);
+        
+        $admitCards = AdmitCard::where('status', 'revoked')->get();
+        $unblockedCount = 0;
+        
+        foreach ($admitCards as $admitCard) {
+            $outstandingFees = $admitCard->student ? \App\Services\LedgerService::getOutstandingBalance($admitCard->student->id) : 0;
+            if ($outstandingFees <= 0) {
+                if ($admitCard->transitionTo('published', Auth::id())) {
+                    $unblockedCount++;
+                }
+            }
+        }
+        
+        return redirect()->back()->with('success', "Successfully unblocked {$unblockedCount} cleared student admit cards.");
     }
 }
