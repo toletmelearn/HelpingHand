@@ -259,7 +259,7 @@ class FinanceReconciliationController extends Controller
         $validated = $request->validate([
             'student_id' => 'required|exists:students,id',
             'amount' => 'required|numeric|min:0.01',
-            'payment_mode' => 'required|string|in:cash,cheque,bank_transfer,upi,online',
+            'payment_mode' => 'required|string|in:' . implode(',', \App\Models\FeeCollection::PAYMENT_MODES),
             'reason' => 'nullable|string|max:500',
         ]);
 

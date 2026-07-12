@@ -313,7 +313,7 @@ class InstallmentFeeController extends Controller
             'installment_number' => 'required|integer',
             'amount_paid' => 'required|numeric|min:0',
             'payment_date' => 'required|date',
-            'payment_mode' => 'required|string',
+            'payment_mode' => 'required|in:' . implode(',', FeeCollection::PAYMENT_MODES),
             'remarks' => 'nullable|string',
             'submission_token' => 'nullable|string'
         ]);
