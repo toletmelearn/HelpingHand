@@ -7,8 +7,10 @@ use App\Http\Controllers\StudentController;
 use App\Models\Student;
 use App\Models\SchoolClass;
 use App\Models\Section;
+use App\Helpers\FieldPermissionHelper;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 
 class AdminStudentController extends Controller
 {
@@ -255,6 +257,47 @@ class AdminStudentController extends Controller
         
         return redirect()->route('admin.students.index')
                          ->with('success', 'Student updated successfully!');
+    }
+
+    /**
+     * Upload/replace a student's profile photo. Deliberately separate from
+     * update() -- gated by the FieldPermission system (model_type=student,
+     * field_name=photo) rather than the StudentPolicy, since roles like
+     * clerk/receptionist/class-teacher should be able to upload a photo
+     * without gaining the ability to edit the rest of the record.
+     */
+    public function updatePhoto(Request $request, $id)
+    {
+        if (!FieldPermissionHelper::canEditField('student', 'photo')) {
+            abort(403, 'You are not authorized to upload a student photo.');
+        }
+
+        $student = Student::findOrFail($id);
+
+        $request->validate([
+            // 8MB, jpeg/png/gif/webp/bmp -- a real phone camera photo
+            // routinely exceeds the old 2MB/jpeg-png-gif-only cap, and this
+            // page had no visible way to show the resulting validation
+            // error, so an oversized/unsupported photo just silently failed.
+            'photo' => 'required|image|mimes:jpeg,png,jpg,gif,webp,bmp|max:8192',
+        ]);
+
+        if ($student->photo) {
+            Storage::disk('public')->delete($student->photo);
+        }
+
+        $student->update(['photo' => $request->file('photo')->store('student_photos', 'public')]);
+
+        // Audit logging is a best-effort side effect -- it must never be
+        // able to fail the upload itself (e.g. if activity_log's schema
+        // has drifted on a given install).
+        try {
+            activity()->causedBy(auth()->user())->performedOn($student)->log('Uploaded student photo');
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning('Failed to log student photo upload activity: ' . $e->getMessage());
+        }
+
+        return redirect()->back()->with('success', 'Student photo updated successfully.');
     }
 
     /**

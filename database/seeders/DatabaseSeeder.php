@@ -32,6 +32,7 @@ class DatabaseSeeder extends Seeder
             BiometricSettingsSeeder::class, // Added for Biometric System
             FrontOfficeSeeder::class,
             NotificationSettingSeeder::class,
+            PhotoFieldPermissionSeeder::class,
             // AcademicDataSeeder::class,
             // DummyStudentsSeeder::class,
             // ResetStudentsSeeder::class,

@@ -4,10 +4,12 @@ namespace App\Http\Controllers;
 
 use App\Models\Teacher;
 use App\Models\User;
+use App\Models\ExamHead;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Log;
 
 class TeacherController extends Controller
 {
@@ -15,7 +17,7 @@ class TeacherController extends Controller
     public function index()
     {
         $this->authorize('viewAny', Teacher::class);
-        $teachers = Teacher::all();
+        $teachers = Teacher::with(['examHead'])->get();
         return view('teachers.index', compact('teachers'));
     }
 
@@ -25,7 +27,7 @@ class TeacherController extends Controller
         $this->authorize('create', Teacher::class);
         $subjects = ['Mathematics', 'Science', 'English', 'Hindi', 'Social Studies', 
                     'Physics', 'Chemistry', 'Biology', 'Computer Science', 'Physical Education'];
-        $qualifications = ['B.Ed', 'M.Ed', 'B.Sc B.Ed', 'M.Sc B.Ed', 'Ph.D', 'Other'];
+        $qualifications = ['B.Ed', 'M.Ed', 'B.Sc B.Ed', 'M.Ed', 'Ph.D', 'Other'];
         
         return view('teachers.create', compact('subjects', 'qualifications'));
     }
@@ -34,6 +36,7 @@ class TeacherController extends Controller
     public function store(Request $request)
     {
         $this->authorize('create', Teacher::class);
+        
         $validated = $request->validate(
     Teacher::storeRules(),
     [
@@ -53,10 +56,27 @@ class TeacherController extends Controller
             $imagePath = $request->file('profile_image')->store('teacher_profiles', 'public');
             $validated['profile_image'] = $imagePath;
         }
+
+        // Handle is_exam_head and is_exam_cell_member checkboxes
+        $isExamHead = $request->has('is_exam_head') ? true : false;
+        $validated['is_exam_head'] = $isExamHead;
+        $validated['is_exam_cell_member'] = $request->has('is_exam_cell_member') ? true : false;
         
         $teacher = Teacher::create($validated);
+
+        // Sync with exam_heads table
+        if ($isExamHead) {
+            ExamHead::updateOrCreate(
+                ['teacher_id' => $teacher->id],
+                [
+                    'assigned_by' => Auth::id(),
+                    'assigned_at' => now(),
+                    'status' => 'active'
+                ]
+            );
+        }
         
-        return redirect()->route('teachers.index')
+        return redirect()->route('admin.teachers.index')
                          ->with('success', 'Teacher added successfully!');
     }
 
@@ -88,17 +108,117 @@ class TeacherController extends Controller
         if ($request->hasFile('profile_image')) {
             // Delete old image if exists
             if ($teacher->profile_image) {
-                \Storage::disk('public')->delete($teacher->profile_image);
+                Storage::disk('public')->delete($teacher->profile_image);
             }
 
             $imagePath = $request->file('profile_image')->store('teacher_profiles', 'public');
             $validated['profile_image'] = $imagePath;
         }
+        
+        // Handle is_exam_head and is_exam_cell_member checkboxes
+        $isExamHead = $request->has('is_exam_head') ? true : false;
+        $validated['is_exam_head'] = $isExamHead;
+        $validated['is_exam_cell_member'] = $request->has('is_exam_cell_member') ? true : false;
 
         $teacher->update($validated);
 
-        return redirect()->route('teachers.index')
+        // Sync with exam_heads table
+        if ($isExamHead) {
+            \App\Models\ExamHead::updateOrCreate(
+                ['teacher_id' => $teacher->id],
+                [
+                    'assigned_by' => Auth::id(),
+                    'assigned_at' => now(),
+                    'status' => 'active'
+                ]
+            );
+        } else {
+            $examHead = \App\Models\ExamHead::where('teacher_id', $teacher->id)->first();
+            if ($examHead) {
+                $examHead->update(['status' => 'inactive']);
+            }
+        }
+
+        return redirect()->route('admin.teachers.index')
                          ->with('success', 'Teacher updated successfully!');
+    }
+
+    /**
+     * Upload/replace a teacher's profile photo. Deliberately separate from
+     * update() -- gated by the FieldPermission system (model_type=teacher,
+     * field_name=profile_image) rather than the TeacherPolicy, since roles
+     * like clerk/receptionist/class-teacher should be able to upload a
+     * photo without gaining the ability to edit the rest of the record.
+     */
+    public function updatePhoto(Request $request, Teacher $teacher)
+    {
+        if (!\App\Helpers\FieldPermissionHelper::canEditField('teacher', 'profile_image')) {
+            abort(403, 'You are not authorized to upload a teacher photo.');
+        }
+
+        $request->validate([
+            // 8MB, jpeg/png/gif/webp/bmp -- a real phone camera photo
+            // routinely exceeds the old 2MB/jpeg-png-gif-only cap, and this
+            // page had no visible way to show the resulting validation
+            // error, so an oversized/unsupported photo just silently failed.
+            'photo' => 'required|image|mimes:jpeg,png,jpg,gif,webp,bmp|max:8192',
+        ]);
+
+        if ($teacher->profile_image) {
+            Storage::disk('public')->delete($teacher->profile_image);
+        }
+
+        $teacher->update(['profile_image' => $request->file('photo')->store('teacher_profiles', 'public')]);
+
+        // Audit logging is a best-effort side effect -- it must never be
+        // able to fail the upload itself (e.g. if activity_log's schema
+        // has drifted on a given install).
+        try {
+            activity()->causedBy(Auth::user())->performedOn($teacher)->log('Uploaded teacher photo');
+        } catch (\Throwable $e) {
+            Log::warning('Failed to log teacher photo upload activity: ' . $e->getMessage());
+        }
+
+        return redirect()->back()->with('success', 'Teacher photo updated successfully.');
+    }
+
+    // Toggle exam head status
+    public function toggleExamHead(Request $request, Teacher $teacher)
+    {
+        $request->validate([
+            'make_exam_head' => 'required|boolean'
+        ]);
+
+        $isAdmin = Auth::check();
+        $currentUser = $isAdmin ? Auth::user() : null;
+
+        if ($request->make_exam_head) {
+            // Create or update exam head record
+            ExamHead::updateOrCreate(
+                ['teacher_id' => $teacher->id],
+                [
+                    'assigned_by' => $currentUser ? $currentUser->id : null,
+                    'assigned_at' => now(),
+                    'status' => 'active'
+                ]
+            );
+            
+            return response()->json([
+                'success' => true,
+                'message' => 'Successfully assigned as Exam Head!'
+            ]);
+        } else {
+            // Deactivate exam head record
+            $examHead = ExamHead::where('teacher_id', $teacher->id)->first();
+            if ($examHead) {
+                $examHead->update(['status' => 'inactive']);
+            }
+            
+            return response()->json([
+                'success' => true,
+                'message' => 'Successfully removed Exam Head status!'
+            ]);
+        }
     }
 
     // Delete teacher (route-model binding)
@@ -107,7 +227,7 @@ class TeacherController extends Controller
         $this->authorize('delete', $teacher);
         $teacher->delete();
 
-        return redirect()->route('teachers.index')
+        return redirect()->route('admin.teachers.index')
                          ->with('success', 'Teacher deleted');
     }
 }

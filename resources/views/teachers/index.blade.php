@@ -57,6 +57,15 @@
             {{ session('success') }}
         </div>
     @endif
+    @if($errors->any())
+        <div class="alert alert-danger">
+            <ul class="mb-0">
+                @foreach($errors->all() as $error)
+                    <li>{{ $error }}</li>
+                @endforeach
+            </ul>
+        </div>
+    @endif
 
     <!-- TABLE -->
     @if($teachers->count() > 0)
@@ -148,6 +157,16 @@
                                                 ✏️ Edit
                                             </a>
 
+                                            <!-- CHANGE PHOTO -->
+                                            @if(\App\Helpers\FieldPermissionHelper::canEditField('teacher', 'profile_image'))
+                                            <button type="button" class="btn btn-outline-secondary"
+                                                    data-bs-toggle="modal" data-bs-target="#changeTeacherPhotoModal"
+                                                    data-photo-action="{{ route('teachers.photo.update', $teacher->id) }}"
+                                                    data-photo-name="{{ $teacher->name }}">
+                                                📷 Photo
+                                            </button>
+                                            @endif
+
                                             <!-- DELETE -->
                                             <form action="{{ route('admin.teachers.destroy', ['teacher' => $teacher->id]) }}" method="POST">
                                                 @csrf
@@ -186,6 +205,37 @@
         </div>
     @endif
 
+
+    @if(\App\Helpers\FieldPermissionHelper::canEditField('teacher', 'profile_image'))
+    <div class="modal fade" id="changeTeacherPhotoModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <form id="changeTeacherPhotoForm" method="POST" enctype="multipart/form-data">
+                    @csrf
+                    <div class="modal-header">
+                        <h5 class="modal-title">Change Photo &mdash; <span id="changeTeacherPhotoName"></span></h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <input type="file" name="photo" class="form-control" accept="image/jpeg,image/png,image/gif" required>
+                        <small class="text-muted">JPEG, PNG or GIF, up to 2MB.</small>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn btn-primary">Upload</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    <script>
+    document.getElementById('changeTeacherPhotoModal').addEventListener('show.bs.modal', function (event) {
+        const button = event.relatedTarget;
+        document.getElementById('changeTeacherPhotoForm').action = button.getAttribute('data-photo-action');
+        document.getElementById('changeTeacherPhotoName').textContent = button.getAttribute('data-photo-name');
+    });
+    </script>
+    @endif
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>

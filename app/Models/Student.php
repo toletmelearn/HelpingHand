@@ -119,7 +119,7 @@ class Student extends Authenticatable
         'name', 'father_name', 'mother_name', 'date_of_birth', 'aadhar_number',
         'admission_no', 'admission_session_id', 'phone', 'mobile', 'gender', 'category', 'class', 'section', 'roll_number',
         'religion', 'caste', 'blood_group', 'address', 'user_id', 'is_verified',
-        'guardian_name', 'class_id', 'section_id'
+        'guardian_name', 'class_id', 'section_id', 'photo'
     ];
     
     protected $casts = [
@@ -323,6 +323,11 @@ class Student extends Authenticatable
     public function getAgeAttribute()
     {
         return $this->date_of_birth ? $this->date_of_birth->age : null;
+    }
+
+    public function getPhotoUrlAttribute()
+    {
+        return $this->photo ? asset('storage/' . $this->photo) : asset('images/default-avatar.png');
     }
 
     // Scopes

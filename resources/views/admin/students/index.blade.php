@@ -92,6 +92,7 @@
                                         @if($canBulkDeleteStudents)
                                         <th><input type="checkbox" id="selectAllStudents"></th>
                                         @endif
+                                        <th>Photo</th>
                                         <th>Roll No</th>
                                         <th>Name</th>
                                         <th>Admission No</th>
@@ -111,6 +112,10 @@
                                         @elseif($canBulkDeleteStudents)
                                         <td></td>
                                         @endif
+                                        <td>
+                                            <img src="{{ $student->photo_url }}" alt="{{ $student->name }}"
+                                                 class="rounded-circle" width="40" height="40" style="object-fit: cover;">
+                                        </td>
                                         <td>{{ $student->roll_number ?: 'N/A' }}</td>
                                         <td>{{ $student->name }}</td>
                                         <td>{{ $student->admission_no ?: 'N/A' }}</td>
@@ -129,6 +134,14 @@
                                                 <i class="fas fa-edit"></i> Edit
                                             </a>
                                             @endcan
+                                            @if(\App\Helpers\FieldPermissionHelper::canEditField('student', 'photo'))
+                                            <button type="button" class="btn btn-sm btn-outline-secondary"
+                                                    data-bs-toggle="modal" data-bs-target="#changeStudentPhotoModal"
+                                                    data-photo-action="{{ route('students.photo.update', $student->id) }}"
+                                                    data-photo-name="{{ $student->name }}">
+                                                <i class="fas fa-camera"></i> Photo
+                                            </button>
+                                            @endif
                                             @can('delete', $student)
                                             <form action="{{ route('admin.students.destroy', $student->id) }}"
                                                   method="POST" style="display: inline;">
@@ -145,7 +158,7 @@
                                     </tr>
                                     @empty
                                     <tr>
-                                        <td colspan="9" class="text-center">No students found</td>
+                                        <td colspan="10" class="text-center">No students found</td>
                                     </tr>
                                     @endforelse
                                 </tbody>
@@ -191,6 +204,38 @@
         </div>
     </div>
 </div>
+
+@if(\App\Helpers\FieldPermissionHelper::canEditField('student', 'photo'))
+<div class="modal fade" id="changeStudentPhotoModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form id="changeStudentPhotoForm" method="POST" enctype="multipart/form-data">
+                @csrf
+                <div class="modal-header">
+                    <h5 class="modal-title">Change Photo &mdash; <span id="changeStudentPhotoName"></span></h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <input type="file" name="photo" class="form-control" accept="image/jpeg,image/png,image/gif" required>
+                    <small class="text-muted">JPEG, PNG or GIF, up to 2MB.</small>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Upload</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+document.getElementById('changeStudentPhotoModal').addEventListener('show.bs.modal', function (event) {
+    const button = event.relatedTarget;
+    document.getElementById('changeStudentPhotoForm').action = button.getAttribute('data-photo-action');
+    document.getElementById('changeStudentPhotoName').textContent = button.getAttribute('data-photo-name');
+});
+</script>
+@endif
 
 <script>
 function applyFilters() {

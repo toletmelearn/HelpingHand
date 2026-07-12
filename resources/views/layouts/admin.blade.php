@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <title>@yield('title', 'HelpingHand ERP')</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
 
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css" rel="stylesheet">
@@ -74,11 +75,23 @@
     <div class="container-fluid">
         <span class="navbar-brand">
             @if(Route::has('admin.dashboard'))
-                <a href="{{ route('admin.dashboard') }}" class="text-white text-decoration-none">
-                    <i class="bi bi-mortarboard-fill me-2"></i>HelpingHand ERP
+                <a href="{{ route('admin.dashboard') }}" class="text-white text-decoration-none d-flex align-items-center">
+                    @if($logo = \App\Models\AdminConfiguration::get('general', 'school_logo'))
+                        <img src="{{ asset('storage/' . $logo) }}" alt="Logo" class="me-2 rounded bg-white p-1" style="height: 30px; max-width: 120px; object-fit: contain;">
+                    @else
+                        <i class="bi bi-mortarboard-fill me-2"></i>
+                    @endif
+                    {{ \App\Models\AdminConfiguration::get('general', 'school_name', 'HelpingHand ERP') }}
                 </a>
             @else
-                <i class="bi bi-mortarboard-fill me-2"></i>HelpingHand ERP
+                <span class="d-flex align-items-center">
+                    @if($logo = \App\Models\AdminConfiguration::get('general', 'school_logo'))
+                        <img src="{{ asset('storage/' . $logo) }}" alt="Logo" class="me-2 rounded bg-white p-1" style="height: 30px; max-width: 120px; object-fit: contain;">
+                    @else
+                        <i class="bi bi-mortarboard-fill me-2"></i>
+                    @endif
+                    {{ \App\Models\AdminConfiguration::get('general', 'school_name', 'HelpingHand ERP') }}
+                </span>
             @endif
         </span>
 
@@ -130,9 +143,32 @@
 
 <!-- Main Content Area -->
 <main id="main-content" class="admin-main">
+    @if(session('success'))
+        <div class="alert alert-success alert-dismissible fade show" role="alert">
+            {{ session('success') }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    @endif
+    @if(session('error'))
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            {{ session('error') }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    @endif
+    @if($errors->any())
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            <ul class="mb-0">
+                @foreach($errors->all() as $error)
+                    <li>{{ $error }}</li>
+                @endforeach
+            </ul>
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    @endif
     @yield('content')
 </main>
 
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 @yield('scripts')
 </body>

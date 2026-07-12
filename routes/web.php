@@ -402,6 +402,7 @@ Route::middleware(['auth'])->group(function () {
     
     // Global students routes
     Route::get('students', [App\Http\Controllers\Admin\AdminStudentController::class, 'index'])->name('students.index');
+    Route::post('students/{student}/photo', [App\Http\Controllers\Admin\AdminStudentController::class, 'updatePhoto'])->name('students.photo.update');
     // Phase 3G: legacy student create route redirected to canonical admin student create to avoid route-name/API confusion.
     Route::get('students/create', function () {
         return redirect()->route('admin.students.create');
@@ -439,6 +440,7 @@ Route::middleware(['auth'])->group(function () {
     
     // Teacher Routes
     Route::resource('teachers', TeacherController::class);
+    Route::post('teachers/{teacher}/photo', [TeacherController::class, 'updatePhoto'])->name('teachers.photo.update');
     
     // Bell Timing Routes
     Route::resource('bell-timing', App\Http\Controllers\BellTimingController::class);

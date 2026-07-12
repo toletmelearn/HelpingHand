@@ -224,14 +224,17 @@ class Teacher extends Authenticatable
     // Photo helper method
     public function getPhotoUrlAttribute()
     {
-        if ($this->photo && file_exists(public_path('uploads/teachers/' . $this->photo))) {
-            return asset('uploads/teachers/' . $this->photo);
+        // profile_image is the field actually populated by uploads (see
+        // TeacherController::store/update) -- stored via
+        // Storage::disk('public')->store(...), not public_path('uploads/...').
+        if ($this->profile_image) {
+            return asset('storage/' . $this->profile_image);
         }
-        
-        if ($this->profile_image && file_exists(public_path('uploads/teachers/' . $this->profile_image))) {
-            return asset('uploads/teachers/' . $this->profile_image);
+
+        if ($this->photo) {
+            return asset('storage/' . $this->photo);
         }
-        
+
         // Default avatar
         return asset('images/default-avatar.png');
     }
