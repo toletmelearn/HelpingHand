@@ -563,10 +563,10 @@
                             </a>
                         </li>
                         @endif
-                        @if(Route::has('exams.arrangements.index'))
+                        @if(Route::has('admin.exams.arrangements.index'))
                         <li class="nav-item">
-                            <a class="nav-link text-white {{ request()->routeIs('exams.arrangements.*') ? 'active' : '' }}" 
-                               href="{{ route('exams.arrangements.index') }}">
+                            <a class="nav-link text-white {{ request()->routeIs('admin.exams.arrangements.*') ? 'active' : '' }}"
+                               href="{{ route('admin.exams.arrangements.index') }}">
                                 <i class="bi bi-grid-3x3-gap me-2"></i>
                                 <span>Exam Arrangements</span>
                             </a>

@@ -10,7 +10,7 @@
             <h1 class="h3 mb-0 text-gray-800">🪑 Seating Arrangement</h1>
             <p class="text-muted mb-0">Configure exam rooms and seats for <strong>{{ $exam->name }}</strong> (Class: {{ $exam->class_name }} | Subject: {{ $exam->subject }}).</p>
         </div>
-        <a href="{{ route('exams.arrangements.index') }}" class="btn btn-secondary shadow-sm">
+        <a href="{{ route('admin.exams.arrangements.index') }}" class="btn btn-secondary shadow-sm">
             <i class="bi bi-arrow-left"></i> Back to Arrangements
         </a>
     </div>
@@ -39,7 +39,7 @@
                     </h6>
                 </div>
                 <div class="card-body">
-                    <form action="{{ route('exams.arrangements.seating.generate', $exam->id) }}" method="POST">
+                    <form action="{{ route('admin.exams.arrangements.seating.generate', $exam->id) }}" method="POST">
                         @csrf
                         <div class="mb-3">
                             <label class="form-label">Room Number / Lab Name</label>
@@ -70,7 +70,7 @@
                     </h6>
                 </div>
                 <div class="card-body">
-                    <form action="{{ route('exams.arrangements.seating.save', $exam->id) }}" method="POST">
+                    <form action="{{ route('admin.exams.arrangements.seating.save', $exam->id) }}" method="POST">
                         @csrf
                         <div class="table-responsive" style="max-height: 500px; overflow-y: auto;">
                             <table class="table table-striped table-bordered align-middle">
