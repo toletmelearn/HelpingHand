@@ -135,6 +135,12 @@
                     </p>
                 </td>
                 <td style="width: 30%; text-align: right; vertical-align: middle; border: none;">
+                    @php
+                        $teacherPhoto = $salary->teacher->profile_image && file_exists(public_path('storage/' . $salary->teacher->profile_image))
+                            ? public_path('storage/' . $salary->teacher->profile_image)
+                            : public_path('images/default-avatar.png');
+                    @endphp
+                    <img src="{{ $teacherPhoto }}" alt="Employee Photo" style="width: 50px; height: 50px; object-fit: cover; border: 1px solid #ccc; margin-bottom: 5px;">
                     <h2 style="margin: 0; font-size: 16px; color: #333; font-weight: bold; text-transform: uppercase;">SALARY PAYSLIP</h2>
                 </td>
             </tr>

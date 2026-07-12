@@ -140,7 +140,8 @@
                         <thead class="table-light">
                             <tr>
                                 <th width="5%">#</th>
-                                <th width="25%">Student Name</th>
+                                <th width="5%">Photo</th>
+                                <th width="20%">Student Name</th>
                                 <th width="10%">Roll No</th>
                                 <th width="15%">Present</th>
                                 <th width="15%">Absent</th>
@@ -153,6 +154,10 @@
                             @foreach($students as $index => $student)
                             <tr class="student-row" id="row-{{ $student->id }}">
                                 <td>{{ $index + 1 }}</td>
+                                <td>
+                                    <img src="{{ $student->photo_url }}" alt="{{ $student->name }}"
+                                         class="rounded-circle" width="32" height="32" style="object-fit: cover;">
+                                </td>
                                 <td>
                                     <strong>{{ $student->name }}</strong>
                                     <br><small class="text-muted">{{ $student->father_name }}</small>

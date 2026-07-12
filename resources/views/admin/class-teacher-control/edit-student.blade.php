@@ -14,10 +14,14 @@
                     <span class="badge badge-light">Admission No: {{ $student->admission_no }}</span>
                 </div>
                 <div class="card-body">
+                    <div class="text-center mb-3">
+                        <img src="{{ $student->photo_url }}" alt="{{ $student->name }}"
+                             class="rounded-circle" width="90" height="90" style="object-fit: cover;">
+                    </div>
                     <form action="{{ route('admin.class-teacher-control.update-student', $student->id) }}" method="POST">
                         @csrf
                         @method('PUT')
-                        
+
                         <div class="row">
                             <div class="col-md-6">
                                 <div class="form-group mb-3">

@@ -17,6 +17,10 @@
                     <div class="row">
                         <div class="col-md-6">
                             <h5>Student Details</h5>
+                            <div class="text-center mb-3">
+                                <img src="{{ $student->photo_url }}" alt="{{ $student->name }}"
+                                     class="rounded-circle" width="100" height="100" style="object-fit: cover;">
+                            </div>
                             <table class="table table-bordered">
                                 <tr>
                                     <td><strong>ID:</strong></td>

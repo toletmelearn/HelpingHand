@@ -1,4 +1,4 @@
-﻿@extends('layouts.admin')
+@extends('layouts.admin')
 
 @section('title', 'Preview Admit Card')
 
@@ -20,8 +20,17 @@
                         </div>
 
                         <!-- Main Content -->
+                        @php
+                            $seating = \App\Models\ExamSeatingArrangement::where('exam_id', $admitCard->exam_id)
+                                ->where('student_id', $admitCard->student_id)
+                                ->first();
+                        @endphp
                         <div class="row">
-                            <div class="col-md-6">
+                            <div class="col-md-2 text-center">
+                                <img src="{{ $admitCard->student->photo_url ?? asset('images/default-avatar.png') }}" alt="Student Photo"
+                                     class="img-thumbnail" style="width: 90px; height: 100px; object-fit: cover;">
+                            </div>
+                            <div class="col-md-4">
                                 <p><strong>Student Name:</strong> {{ $admitCard->data['student_name'] ?? 'N/A' }}</p>
                                 <p><strong>Roll Number:</strong> {{ $admitCard->data['roll_number'] ?? 'N/A' }}</p>
                                 <p><strong>Class:</strong> {{ $admitCard->data['class_name'] ?? 'N/A' }}</p>
@@ -32,6 +41,8 @@
                                 <p><strong>Exam Name:</strong> {{ $admitCard->data['exam_name'] ?? 'N/A' }}</p>
                                 <p><strong>Exam Date:</strong> {{ $admitCard->data['exam_date'] ?? 'N/A' }}</p>
                                 <p><strong>Exam Time:</strong> {{ $admitCard->data['exam_time'] ?? 'N/A' }}</p>
+                                <p><strong>Exam Room:</strong> <span class="badge bg-primary">{{ $seating->room_number ?? 'Not Assigned' }}</span></p>
+                                <p><strong>Seat Number:</strong> <span class="badge bg-info text-white">{{ $seating->seat_number ?? 'Not Assigned' }}</span></p>
                             </div>
                         </div>
 

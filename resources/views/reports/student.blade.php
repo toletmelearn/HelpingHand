@@ -38,6 +38,12 @@
 <body>
     <div class="header">
         <h1>Student Report</h1>
+        @php
+            $studentPhoto = $student->photo && file_exists(public_path('storage/' . $student->photo))
+                ? public_path('storage/' . $student->photo)
+                : public_path('images/default-avatar.png');
+        @endphp
+        <img src="{{ $studentPhoto }}" alt="Student Photo" style="width: 80px; height: 90px; object-fit: cover; border: 1px solid #ccc;">
         <h2>{{ $student->name }}</h2>
     </div>
 

@@ -26,6 +26,7 @@
                                 <thead>
                                     <tr>
                                         <th>Student ID</th>
+                                        <th>Photo</th>
                                         <th>Student Name</th>
                                         <th>Roll Number</th>
                                         <th>Marks Obtained (Max: {{ $exam->total_marks }})</th>
@@ -36,6 +37,10 @@
                                     @forelse($students as $student)
                                     <tr>
                                         <td>{{ $student->id }}</td>
+                                        <td>
+                                            <img src="{{ $student->photo_url }}" alt="{{ $student->name }}"
+                                                 class="rounded-circle" width="32" height="32" style="object-fit: cover;">
+                                        </td>
                                         <td>{{ $student->name }}</td>
                                         <td>{{ $student->roll_number ?? 'N/A' }}</td>
                                         <td>
@@ -59,7 +64,7 @@
                                     </tr>
                                     @empty
                                     <tr>
-                                        <td colspan="5" class="text-center">No students found for this class.</td>
+                                        <td colspan="6" class="text-center">No students found for this class.</td>
                                     </tr>
                                     @endforelse
                                 </tbody>

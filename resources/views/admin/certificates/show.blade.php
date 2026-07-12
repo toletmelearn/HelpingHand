@@ -37,6 +37,12 @@
                     </div>
                 </div>
                 <div class="card-body">
+                    @if($certificate->recipient && method_exists($certificate->recipient, 'getPhotoUrlAttribute'))
+                    <div class="text-center mb-3">
+                        <img src="{{ $certificate->recipient->photo_url }}" alt="{{ $certificate->recipient->name }}"
+                             class="rounded-circle" width="90" height="90" style="object-fit: cover;">
+                    </div>
+                    @endif
                     <div class="row">
                         <div class="col-md-6">
                             <table class="table table-borderless">

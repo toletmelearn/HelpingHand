@@ -62,6 +62,12 @@
     </div>
 
     <div class="content">
+        @php
+            $studentPhoto = $admitCard->student && $admitCard->student->photo && file_exists(public_path('storage/' . $admitCard->student->photo))
+                ? public_path('storage/' . $admitCard->student->photo)
+                : public_path('images/default-avatar.png');
+        @endphp
+        <img src="{{ $studentPhoto }}" alt="Student Photo" style="width: 80px; height: 90px; object-fit: cover; float: right; border: 1px solid #333; margin-left: 10px;">
         <div class="info-row">
             <div class="info-col">
                 <div class="info-item"><strong>Student Name:</strong> {{ $admitCard->data['student_name'] ?? 'N/A' }}</div>
@@ -74,6 +80,13 @@
                 <div class="info-item"><strong>Exam Name:</strong> {{ $admitCard->data['exam_name'] ?? 'N/A' }}</div>
                 <div class="info-item"><strong>Exam Date:</strong> {{ $admitCard->data['exam_date'] ?? 'N/A' }}</div>
                 <div class="info-item"><strong>Exam Time:</strong> {{ $admitCard->data['exam_time'] ?? 'N/A' }}</div>
+                @php
+                    $seating = \App\Models\ExamSeatingArrangement::where('exam_id', $admitCard->exam_id)
+                        ->where('student_id', $admitCard->student_id)
+                        ->first();
+                @endphp
+                <div class="info-item"><strong>Exam Room:</strong> {{ $seating->room_number ?? 'Not Assigned' }}</div>
+                <div class="info-item"><strong>Seat Number:</strong> {{ $seating->seat_number ?? 'Not Assigned' }}</div>
             </div>
         </div>
 
