@@ -485,10 +485,21 @@ class LedgerService
         return DB::transaction(function () use ($studentId, $amount, $paymentMode, $meta) {
             $collectorId = $meta['collected_by'] ?? (\App\Models\User::first()->id ?? 1);
 
+            // fee_collections.fee_structure_id is NOT NULL. Every caller
+            // this method originally had (ParentPaymentController::callbackSuccess())
+            // always had a specific fee_structure_id from the request. A
+            // UPI bank-transfer payment doesn't necessarily map to one --
+            // it settles whatever dues are outstanding, possibly spanning
+            // more than one structure -- so fall back to the student's
+            // most recent assignment rather than requiring every caller to
+            // resolve one themselves.
+            $feeStructureId = $meta['fee_structure_id']
+                ?? \App\Models\StudentFeeAssignment::where('student_id', $studentId)->latest('id')->value('fee_structure_id');
+
             $collection = \App\Models\FeeCollection::create([
                 'receipt_no' => $meta['receipt_no'] ?? \App\Services\FeeReceiptNumberService::generateNextReceiptNumber(),
                 'student_id' => $studentId,
-                'fee_structure_id' => $meta['fee_structure_id'] ?? null,
+                'fee_structure_id' => $feeStructureId,
                 'total_amount' => $amount,
                 'discount' => 0,
                 'late_fine' => 0,
