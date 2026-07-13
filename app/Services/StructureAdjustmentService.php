@@ -38,6 +38,13 @@ class StructureAdjustmentService
     public function withdrawStudent(Student $student, string $withdrawalDate): void
     {
         DB::transaction(function () use ($student, $withdrawalDate) {
+            // Compute advance-rebate clawback BEFORE pruning future debits --
+            // it needs to sum the still-unbilled portion those debits
+            // represent, which the delete below would otherwise wipe out.
+            $clawbackResults = Schema::hasTable('student_advance_rebates')
+                ? \App\Services\AdvanceRebateService::computeClawback($student, $withdrawalDate)
+                : [];
+
             // Find and delete future-dated debits that are unpaid
             // Since credits are matched using FIFO and not linked directly, any debit after withdrawal date can be dropped.
             StudentFeeLedger::where('student_id', $student->id)
@@ -64,13 +71,61 @@ class StructureAdjustmentService
                     ->orderBy('id')
                     ->get();
 
+                // Pass 1: outstanding dues first (unchanged priority) --
+                // tracked per-deposit but not yet persisted, since pass 2
+                // below may further reduce what's left.
+                $depositRemaining = [];
                 foreach ($heldDeposits as $deposit) {
-                    $deducted = min((float) $deposit->amount, $remainingOutstanding);
+                    $available = (float) $deposit->amount;
+                    $deducted = min($available, $remainingOutstanding);
                     $remainingOutstanding -= $deducted;
+                    $depositRemaining[$deposit->id] = round($available - $deducted, 2);
+                }
 
+                // Pass 2: advance-rebate clawback, per rule/snapshot, drawn
+                // from whatever's left in the deposit pool after dues. Any
+                // uncovered remainder becomes a new outstanding due.
+                foreach ($clawbackResults as $result) {
+                    $snapshot = $result['snapshot'];
+                    $clawbackNeeded = $result['clawback_amount'];
+
+                    foreach ($heldDeposits as $deposit) {
+                        if ($clawbackNeeded <= 0) {
+                            break;
+                        }
+                        $available = $depositRemaining[$deposit->id];
+                        if ($available <= 0) {
+                            continue;
+                        }
+                        $deducted = min($available, $clawbackNeeded);
+                        $depositRemaining[$deposit->id] -= $deducted;
+                        $clawbackNeeded -= $deducted;
+                    }
+
+                    $shortfall = round($clawbackNeeded, 2);
+                    $snapshot->update([
+                        'status' => 'clawed_back',
+                        'clawback_amount' => $result['clawback_amount'],
+                        'clawback_shortfall_amount' => $shortfall,
+                        'clawed_back_at' => now(),
+                    ]);
+
+                    if ($shortfall > 0.00) {
+                        \App\Services\LedgerService::postDebit(
+                            $student->id,
+                            $withdrawalDate,
+                            "Advance Rebate Clawback (unbilled months, Rule: {$snapshot->rule?->name})",
+                            'advance_rebate_clawback',
+                            $snapshot->id,
+                            $shortfall
+                        );
+                    }
+                }
+
+                foreach ($heldDeposits as $deposit) {
                     $deposit->update([
                         'status' => 'refund_pending',
-                        'refund_amount' => round((float) $deposit->amount - $deducted, 2),
+                        'refund_amount' => $depositRemaining[$deposit->id],
                     ]);
                 }
             }

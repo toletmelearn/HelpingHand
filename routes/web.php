@@ -638,9 +638,13 @@ Route::middleware(['auth'])->group(function () {
 
         // Discount rule CRUD -- admin-exclusive (financial policy), unlike
         // the day-to-day family-link confirmation queue above which stays
-        // role:accountant.
+        // role:accountant. Advance-rebate rule CRUD + manual override are
+        // the same tier for the same reason.
         Route::middleware(['role:admin'])->group(function () {
             Route::resource('discount-rules', App\Http\Controllers\Admin\DiscountRuleController::class)->except(['show']);
+
+            Route::resource('advance-rebate-rules', App\Http\Controllers\Admin\AdvanceRebateRuleController::class)->except(['show']);
+            Route::post('students/{student}/advance-rebate-override', [App\Http\Controllers\Admin\AdvanceRebateRuleController::class, 'manualOverride'])->name('advance-rebate-rules.manual-override');
         });
 
         // Payment Settings Routes

@@ -105,6 +105,12 @@ class FeeCollection extends Model
                     $collection->discount
                 );
             }
+
+            try {
+                \App\Services\AdvanceRebateService::evaluateAndApply($collection);
+            } catch (\Exception $e) {
+                // Silence early DB setup errors, same as the discount block above.
+            }
         });
 
         static::deleted(function ($collection) {
