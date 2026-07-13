@@ -1650,6 +1650,7 @@ Route::middleware(['parent.auth'])->group(function () {
     Route::get('/parent/payments/stripe-success', [\App\Http\Controllers\Parent\ParentPaymentController::class, 'callbackSuccess'])->name('parent.payments.stripe-success');
     Route::get('/parent/payments/upi-qr', [\App\Http\Controllers\Parent\ParentPaymentController::class, 'generateUpiQr'])->name('parent.payments.upi-qr');
     Route::post('/parent/payments/submit-claim', [\App\Http\Controllers\Parent\ParentPaymentController::class, 'submitClaim'])->name('parent.payments.submit-claim');
+    Route::post('/parent/payments/submit-cash-deposit-claim', [\App\Http\Controllers\Parent\ParentPaymentController::class, 'submitCashDepositClaim'])->name('parent.payments.submit-cash-deposit-claim');
 });
 
 Route::middleware(['auth'])->group(function () {

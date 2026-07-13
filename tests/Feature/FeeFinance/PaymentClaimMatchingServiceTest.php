@@ -185,4 +185,99 @@ class PaymentClaimMatchingServiceTest extends TestCase
         $this->assertEquals(1, $stats['unmatched']);
         $this->assertEquals('unmatched', $row->fresh()->status);
     }
+
+    private function makeCashDepositClaim(Student $student, float $amount, string $branch, string $depositDate): PaymentClaim
+    {
+        return PaymentClaim::create([
+            'student_id' => $student->id,
+            'claim_type' => 'bank_cash_deposit',
+            'reference_token' => 'PC-CASH-' . $student->id,
+            'utr' => null,
+            'deposit_date' => $depositDate,
+            'branch' => $branch,
+            'amount' => $amount,
+            'status' => 'claimed',
+            'submitted_at' => now(),
+        ]);
+    }
+
+    public function test_cash_deposit_branch_and_date_match_is_suggested_not_auto_confirmed()
+    {
+        $student = $this->makeStudent('ADM-2026-8004');
+        $claim = $this->makeCashDepositClaim($student, 1800.00, 'MG Road Branch', '2026-04-10');
+
+        $session = $this->makeSession();
+        $row = BankStatementRow::create([
+            'import_session_id' => $session->id,
+            'transaction_date' => '2026-04-11', // 1 day after, same working week
+            'amount' => 1800.00,
+            'utr' => null,
+            'narration' => 'CASH DEPOSIT MG ROAD',
+            'branch' => 'MG Road Branch',
+            'status' => 'unmatched',
+        ]);
+
+        $stats = PaymentClaimMatchingService::run($session->id);
+
+        $this->assertEquals(1, $stats['cash_deposit']);
+        $this->assertEquals(0, $stats['exact']);
+
+        $claim->refresh();
+        $row->refresh();
+
+        // Never auto-confirmed, even on a clean match -- no UTR proof.
+        $this->assertEquals('claimed', $claim->status);
+        $this->assertEquals('cash_deposit', $claim->match_confidence);
+        $this->assertNull($claim->fee_collection_id);
+        $this->assertEquals('suggested', $row->status);
+        $this->assertEquals($claim->id, $row->payment_claim_id);
+    }
+
+    public function test_cash_deposit_branch_mismatch_does_not_match()
+    {
+        $student = $this->makeStudent('ADM-2026-8005');
+        $this->makeCashDepositClaim($student, 1200.00, 'MG Road Branch', '2026-04-10');
+
+        $session = $this->makeSession();
+        $row = BankStatementRow::create([
+            'import_session_id' => $session->id,
+            'transaction_date' => '2026-04-10',
+            'amount' => 1200.00,
+            'utr' => null,
+            'narration' => 'CASH DEPOSIT',
+            'branch' => 'Station Road Branch',
+            'status' => 'unmatched',
+        ]);
+
+        $stats = PaymentClaimMatchingService::run($session->id);
+
+        $this->assertEquals(0, $stats['cash_deposit']);
+        $this->assertEquals(1, $stats['unmatched']);
+        $this->assertEquals('unmatched', $row->fresh()->status);
+    }
+
+    public function test_cash_deposit_more_than_one_working_day_apart_does_not_match()
+    {
+        $student = $this->makeStudent('ADM-2026-8006');
+        // 2026-04-10 is a Friday; 2026-04-13 (Monday) is 2 working days
+        // later once Sunday 2026-04-12 is excluded from the count.
+        $this->makeCashDepositClaim($student, 900.00, 'MG Road Branch', '2026-04-10');
+
+        $session = $this->makeSession();
+        $row = BankStatementRow::create([
+            'import_session_id' => $session->id,
+            'transaction_date' => '2026-04-13',
+            'amount' => 900.00,
+            'utr' => null,
+            'narration' => 'CASH DEPOSIT',
+            'branch' => 'MG Road Branch',
+            'status' => 'unmatched',
+        ]);
+
+        $stats = PaymentClaimMatchingService::run($session->id);
+
+        $this->assertEquals(0, $stats['cash_deposit']);
+        $this->assertEquals(1, $stats['unmatched']);
+        $this->assertEquals('unmatched', $row->fresh()->status);
+    }
 }

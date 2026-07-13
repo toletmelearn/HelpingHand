@@ -130,6 +130,7 @@ class ParentPaymentController extends Controller
 
         PaymentClaim::create([
             'student_id' => $student->id,
+            'claim_type' => 'upi',
             'reference_token' => $validated['reference_token'],
             'utr' => $validated['utr'],
             'amount' => $validated['amount'],
@@ -140,6 +141,51 @@ class ParentPaymentController extends Controller
 
         return redirect()->route('parent.payments.pay-fees')
             ->with('success', 'Your UTR has been submitted. We will verify and update your dues shortly.');
+    }
+
+    /**
+     * Third payment path alongside counter cash and UPI: a bank cash
+     * deposit slip, no UTR. Matched by the cash-deposit tier
+     * (PaymentClaimMatchingService::tryCashDepositMatch()) on amount +
+     * branch + date -- always suggested, never auto-confirmed, since
+     * there's no UTR to key an exact match on. The slip photo is
+     * *required* here (unlike UPI's optional screenshot) since it's the
+     * only evidence the accountant has to approve against.
+     */
+    public function submitCashDepositClaim(Request $request)
+    {
+        $parent = Auth::guard('parent')->user();
+        $student = $parent->student;
+
+        if (!$student) {
+            abort(404, 'Linked student profile not found.');
+        }
+
+        $validated = $request->validate([
+            'deposit_date' => 'required|date|before_or_equal:today',
+            'branch' => 'required|string|max:100',
+            'amount' => 'required|numeric|min:0.01',
+            'slip' => 'required|file|mimes:jpeg,png,jpg,pdf|max:2048',
+        ]);
+
+        $path = $request->file('slip')->store('payment-claim-slips', 'public');
+        $referenceToken = 'PC-' . $student->id . '-' . now()->format('YmdHis') . '-' . Str::upper(Str::random(4));
+
+        PaymentClaim::create([
+            'student_id' => $student->id,
+            'claim_type' => 'bank_cash_deposit',
+            'reference_token' => $referenceToken,
+            'utr' => null,
+            'deposit_date' => $validated['deposit_date'],
+            'branch' => $validated['branch'],
+            'amount' => $validated['amount'],
+            'screenshot_path' => $path,
+            'status' => 'claimed',
+            'submitted_at' => now(),
+        ]);
+
+        return redirect()->route('parent.payments.pay-fees')
+            ->with('success', 'Your bank deposit slip has been submitted. We will verify and update your dues shortly.');
     }
 
     /**

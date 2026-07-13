@@ -54,7 +54,7 @@
                         <tr>
                             <th>Student</th>
                             <th>Claim Amount</th>
-                            <th>UTR Submitted</th>
+                            <th>UTR / Slip</th>
                             <th>Bank Row</th>
                             <th>Confidence</th>
                             <th class="text-center">Actions</th>
@@ -65,13 +65,31 @@
                             <tr>
                                 <td>{{ $claim->student->name ?? 'N/A' }}</td>
                                 <td>₹{{ number_format($claim->amount, 2) }}</td>
-                                <td>{{ $claim->utr }}</td>
+                                <td>
+                                    @if($claim->claim_type === 'bank_cash_deposit')
+                                        <span class="badge bg-info text-dark mb-1">Bank Cash Deposit</span><br>
+                                        <small class="text-muted">
+                                            Branch: {{ $claim->branch }}<br>
+                                            Deposited: {{ optional($claim->deposit_date)->format('Y-m-d') }}
+                                        </small>
+                                        @if($claim->screenshot_path)
+                                            <br><a href="{{ asset('storage/' . $claim->screenshot_path) }}" target="_blank" class="d-inline-block mt-1">
+                                                <img src="{{ asset('storage/' . $claim->screenshot_path) }}" alt="Deposit slip" style="max-width: 80px; max-height: 80px;" class="border rounded">
+                                            </a>
+                                        @endif
+                                    @else
+                                        {{ $claim->utr }}
+                                    @endif
+                                </td>
                                 <td>
                                     ₹{{ number_format($claim->bankStatementRow->amount ?? 0, 2) }} on
                                     {{ optional($claim->bankStatementRow->transaction_date)->format('Y-m-d') }}
+                                    @if($claim->bankStatementRow->branch ?? null)
+                                        <br><small class="text-muted">Branch: {{ $claim->bankStatementRow->branch }}</small>
+                                    @endif
                                     <br><small class="text-muted">{{ Str::limit($claim->bankStatementRow->narration, 60) }}</small>
                                 </td>
-                                <td><span class="badge bg-{{ $claim->match_confidence === 'narration' ? 'primary' : 'warning' }}">{{ ucfirst($claim->match_confidence) }}</span></td>
+                                <td><span class="badge bg-{{ $claim->match_confidence === 'narration' ? 'primary' : 'warning' }}">{{ ucfirst(str_replace('_', ' ', $claim->match_confidence)) }}</span></td>
                                 <td class="text-center">
                                     <div class="d-flex justify-content-center gap-2">
                                         <form method="POST" action="{{ route('admin.payment-claims.approve', $claim->id) }}">
@@ -111,7 +129,13 @@
                                     <tr>
                                         <td>{{ $claim->student->name ?? 'N/A' }}</td>
                                         <td>₹{{ number_format($claim->amount, 2) }}</td>
-                                        <td>{{ $claim->utr }}</td>
+                                        <td>
+                                            @if($claim->claim_type === 'bank_cash_deposit')
+                                                <span class="badge bg-info text-dark">Cash Deposit</span> {{ $claim->branch }}
+                                            @else
+                                                {{ $claim->utr }}
+                                            @endif
+                                        </td>
                                         <td>
                                             <button type="button" class="btn btn-sm btn-outline-primary"
                                                     data-bs-toggle="modal" data-bs-target="#manualMatchModal"

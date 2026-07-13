@@ -13,14 +13,17 @@ class PaymentClaim extends Model
 
     protected $fillable = [
         'student_id',
+        'claim_type', // upi, bank_cash_deposit
         'reference_token',
         'utr',
+        'deposit_date',
+        'branch',
         'amount',
         'screenshot_path',
         'status', // claimed, matched, rejected, cancelled
         'bank_statement_row_id',
         'fee_collection_id',
-        'match_confidence', // exact, narration, fuzzy
+        'match_confidence', // exact, narration, fuzzy, cash_deposit
         'submitted_at',
         'resolved_by',
         'resolved_at',
@@ -30,6 +33,7 @@ class PaymentClaim extends Model
 
     protected $casts = [
         'amount' => 'decimal:2',
+        'deposit_date' => 'date',
         'submitted_at' => 'datetime',
         'resolved_at' => 'datetime',
     ];

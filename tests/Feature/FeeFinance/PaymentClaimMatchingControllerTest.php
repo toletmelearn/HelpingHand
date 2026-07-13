@@ -236,4 +236,58 @@ class PaymentClaimMatchingControllerTest extends TestCase
         $this->assertEquals('matched', $row->status);
         $this->assertNotNull($claim->fee_collection_id);
     }
+
+    /**
+     * A suggested bank-cash-deposit match (never auto-confirmed, per the
+     * "always suggested" requirement) still goes through the exact same
+     * one-click approve() endpoint as a narration/fuzzy UPI suggestion --
+     * approve()/reject() are claim-type-agnostic by construction, only the
+     * queue view needs to render the slip photo differently.
+     */
+    public function test_accountant_can_approve_a_suggested_cash_deposit_match()
+    {
+        $accountant = $this->makeAccountant();
+        $student = $this->makeStudent();
+        ParentModel::create(['name' => 'P', 'email' => 'cashqueue1@example.com', 'password' => bcrypt('x'), 'student_id' => $student->id]);
+        LedgerService::postDebit($student->id, now()->toDateString(), 'Tuition', 'fee_structure_item', 1, 1750.00);
+
+        $claim = PaymentClaim::create([
+            'student_id' => $student->id,
+            'claim_type' => 'bank_cash_deposit',
+            'reference_token' => 'PC-CASHQ-' . Str::random(6),
+            'utr' => null,
+            'deposit_date' => now()->toDateString(),
+            'branch' => 'MG Road Branch',
+            'amount' => 1750.00,
+            'screenshot_path' => 'payment-claim-slips/fake-slip.jpg',
+            'status' => 'claimed',
+            'match_confidence' => 'cash_deposit',
+            'submitted_at' => now(),
+        ]);
+
+        $session = ImportSession::create(['uuid' => (string) Str::uuid(), 'module' => 'bank_statement', 'status' => 'completed']);
+        $row = BankStatementRow::create([
+            'import_session_id' => $session->id,
+            'transaction_date' => now()->toDateString(),
+            'amount' => 1750.00,
+            'narration' => 'CASH DEPOSIT MG ROAD',
+            'branch' => 'MG Road Branch',
+            'status' => 'suggested',
+            'payment_claim_id' => $claim->id,
+        ]);
+        $claim->update(['bank_statement_row_id' => $row->id]);
+
+        $queueResponse = $this->actingAs($accountant)->get(route('admin.payment-claims.queue'));
+        $queueResponse->assertStatus(200);
+        $queueResponse->assertSee('Bank Cash Deposit');
+        $queueResponse->assertSee('MG Road Branch');
+
+        $response = $this->actingAs($accountant)->post(route('admin.payment-claims.approve', $claim->id));
+
+        $response->assertSessionHas('success');
+        $claim->refresh();
+        $this->assertEquals('matched', $claim->status);
+        $this->assertNotNull($claim->fee_collection_id);
+        $this->assertEquals(0.00, LedgerService::getOutstandingBalance($student->id));
+    }
 }

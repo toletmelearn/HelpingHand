@@ -70,6 +70,43 @@
                 </div>
             </div>
         </div>
+
+        <div class="row justify-content-center mb-4">
+            <div class="col-md-10">
+                <div class="card shadow">
+                    <div class="card-header py-3">
+                        <h6 class="m-0 font-weight-bold text-primary">Paid by Bank Cash Deposit?</h6>
+                    </div>
+                    <div class="card-body">
+                        <p class="text-muted small">If you deposited cash directly at a bank branch (no UTR), submit the slip below. This is manually verified by the accounts office against the bank statement -- it will not auto-confirm.</p>
+                        <form method="POST" action="{{ route('parent.payments.submit-cash-deposit-claim') }}" enctype="multipart/form-data">
+                            @csrf
+                            <div class="row g-3">
+                                <div class="col-md-4">
+                                    <label class="form-label">Deposit Date</label>
+                                    <input type="date" name="deposit_date" class="form-control" max="{{ now()->toDateString() }}" required>
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label">Bank Branch</label>
+                                    <input type="text" name="branch" class="form-control" placeholder="e.g. MG Road Branch" required>
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label">Amount Deposited</label>
+                                    <input type="number" name="amount" class="form-control" step="0.01" min="0.01" required>
+                                </div>
+                                <div class="col-md-8">
+                                    <label class="form-label">Deposit Slip Photo (required)</label>
+                                    <input type="file" name="slip" class="form-control" accept=".jpg,.jpeg,.png,.pdf" required>
+                                </div>
+                                <div class="col-md-4 d-flex align-items-end">
+                                    <button type="submit" class="btn btn-primary w-100">Submit Slip</button>
+                                </div>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
     @endif
 
     <div class="row justify-content-center">

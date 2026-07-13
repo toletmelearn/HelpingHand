@@ -27,6 +27,7 @@ class BankStatementImportDefinition implements ImportDefinitionInterface
             'amount' => 'required|numeric|min:0.01',
             'utr' => 'nullable|string|max:32',
             'narration' => 'nullable|string|max:1000',
+            'branch' => 'nullable|string|max:100',
         ];
     }
 
@@ -47,7 +48,7 @@ class BankStatementImportDefinition implements ImportDefinitionInterface
 
     public function getTemplateHeaders(): array
     {
-        return ['Date', 'Amount', 'UTR', 'Narration'];
+        return ['Date', 'Amount', 'UTR', 'Narration', 'Branch'];
     }
 
     public function executeWrite(array $rowData, ImportSession $session, string $resolutionStrategy): array
@@ -58,6 +59,7 @@ class BankStatementImportDefinition implements ImportDefinitionInterface
             'amount' => $rowData['amount'],
             'utr' => $this->extractUtr($rowData),
             'narration' => $rowData['narration'] ?? null,
+            'branch' => $rowData['branch'] ?? null,
             'status' => 'unmatched',
         ]);
 

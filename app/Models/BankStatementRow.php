@@ -18,6 +18,7 @@ class BankStatementRow extends Model
         'amount',
         'utr',
         'narration',
+        'branch',
         'status', // unmatched, matched, ignored
         'payment_claim_id',
     ];

@@ -38,7 +38,7 @@ class PaymentClaimMatchingService
             ->with('student')
             ->get();
 
-        $stats = ['exact' => 0, 'narration' => 0, 'fuzzy' => 0, 'unmatched' => 0];
+        $stats = ['exact' => 0, 'narration' => 0, 'fuzzy' => 0, 'cash_deposit' => 0, 'unmatched' => 0];
 
         foreach ($rows as $row) {
             $claim = static::tryExactMatch($row, $claims);
@@ -61,6 +61,14 @@ class PaymentClaimMatchingService
             if ($claim) {
                 static::suggestMatch($row, $claim, 'fuzzy');
                 $stats['fuzzy']++;
+                $claims = $claims->reject(fn ($c) => $c->id === $claim->id)->values();
+                continue;
+            }
+
+            $claim = static::tryCashDepositMatch($row, $claims);
+            if ($claim) {
+                static::suggestMatch($row, $claim, 'cash_deposit');
+                $stats['cash_deposit']++;
                 $claims = $claims->reject(fn ($c) => $c->id === $claim->id)->values();
                 continue;
             }
@@ -115,6 +123,57 @@ class PaymentClaimMatchingService
             }
             return abs(Carbon::parse($claim->submitted_at)->diffInDays($row->transaction_date)) <= 3;
         });
+    }
+
+    /**
+     * Cash-deposit tier -- for claim_type='bank_cash_deposit' claims only
+     * (no UTR to key an exact match on). Requires amount + branch match
+     * plus the transaction date within +-1 *working* day of the claimed
+     * deposit_date (Mon-Sat is the working week here; Sunday is excluded
+     * from the +-1 day count). Always goes through suggestMatch() below --
+     * per spec this tier is NEVER auto-confirmed, even on a clean match,
+     * since there's no UTR proof, only the slip photo the accountant
+     * reviews manually.
+     */
+    private static function tryCashDepositMatch(BankStatementRow $row, Collection $claims): ?PaymentClaim
+    {
+        return $claims->first(function (PaymentClaim $claim) use ($row) {
+            if ($claim->claim_type !== 'bank_cash_deposit') {
+                return false;
+            }
+            if (!static::amountsMatch((float) $claim->amount, (float) $row->amount)) {
+                return false;
+            }
+            if (!$claim->branch || !$row->branch || strcasecmp(trim($claim->branch), trim($row->branch)) !== 0) {
+                return false;
+            }
+            if (!$claim->deposit_date) {
+                return false;
+            }
+            return static::withinWorkingDays($claim->deposit_date, $row->transaction_date, 1);
+        });
+    }
+
+    /**
+     * Counts calendar days between two dates but skips Sundays when
+     * measuring the distance, so a Friday deposit matched against a
+     * Monday statement row (1 working day apart, skipping Sunday) still
+     * counts as within range.
+     */
+    private static function withinWorkingDays(Carbon $a, Carbon $b, int $maxWorkingDays): bool
+    {
+        [$start, $end] = $a->lte($b) ? [$a->copy(), $b->copy()] : [$b->copy(), $a->copy()];
+
+        $workingDays = 0;
+        $cursor = $start->copy();
+        while ($cursor->lt($end)) {
+            $cursor->addDay();
+            if (!$cursor->isSunday()) {
+                $workingDays++;
+            }
+        }
+
+        return $workingDays <= $maxWorkingDays;
     }
 
     /**
