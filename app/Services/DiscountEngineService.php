@@ -4,9 +4,11 @@ namespace App\Services;
 
 use App\Models\Student;
 use App\Models\DiscountRule;
+use App\Models\Family;
 use App\Models\Result;
 use App\Models\User;
 use App\Models\FeeType;
+use App\Models\AdminConfiguration;
 
 class DiscountEngineService
 {
@@ -17,11 +19,17 @@ class DiscountEngineService
      * @param string $month
      * @param string $academicYear
      * @param array $feeItems Array of ['fee_type_id' => X, 'amount' => Y]
-     * @param string $conflictStrategy 'highest_priority', 'highest_amount', 'cumulative'
+     * @param string|null $conflictStrategy 'highest_priority', 'highest_amount', 'cumulative', 'capped_cumulative'.
+     *   Null resolves from the per-school 'concession_stacking_policy' AdminConfiguration setting
+     *   (highest_single_wins -> highest_amount, stack_with_cap -> capped_cumulative), default highest_amount.
      * @return array Array of applied discounts: ['rule_id' => X, 'fee_type_id' => Y, 'amount' => Z, 'rule_name' => W]
      */
-    public function calculateDiscounts(Student $student, string $month, string $academicYear, array $feeItems, string $conflictStrategy = 'highest_amount'): array
+    public function calculateDiscounts(Student $student, string $month, string $academicYear, array $feeItems, ?string $conflictStrategy = null): array
     {
+        if ($conflictStrategy === null) {
+            $conflictStrategy = $this->resolveDefaultStrategy();
+        }
+
         try {
             // Check for pre-existing snapshot discounts to guarantee isolation from future state changes
             $snapshots = \App\Models\StudentDiscountApplied::with('discountRule')
@@ -41,7 +49,7 @@ class DiscountEngineService
                         'amount' => floatval($snap->amount),
                     ];
                 }
-                return $this->resolveConflicts($applied, $conflictStrategy);
+                return $this->resolveConflicts($applied, $conflictStrategy, $feeItems);
             }
         } catch (\Exception $e) {
             // Silence early DB or setup exceptions in tests
@@ -71,7 +79,18 @@ class DiscountEngineService
         }
 
         // Apply conflict resolution strategy
-        return $this->resolveConflicts($eligibleDiscounts, $conflictStrategy);
+        return $this->resolveConflicts($eligibleDiscounts, $conflictStrategy, $feeItems);
+    }
+
+    private function resolveDefaultStrategy(): string
+    {
+        try {
+            $policy = AdminConfiguration::get('fee', 'concession_stacking_policy', 'highest_single_wins');
+        } catch (\Exception $e) {
+            $policy = 'highest_single_wins';
+        }
+
+        return $policy === 'stack_with_cap' ? 'capped_cumulative' : 'highest_amount';
     }
 
     /**
@@ -140,6 +159,54 @@ class DiscountEngineService
                 }
                 break;
 
+            case 'family_sibling':
+                // Real family_id-based ranking -- unlike 'sibling' above
+                // (kept as-is for backward compatibility with any live
+                // rule rows), this uses the families table populated only
+                // through explicit admin confirmation, not a father_name+
+                // mobile string match.
+                if (empty($student->family_id)) {
+                    break;
+                }
+
+                $family = Family::find($student->family_id);
+                if (!$family) {
+                    break;
+                }
+
+                $rankBy = $config['rank_by'] ?? 'age'; // 'age' | 'class'
+                $ranked = \App\Services\FamilyDiscountService::rankFamily($family, $rankBy);
+
+                if ($ranked->count() <= 1) {
+                    break; // No (currently enrolled) siblings
+                }
+
+                $studentIndex = $ranked->pluck('id')->search($student->id);
+                if ($studentIndex === false) {
+                    break;
+                }
+
+                if (!empty($config['youngest_child_only'])) {
+                    // Only the last-ranked (youngest/most-junior) sibling
+                    // gets the discount; everyone else pays full price.
+                    if ($studentIndex === $ranked->count() - 1) {
+                        $percentage = $config['percentage'] ?? 0;
+                        if ($percentage > 0) {
+                            $discountAmount = ($baseAmount * $percentage) / 100;
+                        }
+                    }
+                } else {
+                    // Config example: [0, 25, 50] (percentage for 1st, 2nd, 3rd child)
+                    $rates = $config['rates'] ?? [0, 25, 50];
+                    $rateIndex = min($studentIndex, count($rates) - 1);
+                    $percentage = $rates[$rateIndex] ?? 0;
+
+                    if ($percentage > 0) {
+                        $discountAmount = ($baseAmount * $percentage) / 100;
+                    }
+                }
+                break;
+
             case 'staff_child':
                 // Evaluate staff eligibility strictly by checking if student->staff_user_id is set and matches a valid user
                 $isStaffChild = false;
@@ -196,10 +263,13 @@ class DiscountEngineService
 
     /**
      * Resolve conflict between multiple eligible discounts.
+     *
+     * @param array $feeItems Only needed by 'capped_cumulative', to look up
+     *   each fee_type_id's base amount for computing the cap.
      */
-    private function resolveConflicts(array $discounts, string $strategy): array
+    private function resolveConflicts(array $discounts, string $strategy, array $feeItems = []): array
     {
-        if ($strategy === 'cumulative') {
+        if ($strategy === 'cumulative' || $strategy === 'capped_cumulative') {
             // Group by fee_type_id and sum amounts
             $grouped = [];
             foreach ($discounts as $d) {
@@ -214,6 +284,27 @@ class DiscountEngineService
                 }
                 $grouped[$feeTypeId]['amount'] += $d['amount'];
             }
+
+            if ($strategy === 'capped_cumulative') {
+                try {
+                    $capPercent = (float) AdminConfiguration::get('fee', 'concession_stacking_cap_percent', 100);
+                } catch (\Exception $e) {
+                    $capPercent = 100;
+                }
+
+                foreach ($grouped as $feeTypeId => &$group) {
+                    $baseAmount = 0.00;
+                    foreach ($feeItems as $item) {
+                        if ((int) $item['fee_type_id'] === (int) $feeTypeId) {
+                            $baseAmount += floatval($item['amount']);
+                        }
+                    }
+                    $capAmount = $baseAmount * $capPercent / 100;
+                    $group['amount'] = round(min($group['amount'], $capAmount), 2);
+                }
+                unset($group);
+            }
+
             return array_values($grouped);
         }
 

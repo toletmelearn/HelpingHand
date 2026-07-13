@@ -73,14 +73,23 @@ class FeeCollection extends Model
                         );
 
                         foreach ($appliedDiscounts as $d) {
-                            \App\Models\StudentDiscountApplied::create([
+                            $snapshotData = [
                                 'student_id' => $collection->student_id,
                                 'discount_rule_id' => $d['rule_id'],
                                 'fee_type_id' => $d['fee_type_id'],
                                 'amount' => $d['amount'],
                                 'month' => $currentMonthName,
-                                'academic_year' => $feeStructure->academic_year ?? '2026-27'
-                            ]);
+                                'academic_year' => $feeStructure->academic_year ?? '2026-27',
+                            ];
+
+                            // Guard against hand-rolled test schemas that predate
+                            // this column (several FeeFinance tests build their
+                            // own minimal student_discounts_applied table).
+                            if (\Illuminate\Support\Facades\Schema::hasColumn('student_discounts_applied', 'applied_at')) {
+                                $snapshotData['applied_at'] = now();
+                            }
+
+                            \App\Models\StudentDiscountApplied::create($snapshotData);
                         }
                     }
                 } catch (\Exception $e) {

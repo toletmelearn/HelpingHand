@@ -218,12 +218,18 @@ class StudentImportDefinition implements ImportDefinitionInterface
             }
         }
 
-        // 4. Handle sibling check / parent mapping
+        // 4. Handle sibling check / parent mapping. sibling_admission_no is
+        // an explicit admin-provided link (not a heuristic guess), so it
+        // also copies family_id directly -- bulk import bypasses the
+        // family_link_suggestions confirmation queue since the admin has
+        // already effectively confirmed the link by entering it.
         $parentId = null;
+        $familyId = null;
         if (isset($rowData['sibling_admission_no']) && !empty($rowData['sibling_admission_no'])) {
             $sibling = Student::where('admission_no', $rowData['sibling_admission_no'])->first();
             if ($sibling) {
                 $parentId = $sibling->parent_id;
+                $familyId = $sibling->family_id;
             }
         }
 
@@ -246,6 +252,9 @@ class StudentImportDefinition implements ImportDefinitionInterface
 
         if ($parentId) {
             $studentData['parent_id'] = $parentId;
+        }
+        if ($familyId) {
+            $studentData['family_id'] = $familyId;
         }
 
         // Generate auto admission number if missing

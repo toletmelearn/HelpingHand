@@ -521,6 +521,14 @@ Route::middleware(['auth'])->group(function () {
             Route::put('fee-types/{feeType}/activate', [App\Http\Controllers\Admin\FeeTypeController::class, 'activate'])->name('fee-types.activate');
             Route::put('fee-types/{feeType}/deactivate', [App\Http\Controllers\Admin\FeeTypeController::class, 'deactivate'])->name('fee-types.deactivate');
 
+            // Family entity + sibling-discount link confirmation
+            Route::resource('families', App\Http\Controllers\Admin\FamilyController::class)->only(['index', 'show']);
+            Route::prefix('family-link-suggestions')->name('family-link-suggestions.')->group(function () {
+                Route::get('/', [App\Http\Controllers\Admin\FamilyLinkSuggestionController::class, 'index'])->name('index');
+                Route::post('/{id}/confirm', [App\Http\Controllers\Admin\FamilyLinkSuggestionController::class, 'confirm'])->name('confirm');
+                Route::post('/{id}/dismiss', [App\Http\Controllers\Admin\FamilyLinkSuggestionController::class, 'dismiss'])->name('dismiss');
+            });
+
             // Fee Demand Register Routes
             Route::get('fees/demand-register', [App\Http\Controllers\Admin\FeeCollectionController::class, 'demandRegister'])->name('fees.demand-register');
             Route::get('fees/demand-register/export', [App\Http\Controllers\Admin\FeeCollectionController::class, 'exportDemandRegister'])->name('fees.demand-register.export');
@@ -626,6 +634,13 @@ Route::middleware(['auth'])->group(function () {
                 Route::post('/{claimId}/approve', [App\Http\Controllers\Admin\PaymentClaimMatchingController::class, 'approve'])->name('approve');
                 Route::post('/{id}/reject', [App\Http\Controllers\Admin\PaymentClaimMatchingController::class, 'reject'])->name('reject');
             });
+        });
+
+        // Discount rule CRUD -- admin-exclusive (financial policy), unlike
+        // the day-to-day family-link confirmation queue above which stays
+        // role:accountant.
+        Route::middleware(['role:admin'])->group(function () {
+            Route::resource('discount-rules', App\Http\Controllers\Admin\DiscountRuleController::class)->except(['show']);
         });
 
         // Payment Settings Routes

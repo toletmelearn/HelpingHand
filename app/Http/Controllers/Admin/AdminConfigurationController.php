@@ -51,6 +51,8 @@ class AdminConfigurationController extends Controller
                 'bank_name' => ['label' => 'Bank Name & Branch', 'type' => 'string', 'default' => ''],
                 'fine_on_unpaid_balance' => ['label' => 'Apply Late Fine to Partially-Unpaid Balances', 'type' => 'boolean', 'default' => false],
                 'minimum_payment_amount' => ['label' => 'Minimum Payment Amount (blank = no minimum)', 'type' => 'string', 'default' => ''],
+                'concession_stacking_policy' => ['label' => 'Concession Stacking Policy (highest_single_wins or stack_with_cap)', 'type' => 'string', 'default' => 'highest_single_wins'],
+                'concession_stacking_cap_percent' => ['label' => 'Stacking Cap (% of fee head, used only when stack_with_cap)', 'type' => 'string', 'default' => '100'],
             ]
         ],
         'exam' => [

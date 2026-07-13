@@ -137,6 +137,37 @@ class Student extends Authenticatable
                     'ip_address' => request()->ip()
                 ]);
             }
+
+            // Sibling detection by phone -- deliberately does NOT set
+            // family_id directly (unlike the parent_id dedup above, which
+            // is a safe merge). A shared phone number could be
+            // coincidental (e.g. reused mobile) or a genuine sibling, so
+            // this only queues a suggestion for an admin to confirm or
+            // dismiss (family_link_suggestions), same reasoning as why
+            // sibling matching needs "admin confirmation" per spec.
+            if (\Illuminate\Support\Facades\Schema::hasTable('family_link_suggestions') && empty($student->family_id)) {
+                $alreadySuggested = \App\Models\FamilyLinkSuggestion::where('student_id', $student->id)->exists();
+
+                if (!$alreadySuggested && !empty($phoneLookup)) {
+                    $candidate = \App\Models\Student::where('id', '!=', $student->id)
+                        ->whereNull('deleted_at')
+                        ->where(function ($q) use ($phoneLookup) {
+                            $q->where('mobile', $phoneLookup)->orWhere('phone', $phoneLookup);
+                        })
+                        ->first();
+
+                    if ($candidate) {
+                        \App\Models\FamilyLinkSuggestion::create([
+                            'student_id' => $student->id,
+                            'matched_family_id' => $candidate->family_id,
+                            'candidate_student_id' => $candidate->family_id ? null : $candidate->id,
+                            'match_basis' => 'mobile',
+                            'matched_value' => $phoneLookup,
+                            'status' => 'pending',
+                        ]);
+                    }
+                }
+            }
         });
 
         static::deleted(function ($student) {
@@ -151,7 +182,7 @@ class Student extends Authenticatable
         'name', 'father_name', 'mother_name', 'date_of_birth', 'aadhar_number',
         'admission_no', 'admission_session_id', 'phone', 'mobile', 'gender', 'category', 'class', 'section', 'roll_number',
         'religion', 'caste', 'blood_group', 'address', 'user_id', 'is_verified',
-        'guardian_name', 'class_id', 'section_id', 'photo'
+        'guardian_name', 'class_id', 'section_id', 'photo', 'family_id'
     ];
     
     protected $casts = [
@@ -313,6 +344,11 @@ class Student extends Authenticatable
     public function parent()
     {
         return $this->belongsTo(ParentModel::class, 'parent_id');
+    }
+
+    public function family()
+    {
+        return $this->belongsTo(Family::class, 'family_id');
     }
 
     public function transportAssignment()
