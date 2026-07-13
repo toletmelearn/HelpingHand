@@ -49,6 +49,8 @@ class AdminConfigurationController extends Controller
                 'bank_account_number' => ['label' => 'Bank Account Number', 'type' => 'string', 'default' => ''],
                 'bank_ifsc' => ['label' => 'Bank IFSC Code', 'type' => 'string', 'default' => ''],
                 'bank_name' => ['label' => 'Bank Name & Branch', 'type' => 'string', 'default' => ''],
+                'fine_on_unpaid_balance' => ['label' => 'Apply Late Fine to Partially-Unpaid Balances', 'type' => 'boolean', 'default' => false],
+                'minimum_payment_amount' => ['label' => 'Minimum Payment Amount (blank = no minimum)', 'type' => 'string', 'default' => ''],
             ]
         ],
         'exam' => [

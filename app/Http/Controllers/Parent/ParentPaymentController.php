@@ -56,12 +56,16 @@ class ParentPaymentController extends Controller
             ? PaymentClaim::where('student_id', $student->id)->where('status', 'claimed')->latest()->get()
             : collect();
 
-        return view('parent.payments.pay-fees', compact('pendingFees', 'student', 'pendingClaims'));
+        $minimumPaymentAmount = $this->minimumPaymentAmount();
+
+        return view('parent.payments.pay-fees', compact('pendingFees', 'student', 'pendingClaims', 'minimumPaymentAmount'));
     }
 
     /**
-     * Per-student dynamic UPI QR -- am= is the student's live outstanding
-     * balance, tr= is a fresh reference token that becomes the
+     * Per-student dynamic UPI QR -- am= defaults to the student's live
+     * outstanding balance, but the parent can request a smaller partial
+     * amount (validated against the balance and, if configured, a
+     * per-school minimum). tr= is a fresh reference token that becomes the
      * payment_claims.reference_token once the parent submits their UTR.
      * No settlement happens here; this only generates a link to scan.
      */
@@ -79,6 +83,24 @@ class ParentPaymentController extends Controller
             return response()->json(['status' => false, 'message' => 'No outstanding balance to pay.'], 422);
         }
 
+        $request->validate([
+            'amount' => 'nullable|numeric|min:0.01',
+        ]);
+
+        $amount = $request->filled('amount') ? (float) $request->input('amount') : $balance;
+
+        if ($amount > $balance) {
+            return response()->json(['status' => false, 'message' => 'Amount cannot exceed the outstanding balance.'], 422);
+        }
+
+        $minimum = $this->minimumPaymentAmount();
+        if ($minimum !== null && $amount < $minimum && $amount < $balance) {
+            // The minimum only constrains a *partial* payment -- clearing
+            // the full remaining balance (even if it's below the minimum)
+            // must always be allowed.
+            return response()->json(['status' => false, 'message' => "Minimum payment amount is ₹" . number_format($minimum, 2) . "."], 422);
+        }
+
         $vpa = AdminConfiguration::get('fee', 'upi_vpa', '');
         if (!$vpa) {
             return response()->json(['status' => false, 'message' => 'Online UPI payment is not configured yet. Please contact the school office.'], 422);
@@ -91,15 +113,27 @@ class ParentPaymentController extends Controller
         $period = now()->format('My');
         $transactionNote = sprintf('%s-%s-%s-%s', $student->admission_no ?? $student->id, $student->name, $className, $period);
 
-        $result = UpiQrService::generate($vpa, $schoolName, $balance, $transactionNote, $referenceToken);
+        $result = UpiQrService::generate($vpa, $schoolName, $amount, $transactionNote, $referenceToken);
 
         return response()->json([
             'status' => true,
             'qr_code' => $result['qr_code'],
             'upi_uri' => $result['upi_uri'],
             'reference_token' => $referenceToken,
-            'amount' => $balance,
+            'amount' => $amount,
         ]);
+    }
+
+    /**
+     * Null means "no minimum configured" -- distinct from a configured
+     * value of 0, and from an empty-string default when the setting has
+     * never been saved.
+     */
+    private function minimumPaymentAmount(): ?float
+    {
+        $value = AdminConfiguration::get('fee', 'minimum_payment_amount', null);
+
+        return ($value !== null && $value !== '') ? (float) $value : null;
     }
 
     /**
@@ -122,6 +156,14 @@ class ParentPaymentController extends Controller
             'amount' => 'required|numeric|min:0.01',
             'screenshot' => 'nullable|file|mimes:jpeg,png,jpg,pdf|max:2048',
         ]);
+
+        $minimum = $this->minimumPaymentAmount();
+        $balance = LedgerService::getOutstandingBalance($student->id);
+        if ($minimum !== null && $validated['amount'] < $minimum && $validated['amount'] < $balance) {
+            return redirect()->back()
+                ->withErrors(['amount' => "Minimum payment amount is ₹" . number_format($minimum, 2) . "."])
+                ->withInput();
+        }
 
         $path = null;
         if ($request->hasFile('screenshot')) {

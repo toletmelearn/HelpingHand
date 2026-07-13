@@ -40,14 +40,22 @@
                                 <i class="fab fa-google-pay me-1"></i> Show UPI QR
                             </button>
                         </div>
+                        @if($minimumPaymentAmount)
+                            <p class="text-muted small mb-2">Minimum payment amount: ₹{{ number_format($minimumPaymentAmount, 2) }} (unless you're clearing the full remaining balance).</p>
+                        @endif
                         <div id="upiQrArea" class="d-none">
                             <div class="row">
                                 <div class="col-md-4 text-center mb-3">
                                     <img id="upiQrImage" src="" alt="UPI QR Code" style="width: 200px; height: 200px;">
-                                    <p class="text-muted small mt-2">Amount: ₹<span id="upiQrAmount"></span></p>
+                                    <div class="mt-2">
+                                        <label class="form-label small">Amount to Pay</label>
+                                        <input type="number" id="upiQrAmountInput" class="form-control form-control-sm text-center" step="0.01" min="0.01">
+                                        <small class="text-muted d-block mt-1">Full balance: ₹<span id="upiQrFullBalance"></span></small>
+                                    </div>
                                 </div>
                                 <div class="col-md-8">
                                     <p class="text-muted small">After paying, enter the 12-digit UTR / transaction reference number from your banking app below.</p>
+                                    <div id="upiAmountError" class="alert alert-warning d-none py-1 px-2 small"></div>
                                     <form id="submitClaimForm" method="POST" action="{{ route('parent.payments.submit-claim') }}" enctype="multipart/form-data">
                                         @csrf
                                         <input type="hidden" name="reference_token" id="claimReferenceToken">
@@ -156,27 +164,57 @@
 
 @if(count($pendingFees) > 0)
 <script>
+let upiFullBalance = null;
+
+function fetchUpiQr(amount) {
+    const errorBox = document.getElementById('upiQrError');
+    const amountError = document.getElementById('upiAmountError');
+    amountError.classList.add('d-none');
+
+    const url = new URL('{{ route('parent.payments.upi-qr') }}', window.location.origin);
+    if (amount) {
+        url.searchParams.set('amount', amount);
+    }
+
+    return fetch(url)
+        .then(response => response.json())
+        .then(data => {
+            if (!data.status) {
+                if (amount) {
+                    amountError.textContent = data.message;
+                    amountError.classList.remove('d-none');
+                } else {
+                    errorBox.textContent = data.message;
+                    errorBox.classList.remove('d-none');
+                }
+                return null;
+            }
+
+            document.getElementById('upiQrImage').src = 'data:image/svg+xml;base64,' + data.qr_code;
+            document.getElementById('claimReferenceToken').value = data.reference_token;
+            document.getElementById('claimAmount').value = data.amount;
+            const amountInput = document.getElementById('upiQrAmountInput');
+            amountInput.value = Number(data.amount).toFixed(2);
+            if (upiFullBalance === null) {
+                upiFullBalance = data.amount;
+                document.getElementById('upiQrFullBalance').textContent = Number(data.amount).toFixed(2);
+            }
+            return data;
+        });
+}
+
 document.getElementById('showUpiQrBtn')?.addEventListener('click', function () {
     const btn = this;
     btn.disabled = true;
     btn.textContent = 'Loading...';
 
-    fetch('{{ route('parent.payments.upi-qr') }}')
-        .then(response => response.json())
+    fetchUpiQr(null)
         .then(data => {
-            const errorBox = document.getElementById('upiQrError');
-            if (!data.status) {
-                errorBox.textContent = data.message;
-                errorBox.classList.remove('d-none');
+            if (!data) {
                 btn.disabled = false;
                 btn.textContent = 'Show UPI QR';
                 return;
             }
-
-            document.getElementById('upiQrImage').src = 'data:image/svg+xml;base64,' + data.qr_code;
-            document.getElementById('upiQrAmount').textContent = Number(data.amount).toFixed(2);
-            document.getElementById('claimReferenceToken').value = data.reference_token;
-            document.getElementById('claimAmount').value = data.amount;
             document.getElementById('upiQrLoading').classList.add('d-none');
             document.getElementById('upiQrArea').classList.remove('d-none');
         })
@@ -187,6 +225,17 @@ document.getElementById('showUpiQrBtn')?.addEventListener('click', function () {
             btn.disabled = false;
             btn.textContent = 'Show UPI QR';
         });
+});
+
+let amountDebounce = null;
+document.getElementById('upiQrAmountInput')?.addEventListener('input', function () {
+    const value = this.value;
+    clearTimeout(amountDebounce);
+    amountDebounce = setTimeout(() => {
+        if (value && Number(value) > 0) {
+            fetchUpiQr(value).catch(() => {});
+        }
+    }, 500);
 });
 </script>
 @endif
