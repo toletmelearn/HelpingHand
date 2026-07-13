@@ -260,12 +260,20 @@ class UniversalImportController extends Controller
                 $request->input('session_uuid'),
                 $request->input('resolution_strategy')
             );
+
+            $matchStats = null;
+            if ($module === 'bank_statement' && ($res['status'] ?? null) === 'completed') {
+                $session = ImportSession::where('uuid', $request->input('session_uuid'))->first();
+                $matchStats = \App\Services\PaymentClaimMatchingService::run($session?->id);
+            }
+
             return response()->json([
                 'success' => true,
                 'status' => $res['status'],
                 'total' => $res['total'],
                 'success_count' => $res['success'],
-                'errors' => $res['errors']
+                'errors' => $res['errors'],
+                'match_stats' => $matchStats,
             ]);
         } catch (\Throwable $e) {
             return response()->json([
