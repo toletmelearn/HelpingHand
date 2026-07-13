@@ -39,6 +39,7 @@ class AppServiceProvider extends ServiceProvider
             $registry->registerImport('sections', \App\Services\Imports\SectionImportDefinition::class);
             $registry->registerImport('subjects', \App\Services\Imports\SubjectImportDefinition::class);
             $registry->registerImport('routes', \App\Services\Imports\TransportRouteImportDefinition::class);
+            $registry->registerImport('bank_statement', \App\Services\Imports\BankStatementImportDefinition::class);
 
             // Register default Notification Channels
             $registry->registerNotificationChannel('email', ['description' => 'SMTP mail communications.']);

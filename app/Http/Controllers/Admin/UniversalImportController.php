@@ -19,6 +19,39 @@ class UniversalImportController extends Controller
     }
 
     /**
+     * bank_statement carries real financial data (UTRs, amounts) and gets
+     * matched against payment claims -- unlike every other import module
+     * here, it must not be reachable by whichever admin-panel role happens
+     * to be authenticated. Every other module's access control is
+     * unchanged (out of scope to touch here).
+     */
+    private function authorizeModuleAccess(string $module): void
+    {
+        if ($module !== 'bank_statement') {
+            return;
+        }
+
+        $user = auth()->user();
+        if (!$user || (!$user->hasRole('admin') && !$user->hasRole('super-admin') && !$user->hasRole('accountant'))) {
+            abort(403, 'Unauthorized. Bank statement import is restricted to accountants and administrators.');
+        }
+    }
+
+    /**
+     * dryRun/execute/rollback act on a session_uuid, not the URL {module}
+     * segment -- resolving the module from the session itself (rather than
+     * trusting the URL) is what actually closes the gate for bank_statement
+     * regardless of what module name the request URL happens to use.
+     */
+    private function authorizeSessionModuleAccess(string $sessionUuid): void
+    {
+        $module = ImportSession::where('uuid', $sessionUuid)->value('module');
+        if ($module) {
+            $this->authorizeModuleAccess($module);
+        }
+    }
+
+    /**
      * Display the general data management / imports landing dashboard.
      */
     public function dashboard()
@@ -97,9 +130,12 @@ class UniversalImportController extends Controller
      */
     public function showWizard(string $module)
     {
-        // Enforce admin permission check
+        // Enforce admin permission check -- bank_statement additionally
+        // allows accountant (see authorizeModuleAccess()).
         $user = auth()->user();
-        if (!$user || !$user->hasRole('admin') && !$user->hasRole('super-admin')) {
+        if ($module === 'bank_statement') {
+            $this->authorizeModuleAccess($module);
+        } elseif (!$user || !$user->hasRole('admin') && !$user->hasRole('super-admin')) {
             abort(403, 'Unauthorized action. Only administrators can perform data imports.');
         }
 
@@ -131,6 +167,8 @@ class UniversalImportController extends Controller
      */
     public function upload(string $module, Request $request)
     {
+        $this->authorizeModuleAccess($module);
+
         $request->validate([
             'file' => 'required|file|max:25600', // Max 25MB -- a real school roster with formatting easily exceeds 15MB
         ]);
@@ -171,6 +209,8 @@ class UniversalImportController extends Controller
             'session_uuid' => 'required|string|uuid',
             'mappings' => 'required|array',
         ]);
+
+        $this->authorizeSessionModuleAccess($request->input('session_uuid'));
 
         try {
             $res = $this->importEngine->dryRun($request->input('session_uuid'), $request->input('mappings'));
@@ -213,6 +253,8 @@ class UniversalImportController extends Controller
             'resolution_strategy' => 'required|in:skip,overwrite',
         ]);
 
+        $this->authorizeSessionModuleAccess($request->input('session_uuid'));
+
         try {
             $res = $this->importEngine->execute(
                 $request->input('session_uuid'),
@@ -241,6 +283,8 @@ class UniversalImportController extends Controller
         $request->validate([
             'session_uuid' => 'required|string|uuid',
         ]);
+
+        $this->authorizeSessionModuleAccess($request->input('session_uuid'));
 
         try {
             $this->importEngine->rollback($request->input('session_uuid'));
@@ -318,9 +362,12 @@ class UniversalImportController extends Controller
      */
     public function downloadTemplate(string $module)
     {
-        // Enforce admin permission check
+        // Enforce admin permission check -- bank_statement additionally
+        // allows accountant (see authorizeModuleAccess()).
         $user = auth()->user();
-        if (!$user || !$user->hasRole('admin') && !$user->hasRole('super-admin')) {
+        if ($module === 'bank_statement') {
+            $this->authorizeModuleAccess($module);
+        } elseif (!$user || !$user->hasRole('admin') && !$user->hasRole('super-admin')) {
             abort(403, 'Unauthorized action.');
         }
 
