@@ -300,8 +300,8 @@ class FrontOfficeTest extends TestCase
         $this->assertStringStartsWith('ADMFEE-', $payment->receipt_no);
         $this->assertEquals(500, $payment->amount);
         $this->assertEquals($this->receptionist->id, $payment->collected_by);
-        // Defaults to the seeded "Admission Fee" FeeType when none is specified.
-        $this->assertEquals('Admission Fee', $payment->feeType->name ?? null);
+        // Defaults to the seeded "Admission" FeeType when none is specified.
+        $this->assertEquals('Admission', $payment->feeType->name ?? null);
 
         $this->assertDatabaseHas('activity_log', [
             'subject_type' => \App\Models\AdmissionEnquiryPayment::class,

@@ -309,7 +309,7 @@ class AdmissionEnquiryController extends Controller
             } while (AdmissionEnquiryPayment::where('receipt_no', $receiptNo)->exists());
         }
 
-        $feeTypeId = $validated['fee_type_id'] ?? FeeType::where('name', 'Admission Fee')->value('id');
+        $feeTypeId = $validated['fee_type_id'] ?? FeeType::where('name', 'Admission')->value('id');
 
         $payment = AdmissionEnquiryPayment::create([
             'admission_enquiry_id' => $enquiry->id,

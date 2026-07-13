@@ -516,7 +516,11 @@ Route::middleware(['auth'])->group(function () {
             Route::resource('fee-structures', App\Http\Controllers\Admin\FeeStructureController::class);
             Route::put('fee-structures/{id}/activate', [App\Http\Controllers\Admin\FeeStructureController::class, 'activate'])->name('fee-structures.activate');
             Route::put('fee-structures/{id}/deactivate', [App\Http\Controllers\Admin\FeeStructureController::class, 'deactivate'])->name('fee-structures.deactivate');
-            
+
+            Route::resource('fee-types', App\Http\Controllers\Admin\FeeTypeController::class)->except(['show']);
+            Route::put('fee-types/{feeType}/activate', [App\Http\Controllers\Admin\FeeTypeController::class, 'activate'])->name('fee-types.activate');
+            Route::put('fee-types/{feeType}/deactivate', [App\Http\Controllers\Admin\FeeTypeController::class, 'deactivate'])->name('fee-types.deactivate');
+
             // Fee Demand Register Routes
             Route::get('fees/demand-register', [App\Http\Controllers\Admin\FeeCollectionController::class, 'demandRegister'])->name('fees.demand-register');
             Route::get('fees/demand-register/export', [App\Http\Controllers\Admin\FeeCollectionController::class, 'exportDemandRegister'])->name('fees.demand-register.export');
