@@ -3,11 +3,15 @@
 namespace App\Http\Controllers\Parent;
 
 use App\Http\Controllers\Controller;
+use App\Models\AdminConfiguration;
+use App\Models\PaymentClaim;
 use App\Models\Student;
 use App\Services\LedgerService;
+use App\Services\UpiQrService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 
 class ParentPaymentController extends Controller
 {
@@ -48,7 +52,94 @@ class ParentPaymentController extends Controller
         }
 
 
-        return view('parent.payments.pay-fees', compact('pendingFees', 'student'));
+        $pendingClaims = \Illuminate\Support\Facades\Schema::hasTable('payment_claims')
+            ? PaymentClaim::where('student_id', $student->id)->where('status', 'claimed')->latest()->get()
+            : collect();
+
+        return view('parent.payments.pay-fees', compact('pendingFees', 'student', 'pendingClaims'));
+    }
+
+    /**
+     * Per-student dynamic UPI QR -- am= is the student's live outstanding
+     * balance, tr= is a fresh reference token that becomes the
+     * payment_claims.reference_token once the parent submits their UTR.
+     * No settlement happens here; this only generates a link to scan.
+     */
+    public function generateUpiQr(Request $request)
+    {
+        $parent = Auth::guard('parent')->user();
+        $student = $parent->student;
+
+        if (!$student) {
+            abort(404, 'Linked student profile not found.');
+        }
+
+        $balance = LedgerService::getOutstandingBalance($student->id);
+        if ($balance <= 0) {
+            return response()->json(['status' => false, 'message' => 'No outstanding balance to pay.'], 422);
+        }
+
+        $vpa = AdminConfiguration::get('fee', 'upi_vpa', '');
+        if (!$vpa) {
+            return response()->json(['status' => false, 'message' => 'Online UPI payment is not configured yet. Please contact the school office.'], 422);
+        }
+
+        $schoolName = AdminConfiguration::get('general', 'school_name', 'Helping Hand School');
+        $referenceToken = 'PC-' . $student->id . '-' . now()->format('YmdHis') . '-' . Str::upper(Str::random(4));
+
+        $className = $student->schoolClass->name ?? $student->class ?? '';
+        $period = now()->format('My');
+        $transactionNote = sprintf('%s-%s-%s-%s', $student->admission_no ?? $student->id, $student->name, $className, $period);
+
+        $result = UpiQrService::generate($vpa, $schoolName, $balance, $transactionNote, $referenceToken);
+
+        return response()->json([
+            'status' => true,
+            'qr_code' => $result['qr_code'],
+            'upi_uri' => $result['upi_uri'],
+            'reference_token' => $referenceToken,
+            'amount' => $balance,
+        ]);
+    }
+
+    /**
+     * Parent submits the UTR after paying via UPI -- creates a claim,
+     * status 'claimed'. No receipt, no ledger credit, until the matching
+     * engine (or an accountant) confirms it against a bank statement row.
+     */
+    public function submitClaim(Request $request)
+    {
+        $parent = Auth::guard('parent')->user();
+        $student = $parent->student;
+
+        if (!$student) {
+            abort(404, 'Linked student profile not found.');
+        }
+
+        $validated = $request->validate([
+            'reference_token' => 'required|string|unique:payment_claims,reference_token',
+            'utr' => 'required|string|size:12|regex:/^[0-9]+$/|unique:payment_claims,utr',
+            'amount' => 'required|numeric|min:0.01',
+            'screenshot' => 'nullable|file|mimes:jpeg,png,jpg,pdf|max:2048',
+        ]);
+
+        $path = null;
+        if ($request->hasFile('screenshot')) {
+            $path = $request->file('screenshot')->store('payment-claim-slips', 'public');
+        }
+
+        PaymentClaim::create([
+            'student_id' => $student->id,
+            'reference_token' => $validated['reference_token'],
+            'utr' => $validated['utr'],
+            'amount' => $validated['amount'],
+            'screenshot_path' => $path,
+            'status' => 'claimed',
+            'submitted_at' => now(),
+        ]);
+
+        return redirect()->route('parent.payments.pay-fees')
+            ->with('success', 'Your UTR has been submitted. We will verify and update your dues shortly.');
     }
 
     /**
