@@ -731,10 +731,46 @@
                         @endif
                         @if(Route::has('admin.fees.reports.index'))
                         <li class="nav-item">
-                            <a class="nav-link text-white {{ request()->routeIs('admin.fees.reports.index') ? 'active' : '' }}" 
+                            <a class="nav-link text-white {{ request()->routeIs('admin.fees.reports.index') ? 'active' : '' }}"
                                href="{{ route('admin.fees.reports.index') }}">
                                 <i class="bi bi-file-earmark-bar-graph me-2"></i>
                                 <span>Finance Reports</span>
+                            </a>
+                        </li>
+                        @endif
+                        @if(Route::has('admin.finance.reconciliation.overpayments'))
+                        <li class="nav-item">
+                            <a class="nav-link text-white {{ request()->routeIs('admin.finance.reconciliation.*') ? 'active' : '' }}"
+                               href="{{ route('admin.finance.reconciliation.overpayments') }}">
+                                <i class="bi bi-arrow-left-right me-2"></i>
+                                <span>Reconciliation Center</span>
+                            </a>
+                        </li>
+                        @endif
+                        @if(Route::has('admin.security-deposits.index'))
+                        <li class="nav-item">
+                            <a class="nav-link text-white {{ request()->routeIs('admin.security-deposits.*') ? 'active' : '' }}"
+                               href="{{ route('admin.security-deposits.index') }}">
+                                <i class="bi bi-shield-lock me-2"></i>
+                                <span>Security Deposits</span>
+                            </a>
+                        </li>
+                        @endif
+                        @if(Route::has('admin.payment-claims.queue'))
+                        <li class="nav-item">
+                            <a class="nav-link text-white {{ request()->routeIs('admin.payment-claims.*') ? 'active' : '' }}"
+                               href="{{ route('admin.payment-claims.queue') }}">
+                                <i class="bi bi-qr-code me-2"></i>
+                                <span>UPI Payment Matching</span>
+                            </a>
+                        </li>
+                        @endif
+                        @if(Route::has('admin.payment-info.show'))
+                        <li class="nav-item">
+                            <a class="nav-link text-white {{ request()->routeIs('admin.payment-info.show') ? 'active' : '' }}"
+                               href="{{ route('admin.payment-info.show') }}">
+                                <i class="bi bi-qr-code-scan me-2"></i>
+                                <span>Payment Info (QR & Bank)</span>
                             </a>
                         </li>
                         @endif
@@ -742,7 +778,7 @@
                 </div>
             </li>
             @endif
-            
+
             <!-- 📊 8. BUDGET & EXPENSES -->
             @if(Auth::user()->hasRole('admin') || Auth::user()->hasRole('accountant') || Auth::user()->hasPermission('view-budgets'))
             <li class="nav-item sidebar-section mt-3" data-section="budget">

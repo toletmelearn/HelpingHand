@@ -6,9 +6,15 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use App\Models\AdminConfiguration;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Storage;
 
 class AdminConfigurationController extends Controller
 {
+    public function __construct()
+    {
+        $this->middleware(['auth', 'role:admin']);
+    }
+
     protected $configGroups = [
         'biometric' => [
             'label' => 'Biometric System',
@@ -28,6 +34,21 @@ class AdminConfigurationController extends Controller
                 'enable_partial_payment' => ['label' => 'Enable Partial Payment', 'type' => 'boolean', 'default' => true],
                 'send_due_reminders' => ['label' => 'Send Due Reminders', 'type' => 'boolean', 'default' => true],
                 'reminder_days_before' => ['label' => 'Reminder Days Before Due', 'type' => 'integer', 'default' => 3],
+                'payment_allocation_policy' => ['label' => 'Payment Allocation Policies (JSON Configuration)', 'type' => 'json', 'default' => [
+                    'rules' => [
+                        ['name' => 'mandatory_first', 'enabled' => true, 'weight' => 1000],
+                        ['name' => 'current_session_first', 'enabled' => true, 'weight' => 500],
+                        ['name' => 'current_month_first', 'enabled' => true, 'weight' => 200],
+                        ['name' => 'priority_based', 'enabled' => true, 'weight' => 100],
+                        ['name' => 'oldest_due_first', 'enabled' => true, 'weight' => 50]
+                    ],
+                    'priority_list' => ['admission', 'tuition', 'late_fine', 'late_fee', 'transport']
+                ]],
+                'upi_vpa' => ['label' => 'School UPI VPA (e.g. school@upi)', 'type' => 'string', 'default' => ''],
+                'bank_account_name' => ['label' => 'Bank Account Holder Name', 'type' => 'string', 'default' => ''],
+                'bank_account_number' => ['label' => 'Bank Account Number', 'type' => 'string', 'default' => ''],
+                'bank_ifsc' => ['label' => 'Bank IFSC Code', 'type' => 'string', 'default' => ''],
+                'bank_name' => ['label' => 'Bank Name & Branch', 'type' => 'string', 'default' => ''],
             ]
         ],
         'exam' => [
@@ -38,6 +59,8 @@ class AdminConfigurationController extends Controller
                 'auto_result_calculation' => ['label' => 'Auto Result Calculation', 'type' => 'boolean', 'default' => true],
                 'allow_result_editing' => ['label' => 'Allow Result Editing', 'type' => 'boolean', 'default' => false],
                 'result_lock_days' => ['label' => 'Result Lock After (days)', 'type' => 'integer', 'default' => 7],
+                'exam_types' => ['label' => 'Exam Types (comma-separated)', 'type' => 'string', 'default' => 'General, Unit Test, Half Yearly, Final'],
+                'exam_terms' => ['label' => 'Exam Terms (comma-separated)', 'type' => 'string', 'default' => 'Term 1, Term 2, Final'],
             ]
         ],
         'attendance' => [
@@ -68,6 +91,30 @@ class AdminConfigurationController extends Controller
                 'email_notifications' => ['label' => 'Email Notifications', 'type' => 'boolean', 'default' => true],
                 'sms_notifications' => ['label' => 'SMS Notifications', 'type' => 'boolean', 'default' => false],
                 'push_notifications' => ['label' => 'Push Notifications', 'type' => 'boolean', 'default' => true],
+            ]
+        ],
+        'general' => [
+            'label' => 'General School Settings',
+            'icon' => 'bi-building',
+            'configs' => [
+                'school_name' => ['label' => 'School Name', 'type' => 'string', 'default' => 'HELPINGHAND PUBLIC SCHOOL'],
+                'school_address' => ['label' => 'School Address', 'type' => 'string', 'default' => '123 Education Street, City Name, State - 123456'],
+                'school_phone' => ['label' => 'School Phone', 'type' => 'string', 'default' => '+91-1234567890'],
+                'school_email' => ['label' => 'School Email', 'type' => 'string', 'default' => 'info@helpinghand.edu.in'],
+                'school_logo' => ['label' => 'School Logo', 'type' => 'file', 'default' => ''],
+                'payment_qr' => ['label' => 'Payment QR Code', 'type' => 'file', 'default' => ''],
+            ]
+        ],
+        'payroll' => [
+            'label' => 'Payroll & Salaries Settings',
+            'icon' => 'bi-wallet2',
+            'configs' => [
+                'payroll_hra_percent' => ['label' => 'HRA Allowance (%)', 'type' => 'string', 'default' => '10.00'],
+                'payroll_da_percent' => ['label' => 'DA Allowance (%)', 'type' => 'string', 'default' => '5.00'],
+                'payroll_ta_percent' => ['label' => 'TA Allowance (%)', 'type' => 'string', 'default' => '2.00'],
+                'payroll_medical_percent' => ['label' => 'Medical Allowance (%)', 'type' => 'string', 'default' => '1.50'],
+                'payroll_pf_percent' => ['label' => 'Provident Fund (PF) Deduction (%)', 'type' => 'string', 'default' => '12.00'],
+                'payroll_esi_percent' => ['label' => 'ESI Deduction (%)', 'type' => 'string', 'default' => '0.75'],
             ]
         ],
     ];
@@ -115,16 +162,41 @@ class AdminConfigurationController extends Controller
             'configurations.*.module' => 'required|string',
             'configurations.*.key' => 'required|string',
             'configurations.*.value' => 'nullable',
+            'configurations.*.file' => 'nullable|file|image|mimes:jpeg,png,jpg,gif|max:2048',
         ]);
 
-        foreach ($request->configurations as $configData) {
+        foreach ($request->configurations as $index => $configData) {
             $config = AdminConfiguration::forModule($configData['module'])
                                         ->forKey($configData['key'])
                                         ->first();
             
             if ($config) {
+                $val = $configData['value'] ?? null;
+                
+                // Handle file upload
+                if ($request->hasFile("configurations.{$index}.file")) {
+                    // Delete old file if exists
+                    $oldVal = $config->getValue();
+                    if ($oldVal && Storage::disk('public')->exists($oldVal)) {
+                        Storage::disk('public')->delete($oldVal);
+                    }
+                    
+                    $file = $request->file("configurations.{$index}.file");
+                    $val = $file->store('logos', 'public');
+                }
+                
+                // If it's a file configuration but no new file was uploaded, preserve the current value
+                if ($config->type === 'file' && !$request->hasFile("configurations.{$index}.file")) {
+                    continue;
+                }
+
+                // If type is json, decode input string to array for model casting
+                if ($config->type === 'json' && is_string($val)) {
+                    $val = json_decode($val, true);
+                }
+
                 $config->update([
-                    'value' => $configData['value'],
+                    'value' => $val,
                     'updated_by' => Auth::id(),
                 ]);
             }

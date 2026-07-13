@@ -611,6 +611,9 @@ Route::middleware(['auth'])->group(function () {
                 Route::get('/', [App\Http\Controllers\Admin\SecurityDepositController::class, 'index'])->name('index');
                 Route::post('/{id}/resolve', [App\Http\Controllers\Admin\SecurityDepositController::class, 'resolve'])->name('resolve');
             });
+
+            // Generic Payment Info (QR + bank details for walk-ins/notice board)
+            Route::get('payment-info', [App\Http\Controllers\Admin\PaymentInfoController::class, 'show'])->name('payment-info.show');
         });
 
         // Payment Settings Routes

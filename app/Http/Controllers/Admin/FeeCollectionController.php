@@ -973,31 +973,22 @@ class FeeCollectionController extends Controller
         ]);
 
         $student = Student::findOrFail($request->student_id);
-        $amount = number_format($request->amount, 2, '.', '');
-        
-        $schoolUpiId = env('SCHOOL_UPI_ID', 'helpinghand@upi');
-        $schoolName = \App\Models\AdminConfiguration::get('general', 'school_name', 'Helping Hand School');
-        
-        // Dynamic UPI URI string formatting
-        $upiUrl = "upi://pay?pa=" . urlencode($schoolUpiId) . 
-                  "&pn=" . urlencode($schoolName) . 
-                  "&am=" . $amount . 
-                  "&tn=" . urlencode("Fee Payment for " . $student->name) . 
-                  "&cu=INR";
 
-        // Generate QR code SVG using BaconQrCode
-        $renderer = new \BaconQrCode\Renderer\ImageRenderer(
-            new \BaconQrCode\Renderer\RendererStyle\RendererStyle(200),
-            new \BaconQrCode\Renderer\Image\SvgImageBackEnd()
+        $schoolUpiId = \App\Models\AdminConfiguration::get('fee', 'upi_vpa', '') ?: env('SCHOOL_UPI_ID', 'helpinghand@upi');
+        $schoolName = \App\Models\AdminConfiguration::get('general', 'school_name', 'Helping Hand School');
+
+        $result = \App\Services\UpiQrService::generate(
+            $schoolUpiId,
+            $schoolName,
+            (float) $request->amount,
+            "Fee Payment for " . $student->name,
+            'CTR-' . $student->id . '-' . now()->format('YmdHis')
         );
-        
-        $writer = new \BaconQrCode\Writer($renderer);
-        $base64Qr = base64_encode($writer->writeString($upiUrl));
 
         return response()->json([
             'status' => true,
-            'qr_code' => $base64Qr,
-            'upi_uri' => $upiUrl
+            'qr_code' => $result['qr_code'],
+            'upi_uri' => $result['upi_uri']
         ]);
     }
 
