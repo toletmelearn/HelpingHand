@@ -618,6 +618,7 @@ Route::middleware(['auth'])->group(function () {
             // UPI Payment Claim Matching Queue
             Route::prefix('payment-claims')->name('payment-claims.')->group(function () {
                 Route::get('/', [App\Http\Controllers\Admin\PaymentClaimMatchingController::class, 'queue'])->name('queue');
+                Route::post('/run-matching', [App\Http\Controllers\Admin\PaymentClaimMatchingController::class, 'runMatching'])->name('run-matching');
                 Route::post('/{claimId}/approve', [App\Http\Controllers\Admin\PaymentClaimMatchingController::class, 'approve'])->name('approve');
                 Route::post('/{id}/reject', [App\Http\Controllers\Admin\PaymentClaimMatchingController::class, 'reject'])->name('reject');
             });

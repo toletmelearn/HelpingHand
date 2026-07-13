@@ -80,13 +80,16 @@
                         </h5>
                     </div>
                     <div class="card-body">
+                        <a href="{{ route('parent.payments.pay-fees') }}" class="btn btn-success mb-2 w-100">
+                            <i class="fas fa-qrcode me-2"></i>Pay Fees
+                        </a>
                         <a href="{{ route('parent.lesson-plans.index') }}" class="btn btn-info mb-2 w-100">
                             <i class="fas fa-book me-2"></i>View Lesson Plans
                         </a>
                         <a href="{{ route('parent.homework.index') }}" class="btn btn-primary mb-2 w-100">
                             <i class="fas fa-tasks me-2"></i>View Homework
                         </a>
-                        <a href="{{ route('parent.payment.history') }}" class="btn btn-success mb-2 w-100">
+                        <a href="{{ route('parent.payment.history') }}" class="btn btn-outline-success mb-2 w-100">
                             <i class="fas fa-receipt me-2"></i>View Fee Receipts
                         </a>
                         <a href="{{ route('parent.payment.history') }}" class="btn btn-primary mb-2 w-100">

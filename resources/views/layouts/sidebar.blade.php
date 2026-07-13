@@ -756,6 +756,15 @@
                             </a>
                         </li>
                         @endif
+                        @if(Route::has('imports.wizard'))
+                        <li class="nav-item">
+                            <a class="nav-link text-white {{ request()->routeIs('imports.wizard') && request('module') === 'bank_statement' ? 'active' : '' }}"
+                               href="{{ route('imports.wizard', ['module' => 'bank_statement']) }}">
+                                <i class="bi bi-cloud-arrow-up me-2"></i>
+                                <span>Upload Bank Statement</span>
+                            </a>
+                        </li>
+                        @endif
                         @if(Route::has('admin.payment-claims.queue'))
                         <li class="nav-item">
                             <a class="nav-link text-white {{ request()->routeIs('admin.payment-claims.*') ? 'active' : '' }}"

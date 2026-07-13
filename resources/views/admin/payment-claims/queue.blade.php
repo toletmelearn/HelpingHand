@@ -8,7 +8,13 @@
         <div class="col-12">
             <div class="page-title-box d-flex align-items-center justify-content-between mb-4">
                 <h4 class="mb-0">UPI Payment Matching Queue</h4>
-                <div class="page-title-right">
+                <div class="page-title-right d-flex align-items-center gap-3">
+                    <form method="POST" action="{{ route('admin.payment-claims.run-matching') }}">
+                        @csrf
+                        <button type="submit" class="btn btn-outline-primary btn-sm">
+                            <i class="bi bi-arrow-repeat me-1"></i>Run Matching
+                        </button>
+                    </form>
                     <ol class="breadcrumb m-0">
                         <li class="breadcrumb-item"><a href="{{ route('admin.dashboard') }}">Dashboard</a></li>
                         <li class="breadcrumb-item active">Payment Claims</li>

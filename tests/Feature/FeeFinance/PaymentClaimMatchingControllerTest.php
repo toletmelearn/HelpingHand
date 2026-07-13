@@ -191,4 +191,49 @@ class PaymentClaimMatchingControllerTest extends TestCase
 
         $this->assertDatabaseHas('fee_refunds', ['student_id' => $student->id, 'fee_collection_id' => $collection->id, 'type' => 'reversal']);
     }
+
+    /**
+     * The on-demand extension point PaymentClaimMatchingService::run() was
+     * designed for -- a claim submitted after a statement was already
+     * imported and matched once. Confirms the accountant can re-trigger
+     * matching and it correctly picks up the new claim.
+     */
+    public function test_accountant_can_manually_trigger_matching()
+    {
+        $accountant = $this->makeAccountant();
+        $student = $this->makeStudent();
+
+        $session = ImportSession::create(['uuid' => (string) Str::uuid(), 'module' => 'bank_statement', 'status' => 'completed']);
+        $row = BankStatementRow::create([
+            'import_session_id' => $session->id,
+            'transaction_date' => now()->toDateString(),
+            'amount' => 750.00,
+            'utr' => '777788889999',
+            'narration' => 'NEFT CR 777788889999',
+            'status' => 'unmatched',
+        ]);
+
+        // Claim submitted after the row was already imported -- never got
+        // a chance to auto-match since that only runs once, right after execute().
+        $claim = PaymentClaim::create([
+            'student_id' => $student->id,
+            'reference_token' => 'PC-LATE-1',
+            'utr' => '777788889999',
+            'amount' => 750.00,
+            'status' => 'claimed',
+            'submitted_at' => now(),
+        ]);
+
+        $response = $this->actingAs($accountant)->post(route('admin.payment-claims.run-matching'));
+
+        $response->assertRedirect();
+        $response->assertSessionHas('success');
+
+        $claim->refresh();
+        $row->refresh();
+        $this->assertEquals('matched', $claim->status);
+        $this->assertEquals('exact', $claim->match_confidence);
+        $this->assertEquals('matched', $row->status);
+        $this->assertNotNull($claim->fee_collection_id);
+    }
 }

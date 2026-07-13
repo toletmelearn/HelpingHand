@@ -7,6 +7,7 @@ use App\Models\BankStatementRow;
 use App\Models\PaymentClaim;
 use App\Notifications\PaymentClaimMatchedNotification;
 use App\Services\LedgerService;
+use App\Services\PaymentClaimMatchingService;
 use App\Services\RefundService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -42,6 +43,28 @@ class PaymentClaimMatchingController extends Controller
             ->paginate(20, ['*'], 'rows_page');
 
         return view('admin.payment-claims.queue', compact('suggested', 'unmatchedClaims', 'unmatchedRows'));
+    }
+
+    /**
+     * Manual re-run for when a new claim arrives after a bank statement
+     * was already imported (auto-run happens once, right after import
+     * execute() -- this is the on-demand extension point designed for
+     * that case, per PaymentClaimMatchingService::run()'s own docblock:
+     * "safely re-runnable on demand"). Only ever touches rows still
+     * 'unmatched' and claims still 'claimed' with no row already paired,
+     * so running it repeatedly never flips an existing match/suggestion.
+     */
+    public function runMatching(Request $request)
+    {
+        $stats = PaymentClaimMatchingService::run();
+
+        return redirect()->back()->with('success', sprintf(
+            'Matching complete: %d auto-confirmed, %d narration suggestions, %d fuzzy suggestions, %d still unmatched.',
+            $stats['exact'],
+            $stats['narration'],
+            $stats['fuzzy'],
+            $stats['unmatched']
+        ));
     }
 
     /**
