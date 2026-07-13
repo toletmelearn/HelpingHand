@@ -614,6 +614,13 @@ Route::middleware(['auth'])->group(function () {
 
             // Generic Payment Info (QR + bank details for walk-ins/notice board)
             Route::get('payment-info', [App\Http\Controllers\Admin\PaymentInfoController::class, 'show'])->name('payment-info.show');
+
+            // UPI Payment Claim Matching Queue
+            Route::prefix('payment-claims')->name('payment-claims.')->group(function () {
+                Route::get('/', [App\Http\Controllers\Admin\PaymentClaimMatchingController::class, 'queue'])->name('queue');
+                Route::post('/{claimId}/approve', [App\Http\Controllers\Admin\PaymentClaimMatchingController::class, 'approve'])->name('approve');
+                Route::post('/{id}/reject', [App\Http\Controllers\Admin\PaymentClaimMatchingController::class, 'reject'])->name('reject');
+            });
         });
 
         // Payment Settings Routes
