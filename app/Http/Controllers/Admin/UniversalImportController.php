@@ -19,21 +19,22 @@ class UniversalImportController extends Controller
     }
 
     /**
-     * bank_statement carries real financial data (UTRs, amounts) and gets
-     * matched against payment claims -- unlike every other import module
-     * here, it must not be reachable by whichever admin-panel role happens
-     * to be authenticated. Every other module's access control is
-     * unchanged (out of scope to touch here).
+     * bank_statement and fee_opening_balance both post real ledger credits
+     * (the latter via manual allocation against a specific student's dues)
+     * -- unlike every other import module here, they must not be reachable
+     * by whichever admin-panel role happens to be authenticated. Every
+     * other module's access control is unchanged (out of scope to touch
+     * here).
      */
     private function authorizeModuleAccess(string $module): void
     {
-        if ($module !== 'bank_statement') {
+        if (!in_array($module, ['bank_statement', 'fee_opening_balance'], true)) {
             return;
         }
 
         $user = auth()->user();
         if (!$user || (!$user->hasRole('admin') && !$user->hasRole('super-admin') && !$user->hasRole('accountant'))) {
-            abort(403, 'Unauthorized. Bank statement import is restricted to accountants and administrators.');
+            abort(403, 'Unauthorized. This import is restricted to accountants and administrators.');
         }
     }
 

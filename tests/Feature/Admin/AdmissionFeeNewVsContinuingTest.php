@@ -247,4 +247,69 @@ class AdmissionFeeNewVsContinuingTest extends TestCase
             'Promoted student must still be billed the normal Annual Fee for their new class.'
         );
     }
+
+    /**
+     * Mirror image of the admission-fee case: a fee item marked
+     * 'session_wise_continuing' (e.g. Annual Charges) must bill only
+     * students who are NOT new admissions this session, while Admission
+     * Fee ('session_wise_admission') on the same structure bills only
+     * the new admission -- each student gets exactly one of the two.
+     *
+     * @test
+     */
+    public function session_wise_continuing_item_charges_only_old_students_not_new_admissions()
+    {
+        $session = AcademicSession::create([
+            'name' => '2026-2027', 'code' => '2026-2027',
+            'start_date' => '2026-04-01', 'end_date' => '2027-03-31',
+            'is_current' => true, 'is_active' => true,
+        ]);
+        $olderSession = AcademicSession::create([
+            'name' => '2025-2026', 'code' => '2025-2026',
+            'start_date' => '2025-04-01', 'end_date' => '2026-03-31',
+            'is_current' => false, 'is_active' => true,
+        ]);
+
+        SchoolClass::create(['name' => 'Class 8', 'class_order' => 8, 'is_active' => true]);
+
+        $admissionFeeType = FeeType::create(['name' => 'Admission Fee', 'status' => 'active']);
+        $annualFeeType = FeeType::create(['name' => 'Annual Charges', 'status' => 'active']);
+
+        $feeStructure = FeeStructure::create([
+            'class_name' => 'Class 8', 'academic_year' => '2026-2027',
+            'frequency' => 'yearly', 'status' => 'active',
+        ]);
+
+        FeeStructureItem::create([
+            'fee_structure_id' => $feeStructure->id, 'fee_type_id' => $admissionFeeType->id,
+            'amount' => 5000, 'billing_frequency' => 'session_wise_admission', 'charge_months' => ['Annual'],
+        ]);
+        FeeStructureItem::create([
+            'fee_structure_id' => $feeStructure->id, 'fee_type_id' => $annualFeeType->id,
+            'amount' => 8000, 'billing_frequency' => 'session_wise_continuing', 'charge_months' => ['Annual'],
+        ]);
+
+        $newStudent = $this->makeStudent('New Admission', $session->id);
+        $continuingStudent = $this->makeStudent('Continuing Student', $olderSession->id);
+
+        BulkFeeAssignmentService::bulkAssign($feeStructure, [$newStudent->id, $continuingStudent->id]);
+
+        $this->assertTrue(
+            StudentFeeLedger::where('student_id', $newStudent->id)->where('fee_type_id', $admissionFeeType->id)->exists(),
+            'New admission must be charged Admission Fee.'
+        );
+        $this->assertFalse(
+            StudentFeeLedger::where('student_id', $newStudent->id)->where('fee_type_id', $annualFeeType->id)->exists(),
+            'New admission must NOT be charged Annual Charges (continuing-only item).'
+        );
+
+        $this->assertFalse(
+            StudentFeeLedger::where('student_id', $continuingStudent->id)->where('fee_type_id', $admissionFeeType->id)->exists(),
+            'Continuing student must NOT be charged Admission Fee.'
+        );
+        $this->assertTrue(
+            StudentFeeLedger::where('student_id', $continuingStudent->id)->where('fee_type_id', $annualFeeType->id)->exists(),
+            'Continuing student must be charged Annual Charges.'
+        );
+    }
 }

@@ -28,7 +28,7 @@
     <label class="form-label">Default Frequency</label>
     <select name="default_frequency" class="form-select">
         <option value="">— Not set —</option>
-        @foreach(['monthly' => 'Monthly', 'quarterly' => 'Quarterly', 'yearly' => 'Yearly / Annual', 'session_wise_admission' => 'Session Admission', 'exam_wise' => 'Exam Wise', 'custom' => 'Custom Months'] as $value => $label)
+        @foreach(['monthly' => 'Monthly', 'quarterly' => 'Quarterly', 'yearly' => 'Yearly / Annual', 'session_wise_admission' => 'Session Admission (New Students Only)', 'session_wise_continuing' => 'Continuing Students Only (Old)', 'exam_wise' => 'Exam Wise', 'custom' => 'Custom Months'] as $value => $label)
             <option value="{{ $value }}" {{ old('default_frequency', $feeType->default_frequency ?? '') === $value ? 'selected' : '' }}>{{ $label }}</option>
         @endforeach
     </select>

@@ -18,7 +18,6 @@ class AppServiceProvider extends ServiceProvider
             $registry->registerModule('Students', ['version' => '1.0.0', 'description' => 'Admissions and Student records management.']);
             $registry->registerModule('Teachers', ['version' => '1.0.0', 'description' => 'HR, experience tracking and teacher substitutions.']);
             $registry->registerModule('Finance', ['version' => '1.0.0', 'description' => 'Fee structures, invoices, cash closing and Stripe payment gateway.']);
-            $registry->registerModule('Transport', ['version' => '1.0.0', 'description' => 'Routes, vehicles, allocations and fare generation.']);
             $registry->registerModule('Operations', ['version' => '1.1.0', 'description' => 'Disaster recovery, diagnostics, queues, logs and SaaS licenses.']);
             $registry->registerModule('Timetable', ['version' => '1.0.0', 'description' => 'Weekly schedules, periods and teacher conflict audits.']);
             $registry->registerModule('Library', ['version' => '1.0.0', 'description' => 'Circulations, library rules, active issues and OPAC public search.']);
@@ -38,8 +37,8 @@ class AppServiceProvider extends ServiceProvider
             $registry->registerImport('classes', \App\Services\Imports\ClassImportDefinition::class);
             $registry->registerImport('sections', \App\Services\Imports\SectionImportDefinition::class);
             $registry->registerImport('subjects', \App\Services\Imports\SubjectImportDefinition::class);
-            $registry->registerImport('routes', \App\Services\Imports\TransportRouteImportDefinition::class);
             $registry->registerImport('bank_statement', \App\Services\Imports\BankStatementImportDefinition::class);
+            $registry->registerImport('fee_opening_balance', \App\Services\Imports\FeeOpeningBalanceImportDefinition::class);
 
             // Register default Notification Channels
             $registry->registerNotificationChannel('email', ['description' => 'SMTP mail communications.']);
@@ -166,7 +165,6 @@ class AppServiceProvider extends ServiceProvider
         // Register custom commands
         $this->commands([
             RouteHealthCheck::class,
-            \App\Console\Commands\GenerateMonthlyTransportDues::class,
             \App\Console\Commands\MigrateHistoricalLedger::class,
             \App\Console\Commands\AdminSidebarAudit::class,
             \App\Console\Commands\AssignMissingTeachers::class,

@@ -212,14 +212,6 @@ class FeeCollectionController extends Controller
                             $isMatch = true;
                         }
                     }
-                } elseif ($debit['reference_type'] === 'student_transport_due') {
-                    $transportFeeType = DB::table('fee_types')->where('name', 'Transport Fee')->first();
-                    if ($transportFeeType && $transportFeeType->id == $feeTypeId) {
-                        $due = DB::table('student_transport_dues')->where('id', $debit['reference_id'])->first();
-                        if ($due && $due->month == $month) {
-                            $isMatch = true;
-                        }
-                    }
                 }
 
                 if ($isMatch) {
@@ -548,7 +540,7 @@ class FeeCollectionController extends Controller
         $feeTypes = $feeStructure->feeStructureItems->filter(function ($item) use ($paidFeeTypeIds) {
             $freq = strtolower($item->billing_frequency ?? 'monthly');
             // If the item is yearly / session-wise / exam-wise and already paid, exclude it from display
-            if (in_array($freq, ['yearly', 'session_wise_admission', 'exam_wise']) && in_array($item->fee_type_id, $paidFeeTypeIds)) {
+            if (in_array($freq, ['yearly', 'session_wise_admission', 'session_wise_continuing', 'exam_wise']) && in_array($item->fee_type_id, $paidFeeTypeIds)) {
                 return false;
             }
             return true;
@@ -564,22 +556,7 @@ class FeeCollectionController extends Controller
             // Ignore missing table in tests
         }
 
-        // 2. Fetch Transport details if active (decoupled from pushing to academic feeTypes)
-        $transportFee = 0.00;
-        try {
-            $transportAssignment = \App\Models\StudentTransport::where('student_id', $student->id)->first();
-            if ($transportAssignment) {
-                if ($transportAssignment->stop && $transportAssignment->stop->fare > 0) {
-                    $transportFee = $transportAssignment->stop->fare;
-                } elseif ($transportAssignment->route) {
-                    $transportFee = $transportAssignment->route->monthly_fare;
-                }
-            }
-        } catch (\Exception $e) {
-            // Ignore missing table in tests
-        }
-
-        // 3. Calculate eligible discounts
+        // 2. Calculate eligible discounts
         $suggestedDiscount = 0.00;
         $discountDetails = '';
         try {
@@ -650,7 +627,6 @@ class FeeCollectionController extends Controller
             'months', 
             'paymentModes',
             'outstandingDues',
-            'transportFee',
             'suggestedDiscount',
             'discountDetails',
             'outstandingInvoices'

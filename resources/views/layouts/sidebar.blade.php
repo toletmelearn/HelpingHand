@@ -379,14 +379,6 @@
                             </a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link text-white {{ request()->is('admin/imports/wizard/routes') ? 'active' : '' }}"
-                               href="{{ route('imports.wizard', ['module' => 'routes']) }}">
-                                <i class="bi bi-bus-front me-2"></i>
-                                <span>Transport Route Import</span>
-                                <span class="badge float-end mt-1 {{ $statusColors[$importEngine->getModuleStatus('routes')] }}">●</span>
-                            </a>
-                        </li>
-                        <li class="nav-item">
                             <a class="nav-link text-white {{ request()->routeIs('imports.history') ? 'active' : '' }}"
                                href="{{ route('imports.history') }}">
                                 <i class="bi bi-clock-history me-2"></i>
@@ -675,6 +667,33 @@
                             </a>
                         </li>
                         @endif
+                        @if(Route::has('admin.fee-types.index'))
+                        <li class="nav-item">
+                            <a class="nav-link text-white {{ request()->routeIs('admin.fee-types.*') ? 'active' : '' }}"
+                               href="{{ route('admin.fee-types.index') }}">
+                                <i class="bi bi-tags me-2"></i>
+                                <span>Fee Head Master</span>
+                            </a>
+                        </li>
+                        @endif
+                        @if(Route::has('admin.discount-rules.index'))
+                        <li class="nav-item">
+                            <a class="nav-link text-white {{ request()->routeIs('admin.discount-rules.*') ? 'active' : '' }}"
+                               href="{{ route('admin.discount-rules.index') }}">
+                                <i class="bi bi-percent me-2"></i>
+                                <span>Discount Rules</span>
+                            </a>
+                        </li>
+                        @endif
+                        @if(Route::has('admin.advance-rebate-rules.index'))
+                        <li class="nav-item">
+                            <a class="nav-link text-white {{ request()->routeIs('admin.advance-rebate-rules.*') ? 'active' : '' }}"
+                               href="{{ route('admin.advance-rebate-rules.index') }}">
+                                <i class="bi bi-piggy-bank me-2"></i>
+                                <span>Advance Payment Rebates</span>
+                            </a>
+                        </li>
+                        @endif
                         @if(Route::has('admin.fees.demand-register'))
                         <li class="nav-item">
                             <a class="nav-link text-white {{ request()->routeIs('admin.fees.demand-register') ? 'active' : '' }}" 
@@ -762,6 +781,13 @@
                                href="{{ route('imports.wizard', ['module' => 'bank_statement']) }}">
                                 <i class="bi bi-cloud-arrow-up me-2"></i>
                                 <span>Upload Bank Statement</span>
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link text-white {{ request()->routeIs('imports.wizard') && request('module') === 'fee_opening_balance' ? 'active' : '' }}"
+                               href="{{ route('imports.wizard', ['module' => 'fee_opening_balance']) }}">
+                                <i class="bi bi-clock-history me-2"></i>
+                                <span>Upload Opening Balance (Previous Fee)</span>
                             </a>
                         </li>
                         @endif

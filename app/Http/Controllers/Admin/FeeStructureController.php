@@ -90,7 +90,7 @@ class FeeStructureController extends Controller
                         $months = ['April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December', 'January', 'February', 'March'];
                     } elseif ($billingFreq === 'quarterly') {
                         $months = ['Q1', 'Q2', 'Q3', 'Q4'];
-                    } elseif ($billingFreq === 'yearly' || $billingFreq === 'annual') {
+                    } elseif ($billingFreq === 'yearly' || $billingFreq === 'annual' || $billingFreq === 'session_wise_continuing') {
                         $months = ['Annual'];
                     } else {
                         $months = ['Annual'];
@@ -194,7 +194,7 @@ class FeeStructureController extends Controller
                         $months = ['April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December', 'January', 'February', 'March'];
                     } elseif ($billingFreq === 'quarterly') {
                         $months = ['Q1', 'Q2', 'Q3', 'Q4'];
-                    } elseif ($billingFreq === 'yearly' || $billingFreq === 'annual') {
+                    } elseif ($billingFreq === 'yearly' || $billingFreq === 'annual' || $billingFreq === 'session_wise_continuing') {
                         $months = ['Annual'];
                     } else {
                         $months = ['Annual'];

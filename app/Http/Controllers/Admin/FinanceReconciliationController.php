@@ -64,7 +64,6 @@ class FinanceReconciliationController extends Controller
         $query = \App\Models\Student::withTrashed()
             ->select('students.*')
             ->selectRaw('(SELECT SUM(debit) - SUM(credit) FROM student_fee_ledgers WHERE student_fee_ledgers.student_id = students.id) as outstanding')
-            ->groupBy('students.id')
             ->having('outstanding', '<', 0)
             ->with('schoolClass');
 
@@ -118,13 +117,6 @@ class FinanceReconciliationController extends Controller
                             ->whereColumn('fee_structure_items.id', 'student_fee_ledgers.reference_id');
                       });
                 })->orWhere(function ($sub) {
-                    $sub->where('reference_type', 'student_transport_due')
-                      ->whereNotExists(function ($e) {
-                          $e->select(DB::raw(1))
-                            ->from('student_transport_dues')
-                            ->whereColumn('student_transport_dues.id', 'student_fee_ledgers.reference_id');
-                      });
-                })->orWhere(function ($sub) {
                     $sub->where('reference_type', 'fee_collection')
                       ->whereNotExists(function ($e) {
                           $e->select(DB::raw(1))
@@ -163,7 +155,6 @@ class FinanceReconciliationController extends Controller
             ->select('students.*')
             ->selectRaw('(SELECT SUM(debit) - SUM(credit) FROM student_fee_ledgers WHERE student_fee_ledgers.student_id = students.id) as calculated_balance')
             ->selectRaw('(SELECT running_balance FROM student_fee_ledgers WHERE student_fee_ledgers.student_id = students.id ORDER BY date DESC, id DESC LIMIT 1) as latest_running_balance')
-            ->groupBy('students.id')
             ->havingRaw('calculated_balance != latest_running_balance OR (calculated_balance IS NOT NULL AND latest_running_balance IS NULL) OR (calculated_balance IS NULL AND latest_running_balance IS NOT NULL)')
             ->with('schoolClass');
 

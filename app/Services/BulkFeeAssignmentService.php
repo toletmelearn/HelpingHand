@@ -44,10 +44,6 @@ class BulkFeeAssignmentService
         // 2. Resolve fee structure items and their billing installments
         $itemsData = [];
         foreach ($feeStructure->feeStructureItems as $item) {
-            if (strtolower($item->feeType->name) === 'transport fee') {
-                continue;
-            }
-
             $itemMonths = [];
             if (!empty($item->billing_frequency) && !empty($item->charge_months)) {
                 $itemMonths = is_array($item->charge_months) ? $item->charge_months : json_decode($item->charge_months, true);
@@ -182,6 +178,17 @@ class BulkFeeAssignmentService
                             }
                             if ($newAdmissionStudentIds !== null && !isset($newAdmissionStudentIds[$studentId])) {
                                 continue; // Continuing/promoted student -- not a new admission this session
+                            }
+                        }
+
+                        // Mirror image of 'session_wise_admission' -- e.g. Annual
+                        // Charges billed only to continuing/old students, never to
+                        // a student admitted fresh this session. If admission-session
+                        // data can't be resolved, fail open (bill everyone) rather
+                        // than silently dropping the charge for the whole school.
+                        if ($item->billing_frequency === 'session_wise_continuing') {
+                            if ($newAdmissionStudentIds !== null && isset($newAdmissionStudentIds[$studentId])) {
+                                continue; // New admission this session -- not a continuing student
                             }
                         }
 
