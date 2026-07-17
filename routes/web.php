@@ -540,6 +540,7 @@ Route::middleware(['auth'])->group(function () {
         // Defaulter Management Workflow -- gated by permission inside the
         // controller (view-defaulters/manage-defaulters).
         Route::get('fees/defaulters/dashboard', [App\Http\Controllers\Admin\DefaulterController::class, 'dashboard'])->name('fees.defaulters.dashboard');
+        Route::get('fees/defaulters/export', [App\Http\Controllers\Admin\DefaulterController::class, 'export'])->name('fees.defaulters.export');
         Route::get('fees/defaulters', [App\Http\Controllers\Admin\DefaulterController::class, 'index'])->name('fees.defaulters.index');
         Route::post('fees/defaulters/bulk-action', [App\Http\Controllers\Admin\DefaulterController::class, 'bulkAction'])->name('fees.defaulters.bulk-action');
         Route::post('fees/defaulters/{id}/action', [App\Http\Controllers\Admin\DefaulterController::class, 'takeAction'])->name('fees.defaulters.action');

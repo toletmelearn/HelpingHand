@@ -28,6 +28,10 @@ class DefaulterController extends Controller
         // stage or grant an exam exception -- those stay manage-defaulters/
         // override-exam-restriction only (Admin/Principal/Accountant).
         $this->middleware('permission:view-defaulters,manage-defaulters,communicate-defaulters')->only(['dashboard', 'index', 'history']);
+        // Export is Admin/Clerk/Accountant only -- deliberately excludes
+        // communicate-defaulters (Class Teacher/Receptionist), who can act
+        // on the registry but shouldn't bulk-download it.
+        $this->middleware('permission:view-defaulters,manage-defaulters')->only(['export']);
         $this->middleware('permission:manage-defaulters,communicate-defaulters')->only(['takeAction', 'bulkAction']);
         $this->middleware('permission:manage-defaulters')->only(['override']);
         $this->middleware('permission:override-exam-restriction')->only(['grantExamOverride', 'revokeExamOverride']);
@@ -145,6 +149,32 @@ class DefaulterController extends Controller
     {
         $this->defaulterService->syncDefaulters();
 
+        $query = $this->buildDefaulterQuery($request);
+
+        $defaulters = $query->paginate(20)->withQueryString();
+        $classes = SchoolClass::orderBy('class_order', 'asc')->get();
+        $sections = \App\Models\Section::orderBy('name')->get();
+        $stages = DefaulterService::$stages;
+
+        $overriddenStudentIds = \App\Models\DefaulterExamOverride::whereNull('revoked_at')
+            ->whereIn('student_id', $defaulters->pluck('student_id'))
+            ->pluck('student_id')
+            ->all();
+        $canOverrideExam = Auth::user()->hasPermission('override-exam-restriction');
+
+        return view('admin.fees.defaulters.index', compact(
+            'defaulters', 'classes', 'sections', 'stages', 'overriddenStudentIds', 'canOverrideExam'
+        ));
+    }
+
+    /**
+     * Same filters as index() (stage/class/section/min-amount/month/
+     * quarter/ageing, plus Class Teacher scoping) factored out so the PDF
+     * and Excel exports below never drift out of sync with what's on
+     * screen -- whatever the list shows is exactly what gets exported.
+     */
+    private function buildDefaulterQuery(Request $request)
+    {
         $stage = $request->get('stage');
         $classId = $request->get('class_id');
         $sectionId = $request->get('section_id');
@@ -219,20 +249,61 @@ class DefaulterController extends Controller
             $query->whereIn('student_id', $matchingStudentIds);
         }
 
-        $defaulters = $query->paginate(20)->withQueryString();
-        $classes = SchoolClass::orderBy('class_order', 'asc')->get();
-        $sections = \App\Models\Section::orderBy('name')->get();
-        $stages = DefaulterService::$stages;
+        return $query;
+    }
 
-        $overriddenStudentIds = \App\Models\DefaulterExamOverride::whereNull('revoked_at')
-            ->whereIn('student_id', $defaulters->pluck('student_id'))
-            ->pluck('student_id')
-            ->all();
-        $canOverrideExam = Auth::user()->hasPermission('override-exam-restriction');
+    /**
+     * Export the (filtered) Defaulter Registry as PDF or Excel (CSV
+     * stream) -- Admin/Clerk/Accountant only, matching the same
+     * class/month/quarter/ageing filters as the on-screen list.
+     */
+    public function export(Request $request)
+    {
+        $this->defaulterService->syncDefaulters();
 
-        return view('admin.fees.defaulters.index', compact(
-            'defaulters', 'classes', 'sections', 'stages', 'overriddenStudentIds', 'canOverrideExam'
-        ));
+        $format = $request->get('format', 'excel');
+        $defaulters = $this->buildDefaulterQuery($request)->get();
+
+        if ($format === 'pdf') {
+            $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('admin.fees.defaulters.pdf', compact('defaulters', 'request'));
+            $pdf->setPaper('A4', 'landscape');
+            return $pdf->download('defaulter-registry-' . now()->format('Y-m-d') . '.pdf');
+        }
+
+        $fileName = 'defaulter-registry-' . now()->format('Y-m-d') . '.csv';
+        $headers = [
+            'Content-Type'        => 'text/csv',
+            'Content-Disposition' => "attachment; filename=$fileName",
+            'Pragma'              => 'no-cache',
+            'Cache-Control'       => 'must-revalidate, post-check=0, pre-check=0',
+            'Expires'             => '0',
+        ];
+
+        $callback = function () use ($defaulters) {
+            $file = fopen('php://output', 'w');
+            fprintf($file, chr(0xEF) . chr(0xBB) . chr(0xBF)); // Excel UTF-8 BOM
+
+            fputcsv($file, [
+                'Admission No', 'Student', 'Class', 'Section', 'Workflow Stage',
+                'Outstanding (INR)', 'Last Action Date',
+            ]);
+
+            foreach ($defaulters as $def) {
+                fputcsv($file, [
+                    $def->student->admission_no ?? '',
+                    $def->student->name ?? '',
+                    $def->student->schoolClass->name ?? '',
+                    $def->student->section->name ?? '',
+                    $def->stage,
+                    number_format($def->outstanding_amount, 2, '.', ''),
+                    $def->last_action_date ? $def->last_action_date->format('Y-m-d H:i') : '',
+                ]);
+            }
+
+            fclose($file);
+        };
+
+        return response()->stream($callback, 200, $headers);
     }
 
     /**

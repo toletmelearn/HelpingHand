@@ -491,4 +491,71 @@ class DefaulterWorkflowTest extends TestCase
         $oldBucketResponse->assertSee('Old Debtor');
         $oldBucketResponse->assertDontSee('Recent Debtor');
     }
+
+    /** @test */
+    public function admin_clerk_and_accountant_can_export_the_filtered_registry_as_pdf_and_excel()
+    {
+        $viewDefaultersPermission = \App\Models\Permission::firstOrCreate(['name' => 'view-defaulters']);
+        $manageDefaultersPermission = \App\Models\Permission::firstOrCreate(['name' => 'manage-defaulters']);
+        Role::where('name', 'admin')->first()->grantPermission($viewDefaultersPermission->name);
+        Role::where('name', 'accountant')->first()->grantPermission($manageDefaultersPermission->name);
+
+        // Clerk gets view-defaulters via migration 2026_07_23_000002, which
+        // already ran under RefreshDatabase -- no manual grant needed here.
+        $clerkRole = Role::firstOrCreate(['name' => 'clerk'], ['display_name' => 'Clerk']);
+        $clerkUser = User::factory()->create(['role' => 'clerk']);
+        $clerkUser->roles()->attach($clerkRole->id);
+
+        $otherClass = SchoolClass::create(['name' => 'Class 11', 'class_order' => 11]);
+        $otherStudent = Student::create([
+            'name' => 'Other Class Debtor', 'admission_no' => 'ADM-2026-9001', 'father_name' => 'Father',
+            'mother_name' => 'Mother', 'date_of_birth' => '2010-01-01', 'aadhar_number' => '444444444444',
+            'address' => 'Test', 'phone' => '9444444444', 'class_id' => $otherClass->id,
+        ]);
+        StudentFeeLedger::create([
+            'student_id' => $this->student->id, 'date' => '2026-07-01', 'description' => 'Tuition',
+            'reference_type' => 'fee_structure_item', 'reference_id' => 1, 'debit' => 3000.00,
+            'credit' => 0.00, 'running_balance' => 3000.00, 'unpaid_amount' => 3000.00,
+        ]);
+        StudentFeeLedger::create([
+            'student_id' => $otherStudent->id, 'date' => '2026-07-01', 'description' => 'Tuition',
+            'reference_type' => 'fee_structure_item', 'reference_id' => 1, 'debit' => 4000.00,
+            'credit' => 0.00, 'running_balance' => 4000.00, 'unpaid_amount' => 4000.00,
+        ]);
+
+        foreach ([$this->adminUser, $clerkUser, $this->accountantUser] as $user) {
+            $pdfResponse = $this->actingAs($user)->get(route('admin.fees.defaulters.export', ['format' => 'pdf']));
+            $pdfResponse->assertOk();
+            $pdfResponse->assertHeader('content-type', 'application/pdf');
+
+            $excelResponse = $this->actingAs($user)->get(route('admin.fees.defaulters.export', ['format' => 'excel']));
+            $excelResponse->assertOk();
+            $this->assertStringContainsString('text/csv', $excelResponse->headers->get('content-type'));
+        }
+
+        // The export honors the same class filter as the on-screen list.
+        $filteredExport = $this->actingAs($this->adminUser)->get(
+            route('admin.fees.defaulters.export', ['format' => 'excel', 'class_id' => $this->schoolClass->id])
+        );
+        $content = $filteredExport->streamedContent();
+        $this->assertStringContainsString('John Doe', $content);
+        $this->assertStringNotContainsString('Other Class Debtor', $content);
+    }
+
+    /** @test */
+    public function class_teacher_and_receptionist_cannot_export_the_registry()
+    {
+        $classTeacherRole = Role::firstOrCreate(['name' => 'class-teacher'], ['display_name' => 'Class Teacher']);
+        $classTeacherUser = User::factory()->create(['role' => 'class-teacher']);
+        $classTeacherUser->roles()->attach($classTeacherRole->id);
+
+        $receptionistRole = Role::firstOrCreate(['name' => 'receptionist'], ['display_name' => 'Receptionist']);
+        $receptionistUser = User::factory()->create(['role' => 'receptionist']);
+        $receptionistUser->roles()->attach($receptionistRole->id);
+
+        foreach ([$classTeacherUser, $receptionistUser] as $user) {
+            $response = $this->actingAs($user)->get(route('admin.fees.defaulters.export', ['format' => 'pdf']));
+            $response->assertForbidden();
+        }
+    }
 }

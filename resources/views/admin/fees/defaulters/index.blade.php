@@ -54,7 +54,11 @@
             <h3 class="page-title mb-1"><i class="bi bi-exclamation-triangle-fill text-danger me-2"></i>Defaulter Registry</h3>
             <p class="text-muted mb-0">Monitor overdue outstanding balances, dispatch communications, enforce restrictions, and audit call logs.</p>
         </div>
-        <div>
+        <div class="d-flex gap-2">
+            @if(Auth::user()->hasPermission('view-defaulters') || Auth::user()->hasPermission('manage-defaulters'))
+                <a href="{{ route('admin.fees.defaulters.export', array_merge(request()->all(), ['format' => 'excel'])) }}" class="btn btn-outline-success"><i class="bi bi-file-earmark-excel"></i> Export Excel</a>
+                <a href="{{ route('admin.fees.defaulters.export', array_merge(request()->all(), ['format' => 'pdf'])) }}" class="btn btn-outline-danger"><i class="bi bi-file-earmark-pdf"></i> Export PDF</a>
+            @endif
             <a href="{{ route('admin.fees.defaulters.dashboard') }}" class="btn btn-outline-danger"><i class="bi bi-speedometer2"></i> Dashboard Analytics</a>
         </div>
     </div>
