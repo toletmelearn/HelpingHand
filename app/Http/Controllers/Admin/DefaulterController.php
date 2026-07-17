@@ -113,7 +113,7 @@ class DefaulterController extends Controller
             ->get();
 
         foreach ($unpaidLedgers as $ledger) {
-            $days = now()->diffInDays(\Carbon\Carbon::parse($ledger->oldest_due_date));
+            $days = abs(now()->diffInDays(\Carbon\Carbon::parse($ledger->oldest_due_date)));
             if ($days <= 30) {
                 $ageing['1_30']++;
             } elseif ($days <= 60) {
@@ -211,7 +211,7 @@ class DefaulterController extends Controller
                 ->get();
 
             $matchingStudentIds = $oldestDueDates->filter(function ($row) use ($ageingBucket) {
-                $days = now()->diffInDays(\Carbon\Carbon::parse($row->oldest_due_date));
+                $days = abs(now()->diffInDays(\Carbon\Carbon::parse($row->oldest_due_date)));
                 $bucket = $days <= 30 ? '1_30' : ($days <= 60 ? '31_60' : ($days <= 90 ? '61_90' : '90_plus'));
                 return $bucket === $ageingBucket;
             })->pluck('student_id');

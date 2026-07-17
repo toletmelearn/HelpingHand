@@ -394,4 +394,45 @@ class DefaulterWorkflowTest extends TestCase
         $q3Response->assertSee('December Debtor');
         $q3Response->assertDontSee('July Debtor');
     }
+
+    /** @test */
+    public function ageing_bucket_filter_matches_the_oldest_unpaid_due_per_student()
+    {
+        // Regression test: now()->diffInDays($pastDate) returns a NEGATIVE
+        // number in this Carbon version (diff is not absolute by default),
+        // which silently bucketed every student into "1-30 days" regardless
+        // of actual age until this was caught via manual browser testing.
+        $recentDebtor = Student::create([
+            'name' => 'Recent Debtor', 'admission_no' => 'ADM-2026-8001', 'father_name' => 'Father',
+            'mother_name' => 'Mother', 'date_of_birth' => '2010-01-01', 'aadhar_number' => '311111111111',
+            'address' => 'Test', 'phone' => '9311111111', 'class_id' => $this->schoolClass->id,
+        ]);
+        StudentFeeLedger::create([
+            'student_id' => $recentDebtor->id, 'date' => now()->subDays(10)->toDateString(), 'description' => 'Tuition',
+            'reference_type' => 'fee_structure_item', 'reference_id' => 1, 'debit' => 1000.00,
+            'credit' => 0.00, 'running_balance' => 1000.00, 'unpaid_amount' => 1000.00,
+        ]);
+
+        $oldDebtor = Student::create([
+            'name' => 'Old Debtor', 'admission_no' => 'ADM-2026-8002', 'father_name' => 'Father',
+            'mother_name' => 'Mother', 'date_of_birth' => '2010-01-01', 'aadhar_number' => '322222222222',
+            'address' => 'Test', 'phone' => '9322222222', 'class_id' => $this->schoolClass->id,
+        ]);
+        StudentFeeLedger::create([
+            'student_id' => $oldDebtor->id, 'date' => now()->subDays(120)->toDateString(), 'description' => 'Tuition',
+            'reference_type' => 'fee_structure_item', 'reference_id' => 1, 'debit' => 1000.00,
+            'credit' => 0.00, 'running_balance' => 1000.00, 'unpaid_amount' => 1000.00,
+        ]);
+
+        $viewDefaultersPermission = \App\Models\Permission::firstOrCreate(['name' => 'view-defaulters']);
+        Role::where('name', 'admin')->first()->grantPermission($viewDefaultersPermission->name);
+
+        $recentBucketResponse = $this->actingAs($this->adminUser)->get(route('admin.fees.defaulters.index', ['ageing' => '1_30']));
+        $recentBucketResponse->assertSee('Recent Debtor');
+        $recentBucketResponse->assertDontSee('Old Debtor');
+
+        $oldBucketResponse = $this->actingAs($this->adminUser)->get(route('admin.fees.defaulters.index', ['ageing' => '90_plus']));
+        $oldBucketResponse->assertSee('Old Debtor');
+        $oldBucketResponse->assertDontSee('Recent Debtor');
+    }
 }
