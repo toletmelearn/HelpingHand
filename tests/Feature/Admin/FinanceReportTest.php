@@ -134,6 +134,60 @@ class FinanceReportTest extends TestCase
     }
 
     /** @test */
+    public function outstanding_and_demand_registers_are_sorted_class_wise_and_support_a_section_filter()
+    {
+        // A lower class_order class -- should sort BEFORE $this->schoolClass
+        // (order 10) once results are grouped class-wise.
+        $juniorClass = SchoolClass::create(['name' => 'Class 5', 'class_order' => 5]);
+        $juniorStudent = Student::create([
+            'name' => 'Amit Junior', 'admission_no' => 'ADM-2026-5001', 'father_name' => 'Father',
+            'mother_name' => 'Mother', 'date_of_birth' => '2015-01-01', 'aadhar_number' => '555555555555',
+            'address' => 'Test', 'phone' => '9555555555', 'class_id' => $juniorClass->id,
+        ]);
+
+        // A second section within the same class as $this->student, to
+        // prove the section filter narrows within a class, not just across
+        // classes.
+        $otherSection = Section::create(['name' => 'B', 'class_id' => $this->schoolClass->id]);
+        $otherSectionStudent = Student::create([
+            'name' => 'Priya OtherSection', 'admission_no' => 'ADM-2026-5002', 'father_name' => 'Father',
+            'mother_name' => 'Mother', 'date_of_birth' => '2010-01-01', 'aadhar_number' => '666666666666',
+            'address' => 'Test', 'phone' => '9666666666', 'class_id' => $this->schoolClass->id,
+            'section_id' => $otherSection->id,
+        ]);
+
+        foreach ([$this->student, $juniorStudent, $otherSectionStudent] as $student) {
+            \App\Models\StudentFeeLedger::create([
+                'student_id' => $student->id, 'date' => '2026-07-01', 'description' => 'Tuition',
+                'reference_type' => 'fee_structure_item', 'reference_id' => 1, 'debit' => 2000.00,
+                'credit' => 0.00, 'running_balance' => 2000.00, 'unpaid_amount' => 2000.00,
+            ]);
+        }
+
+        foreach (['outstanding_register', 'demand_register'] as $type) {
+            // Class-wise: the lower class_order student's row appears
+            // before the higher class_order student's row.
+            $response = $this->actingAs($this->adminUser)->get(route('admin.fees.reports.export', [
+                'type' => $type, 'format' => 'csv',
+            ]));
+            $content = $response->streamedContent();
+            $juniorPos = strpos($content, 'Amit Junior');
+            $seniorPos = strpos($content, $this->student->name);
+            $this->assertNotFalse($juniorPos, "{$type}: junior class student should appear in the export.");
+            $this->assertNotFalse($seniorPos, "{$type}: {$this->student->name} should appear in the export.");
+            $this->assertLessThan($seniorPos, $juniorPos, "{$type}: Class 5 (order 5) should sort before Class 10 (order 10).");
+
+            // Section filter: only the requested section's student shows.
+            $filteredResponse = $this->actingAs($this->adminUser)->get(route('admin.fees.reports.export', [
+                'type' => $type, 'format' => 'csv', 'section_id' => $this->section->id,
+            ]));
+            $filteredContent = $filteredResponse->streamedContent();
+            $this->assertStringContainsString($this->student->name, $filteredContent, "{$type}: section filter should keep the matching section's student.");
+            $this->assertStringNotContainsString('Priya OtherSection', $filteredContent, "{$type}: section filter should exclude the other section's student.");
+        }
+    }
+
+    /** @test */
     public function report_portal_allows_print_preview_generation()
     {
         $responsePrint = $this->actingAs($this->accountantUser)->get(route('admin.fees.reports.export', [

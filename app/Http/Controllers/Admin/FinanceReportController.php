@@ -45,6 +45,7 @@ class FinanceReportController extends Controller
         
         // Load filter metadata
         $classes = SchoolClass::orderBy('class_order', 'asc')->get();
+        $sections = \App\Models\Section::orderBy('name')->get();
         $students = Student::orderBy('name', 'asc')->take(100)->get(); // basic list for selects
 
         // Build filtered query
@@ -61,7 +62,7 @@ class FinanceReportController extends Controller
         $reportTitle = self::$reportsList[$activeReport] ?? 'Financial Report';
 
         return view('admin.fees.reports.index', compact(
-            'classes', 'students', 'activeReport', 'data', 'reportTitle'
+            'classes', 'sections', 'students', 'activeReport', 'data', 'reportTitle'
         ));
     }
 
@@ -132,6 +133,7 @@ class FinanceReportController extends Controller
         $startDate = $request->get('start_date');
         $endDate = $request->get('end_date');
         $classId = $request->get('class_id');
+        $sectionId = $request->get('section_id');
         $studentId = $request->get('student_id');
         $paymentMode = $request->get('payment_mode');
 
@@ -257,13 +259,18 @@ class FinanceReportController extends Controller
                     ->selectRaw('SUM(student_fee_ledgers.debit) as total_charged')
                     ->selectRaw('SUM(student_fee_ledgers.credit) as total_paid')
                     ->selectRaw('SUM(student_fee_ledgers.debit) - SUM(student_fee_ledgers.credit) as outstanding_balance')
-                    ->groupBy('students.admission_no', 'students.name', 'school_classes.name')
-                    ->havingRaw('(SUM(student_fee_ledgers.debit) - SUM(student_fee_ledgers.credit)) > 0.01');
+                    ->groupBy('students.admission_no', 'students.name', 'school_classes.name', 'school_classes.class_order')
+                    ->havingRaw('(SUM(student_fee_ledgers.debit) - SUM(student_fee_ledgers.credit)) > 0.01')
+                    ->orderBy('school_classes.class_order', 'asc')
+                    ->orderBy('students.name', 'asc');
 
                 if ($classId) {
                     $query->where(function($q) use($classId) {
                         $q->where('students.class_id', $classId)->orWhere('students.school_class_id', $classId);
                     });
+                }
+                if ($sectionId) {
+                    $query->where('students.section_id', $sectionId);
                 }
                 if ($studentId) {
                     $query->where('students.id', $studentId);
@@ -285,7 +292,12 @@ class FinanceReportController extends Controller
                     ->where('student_fee_ledgers.debit', '>', 0);
 
                 $this->applyStandardFilters($query, 'student_fee_ledgers.date', $startDate, $endDate, $classId, $studentId);
-                $query->orderBy('student_fee_ledgers.date', 'desc');
+                if ($sectionId) {
+                    $query->where('students.section_id', $sectionId);
+                }
+                $query->orderBy('school_classes.class_order', 'asc')
+                    ->orderBy('students.name', 'asc')
+                    ->orderBy('student_fee_ledgers.date', 'desc');
                 break;
 
             case 'refund_register':
