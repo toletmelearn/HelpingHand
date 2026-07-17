@@ -633,41 +633,41 @@
             @endif
             
             <!-- 💰 7. FEE MANAGEMENT -->
-            @if(Auth::user()->hasRole('admin') || Auth::user()->hasPermission('view-fees') || Auth::user()->hasPermission('can-manage-fees'))
+            @if(Auth::user()->hasRole('admin') || Auth::user()->hasPermission('view-fees') || Auth::user()->hasPermission('can-manage-fees') || Auth::user()->hasPermission('communicate-defaulters'))
             <li class="nav-item sidebar-section mt-3" data-section="fees">
                 <div class="nav-header text-uppercase small px-3 py-2">
                     <i class="bi bi-currency-dollar me-1"></i> Fee Management
                 </div>
                 <div class="nav-collapse">
                     <ul class="nav flex-column">
-                        @if(Route::has('admin.fees.dashboard'))
+                        @if(Route::has('admin.fees.dashboard') && (Auth::user()->hasPermission('view-fees') || Auth::user()->isSuperAdmin()))
                         <li class="nav-item">
-                            <a class="nav-link text-white {{ request()->routeIs('admin.fees.dashboard') ? 'active' : '' }}" 
+                            <a class="nav-link text-white {{ request()->routeIs('admin.fees.dashboard') ? 'active' : '' }}"
                                href="{{ route('admin.fees.dashboard') }}">
                                 <i class="bi bi-speedometer2 me-2"></i>
                                 <span>Accountant Dashboard</span>
                             </a>
                         </li>
                         @endif
-                        @if(Route::has('admin.fees.index'))
+                        @if(Route::has('admin.fees.index') && (Auth::user()->hasPermission('view-fees') || Auth::user()->isSuperAdmin()))
                         <li class="nav-item">
-                            <a class="nav-link text-white {{ request()->routeIs('admin.fees.*') ? 'active' : '' }}" 
+                            <a class="nav-link text-white {{ request()->routeIs('admin.fees.*') ? 'active' : '' }}"
                                href="{{ route('admin.fees.index') }}">
                                 <i class="bi bi-wallet2 me-2"></i>
                                 <span>Fees</span>
                             </a>
                         </li>
                         @endif
-                        @if(Route::has('admin.fee-structures.index'))
+                        @if(Route::has('admin.fee-structures.index') && (Auth::user()->hasPermission('view-fee-structures') || Auth::user()->isSuperAdmin()))
                         <li class="nav-item">
-                            <a class="nav-link text-white {{ request()->routeIs('admin.fee-structures.*') ? 'active' : '' }}" 
+                            <a class="nav-link text-white {{ request()->routeIs('admin.fee-structures.*') ? 'active' : '' }}"
                                href="{{ route('admin.fee-structures.index') }}">
                                 <i class="bi bi-calculator me-2"></i>
                                 <span>Fee Structures</span>
                             </a>
                         </li>
                         @endif
-                        @if(Route::has('admin.fee-types.index'))
+                        @if(Route::has('admin.fee-types.index') && (Auth::user()->hasPermission('view-fee-types') || Auth::user()->isSuperAdmin()))
                         <li class="nav-item">
                             <a class="nav-link text-white {{ request()->routeIs('admin.fee-types.*') ? 'active' : '' }}"
                                href="{{ route('admin.fee-types.index') }}">
@@ -676,7 +676,7 @@
                             </a>
                         </li>
                         @endif
-                        @if(Route::has('admin.discount-rules.index'))
+                        @if(Route::has('admin.discount-rules.index') && (Auth::user()->hasPermission('view-discount-rules') || Auth::user()->isSuperAdmin()))
                         <li class="nav-item">
                             <a class="nav-link text-white {{ request()->routeIs('admin.discount-rules.*') ? 'active' : '' }}"
                                href="{{ route('admin.discount-rules.index') }}">
@@ -685,7 +685,25 @@
                             </a>
                         </li>
                         @endif
-                        @if(Route::has('admin.advance-rebate-rules.index'))
+                        @if(Route::has('admin.families.index') && (Auth::user()->hasPermission('view-families') || Auth::user()->isSuperAdmin()))
+                        <li class="nav-item">
+                            <a class="nav-link text-white {{ request()->routeIs('admin.families.*') ? 'active' : '' }}"
+                               href="{{ route('admin.families.index') }}">
+                                <i class="bi bi-people me-2"></i>
+                                <span>Families</span>
+                            </a>
+                        </li>
+                        @endif
+                        @if(Route::has('admin.family-link-suggestions.index') && (Auth::user()->hasPermission('view-families') || Auth::user()->isSuperAdmin()))
+                        <li class="nav-item">
+                            <a class="nav-link text-white {{ request()->routeIs('admin.family-link-suggestions.*') ? 'active' : '' }}"
+                               href="{{ route('admin.family-link-suggestions.index') }}">
+                                <i class="bi bi-diagram-2 me-2"></i>
+                                <span>Family Link Suggestions</span>
+                            </a>
+                        </li>
+                        @endif
+                        @if(Route::has('admin.advance-rebate-rules.index') && (Auth::user()->hasPermission('view-advance-rebate-rules') || Auth::user()->isSuperAdmin()))
                         <li class="nav-item">
                             <a class="nav-link text-white {{ request()->routeIs('admin.advance-rebate-rules.*') ? 'active' : '' }}"
                                href="{{ route('admin.advance-rebate-rules.index') }}">
@@ -694,61 +712,67 @@
                             </a>
                         </li>
                         @endif
-                        @if(Route::has('admin.fees.demand-register'))
+                        @if(Route::has('admin.fees.demand-register') && (Auth::user()->hasPermission('view-fees') || Auth::user()->isSuperAdmin()))
                         <li class="nav-item">
-                            <a class="nav-link text-white {{ request()->routeIs('admin.fees.demand-register') ? 'active' : '' }}" 
+                            <a class="nav-link text-white {{ request()->routeIs('admin.fees.demand-register') ? 'active' : '' }}"
                                href="{{ route('admin.fees.demand-register') }}">
                                 <i class="bi bi-journal-text me-2"></i>
                                 <span>Fee Demand Register</span>
                             </a>
                         </li>
                         @endif
-                        @if(Route::has('admin.fees.collection-register'))
+                        @if(Route::has('admin.fees.collection-register') && (Auth::user()->hasPermission('view-fees') || Auth::user()->isSuperAdmin()))
                         <li class="nav-item">
-                            <a class="nav-link text-white {{ request()->routeIs('admin.fees.collection-register') ? 'active' : '' }}" 
+                            <a class="nav-link text-white {{ request()->routeIs('admin.fees.collection-register') ? 'active' : '' }}"
                                href="{{ route('admin.fees.collection-register') }}">
                                 <i class="bi bi-cash-stack me-2"></i>
                                 <span>Daily Collection Register</span>
                             </a>
                         </li>
                         @endif
-                        @if(Route::has('admin.fees.cashier-closings.index'))
+                        @if(Route::has('admin.fees.cashier-closings.index') && (Auth::user()->hasPermission('view-cashier-closing') || Auth::user()->isSuperAdmin()))
                         <li class="nav-item">
-                            <a class="nav-link text-white {{ request()->routeIs('admin.fees.cashier-closings.*') ? 'active' : '' }}" 
+                            <a class="nav-link text-white {{ request()->routeIs('admin.fees.cashier-closings.*') ? 'active' : '' }}"
                                href="{{ route('admin.fees.cashier-closings.index') }}">
                                 <i class="bi bi-lock me-2"></i>
                                 <span>Cashier Closing</span>
                             </a>
                         </li>
                         @endif
-                        @if(Route::has('admin.fees.defaulters.dashboard'))
+                        @php
+                            $canSeeDefaulters = Auth::user()->isSuperAdmin()
+                                || Auth::user()->hasPermission('view-defaulters')
+                                || Auth::user()->hasPermission('manage-defaulters')
+                                || Auth::user()->hasPermission('communicate-defaulters');
+                        @endphp
+                        @if(Route::has('admin.fees.defaulters.dashboard') && $canSeeDefaulters)
                         <li class="nav-item">
-                            <a class="nav-link text-white {{ request()->routeIs('admin.fees.defaulters.dashboard') ? 'active' : '' }}" 
+                            <a class="nav-link text-white {{ request()->routeIs('admin.fees.defaulters.dashboard') ? 'active' : '' }}"
                                href="{{ route('admin.fees.defaulters.dashboard') }}">
                                 <i class="bi bi-speedometer2 me-2"></i>
                                 <span>Defaulter Dashboard</span>
                             </a>
                         </li>
                         @endif
-                        @if(Route::has('admin.fees.defaulters.index'))
+                        @if(Route::has('admin.fees.defaulters.index') && $canSeeDefaulters)
                         <li class="nav-item">
-                            <a class="nav-link text-white {{ request()->routeIs('admin.fees.defaulters.index') ? 'active' : '' }}" 
+                            <a class="nav-link text-white {{ request()->routeIs('admin.fees.defaulters.index') ? 'active' : '' }}"
                                href="{{ route('admin.fees.defaulters.index') }}">
                                 <i class="bi bi-exclamation-triangle me-2"></i>
                                 <span>Defaulter Registry</span>
                             </a>
                         </li>
                         @endif
-                        @if(Route::has('admin.fees.year-closing.index'))
+                        @if(Route::has('admin.fees.year-closing.index') && (Auth::user()->hasPermission('view-year-closing') || Auth::user()->isSuperAdmin()))
                         <li class="nav-item">
-                            <a class="nav-link text-white {{ request()->routeIs('admin.fees.year-closing.index') ? 'active' : '' }}" 
+                            <a class="nav-link text-white {{ request()->routeIs('admin.fees.year-closing.index') ? 'active' : '' }}"
                                href="{{ route('admin.fees.year-closing.index') }}">
                                 <i class="bi bi-calendar-check me-2"></i>
                                 <span>Year-End Closing</span>
                             </a>
                         </li>
                         @endif
-                        @if(Route::has('admin.fees.reports.index'))
+                        @if(Route::has('admin.fees.reports.index') && (Auth::user()->hasPermission('view-finance-reports') || Auth::user()->isSuperAdmin()))
                         <li class="nav-item">
                             <a class="nav-link text-white {{ request()->routeIs('admin.fees.reports.index') ? 'active' : '' }}"
                                href="{{ route('admin.fees.reports.index') }}">
@@ -757,7 +781,7 @@
                             </a>
                         </li>
                         @endif
-                        @if(Route::has('admin.finance.reconciliation.overpayments'))
+                        @if(Route::has('admin.finance.reconciliation.overpayments') && (Auth::user()->hasPermission('view-reconciliation') || Auth::user()->isSuperAdmin()))
                         <li class="nav-item">
                             <a class="nav-link text-white {{ request()->routeIs('admin.finance.reconciliation.*') ? 'active' : '' }}"
                                href="{{ route('admin.finance.reconciliation.overpayments') }}">
@@ -766,7 +790,7 @@
                             </a>
                         </li>
                         @endif
-                        @if(Route::has('admin.security-deposits.index'))
+                        @if(Route::has('admin.security-deposits.index') && (Auth::user()->hasPermission('view-security-deposits') || Auth::user()->isSuperAdmin()))
                         <li class="nav-item">
                             <a class="nav-link text-white {{ request()->routeIs('admin.security-deposits.*') ? 'active' : '' }}"
                                href="{{ route('admin.security-deposits.index') }}">
@@ -775,7 +799,7 @@
                             </a>
                         </li>
                         @endif
-                        @if(Route::has('imports.wizard'))
+                        @if(Route::has('imports.wizard') && (Auth::user()->hasRole('accountant') || Auth::user()->hasRole('admin')))
                         <li class="nav-item">
                             <a class="nav-link text-white {{ request()->routeIs('imports.wizard') && request('module') === 'bank_statement' ? 'active' : '' }}"
                                href="{{ route('imports.wizard', ['module' => 'bank_statement']) }}">
@@ -791,7 +815,7 @@
                             </a>
                         </li>
                         @endif
-                        @if(Route::has('admin.payment-claims.queue'))
+                        @if(Route::has('admin.payment-claims.queue') && (Auth::user()->hasPermission('view-upi-matching') || Auth::user()->isSuperAdmin()))
                         <li class="nav-item">
                             <a class="nav-link text-white {{ request()->routeIs('admin.payment-claims.*') ? 'active' : '' }}"
                                href="{{ route('admin.payment-claims.queue') }}">
@@ -800,7 +824,7 @@
                             </a>
                         </li>
                         @endif
-                        @if(Route::has('admin.payment-info.show'))
+                        @if(Route::has('admin.payment-info.show') && (Auth::user()->hasPermission('view-payment-info') || Auth::user()->isSuperAdmin()))
                         <li class="nav-item">
                             <a class="nav-link text-white {{ request()->routeIs('admin.payment-info.show') ? 'active' : '' }}"
                                href="{{ route('admin.payment-info.show') }}">
@@ -815,34 +839,34 @@
             @endif
 
             <!-- 📊 8. BUDGET & EXPENSES -->
-            @if(Auth::user()->hasRole('admin') || Auth::user()->hasRole('accountant') || Auth::user()->hasPermission('view-budgets'))
+            @if(Auth::user()->hasPermission('view-budgets') || Auth::user()->hasPermission('view-expenses') || Auth::user()->isSuperAdmin())
             <li class="nav-item sidebar-section mt-3" data-section="budget">
                 <div class="nav-header text-uppercase small px-3 py-2">
                     <i class="bi bi-pie-chart me-1"></i> Budget & Expenses
                 </div>
                 <div class="nav-collapse">
                     <ul class="nav flex-column">
-                        @if(Route::has('admin.budgets.index'))
+                        @if(Route::has('admin.budgets.index') && (Auth::user()->hasPermission('view-budgets') || Auth::user()->isSuperAdmin()))
                         <li class="nav-item">
-                            <a class="nav-link text-white {{ request()->routeIs('admin.budgets.*') ? 'active' : '' }}" 
+                            <a class="nav-link text-white {{ request()->routeIs('admin.budgets.*') ? 'active' : '' }}"
                                href="{{ route('admin.budgets.index') }}">
                                 <i class="bi bi-pie-chart me-2"></i>
                                 <span>Budget</span>
                             </a>
                         </li>
                         @endif
-                        @if(Route::has('admin.expenses.index'))
+                        @if(Route::has('admin.expenses.index') && (Auth::user()->hasPermission('view-expenses') || Auth::user()->isSuperAdmin()))
                         <li class="nav-item">
-                            <a class="nav-link text-white {{ request()->routeIs('admin.expenses.*') ? 'active' : '' }}" 
+                            <a class="nav-link text-white {{ request()->routeIs('admin.expenses.*') ? 'active' : '' }}"
                                href="{{ route('admin.expenses.index') }}">
                                 <i class="bi bi-receipt me-2"></i>
                                 <span>Expenses</span>
                             </a>
                         </li>
                         @endif
-                        @if(Route::has('admin.budget-categories.index'))
+                        @if(Route::has('admin.budget-categories.index') && (Auth::user()->hasPermission('view-budgets') || Auth::user()->isSuperAdmin()))
                         <li class="nav-item">
-                            <a class="nav-link text-white {{ request()->routeIs('admin.budget-categories.*') ? 'active' : '' }}" 
+                            <a class="nav-link text-white {{ request()->routeIs('admin.budget-categories.*') ? 'active' : '' }}"
                                href="{{ route('admin.budget-categories.index') }}">
                                 <i class="bi bi-tag me-2"></i>
                                 <span>Budget Categories</span>

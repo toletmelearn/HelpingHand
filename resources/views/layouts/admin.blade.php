@@ -8,6 +8,7 @@
 
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <style>
         /* ADMIN LAYOUT STYLES */
         body {
@@ -66,6 +67,49 @@
                 margin-left: 70px;
             }
         }
+
+        /* Admin-template utility classes used across many admin views
+           (avatars, soft badges, page headers) — not part of Bootstrap 5,
+           defined here once so every page that uses them renders correctly
+           instead of falling back to unstyled/oversized default markup. */
+        .avatar-xs { height: 1.5rem; width: 1.5rem; }
+        .avatar-sm { height: 3rem; width: 3rem; }
+        .avatar-md { height: 4.5rem; width: 4.5rem; }
+        .avatar-lg { height: 6rem; width: 6rem; }
+        .avatar-xl { height: 7.5rem; width: 7.5rem; }
+        .avatar-title {
+            align-items: center;
+            background-color: var(--bs-primary);
+            border-radius: 50%;
+            color: #fff;
+            display: flex;
+            font-weight: 600;
+            height: 100%;
+            justify-content: center;
+            width: 100%;
+        }
+
+        .bg-soft-primary { background-color: rgba(var(--bs-primary-rgb), 0.15) !important; }
+        .bg-soft-secondary { background-color: rgba(var(--bs-secondary-rgb), 0.15) !important; }
+        .bg-soft-success { background-color: rgba(var(--bs-success-rgb), 0.15) !important; }
+        .bg-soft-danger { background-color: rgba(var(--bs-danger-rgb), 0.15) !important; }
+        .bg-soft-warning { background-color: rgba(var(--bs-warning-rgb), 0.15) !important; }
+        .bg-soft-info { background-color: rgba(var(--bs-info-rgb), 0.15) !important; }
+        .bg-soft-light { background-color: rgba(var(--bs-light-rgb), 0.15) !important; }
+        .bg-soft-dark { background-color: rgba(var(--bs-dark-rgb), 0.15) !important; }
+
+        .font-size-11 { font-size: 11px !important; }
+        .font-size-12 { font-size: 12px !important; }
+        .font-size-13 { font-size: 13px !important; }
+        .font-size-15 { font-size: 15px !important; }
+        .font-size-18 { font-size: 18px !important; }
+        .font-size-20 { font-size: 20px !important; }
+
+        .page-title-box { padding-bottom: 1rem; }
+        .page-title-box .breadcrumb { background-color: transparent; padding: 0; }
+
+        .table-centered td, .table-centered th { vertical-align: middle; }
+        .table-nowrap td, .table-nowrap th { white-space: nowrap; }
     </style>
 </head>
 <body>
@@ -97,12 +141,36 @@
 
         <ul class="navbar-nav ms-auto flex-row align-items-center">
             @auth
-            <!-- Notifications (Optional) -->
-            <li class="nav-item me-3">
-                <a class="nav-link text-white" href="#" title="Notifications">
+            <!-- Notifications -->
+            @php
+                try {
+                    $unreadNotifications = Auth::user()->unreadNotifications;
+                } catch (\Throwable $e) {
+                    $unreadNotifications = collect();
+                }
+            @endphp
+            <li class="nav-item dropdown me-3">
+                <a class="nav-link text-white position-relative" href="#" id="notificationsDropdown" data-bs-toggle="dropdown" aria-expanded="false" title="Notifications">
                     <i class="bi bi-bell fs-5"></i>
-                    <span class="badge bg-danger rounded-pill position-absolute top-0 start-100 translate-middle" style="font-size: 0.6rem;">3</span>
+                    @if($unreadNotifications->count() > 0)
+                        <span class="badge bg-danger rounded-pill position-absolute top-0 start-100 translate-middle" style="font-size: 0.6rem;">{{ $unreadNotifications->count() > 9 ? '9+' : $unreadNotifications->count() }}</span>
+                    @endif
                 </a>
+                <ul class="dropdown-menu dropdown-menu-end shadow" style="width: 340px; max-height: 400px; overflow-y: auto;" aria-labelledby="notificationsDropdown">
+                    @forelse($unreadNotifications->take(8) as $notification)
+                        <li>
+                            <div class="dropdown-item-text small border-bottom py-2">
+                                <div class="fw-bold">{{ $notification->data['title'] ?? 'Notification' }}</div>
+                                <div class="text-muted">{{ $notification->data['message'] ?? '' }}</div>
+                                <div class="text-muted" style="font-size: 0.7rem;">{{ $notification->created_at->diffForHumans() }}</div>
+                            </div>
+                        </li>
+                    @empty
+                        <li><span class="dropdown-item-text small text-muted">No new notifications</span></li>
+                    @endforelse
+                    <li><hr class="dropdown-divider"></li>
+                    <li><a class="dropdown-item text-center small" href="{{ route('notifications.index') }}">View all notifications</a></li>
+                </ul>
             </li>
             
             <!-- User Dropdown -->

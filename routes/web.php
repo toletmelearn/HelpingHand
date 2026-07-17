@@ -506,85 +506,84 @@ Route::middleware(['auth'])->group(function () {
         Route::get('students-crud/{student}/edit', [App\Http\Controllers\Admin\AdminStudentController::class, 'edit'])->name('students-legacy.edit');
         Route::put('students-crud/{student}', [App\Http\Controllers\Admin\AdminStudentController::class, 'update'])->name('students-legacy.update');
         Route::delete('students-crud/{student}', [App\Http\Controllers\Admin\AdminStudentController::class, 'destroy'])->name('students-legacy.destroy');
-        
+
+        // Financial Year Closing -- gated by permission inside the controller
+        // itself (view-year-closing/manage-year-closing), not a hardcoded
+        // role. Must be registered before the 'fees' resource below (which
+        // defines a GET fees/{fee} wildcard for 'show') so "year-closing"
+        // isn't swallowed as a fee ID.
+        Route::get('fees/year-closing', [App\Http\Controllers\Admin\FinancialYearClosingController::class, 'index'])->name('fees.year-closing.index');
+        Route::post('fees/year-closing/stage', [App\Http\Controllers\Admin\FinancialYearClosingController::class, 'stage'])->name('fees.year-closing.stage');
+        Route::post('fees/year-closing/confirm', [App\Http\Controllers\Admin\FinancialYearClosingController::class, 'confirm'])->name('fees.year-closing.confirm');
+        Route::post('fees/year-closing/rollback', [App\Http\Controllers\Admin\FinancialYearClosingController::class, 'rollback'])->name('fees.year-closing.rollback');
+
+        // Fee Structures CRUD -- gated by permission inside the controller
+        // itself (view-fee-structures/create-fee-structures/
+        // edit-fee-structures/delete-fee-structures), not a hardcoded role.
+        Route::post('fee-structures/copy', [App\Http\Controllers\Admin\FeeStructureController::class, 'copyStructure'])->name('fee-structures.copy');
+        Route::post('fee-structures/display-settings', [App\Http\Controllers\Admin\FeeStructureController::class, 'updateDisplaySettings'])->name('fee-structures.display-settings.update');
+        Route::resource('fee-structures', App\Http\Controllers\Admin\FeeStructureController::class);
+        Route::put('fee-structures/{id}/activate', [App\Http\Controllers\Admin\FeeStructureController::class, 'activate'])->name('fee-structures.activate');
+        Route::put('fee-structures/{id}/deactivate', [App\Http\Controllers\Admin\FeeStructureController::class, 'deactivate'])->name('fee-structures.deactivate');
+
+        // Fee Demand Register + Daily Collection Register -- part of
+        // FeeCollectionController, gated by view-fees below.
+        Route::get('fees/demand-register', [App\Http\Controllers\Admin\FeeCollectionController::class, 'demandRegister'])->name('fees.demand-register');
+        Route::get('fees/demand-register/export', [App\Http\Controllers\Admin\FeeCollectionController::class, 'exportDemandRegister'])->name('fees.demand-register.export');
+        Route::get('fees/collection-register', [App\Http\Controllers\Admin\FeeCollectionController::class, 'collectionRegister'])->name('fees.collection-register');
+        Route::get('fees/collection-register/export', [App\Http\Controllers\Admin\FeeCollectionController::class, 'exportCollectionRegister'])->name('fees.collection-register.export');
+
+        // Cashier Closing Shift Routes -- gated by permission inside the
+        // controller (view-cashier-closing/manage-cashier-closing).
+        Route::resource('fees/cashier-closings', App\Http\Controllers\Admin\CashierClosingController::class)->only(['index', 'create', 'store', 'show'])->names('fees.cashier-closings');
+
+        // Defaulter Management Workflow -- gated by permission inside the
+        // controller (view-defaulters/manage-defaulters).
+        Route::get('fees/defaulters/dashboard', [App\Http\Controllers\Admin\DefaulterController::class, 'dashboard'])->name('fees.defaulters.dashboard');
+        Route::get('fees/defaulters', [App\Http\Controllers\Admin\DefaulterController::class, 'index'])->name('fees.defaulters.index');
+        Route::post('fees/defaulters/bulk-action', [App\Http\Controllers\Admin\DefaulterController::class, 'bulkAction'])->name('fees.defaulters.bulk-action');
+        Route::post('fees/defaulters/{id}/action', [App\Http\Controllers\Admin\DefaulterController::class, 'takeAction'])->name('fees.defaulters.action');
+        Route::post('fees/defaulters/{id}/override', [App\Http\Controllers\Admin\DefaulterController::class, 'override'])->name('fees.defaulters.override');
+        Route::get('fees/defaulters/{studentId}/history', [App\Http\Controllers\Admin\DefaulterController::class, 'history'])->name('fees.defaulters.history');
+        Route::post('fees/defaulters/{id}/exam-override', [App\Http\Controllers\Admin\DefaulterController::class, 'grantExamOverride'])->name('fees.defaulters.exam-override.grant');
+        Route::delete('fees/defaulters/{id}/exam-override', [App\Http\Controllers\Admin\DefaulterController::class, 'revokeExamOverride'])->name('fees.defaulters.exam-override.revoke');
+
+        // Enterprise Finance Reporting Portal -- gated by permission inside
+        // the controller (view-finance-reports).
+        Route::get('fees/reports', [App\Http\Controllers\Admin\FinanceReportController::class, 'index'])->name('fees.reports.index');
+        Route::get('fees/reports/export', [App\Http\Controllers\Admin\FinanceReportController::class, 'export'])->name('fees.reports.export');
+
+        // Professional Accountant Dashboard -- gated by permission inside
+        // the controller (view-fees).
+        Route::get('fees/dashboard', [App\Http\Controllers\Admin\AccountantDashboardController::class, 'index'])->name('fees.dashboard');
+
+        // Fee Collection -- gated by permission inside the controller itself
+        // (view-fees/can-manage-fees), not a hardcoded role.
+        Route::resource('fees', App\Http\Controllers\Admin\FeeCollectionController::class)->only(['index', 'store', 'show']);
+        Route::post('fees/search-students', [App\Http\Controllers\Admin\FeeCollectionController::class, 'searchStudents'])->name('fees.search.students');
+        Route::get('fees/student/{id}/dashboard', [App\Http\Controllers\Admin\FeeCollectionController::class, 'getStudentFeeDashboard'])->name('fees.student-dashboard');
+        Route::get('fees/collect/{studentId}', [App\Http\Controllers\Admin\FeeCollectionController::class, 'createCollectionForm'])->name('fees.collect.form');
+        Route::post('fees/process-collection', [App\Http\Controllers\Admin\FeeCollectionController::class, 'processCollection'])->name('fees.process.collection');
+        Route::get('fees/receipt/{id}', [App\Http\Controllers\Admin\FeeCollectionController::class, 'getReceipt'])->name('fees.receipt');
+        Route::post('fees/receipt/{id}/reverse', [App\Http\Controllers\Admin\FeeCollectionController::class, 'reverseCollection'])->name('fees.reverse');
+        Route::get('fees/receipt/{id}/pdf', [App\Http\Controllers\Admin\FeeReceiptController::class, 'downloadPdf'])->name('fees.receipt.pdf');
+        Route::get('fees/generate-upi-qr', [App\Http\Controllers\Admin\FeeCollectionController::class, 'generateUpiQr'])->name('fees.generate-upi-qr');
+        Route::get('fees/reversal-requests', [App\Http\Controllers\Admin\FeeCollectionController::class, 'listReversalRequests'])->name('fees.reversal-requests.index');
+        Route::post('fees/reversal-requests/{id}/approve', [App\Http\Controllers\Admin\FeeCollectionController::class, 'approveReversal'])->name('fees.reversal-requests.approve');
+        Route::post('fees/reversal-requests/{id}/reject', [App\Http\Controllers\Admin\FeeCollectionController::class, 'rejectReversal'])->name('fees.reversal-requests.reject');
+
+        // Security Deposit Refund Queue -- gated by permission inside the
+        // controller (view-security-deposits/manage-security-deposits).
+        Route::prefix('security-deposits')->name('security-deposits.')->group(function () {
+            Route::get('/', [App\Http\Controllers\Admin\SecurityDepositController::class, 'index'])->name('index');
+            Route::post('/{id}/resolve', [App\Http\Controllers\Admin\SecurityDepositController::class, 'resolve'])->name('resolve');
+        });
+
+        // Generic Payment Info (QR + bank details for walk-ins/notice board)
+        // -- gated by permission inside the controller (view-payment-info).
+        Route::get('payment-info', [App\Http\Controllers\Admin\PaymentInfoController::class, 'show'])->name('payment-info.show');
+
         Route::middleware(['role:accountant'])->group(function () {
-            // Professional Fee Management Routes
-            Route::get('fee-types/master', [App\Http\Controllers\Admin\FeeStructureController::class, 'feeTypeMaster'])->name('fee-types.master');
-            Route::post('fee-types/master', [App\Http\Controllers\Admin\FeeStructureController::class, 'updateFeeTypeMaster'])->name('fee-types.update-master');
-            Route::post('fee-structures/copy', [App\Http\Controllers\Admin\FeeStructureController::class, 'copyStructure'])->name('fee-structures.copy');
-
-            Route::resource('fee-structures', App\Http\Controllers\Admin\FeeStructureController::class);
-            Route::put('fee-structures/{id}/activate', [App\Http\Controllers\Admin\FeeStructureController::class, 'activate'])->name('fee-structures.activate');
-            Route::put('fee-structures/{id}/deactivate', [App\Http\Controllers\Admin\FeeStructureController::class, 'deactivate'])->name('fee-structures.deactivate');
-
-            Route::resource('fee-types', App\Http\Controllers\Admin\FeeTypeController::class)->except(['show']);
-            Route::put('fee-types/{feeType}/activate', [App\Http\Controllers\Admin\FeeTypeController::class, 'activate'])->name('fee-types.activate');
-            Route::put('fee-types/{feeType}/deactivate', [App\Http\Controllers\Admin\FeeTypeController::class, 'deactivate'])->name('fee-types.deactivate');
-
-            // Family entity + sibling-discount link confirmation
-            Route::resource('families', App\Http\Controllers\Admin\FamilyController::class)->only(['index', 'show']);
-            Route::prefix('family-link-suggestions')->name('family-link-suggestions.')->group(function () {
-                Route::get('/', [App\Http\Controllers\Admin\FamilyLinkSuggestionController::class, 'index'])->name('index');
-                Route::post('/{id}/confirm', [App\Http\Controllers\Admin\FamilyLinkSuggestionController::class, 'confirm'])->name('confirm');
-                Route::post('/{id}/dismiss', [App\Http\Controllers\Admin\FamilyLinkSuggestionController::class, 'dismiss'])->name('dismiss');
-            });
-
-            // Fee Demand Register Routes
-            Route::get('fees/demand-register', [App\Http\Controllers\Admin\FeeCollectionController::class, 'demandRegister'])->name('fees.demand-register');
-            Route::get('fees/demand-register/export', [App\Http\Controllers\Admin\FeeCollectionController::class, 'exportDemandRegister'])->name('fees.demand-register.export');
-
-            // Daily Collection Register Routes
-            Route::get('fees/collection-register', [App\Http\Controllers\Admin\FeeCollectionController::class, 'collectionRegister'])->name('fees.collection-register');
-            Route::get('fees/collection-register/export', [App\Http\Controllers\Admin\FeeCollectionController::class, 'exportCollectionRegister'])->name('fees.collection-register.export');
-
-            // Cashier Closing Shift Routes
-            Route::resource('fees/cashier-closings', App\Http\Controllers\Admin\CashierClosingController::class)->only(['index', 'create', 'store', 'show'])->names('fees.cashier-closings');
-
-            // Defaulter Management Workflow Routes
-            Route::get('fees/defaulters/dashboard', [App\Http\Controllers\Admin\DefaulterController::class, 'dashboard'])->name('fees.defaulters.dashboard');
-            Route::get('fees/defaulters', [App\Http\Controllers\Admin\DefaulterController::class, 'index'])->name('fees.defaulters.index');
-            Route::post('fees/defaulters/bulk-action', [App\Http\Controllers\Admin\DefaulterController::class, 'bulkAction'])->name('fees.defaulters.bulk-action');
-            Route::post('fees/defaulters/{id}/action', [App\Http\Controllers\Admin\DefaulterController::class, 'takeAction'])->name('fees.defaulters.action');
-            Route::post('fees/defaulters/{id}/override', [App\Http\Controllers\Admin\DefaulterController::class, 'override'])->name('fees.defaulters.override');
-            Route::get('fees/defaulters/{studentId}/history', [App\Http\Controllers\Admin\DefaulterController::class, 'history'])->name('fees.defaulters.history');
-
-            // Enterprise Finance Reporting Portal Routes
-            Route::get('fees/reports', [App\Http\Controllers\Admin\FinanceReportController::class, 'index'])->name('fees.reports.index');
-            Route::get('fees/reports/export', [App\Http\Controllers\Admin\FinanceReportController::class, 'export'])->name('fees.reports.export');
-
-            // Professional Accountant Dashboard Route
-            Route::get('fees/dashboard', [App\Http\Controllers\Admin\AccountantDashboardController::class, 'index'])->name('fees.dashboard');
-
-            // Financial Year Closing Routes
-            Route::get('fees/year-closing', [App\Http\Controllers\Admin\FinancialYearClosingController::class, 'index'])->name('fees.year-closing.index');
-            Route::post('fees/year-closing/stage', [App\Http\Controllers\Admin\FinancialYearClosingController::class, 'stage'])->name('fees.year-closing.stage');
-            Route::post('fees/year-closing/confirm', [App\Http\Controllers\Admin\FinancialYearClosingController::class, 'confirm'])->name('fees.year-closing.confirm');
-            Route::post('fees/year-closing/rollback', [App\Http\Controllers\Admin\FinancialYearClosingController::class, 'rollback'])->name('fees.year-closing.rollback');
-
-            // Fee Collection Routes
-            Route::resource('fees', App\Http\Controllers\Admin\FeeCollectionController::class)->only(['index', 'store', 'show']);
-            Route::post('fees/search-students', [App\Http\Controllers\Admin\FeeCollectionController::class, 'searchStudents'])->name('fees.search.students');
-            Route::get('fees/student/{id}/dashboard', [App\Http\Controllers\Admin\FeeCollectionController::class, 'getStudentFeeDashboard'])->name('fees.student-dashboard');
-            Route::get('fees/collect/{studentId}', [App\Http\Controllers\Admin\FeeCollectionController::class, 'createCollectionForm'])->name('fees.collect.form');
-            Route::post('fees/process-collection', [App\Http\Controllers\Admin\FeeCollectionController::class, 'processCollection'])->name('fees.process.collection');
-            Route::get('fees/receipt/{id}', [App\Http\Controllers\Admin\FeeCollectionController::class, 'getReceipt'])->name('fees.receipt');
-            Route::post('fees/receipt/{id}/reverse', [App\Http\Controllers\Admin\FeeCollectionController::class, 'reverseCollection'])->name('fees.reverse');
-            Route::get('fees/receipt/{id}/pdf', [App\Http\Controllers\Admin\FeeReceiptController::class, 'downloadPdf'])->name('fees.receipt.pdf');
-            
-            // Dynamic UPI QR Route
-            Route::get('fees/generate-upi-qr', [App\Http\Controllers\Admin\FeeCollectionController::class, 'generateUpiQr'])->name('fees.generate-upi-qr');
-
-            // Reversal Requests Routes
-            Route::get('fees/reversal-requests', [App\Http\Controllers\Admin\FeeCollectionController::class, 'listReversalRequests'])->name('fees.reversal-requests.index');
-            Route::post('fees/reversal-requests/{id}/approve', [App\Http\Controllers\Admin\FeeCollectionController::class, 'approveReversal'])->name('fees.reversal-requests.approve');
-            Route::post('fees/reversal-requests/{id}/reject', [App\Http\Controllers\Admin\FeeCollectionController::class, 'rejectReversal'])->name('fees.reversal-requests.reject');
-
-            // Transport Fee Routes
-            Route::get('transport-fees', [App\Http\Controllers\Admin\TransportFeeController::class, 'index'])->name('transport-fees.index');
-            Route::get('transport-fees/{id}/collect', [App\Http\Controllers\Admin\TransportFeeController::class, 'collectForm'])->name('transport-fees.collect-form');
-            Route::post('transport-fees/{id}/collect', [App\Http\Controllers\Admin\TransportFeeController::class, 'collect'])->name('transport-fees.collect');
-            Route::post('transport-fees/generate-dues', [App\Http\Controllers\Admin\TransportFeeController::class, 'generateDues'])->name('transport-fees.generate-dues');
-
             // Discount Approval Routes
             Route::get('discount-approvals', [App\Http\Controllers\Admin\DiscountApprovalController::class, 'index'])->name('discount-approvals.index');
             Route::post('discount-approvals', [App\Http\Controllers\Admin\DiscountApprovalController::class, 'store'])->name('discount-approvals.store');
@@ -605,47 +604,62 @@ Route::middleware(['auth'])->group(function () {
             Route::get('fees/defaulters-list', [App\Http\Controllers\Admin\FeeAutomationController::class, 'defaulters'])->name('fees.defaulters');
             Route::get('fee-dashboard', [App\Http\Controllers\Admin\FeeAutomationController::class, 'feeDashboard'])->name('fee-dashboard');
             Route::post('fees/send-whatsapp-reminder', [App\Http\Controllers\Admin\FeeAutomationController::class, 'sendWhatsappReminder'])->name('fees.send-whatsapp-reminder');
-
-            // Reconciliation Center Routes
-            Route::prefix('reconciliation')->name('finance.reconciliation.')->group(function () {
-                Route::get('/unresolved', [App\Http\Controllers\Admin\FinanceReconciliationController::class, 'unresolved'])->name('unresolved');
-                Route::get('/overpayments', [App\Http\Controllers\Admin\FinanceReconciliationController::class, 'overpayments'])->name('overpayments');
-                Route::get('/refunds', [App\Http\Controllers\Admin\FinanceReconciliationController::class, 'refunds'])->name('refunds');
-                Route::get('/orphans', [App\Http\Controllers\Admin\FinanceReconciliationController::class, 'orphans'])->name('orphans');
-                Route::get('/mismatches', [App\Http\Controllers\Admin\FinanceReconciliationController::class, 'mismatches'])->name('mismatches');
-                Route::post('/bulk-assign', [App\Http\Controllers\Admin\FinanceReconciliationController::class, 'bulkAssign'])->name('bulk-assign');
-                Route::post('/rebuild-ledger', [App\Http\Controllers\Admin\FinanceReconciliationController::class, 'rebuildLedger'])->name('rebuild-ledger');
-                Route::post('/issue-refund', [App\Http\Controllers\Admin\FinanceReconciliationController::class, 'issueRefund'])->name('issue-refund');
-            });
-
-            // Security Deposit Refund Queue
-            Route::prefix('security-deposits')->name('security-deposits.')->group(function () {
-                Route::get('/', [App\Http\Controllers\Admin\SecurityDepositController::class, 'index'])->name('index');
-                Route::post('/{id}/resolve', [App\Http\Controllers\Admin\SecurityDepositController::class, 'resolve'])->name('resolve');
-            });
-
-            // Generic Payment Info (QR + bank details for walk-ins/notice board)
-            Route::get('payment-info', [App\Http\Controllers\Admin\PaymentInfoController::class, 'show'])->name('payment-info.show');
-
-            // UPI Payment Claim Matching Queue
-            Route::prefix('payment-claims')->name('payment-claims.')->group(function () {
-                Route::get('/', [App\Http\Controllers\Admin\PaymentClaimMatchingController::class, 'queue'])->name('queue');
-                Route::post('/run-matching', [App\Http\Controllers\Admin\PaymentClaimMatchingController::class, 'runMatching'])->name('run-matching');
-                Route::post('/{claimId}/approve', [App\Http\Controllers\Admin\PaymentClaimMatchingController::class, 'approve'])->name('approve');
-                Route::post('/{id}/reject', [App\Http\Controllers\Admin\PaymentClaimMatchingController::class, 'reject'])->name('reject');
-            });
         });
 
-        // Discount rule CRUD -- admin-exclusive (financial policy), unlike
-        // the day-to-day family-link confirmation queue above which stays
-        // role:accountant. Advance-rebate rule CRUD + manual override are
-        // the same tier for the same reason.
-        Route::middleware(['role:admin'])->group(function () {
-            Route::resource('discount-rules', App\Http\Controllers\Admin\DiscountRuleController::class)->except(['show']);
-
-            Route::resource('advance-rebate-rules', App\Http\Controllers\Admin\AdvanceRebateRuleController::class)->except(['show']);
-            Route::post('students/{student}/advance-rebate-override', [App\Http\Controllers\Admin\AdvanceRebateRuleController::class, 'manualOverride'])->name('advance-rebate-rules.manual-override');
+        // Reconciliation Center -- gated by permission inside the controller
+        // itself (view-reconciliation/manage-reconciliation), not a
+        // hardcoded role.
+        Route::prefix('reconciliation')->name('finance.reconciliation.')->group(function () {
+            Route::get('/unresolved', [App\Http\Controllers\Admin\FinanceReconciliationController::class, 'unresolved'])->name('unresolved');
+            Route::get('/overpayments', [App\Http\Controllers\Admin\FinanceReconciliationController::class, 'overpayments'])->name('overpayments');
+            Route::get('/refunds', [App\Http\Controllers\Admin\FinanceReconciliationController::class, 'refunds'])->name('refunds');
+            Route::get('/orphans', [App\Http\Controllers\Admin\FinanceReconciliationController::class, 'orphans'])->name('orphans');
+            Route::get('/mismatches', [App\Http\Controllers\Admin\FinanceReconciliationController::class, 'mismatches'])->name('mismatches');
+            Route::post('/bulk-assign', [App\Http\Controllers\Admin\FinanceReconciliationController::class, 'bulkAssign'])->name('bulk-assign');
+            Route::post('/rebuild-ledger', [App\Http\Controllers\Admin\FinanceReconciliationController::class, 'rebuildLedger'])->name('rebuild-ledger');
+            Route::post('/issue-refund', [App\Http\Controllers\Admin\FinanceReconciliationController::class, 'issueRefund'])->name('issue-refund');
         });
+
+        // UPI Payment Claim Matching Queue -- gated by permission inside the
+        // controller itself (view-upi-matching/manage-upi-matching), not a
+        // hardcoded role.
+        Route::prefix('payment-claims')->name('payment-claims.')->group(function () {
+            Route::get('/', [App\Http\Controllers\Admin\PaymentClaimMatchingController::class, 'queue'])->name('queue');
+            Route::post('/run-matching', [App\Http\Controllers\Admin\PaymentClaimMatchingController::class, 'runMatching'])->name('run-matching');
+            Route::post('/{claimId}/approve', [App\Http\Controllers\Admin\PaymentClaimMatchingController::class, 'approve'])->name('approve');
+            Route::post('/{id}/reject', [App\Http\Controllers\Admin\PaymentClaimMatchingController::class, 'reject'])->name('reject');
+        });
+
+        // Family entity + sibling-discount link confirmation -- gated by
+        // permission inside the controllers themselves (view-families/
+        // manage-families), not a hardcoded role.
+        Route::resource('families', App\Http\Controllers\Admin\FamilyController::class)->only(['index', 'show']);
+        Route::prefix('family-link-suggestions')->name('family-link-suggestions.')->group(function () {
+            Route::get('/', [App\Http\Controllers\Admin\FamilyLinkSuggestionController::class, 'index'])->name('index');
+            Route::post('/{id}/confirm', [App\Http\Controllers\Admin\FamilyLinkSuggestionController::class, 'confirm'])->name('confirm');
+            Route::post('/{id}/dismiss', [App\Http\Controllers\Admin\FamilyLinkSuggestionController::class, 'dismiss'])->name('dismiss');
+        });
+
+        // Fee Head Master -- gated by permission inside the controllers
+        // themselves (view-fee-types/manage-fee-types), not a hardcoded role.
+        Route::get('fee-types/master', [App\Http\Controllers\Admin\FeeStructureController::class, 'feeTypeMaster'])->name('fee-types.master');
+        Route::post('fee-types/master', [App\Http\Controllers\Admin\FeeStructureController::class, 'updateFeeTypeMaster'])->name('fee-types.update-master');
+        Route::resource('fee-types', App\Http\Controllers\Admin\FeeTypeController::class)->except(['show']);
+        Route::put('fee-types/{feeType}/activate', [App\Http\Controllers\Admin\FeeTypeController::class, 'activate'])->name('fee-types.activate');
+        Route::put('fee-types/{feeType}/deactivate', [App\Http\Controllers\Admin\FeeTypeController::class, 'deactivate'])->name('fee-types.deactivate');
+
+        // Discount rule CRUD -- gated by permission inside the controller
+        // itself (view-discount-rules/manage-discount-rules), not a
+        // hardcoded role, so the admin can delegate this financial-policy
+        // duty via Manage Permissions if they choose to.
+        Route::resource('discount-rules', App\Http\Controllers\Admin\DiscountRuleController::class)->except(['show']);
+
+        // Advance-rebate rule CRUD + manual override -- gated by permission
+        // inside the controller itself (view-advance-rebate-rules/
+        // manage-advance-rebate-rules), same financial-policy tier as
+        // discount rules.
+        Route::resource('advance-rebate-rules', App\Http\Controllers\Admin\AdvanceRebateRuleController::class)->except(['show']);
+        Route::post('students/{student}/advance-rebate-override', [App\Http\Controllers\Admin\AdvanceRebateRuleController::class, 'manualOverride'])->name('advance-rebate-rules.manual-override');
 
         // Payment Settings Routes
         Route::get('settings/payment', [App\Http\Controllers\Admin\PaymentSettingsController::class, 'showPaymentSettings'])->name('settings.payment');
@@ -1490,16 +1504,10 @@ Route::middleware(['auth'])->group(function () {
 });
 
 // ============================================================
-// NEW ERPS BLUEPRINT MODULES (TRANSPORT, MEDICAL, DISCIPLINE, NOTEBOOKS, QUIZZES, PTM)
+// NEW ERPS BLUEPRINT MODULES (MEDICAL, DISCIPLINE, NOTEBOOKS, QUIZZES, PTM)
 // ============================================================
 
-// Admin Transport & Core Modules routes
 Route::middleware(['auth'])->group(function () {
-    Route::get('/admin/transport', [\App\Http\Controllers\Admin\AdminTransportController::class, 'index'])->name('admin.transport.index');
-    Route::post('/admin/transport/route', [\App\Http\Controllers\Admin\AdminTransportController::class, 'storeRoute'])->name('admin.transport.store-route');
-    Route::post('/admin/transport/stop', [\App\Http\Controllers\Admin\AdminTransportController::class, 'storeStop'])->name('admin.transport.store-stop');
-    Route::post('/admin/transport/assign', [\App\Http\Controllers\Admin\AdminTransportController::class, 'storeAssignment'])->name('admin.transport.store-assignment');
-
     // Admin Hostels
     Route::get('/admin/hostels', [\App\Http\Controllers\Admin\HostelController::class, 'index'])->name('admin.hostels.index');
     Route::post('/admin/hostels/hostel', [\App\Http\Controllers\Admin\HostelController::class, 'storeHostel'])->name('admin.hostels.store-hostel');
@@ -1654,9 +1662,8 @@ Route::middleware(['auth:teacher'])->group(function () {
     Route::post('/teacher/remedial', [\App\Http\Controllers\Teacher\TeacherRemedialController::class, 'store'])->name('teacher.remedial.store');
 });
 
-// Parent PTM & Transport & Payment routes
+// Parent PTM & Payment routes
 Route::middleware(['parent.auth'])->group(function () {
-    Route::get('/parent/transport', [\App\Http\Controllers\Parent\ParentTransportController::class, 'index'])->name('parent.transport.index');
     Route::get('/parent/ptm', [\App\Http\Controllers\Parent\ParentPtmController::class, 'index'])->name('parent.ptm.index');
     Route::post('/parent/ptm', [\App\Http\Controllers\Parent\ParentPtmController::class, 'store'])->name('parent.ptm.store');
 

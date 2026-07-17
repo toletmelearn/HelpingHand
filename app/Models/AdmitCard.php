@@ -119,6 +119,15 @@ class AdmitCard extends Model
         if ($outstandingFees > 0) {
             $errors[] = 'Student has outstanding fees of Rs. ' . $outstandingFees;
         }
+
+        // Check if student has an active Exam Restriction stage or higher --
+        // skipped if Admin/Principal/Accountant has granted an exception via
+        // ExamRestrictionService::grantOverride().
+        $defStage = \App\Models\DefaulterStage::where('student_id', $this->student_id)->first();
+        if ($defStage && in_array($defStage->stage, ['Exam Restriction', 'Result Hold', 'TC Hold'])
+            && !\App\Services\ExamRestrictionService::hasActiveOverride($this->student_id)) {
+            $errors[] = 'Student has an active Exam Restriction due to outstanding fee defaults (Stage: ' . $defStage->stage . ').';
+        }
         
         // Check if exam schedule exists
         if (!$this->exam || !$this->exam->exam_date) {

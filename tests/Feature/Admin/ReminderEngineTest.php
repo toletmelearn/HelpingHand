@@ -26,6 +26,18 @@ class ReminderEngineTest extends TestCase
     {
         parent::setUp();
 
+        // Real SMS delivery goes through Twilio, which isn't configured in
+        // tests -- bind a mocked NotificationService so every
+        // app(ReminderEngineService::class) resolution in this file gets a
+        // notifier that always reports success, exercising the reminder
+        // engine's own scheduling/retry logic rather than Twilio reachability.
+        $mockNotificationService = $this->createMock(NotificationService::class);
+        $mockNotificationService->method('sendSms')->willReturn(true);
+        $mockNotificationService->method('sendWhatsApp')->willReturn(true);
+        $mockNotificationService->method('sendEmail')->willReturn(true);
+        $mockNotificationService->method('queueNotification')->willReturn(true);
+        $this->app->instance(NotificationService::class, $mockNotificationService);
+
         $this->schoolClass = SchoolClass::create([
             'name' => 'Class 10',
             'class_order' => 10
