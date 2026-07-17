@@ -280,6 +280,62 @@ class DefaulterWorkflowTest extends TestCase
     }
 
     /** @test */
+    public function admin_can_grant_and_revoke_the_exam_override_through_the_real_http_route()
+    {
+        // Regression test: the permission-seeding migration only granted
+        // 'override-exam-restriction' to principal/accountant and assumed
+        // admin got it "automatically" -- it didn't, because that assumption
+        // was about a pre-existing seeder unaware of a brand new permission.
+        // Caught via manual browser testing (the button never rendered for
+        // the real admin user), not by the earlier test above, which calls
+        // ExamRestrictionService directly and bypasses route middleware
+        // entirely. This test exercises the actual HTTP route instead.
+        $overridePermission = \App\Models\Permission::firstOrCreate(['name' => 'override-exam-restriction']);
+        Role::where('name', 'admin')->first()->grantPermission($overridePermission->name);
+
+        $exam = Exam::create([
+            'name' => 'Midterm', 'exam_type' => 'mid_term', 'class_name' => 'Class 10',
+            'subject' => 'Science', 'exam_date' => '2026-07-01', 'start_time' => '09:00:00',
+            'end_time' => '12:00:00', 'total_marks' => 100, 'passing_marks' => 33,
+            'academic_year' => '2026', 'academic_session_id' => 1,
+            'subject_id' => $this->subject->id, 'max_marks' => 100,
+        ]);
+        $format = AdmitCardFormat::create(['name' => 'Standard', 'is_active' => true]);
+        $admitCard = AdmitCard::create([
+            'student_id' => $this->student->id, 'exam_id' => $exam->id,
+            'admit_card_format_id' => $format->id, 'academic_session' => '2026',
+            'status' => 'published', 'published_at' => now(), 'published_by' => $this->adminUser->id,
+        ]);
+
+        StudentFeeLedger::create([
+            'student_id' => $this->student->id, 'date' => '2026-07-01',
+            'description' => 'Tuition Fee charge', 'reference_type' => 'fee_structure_item',
+            'reference_id' => 1, 'debit' => 1200.00, 'credit' => 0.00,
+            'running_balance' => 1200.00, 'unpaid_amount' => 1200.00,
+        ]);
+
+        $service = new DefaulterService($this->createMock(\App\Services\NotificationService::class));
+        $service->syncDefaulters();
+        $service->overrideStage($this->student->id, 'Exam Restriction', null, $this->adminUser->id);
+        $this->assertEquals('revoked', $admitCard->fresh()->status);
+
+        $grantResponse = $this->actingAs($this->adminUser)->post(
+            route('admin.fees.defaulters.exam-override.grant', $this->student->id),
+            ['reason' => 'Parent committed to pay by Friday']
+        );
+        $grantResponse->assertRedirect();
+        $grantResponse->assertSessionHas('success');
+        $this->assertEquals('published', $admitCard->fresh()->status);
+
+        $revokeResponse = $this->actingAs($this->adminUser)->delete(
+            route('admin.fees.defaulters.exam-override.revoke', $this->student->id)
+        );
+        $revokeResponse->assertRedirect();
+        $revokeResponse->assertSessionHas('success');
+        $this->assertEquals('revoked', $admitCard->fresh()->status);
+    }
+
+    /** @test */
     public function class_teacher_only_sees_and_can_act_on_their_own_class_defaulters_and_notifies_admin()
     {
         Notification::fake();

@@ -40,13 +40,20 @@ return new class extends Migration
             ['module' => 'defaulters', 'label' => 'Send Defaulter Communications (no stage override)']
         );
 
-        // Admin already gets every permission automatically (PermissionSeeder).
         $principalRole->grantPermission('view-defaulters');
         $principalRole->grantPermission($overridePermission->name);
 
-        $accountantRole = Role::where('name', 'accountant')->first();
-        if ($accountantRole) {
-            $accountantRole->grantPermission($overridePermission->name);
+        // Admin does NOT get new permissions automatically -- PermissionSeeder
+        // is a pre-existing seeder unaware of this migration's new
+        // permission, and 'admin' is a distinct role from 'super-admin'
+        // (the only one that bypasses permission checks entirely). Grant
+        // explicitly so Admin/Principal/Accountant can all grant the exam
+        // exception, matching the requirement this was built for.
+        foreach (['admin', 'accountant'] as $roleName) {
+            $role = Role::where('name', $roleName)->first();
+            if ($role) {
+                $role->grantPermission($overridePermission->name);
+            }
         }
 
         // Deliberately NOT granted 'view-defaulters' -- that's the unscoped
