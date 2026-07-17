@@ -154,6 +154,10 @@ class DefaulterController extends Controller
         $defaulters = $query->paginate(20)->withQueryString();
         $classes = SchoolClass::orderBy('class_order', 'asc')->get();
         $sections = \App\Models\Section::orderBy('name')->get();
+        // Student has both a legacy 'section' string column and a
+        // section() relation of the same name -- the column always wins
+        // on ->section, so resolve the display name via this map instead.
+        $sectionsById = $sections->pluck('name', 'id');
         $stages = DefaulterService::$stages;
 
         $overriddenStudentIds = \App\Models\DefaulterExamOverride::whereNull('revoked_at')
@@ -161,9 +165,11 @@ class DefaulterController extends Controller
             ->pluck('student_id')
             ->all();
         $canOverrideExam = Auth::user()->hasPermission('override-exam-restriction');
+        $totalFeeAmountsByStudent = $this->totalFeeAmountsByStudent($defaulters->pluck('student_id')->all());
 
         return view('admin.fees.defaulters.index', compact(
-            'defaulters', 'classes', 'sections', 'stages', 'overriddenStudentIds', 'canOverrideExam'
+            'defaulters', 'classes', 'sections', 'sectionsById', 'stages',
+            'overriddenStudentIds', 'canOverrideExam', 'totalFeeAmountsByStudent'
         ));
     }
 
@@ -264,8 +270,18 @@ class DefaulterController extends Controller
         $format = $request->get('format', 'excel');
         $defaulters = $this->buildDefaulterQuery($request)->get();
 
+        // Student has both a legacy 'section' string COLUMN and a
+        // section() belongsTo RELATION with the same name -- Eloquent's
+        // attribute lookup always resolves the column first, so
+        // $student->section->name silently breaks (returns null) no
+        // matter what's eager-loaded. Side-step it with an id->name map
+        // built from the real sections table instead of the ambiguous
+        // magic property.
+        $sectionsById = \App\Models\Section::pluck('name', 'id');
+        $totalFeeAmountsByStudent = $this->totalFeeAmountsByStudent($defaulters->pluck('student_id')->all());
+
         if ($format === 'pdf') {
-            $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('admin.fees.defaulters.pdf', compact('defaulters', 'request'));
+            $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('admin.fees.defaulters.pdf', compact('defaulters', 'sectionsById', 'totalFeeAmountsByStudent', 'request'));
             $pdf->setPaper('A4', 'landscape');
             return $pdf->download('defaulter-registry-' . now()->format('Y-m-d') . '.pdf');
         }
@@ -279,13 +295,13 @@ class DefaulterController extends Controller
             'Expires'             => '0',
         ];
 
-        $callback = function () use ($defaulters) {
+        $callback = function () use ($defaulters, $sectionsById, $totalFeeAmountsByStudent) {
             $file = fopen('php://output', 'w');
             fprintf($file, chr(0xEF) . chr(0xBB) . chr(0xBF)); // Excel UTF-8 BOM
 
             fputcsv($file, [
                 'Admission No', 'Student', 'Class', 'Section', 'Workflow Stage',
-                'Outstanding (INR)', 'Last Action Date',
+                'Total Fee Amount (INR)', 'Outstanding (INR)', 'Last Action Date',
             ]);
 
             foreach ($defaulters as $def) {
@@ -293,8 +309,9 @@ class DefaulterController extends Controller
                     $def->student->admission_no ?? '',
                     $def->student->name ?? '',
                     $def->student->schoolClass->name ?? '',
-                    $def->student->section->name ?? '',
+                    $sectionsById[$def->student->section_id] ?? '',
                     $def->stage,
+                    number_format($totalFeeAmountsByStudent[$def->student_id] ?? 0, 2, '.', ''),
                     number_format($def->outstanding_amount, 2, '.', ''),
                     $def->last_action_date ? $def->last_action_date->format('Y-m-d H:i') : '',
                 ]);
@@ -304,6 +321,27 @@ class DefaulterController extends Controller
         };
 
         return response()->stream($callback, 200, $headers);
+    }
+
+    /**
+     * Total fee amount ever billed to each student (fee demand + late
+     * fee, i.e. every debit except refund reversals) -- same "fee_demand"
+     * definition FeeCollectionController::buildDemandRegisterQuery()
+     * already uses, computed as one grouped aggregate rather than a
+     * per-row subquery so it stays cheap on a 900+ row export.
+     */
+    private function totalFeeAmountsByStudent(array $studentIds): \Illuminate\Support\Collection
+    {
+        if (empty($studentIds)) {
+            return collect();
+        }
+
+        return DB::table('student_fee_ledgers')
+            ->select('student_id')
+            ->selectRaw("SUM(CASE WHEN debit > 0 AND reference_type != 'fee_refund' THEN debit ELSE 0 END) as total_fee_amount")
+            ->whereIn('student_id', $studentIds)
+            ->groupBy('student_id')
+            ->pluck('total_fee_amount', 'student_id');
     }
 
     /**

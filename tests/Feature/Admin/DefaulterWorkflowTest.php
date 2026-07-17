@@ -540,6 +540,16 @@ class DefaulterWorkflowTest extends TestCase
         $content = $filteredExport->streamedContent();
         $this->assertStringContainsString('John Doe', $content);
         $this->assertStringNotContainsString('Other Class Debtor', $content);
+
+        // Regression test: Student has both a legacy 'section' string
+        // column and a section() relation of the same name, so
+        // $student->section->name silently resolved to blank everywhere
+        // (caught by the user reviewing a real downloaded export, not by
+        // an earlier test) -- assert the section letter and the new
+        // "Total Fee Amount" column (everything billed, not just what's
+        // still outstanding) both actually appear.
+        $this->assertStringContainsString('Total Fee Amount (INR)', $content);
+        $this->assertStringContainsString('"John Doe","Class 10",A,Reminder,3000.00,3000.00', $content);
     }
 
     /** @test */

@@ -104,20 +104,25 @@
                 <th>Class</th>
                 <th>Section</th>
                 <th>Workflow Stage</th>
+                <th class="text-right">Total Fee Amount</th>
                 <th class="text-right">Outstanding</th>
                 <th>Last Action Date</th>
             </tr>
         </thead>
         <tbody>
-            @php $totalOutstanding = 0; @endphp
+            @php $totalFee = 0; $totalOutstanding = 0; @endphp
             @foreach($defaulters as $def)
-                @php $totalOutstanding += (float) $def->outstanding_amount; @endphp
+                @php
+                    $totalFee += (float) ($totalFeeAmountsByStudent[$def->student_id] ?? 0);
+                    $totalOutstanding += (float) $def->outstanding_amount;
+                @endphp
                 <tr>
                     <td>{{ $def->student->admission_no ?? '' }}</td>
                     <td>{{ $def->student->name ?? '' }}</td>
                     <td>{{ $def->student->schoolClass->name ?? 'N/A' }}</td>
-                    <td>{{ $def->student->section->name ?? 'N/A' }}</td>
+                    <td>{{ $sectionsById[$def->student->section_id] ?? 'N/A' }}</td>
                     <td>{{ $def->stage }}</td>
+                    <td class="text-right">₹{{ number_format($totalFeeAmountsByStudent[$def->student_id] ?? 0, 2) }}</td>
                     <td class="text-right">₹{{ number_format($def->outstanding_amount, 2) }}</td>
                     <td>{{ $def->last_action_date ? $def->last_action_date->format('Y-m-d H:i') : 'No action yet' }}</td>
                 </tr>
@@ -125,6 +130,7 @@
 
             <tr class="totals-row">
                 <td colspan="5">GRAND TOTAL ({{ count($defaulters) }} Students)</td>
+                <td class="text-right">₹{{ number_format($totalFee, 2) }}</td>
                 <td class="text-right">₹{{ number_format($totalOutstanding, 2) }}</td>
                 <td></td>
             </tr>

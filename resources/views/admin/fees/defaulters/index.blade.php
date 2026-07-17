@@ -197,6 +197,7 @@
                         <th>Student Name</th>
                         <th>Class & Section</th>
                         <th>Workflow Stage</th>
+                        <th class="text-end">Total Fee Amount</th>
                         <th class="text-end">Outstanding Balance</th>
                         <th>Last Action Date</th>
                         <th class="text-center">Workflow Actions</th>
@@ -222,10 +223,11 @@
                             </td>
                             <td><strong>{{ $def->student->admission_no }}</strong></td>
                             <td>{{ $def->student->name }}</td>
-                            <td>{{ $def->student->schoolClass->name ?? 'N/A' }} - {{ $def->student->section->name ?? 'N/A' }}</td>
+                            <td>{{ $def->student->schoolClass->name ?? 'N/A' }} - {{ $sectionsById[$def->student->section_id] ?? 'N/A' }}</td>
                             <td>
                                 <span class="badge badge-stage {{ $badge }}">{{ $def->stage }}</span>
                             </td>
+                            <td class="text-end">₹{{ number_format($totalFeeAmountsByStudent[$def->student_id] ?? 0, 2) }}</td>
                             <td class="text-end fw-bold text-danger">₹{{ number_format($def->outstanding_amount, 2) }}</td>
                             <td>{{ $def->last_action_date ? $def->last_action_date->format('Y-m-d H:i') : 'No action yet' }}</td>
                             <td class="text-center">
@@ -268,7 +270,7 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="8" class="text-center py-5 text-muted">
+                            <td colspan="9" class="text-center py-5 text-muted">
                                 <i class="bi bi-shield-check fs-2 text-success"></i>
                                 <p class="mt-2 mb-0">No outstanding fee defaulters found.</p>
                             </td>
