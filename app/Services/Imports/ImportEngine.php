@@ -80,9 +80,6 @@ class ImportEngine
             case 'subjects':
                 $modelClass = \App\Models\Subject::class;
                 break;
-            case 'routes':
-                $modelClass = \App\Models\Route::class;
-                break;
         }
 
         if ($modelClass && class_exists($modelClass)) {
@@ -112,12 +109,16 @@ class ImportEngine
 
         // Load the file and extract headers & preview
         $rows = $this->readFileRows($storedPath, $extension);
-        
+        $rows = $this->applyDefinitionRowTransform($definition, $rows);
+
         if (empty($rows)) {
             throw new \Exception("The uploaded file is empty.");
         }
 
-        $headers = array_map('trim', $rows[0]);
+        // A blank header cell (e.g. bank statements' empty Chq./Ref.No.
+        // column) comes through as null, not '' -- trim() alone throws a
+        // deprecation warning on that in PHP 8.1+.
+        $headers = array_map(fn ($h) => trim((string) $h), $rows[0]);
         $previewRows = array_slice($rows, 1, 3);
 
         // Generate auto mapping suggestions
@@ -168,6 +169,7 @@ class ImportEngine
         $filePath = $session->settings['file_path'];
         $extension = $session->settings['file_extension'];
         $rows = $this->readFileRows($filePath, $extension);
+        $rows = $this->applyDefinitionRowTransform($definition, $rows);
         $headers = array_shift($rows); // Remove header row
 
         // The transaction below can't safely auto-reconnect on a lost
@@ -300,6 +302,7 @@ class ImportEngine
         $mappings = $session->column_mappings;
         
         $rows = $this->readFileRows($filePath, $extension);
+        $rows = $this->applyDefinitionRowTransform($definition, $rows);
         $headers = array_shift($rows);
 
         // Each row below runs inside its own transaction, which can't safely
@@ -602,6 +605,24 @@ class ImportEngine
     }
 
     /**
+     * Optional per-definition hook for row shapes the generic engine can't
+     * handle on its own -- e.g. a bank statement splitting money across
+     * separate Withdrawal/Deposit columns instead of one Amount column, or
+     * dropping decorative separator rows a real bank export includes.
+     * Duck-typed (method_exists) rather than added to
+     * ImportDefinitionInterface so the other 7 registered import
+     * definitions, which have no need for this, are untouched.
+     */
+    private function applyDefinitionRowTransform(ImportDefinitionInterface $definition, array $rows): array
+    {
+        if (method_exists($definition, 'transformRows')) {
+            return $definition->transformRows($rows);
+        }
+
+        return $rows;
+    }
+
+    /**
      * Clean and strip out banner/title rows from the beginning of the sheet,
      * returning the rows starting from the detected header row.
      */
@@ -611,7 +632,18 @@ class ImportEngine
             return [];
         }
 
-        $headerKeywords = ['name', 'class', 'section', 'father', 'mother', 'dob', 'date of birth', 'mobile', 'phone', 'address', 'roll', 'enrl'];
+        $headerKeywords = [
+            'name', 'class', 'section', 'father', 'mother', 'dob', 'date of birth', 'mobile', 'phone', 'address', 'roll', 'enrl',
+            // Bank statement exports (HDFC and similar) -- the real header
+            // row reads "Date | Narration | Chq./Ref.No. | Withdrawal Amt. |
+            // Deposit Amt." Without these, none of that row's keywords
+            // matched anything in the student-oriented list above, so
+            // detection silently fell back to row 0 -- the bank's own
+            // letterhead ("HDFC BANK Ltd. Page No.: 1 Statement of
+            // accounts") -- and every row after it failed validation
+            // against a garbage "header".
+            'narration', 'withdrawal', 'deposit', 'chq', 'utr',
+        ];
 
         $headerRowIndex = 0;
         foreach ($rows as $index => $row) {
@@ -681,8 +713,12 @@ class ImportEngine
             $shortestDistance = -1;
 
             foreach ($headers as $header) {
-                $normalizedHeader = strtolower(trim(str_replace([' ', '_', '-'], '', $header)));
+                $normalizedHeader = strtolower(trim(str_replace([' ', '_', '-'], '', (string) $header)));
                 $normalizedTarget = strtolower(trim(str_replace([' ', '_', '-'], '', $target)));
+
+                if ($normalizedHeader === '') {
+                    continue;
+                }
 
                 // Direct exact lookup
                 if ($normalizedHeader === $normalizedTarget) {
@@ -690,9 +726,18 @@ class ImportEngine
                     break;
                 }
 
-                // Levenshtein check
+                // Levenshtein check. A flat "< 4" threshold is meaningless
+                // for a short target like 'utr' (3 chars) -- almost any
+                // unrelated header falls within edit-distance 4 of it, so
+                // e.g. 'utr' vs 'date' (distance 3) used to "win" purely
+                // because nothing else was closer, silently mapping UTR to
+                // a date column on any file without a real UTR header.
+                // Scale the bar to the target's own length so short target
+                // names require a near-exact match, not just "closest of a
+                // bad bunch".
                 $distance = levenshtein($normalizedHeader, $normalizedTarget);
-                if ($distance < 4 && ($shortestDistance === -1 || $distance < $shortestDistance)) {
+                $maxAllowedDistance = max(1, (int) floor(strlen($normalizedTarget) / 2));
+                if ($distance < 4 && $distance <= $maxAllowedDistance && ($shortestDistance === -1 || $distance < $shortestDistance)) {
                     $bestMatch = $header;
                     $shortestDistance = $distance;
                 }
