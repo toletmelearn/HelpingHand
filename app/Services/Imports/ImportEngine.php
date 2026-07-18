@@ -589,7 +589,25 @@ class ImportEngine
                 $cellIterator->setIterateOnlyExistingCells(false);
 
                 foreach ($cellIterator as $cell) {
-                    $rowData[] = $cell->getValue();
+                    // A real spreadsheet frequently has computed columns
+                    // (e.g. a "Total Paid" column that's actually
+                    // =SUM(...) over several monthly columns) -- getValue()
+                    // returns that raw formula STRING, not the number it
+                    // evaluates to, which then silently fails every
+                    // is_numeric()/numeric validation check downstream.
+                    // Fall back to the raw value if calculation fails
+                    // (unsupported function, broken reference, etc.)
+                    // rather than letting one bad formula abort the whole
+                    // file.
+                    if ($cell->isFormula()) {
+                        try {
+                            $rowData[] = $cell->getCalculatedValue();
+                        } catch (\Throwable $e) {
+                            $rowData[] = $cell->getValue();
+                        }
+                    } else {
+                        $rowData[] = $cell->getValue();
+                    }
                 }
                 $rows[] = $rowData;
             }
