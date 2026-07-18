@@ -811,7 +811,14 @@
                             <a class="nav-link text-white {{ request()->routeIs('imports.wizard') && request('module') === 'fee_opening_balance' ? 'active' : '' }}"
                                href="{{ route('imports.wizard', ['module' => 'fee_opening_balance']) }}">
                                 <i class="bi bi-clock-history me-2"></i>
-                                <span>Upload Opening Balance (Previous Fee)</span>
+                                <span>Upload Opening Balance (Per Fee-Head Detail)</span>
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link text-white {{ request()->routeIs('imports.wizard') && request('module') === 'fee_opening_balance_summary' ? 'active' : '' }}"
+                               href="{{ route('imports.wizard', ['module' => 'fee_opening_balance_summary']) }}">
+                                <i class="bi bi-clock-history me-2"></i>
+                                <span>Upload Opening Balance (Fee Register Summary)</span>
                             </a>
                         </li>
                         @endif

@@ -193,9 +193,12 @@
                                         <span class="bg-danger text-white p-2 rounded me-2" style="font-size: 1.1rem;"><i class="bi bi-clock-history"></i></span>
                                         <strong class="text-dark">Fee Opening Balance</strong>
                                     </div>
-                                    <small class="text-muted d-block mb-3">Record fees a student already paid before onboarding mid-session (monthly, quarterly, or full year).</small>
+                                    <small class="text-muted d-block mb-3">Record fees a student already paid before onboarding mid-session.</small>
                                 </div>
-                                <a href="{{ route('imports.wizard', ['module' => 'fee_opening_balance']) }}" class="btn btn-sm btn-danger w-100 import-btn">Start Wizard</a>
+                                <div class="d-flex flex-column gap-2">
+                                    <a href="{{ route('imports.wizard', ['module' => 'fee_opening_balance']) }}" class="btn btn-sm btn-outline-danger w-100">Per Fee-Head Detail (you know exactly which fee head/period each payment covered)</a>
+                                    <a href="{{ route('imports.wizard', ['module' => 'fee_opening_balance_summary']) }}" class="btn btn-sm btn-danger w-100">Fee Register Summary (a real historical register -- just a total-paid figure per student, no breakdown)</a>
+                                </div>
                             </div>
                         </div>
                     </div>
