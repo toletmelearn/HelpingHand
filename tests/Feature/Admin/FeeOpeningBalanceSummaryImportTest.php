@@ -204,6 +204,81 @@ class FeeOpeningBalanceSummaryImportTest extends TestCase
     }
 
     /** @test */
+    public function re_running_the_same_import_for_an_already_recorded_student_is_a_safe_noop_not_an_error()
+    {
+        // Regression test: student_fee_ledgers has a unique (student_id,
+        // reference_type, reference_id, description) constraint, and this
+        // importer always posts the same literal description per student
+        // -- re-running the same file for a student already recorded used
+        // to hit a raw duplicate-key error, silently swallowed by
+        // LedgerService into a confusing "Failed to record opening
+        // balance payment" for every previously-successful row. Reported
+        // by a user who re-uploaded the same real register a second time.
+        $student = $this->seedStudentWithLiveDebits();
+        $session = ImportSession::create(['uuid' => 'test-summary-7', 'module' => 'fee_opening_balance_summary', 'status' => 'processing']);
+
+        $definition = new FeeOpeningBalanceSummaryImportDefinition();
+        $rowData = [
+            'admission_no' => $student->admission_no,
+            'total_paid' => 3000,
+            'prior_year_pending' => 5000,
+        ];
+
+        $first = $definition->executeWrite($rowData, $session, 'skip');
+        $this->assertEquals('created', $first['status']);
+
+        $balanceAfterFirstImport = LedgerService::getOutstandingBalance($student->id);
+
+        // Re-run with a fresh session, exactly like re-uploading the same file.
+        $secondSession = ImportSession::create(['uuid' => 'test-summary-7b', 'module' => 'fee_opening_balance_summary', 'status' => 'processing']);
+        $second = $definition->executeWrite($rowData, $secondSession, 'skip');
+
+        $this->assertEquals('skipped', $second['status'], 'Re-importing an already-recorded student must be a no-op, not throw.');
+        $this->assertStringContainsString('already recorded', $second['message']);
+
+        // No duplicate ledger rows, no double-credited balance.
+        $this->assertEquals(
+            $balanceAfterFirstImport,
+            LedgerService::getOutstandingBalance($student->id),
+            'Re-running the import must not change the balance a second time.'
+        );
+        $this->assertEquals(1, StudentFeeLedger::where('student_id', $student->id)->where('reference_type', 'opening_balance')->count());
+        $this->assertEquals(1, StudentFeeLedger::where('student_id', $student->id)->where('reference_type', 'opening_balance_prior_year')->count());
+    }
+
+    /** @test */
+    public function re_running_is_safe_end_to_end_through_the_full_engine_with_many_students()
+    {
+        Storage::fake('local');
+
+        $studentA = $this->seedStudentWithLiveDebits('ADM-SUM-C');
+        $studentB = $this->seedStudentWithLiveDebits('ADM-SUM-D');
+
+        $csv = "Admission No,Total Paid,Prior Year Pending\n"
+            . "ADM-SUM-C,4000,\n"
+            . "ADM-SUM-D,3000,5000\n";
+
+        $engine = app(ImportEngine::class);
+
+        $file1 = UploadedFile::fake()->createWithContent('old_fee.csv', $csv);
+        $session1 = $engine->initializeSession('fee_opening_balance_summary', $file1, 1);
+        $result1 = $engine->execute($session1->uuid, 'skip');
+        $this->assertEquals(2, $result1['success']);
+        $this->assertEquals(0, $result1['errors']);
+
+        // Re-upload the identical file -- must not error for anyone.
+        $file2 = UploadedFile::fake()->createWithContent('old_fee.csv', $csv);
+        $session2 = $engine->initializeSession('fee_opening_balance_summary', $file2, 1);
+        $result2 = $engine->execute($session2->uuid, 'skip');
+        $this->assertEquals(0, $result2['errors'], 'A second import of the exact same file must produce zero errors.');
+        $this->assertEquals(0, $result2['success'], 'Nothing new was created the second time -- both students were already fully recorded.');
+
+        $this->assertEquals(1, StudentFeeLedger::where('student_id', $studentA->id)->where('reference_type', 'opening_balance')->count());
+        $this->assertEquals(1, StudentFeeLedger::where('student_id', $studentB->id)->where('reference_type', 'opening_balance')->count());
+        $this->assertEquals(1, StudentFeeLedger::where('student_id', $studentB->id)->where('reference_type', 'opening_balance_prior_year')->count());
+    }
+
+    /** @test */
     public function real_wide_format_file_is_reshaped_and_imports_correctly_end_to_end()
     {
         Storage::fake('local');

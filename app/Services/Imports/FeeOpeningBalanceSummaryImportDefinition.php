@@ -162,6 +162,9 @@ class FeeOpeningBalanceSummaryImportDefinition implements ImportDefinitionInterf
         return null;
     }
 
+    private const PENDING_DEBIT_DESCRIPTION = 'Opening Balance: Prior Year Pending Dues (2025-26)';
+    private const PAID_CREDIT_DESCRIPTION = 'Opening Balance: Pre-System Payment';
+
     public function executeWrite(array $rowData, ImportSession $session, string $resolutionStrategy): array
     {
         $student = Student::where('admission_no', trim((string) $rowData['admission_no']))->first();
@@ -180,49 +183,88 @@ class FeeOpeningBalanceSummaryImportDefinition implements ImportDefinitionInterf
             ];
         }
 
+        // student_fee_ledgers has a unique (student_id, reference_type,
+        // reference_id, description) constraint. This importer always
+        // posts the same literal description per student, so re-running
+        // the same file for a student already recorded would otherwise
+        // hit a raw duplicate-key error -- which LedgerService::
+        // postCredit()/postDebit() silently swallow into a generic null
+        // return, surfacing here as a confusing "Failed to record..."
+        // error even though nothing is actually wrong. Detect it up front
+        // and skip instead: re-uploading the same register must be safe,
+        // not double-credit the same historical payment.
+        $alreadyHasPendingDebit = $pending > 0 && StudentFeeLedger::where('student_id', $student->id)
+            ->where('reference_type', 'opening_balance_prior_year')
+            ->where('description', self::PENDING_DEBIT_DESCRIPTION)
+            ->exists();
+
+        $alreadyHasPaidCredit = $totalPaid > 0 && StudentFeeLedger::where('student_id', $student->id)
+            ->where('reference_type', 'opening_balance')
+            ->where('description', self::PAID_CREDIT_DESCRIPTION)
+            ->exists();
+
         $today = now()->format('Y-m-d');
         $createdIds = [];
+        $messageParts = [];
 
         if ($pending > 0) {
-            $debit = LedgerService::postDebit(
-                $student->id,
-                $today,
-                'Opening Balance: Prior Year Pending Dues (2025-26)',
-                'opening_balance_prior_year',
-                0,
-                $pending
-            );
+            if ($alreadyHasPendingDebit) {
+                $messageParts[] = 'prior-year pending dues already recorded (skipped)';
+            } else {
+                $debit = LedgerService::postDebit(
+                    $student->id,
+                    $today,
+                    self::PENDING_DEBIT_DESCRIPTION,
+                    'opening_balance_prior_year',
+                    0,
+                    $pending
+                );
 
-            if (!$debit) {
-                throw new \Exception("Failed to record prior-year pending dues for {$student->name} (Admission No {$student->admission_no}).");
+                if (!$debit) {
+                    throw new \Exception("Failed to record prior-year pending dues for {$student->name} (Admission No {$student->admission_no}).");
+                }
+
+                $createdIds[] = $debit->id;
+                $messageParts[] = sprintf('recorded ₹%.2f prior-year pending dues', $pending);
             }
-
-            $createdIds[] = $debit->id;
         }
 
         if ($totalPaid > 0) {
-            // No manualAllocationsToRegister set -- LedgerService::
-            // postCredit() falls through to allocateCreditFIFOInstance(),
-            // which already uses PaymentAllocationEngine's prioritized
-            // (mandatory-first / current-session-first / oldest-due-first)
-            // allocator, the same one every live fee collection uses. This
-            // lump sum has no fee-head/period breakdown to target a
-            // specific debit with, so the existing default allocator is
-            // exactly what's needed here.
-            $credit = LedgerService::postCredit(
-                $student->id,
-                $today,
-                'Opening Balance: Pre-System Payment',
-                'opening_balance',
-                0,
-                $totalPaid
-            );
+            if ($alreadyHasPaidCredit) {
+                $messageParts[] = 'opening balance payment already recorded (skipped)';
+            } else {
+                // No manualAllocationsToRegister set -- LedgerService::
+                // postCredit() falls through to allocateCreditFIFOInstance(),
+                // which already uses PaymentAllocationEngine's prioritized
+                // (mandatory-first / current-session-first / oldest-due-
+                // first) allocator, the same one every live fee collection
+                // uses. This lump sum has no fee-head/period breakdown to
+                // target a specific debit with, so the existing default
+                // allocator is exactly what's needed here.
+                $credit = LedgerService::postCredit(
+                    $student->id,
+                    $today,
+                    self::PAID_CREDIT_DESCRIPTION,
+                    'opening_balance',
+                    0,
+                    $totalPaid
+                );
 
-            if (!$credit) {
-                throw new \Exception("Failed to record opening balance payment for {$student->name} (Admission No {$student->admission_no}).");
+                if (!$credit) {
+                    throw new \Exception("Failed to record opening balance payment for {$student->name} (Admission No {$student->admission_no}).");
+                }
+
+                $createdIds[] = $credit->id;
+                $messageParts[] = sprintf('recorded ₹%.2f opening balance payment', $totalPaid);
             }
+        }
 
-            $createdIds[] = $credit->id;
+        if (empty($createdIds)) {
+            return [
+                'status' => 'skipped',
+                'id' => $student->id,
+                'message' => ucfirst(implode(' and ', $messageParts)) . " for {$student->name} (Admission No {$student->admission_no}).",
+            ];
         }
 
         $settings = $session->settings ?? [];
@@ -236,14 +278,6 @@ class FeeOpeningBalanceSummaryImportDefinition implements ImportDefinitionInterf
         $settings['affected_student_ids'] = $affectedStudentIds;
 
         $session->update(['settings' => $settings]);
-
-        $messageParts = [];
-        if ($pending > 0) {
-            $messageParts[] = sprintf('recorded ₹%.2f prior-year pending dues', $pending);
-        }
-        if ($totalPaid > 0) {
-            $messageParts[] = sprintf('recorded ₹%.2f opening balance payment', $totalPaid);
-        }
 
         return [
             'status' => 'created',
