@@ -3,6 +3,7 @@
 namespace App\Services\Imports;
 
 use App\Contracts\Imports\ImportDefinitionInterface;
+use App\Models\AdminConfiguration;
 use App\Models\ImportSession;
 use App\Models\Student;
 use App\Models\StudentFeeLedger;
@@ -27,6 +28,29 @@ use App\Services\StructureAdjustmentService;
  */
 class FeeOpeningBalanceSummaryImportDefinition implements ImportDefinitionInterface
 {
+    /**
+     * Starting point for the downloadable template -- matches the real
+     * historical fee register this feature was built to import (school
+     * roster columns, per-fee-head amounts, per-month payment columns)
+     * even though transformRows() below only actually reads 3 of these
+     * (Enrl No., TOTAL PAID, PENDING AMOUNT) by keyword; the rest are
+     * carried through purely so the downloadable template matches what
+     * the school's own register already looks like.
+     *
+     * Admin can add/remove fields from this list without a code change
+     * via the "Manage Template Fields" page (UniversalImportController::
+     * templateFields()/updateTemplateFields()) -- see getTemplateHeaders().
+     */
+    private const DEFAULT_TEMPLATE_HEADERS = [
+        'S.NO.', 'S. No.', 'Enrl No.', 'Name of Student', 'Gen.', 'New', 'Class', 'Sec.',
+        'Adm. fee', 'Security fee', 'Almanic fee', 'Robotics fee', 'Tution fee Qtr',
+        'Full Year Tuition Fees', 'Disc.5%', 'Admission fee paid', 'Security fee paid',
+        'Feb-26', 'Mar-26', 'Apr-26', 'May-26', 'Jun-26', 'Jul-26', 'Aug-26', 'Sep-26',
+        'Oct-26', 'Nov-26', 'Dec-26', 'Jan-27', 'Feb-27', 'Mar-27', 'Apr-27',
+        'Total Fee Amount', 'TOTAL PAID', 'Balance', 'PENDING AMOUNT  2025-26',
+        'ADVANCE AMOUNT  2025-26', 'FINE RECVD',
+    ];
+
     public function getTargetModel(): string
     {
         return StudentFeeLedger::class;
@@ -65,7 +89,11 @@ class FeeOpeningBalanceSummaryImportDefinition implements ImportDefinitionInterf
 
     public function getTemplateHeaders(): array
     {
-        return ['Admission No', 'Total Paid', 'Prior Year Pending'];
+        $configured = AdminConfiguration::get('imports', 'fee_opening_balance_summary_template_headers');
+
+        return (is_array($configured) && !empty($configured))
+            ? $configured
+            : self::DEFAULT_TEMPLATE_HEADERS;
     }
 
     /**

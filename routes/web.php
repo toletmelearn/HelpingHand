@@ -321,6 +321,8 @@ Route::middleware(['auth'])->group(function () {
     Route::get('imports/mapping-profiles', [App\Http\Controllers\Admin\UniversalImportController::class, 'mappingProfiles'])->name('imports.mapping-profiles');
     Route::get('imports/templates', [App\Http\Controllers\Admin\UniversalImportController::class, 'templates'])->name('imports.templates');
     Route::get('imports/wizard/{module}/download-template', [App\Http\Controllers\Admin\UniversalImportController::class, 'downloadTemplate'])->name('imports.download-template');
+    Route::get('imports/wizard/{module}/template-fields', [App\Http\Controllers\Admin\UniversalImportController::class, 'templateFields'])->name('imports.wizard.template-fields');
+    Route::post('imports/wizard/{module}/template-fields', [App\Http\Controllers\Admin\UniversalImportController::class, 'updateTemplateFields'])->name('imports.wizard.template-fields.update');
     Route::get('imports/wizard/{module}', [App\Http\Controllers\Admin\UniversalImportController::class, 'showWizard'])->name('imports.wizard');
     Route::post('imports/wizard/{module}/upload', [App\Http\Controllers\Admin\UniversalImportController::class, 'upload'])->name('imports.wizard.upload');
     Route::post('imports/wizard/{module}/dry-run', [App\Http\Controllers\Admin\UniversalImportController::class, 'dryRun'])->name('imports.wizard.dry-run');

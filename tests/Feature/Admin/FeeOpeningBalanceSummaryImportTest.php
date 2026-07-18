@@ -254,7 +254,84 @@ class FeeOpeningBalanceSummaryImportTest extends TestCase
 
         $response->assertOk();
         $content = str_replace("\xEF\xBB\xBF", '', $response->streamedContent());
-        $this->assertStringContainsString('Admission No', $content);
-        $this->assertStringContainsString('Prior Year Pending', $content);
+        // Default template matches the real historical register's shape.
+        $this->assertStringContainsString('Enrl No.', $content);
+        $this->assertStringContainsString('TOTAL PAID', $content);
+        $this->assertStringContainsString('PENDING AMOUNT', $content);
+    }
+
+    /** @test */
+    public function admin_can_add_and_remove_template_fields_without_a_code_change()
+    {
+        $admin = User::factory()->create();
+        $adminRole = Role::firstOrCreate(['name' => 'admin'], ['display_name' => 'Admin']);
+        $admin->roles()->attach($adminRole->id);
+
+        $this->actingAs($admin)
+            ->get(route('imports.wizard.template-fields', ['module' => 'fee_opening_balance_summary']))
+            ->assertOk()
+            ->assertSee('Enrl No.');
+
+        // Replace the default 38-field list with a short custom one.
+        $response = $this->actingAs($admin)->post(
+            route('imports.wizard.template-fields.update', ['module' => 'fee_opening_balance_summary']),
+            ['fields' => ['Enrl No.', 'TOTAL PAID', 'PENDING AMOUNT 2025-26', 'A Brand New Field']]
+        );
+        $response->assertRedirect(route('imports.wizard', ['module' => 'fee_opening_balance_summary']));
+
+        $definition = new FeeOpeningBalanceSummaryImportDefinition();
+        $this->assertEquals(
+            ['Enrl No.', 'TOTAL PAID', 'PENDING AMOUNT 2025-26', 'A Brand New Field'],
+            $definition->getTemplateHeaders(),
+            'getTemplateHeaders() must reflect the admin-edited list, not the hardcoded default.'
+        );
+
+        $download = $this->actingAs($admin)
+            ->get(route('imports.download-template', ['module' => 'fee_opening_balance_summary']));
+        $downloadContent = str_replace("\xEF\xBB\xBF", '', $download->streamedContent());
+        $this->assertStringContainsString('A Brand New Field', $downloadContent);
+        $this->assertStringNotContainsString('Robotics fee', $downloadContent, 'A field removed by the admin must not still appear in the downloaded template.');
+    }
+
+    /** @test */
+    public function saving_an_empty_field_list_is_rejected()
+    {
+        $admin = User::factory()->create();
+        $adminRole = Role::firstOrCreate(['name' => 'admin'], ['display_name' => 'Admin']);
+        $admin->roles()->attach($adminRole->id);
+
+        $response = $this->actingAs($admin)->post(
+            route('imports.wizard.template-fields.update', ['module' => 'fee_opening_balance_summary']),
+            ['fields' => ['', '  ']]
+        );
+
+        $response->assertSessionHasErrors('fields');
+        // Nothing got saved -- getTemplateHeaders() still falls through to
+        // the hardcoded default, not an empty/broken configured value.
+        $this->assertNotEmpty((new FeeOpeningBalanceSummaryImportDefinition())->getTemplateHeaders());
+        $this->assertNull(\App\Models\AdminConfiguration::get('imports', 'fee_opening_balance_summary_template_headers'));
+    }
+
+    /** @test */
+    public function non_admin_cannot_manage_template_fields_or_touch_other_modules_template()
+    {
+        $accountantRole = Role::firstOrCreate(['name' => 'accountant'], ['display_name' => 'Accountant']);
+        $accountant = User::factory()->create();
+        $accountant->roles()->attach($accountantRole->id);
+
+        $this->actingAs($accountant)
+            ->get(route('imports.wizard.template-fields', ['module' => 'fee_opening_balance_summary']))
+            ->assertForbidden();
+
+        $admin = User::factory()->create();
+        $adminRole = Role::firstOrCreate(['name' => 'admin'], ['display_name' => 'Admin']);
+        $admin->roles()->attach($adminRole->id);
+
+        // 'students' isn't in the configurable-template allowlist -- must
+        // 404, not silently let an admin repurpose a module this feature
+        // was never built for.
+        $this->actingAs($admin)
+            ->get(route('imports.wizard.template-fields', ['module' => 'students']))
+            ->assertNotFound();
     }
 }

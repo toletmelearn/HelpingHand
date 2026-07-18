@@ -208,9 +208,15 @@
                         </div>
 
                         <div class="text-center">
-                            <small class="text-muted">Please download the template if you do not have one configured: 
+                            <small class="text-muted">Please download the template if you do not have one configured:
                                 <a href="{{ route('imports.download-template', ['module' => $module]) }}" class="fw-semibold text-decoration-none"><i class="bi bi-download me-1"></i>Download CSV Template</a>
                             </small>
+                            @if($templateFieldsConfigurable ?? false)
+                                <br>
+                                <small class="text-muted">
+                                    <a href="{{ route('imports.wizard.template-fields', ['module' => $module]) }}" class="fw-semibold text-decoration-none"><i class="bi bi-pencil-square me-1"></i>Manage Template Fields</a>
+                                </small>
+                            @endif
                         </div>
                     </div>
 

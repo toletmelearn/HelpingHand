@@ -19,16 +19,16 @@ class UniversalImportController extends Controller
     }
 
     /**
-     * bank_statement and fee_opening_balance both post real ledger credits
-     * (the latter via manual allocation against a specific student's dues)
-     * -- unlike every other import module here, they must not be reachable
-     * by whichever admin-panel role happens to be authenticated. Every
-     * other module's access control is unchanged (out of scope to touch
-     * here).
+     * bank_statement, fee_opening_balance, and fee_opening_balance_summary
+     * all post real ledger credits (the latter two via manual allocation
+     * against a specific student's dues) -- unlike every other import
+     * module here, they must not be reachable by whichever admin-panel
+     * role happens to be authenticated. Every other module's access
+     * control is unchanged (out of scope to touch here).
      */
     private function authorizeModuleAccess(string $module): void
     {
-        if (!in_array($module, ['bank_statement', 'fee_opening_balance'], true)) {
+        if (!in_array($module, ['bank_statement', 'fee_opening_balance', 'fee_opening_balance_summary'], true)) {
             return;
         }
 
@@ -160,6 +160,7 @@ class UniversalImportController extends Controller
             'title' => ucfirst($module) . ' Import Wizard',
             'requiredFields' => array_keys($rules),
             'mandatoryFields' => $mandatoryFields,
+            'templateFieldsConfigurable' => in_array($module, self::CONFIGURABLE_TEMPLATE_MODULES, true),
         ]);
     }
 
@@ -401,6 +402,78 @@ class UniversalImportController extends Controller
         } catch (\Throwable $e) {
             abort(404, 'Template not found for module: ' . $module);
         }
+    }
+
+    /**
+     * Modules whose downloadable template columns an admin can edit
+     * directly (add/remove field names) without a code change, via
+     * AdminConfiguration -- see FeeOpeningBalanceSummaryImportDefinition::
+     * getTemplateHeaders() for how the stored list gets read back. Only
+     * one module needs this today; add to this list (and give the
+     * corresponding *ImportDefinition::getTemplateHeaders() the same
+     * AdminConfiguration-backed lookup) to extend it to another.
+     */
+    private const CONFIGURABLE_TEMPLATE_MODULES = ['fee_opening_balance_summary'];
+
+    /**
+     * Show the current template field list for editing.
+     */
+    public function templateFields(string $module)
+    {
+        $user = auth()->user();
+        if (!$user || !$user->hasRole('admin') && !$user->hasRole('super-admin')) {
+            abort(403, 'Unauthorized. Only administrators can manage import template fields.');
+        }
+
+        if (!in_array($module, self::CONFIGURABLE_TEMPLATE_MODULES, true)) {
+            abort(404, "Template fields are not configurable for module: {$module}");
+        }
+
+        try {
+            $definition = $this->importEngine->getDefinition($module);
+        } catch (\InvalidArgumentException $e) {
+            abort(404, "No import is available for module: {$module}");
+        }
+
+        return view('admin.imports.template-fields', [
+            'module' => $module,
+            'headers' => $definition->getTemplateHeaders(),
+        ]);
+    }
+
+    /**
+     * Save an admin's edited template field list.
+     */
+    public function updateTemplateFields(string $module, Request $request)
+    {
+        $user = auth()->user();
+        if (!$user || !$user->hasRole('admin') && !$user->hasRole('super-admin')) {
+            abort(403, 'Unauthorized. Only administrators can manage import template fields.');
+        }
+
+        if (!in_array($module, self::CONFIGURABLE_TEMPLATE_MODULES, true)) {
+            abort(404, "Template fields are not configurable for module: {$module}");
+        }
+
+        $request->validate([
+            'fields' => 'required|array|min:1',
+            'fields.*' => 'nullable|string|max:255',
+        ]);
+
+        $fields = array_values(array_filter(array_map('trim', $request->input('fields', [])), fn ($f) => $f !== ''));
+        if (empty($fields)) {
+            return back()->withErrors(['fields' => 'At least one field is required.'])->withInput();
+        }
+
+        \App\Models\AdminConfiguration::set(
+            'imports',
+            "{$module}_template_headers",
+            $fields,
+            'json',
+            ucwords(str_replace('_', ' ', $module)) . ' Template Fields'
+        );
+
+        return redirect()->route('imports.wizard', ['module' => $module])->with('success', 'Template fields updated.');
     }
 
     /**
