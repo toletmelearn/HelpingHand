@@ -143,6 +143,31 @@
                 </div>
                 
                 <div class="card-body p-4">
+                    @if($module === 'fee_opening_balance')
+                        <div class="alert alert-warning d-flex align-items-start gap-2 mb-4">
+                            <i class="bi bi-signpost-split-fill fs-4"></i>
+                            <div>
+                                <strong>Uploading a real historical fee register</strong> (one row per student, a
+                                single total-paid figure, no fee-head breakdown -- e.g. an accounts office Excel
+                                sheet)? This page is the wrong one and its template won't match. Use
+                                <a href="{{ route('imports.wizard', ['module' => 'fee_opening_balance_summary']) }}" class="fw-bold">Upload Opening Balance (Fee Register Summary)</a>
+                                instead. This page is only for when you already know exactly which fee head and
+                                period (e.g. "Tuition Fee, April") each payment covered.
+                            </div>
+                        </div>
+                    @elseif($module === 'fee_opening_balance_summary')
+                        <div class="alert alert-info d-flex align-items-start gap-2 mb-4">
+                            <i class="bi bi-signpost-split-fill fs-4"></i>
+                            <div>
+                                Already know exactly which fee head and period each payment covered (e.g. "Tuition
+                                Fee, April")? Use
+                                <a href="{{ route('imports.wizard', ['module' => 'fee_opening_balance']) }}" class="fw-bold">Upload Opening Balance (Per Fee-Head Detail)</a>
+                                instead for a more precise, line-by-line record. This page is for a real historical
+                                register with just a total-paid figure per student, no breakdown.
+                            </div>
+                        </div>
+                    @endif
+
                     <!-- Stepper Progress Header -->
                     <div class="stepper">
                         <div class="step-item active" id="step-header-1">
