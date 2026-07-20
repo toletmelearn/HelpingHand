@@ -7,6 +7,11 @@ use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
+/**
+ * @deprecated
+ * Will be removed after Architecture v1.1.
+ * Active subject operations map to App\Http\Controllers\Admin\SubjectController.
+ */
 class SubjectController extends Controller
 {
     /**

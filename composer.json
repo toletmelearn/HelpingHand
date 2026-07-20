@@ -8,6 +8,7 @@
     "require": {
         "php": "^8.2",
         "barryvdh/laravel-dompdf": "^3.1",
+        "doctrine/dbal": "^4.4",
         "illuminate/mail": "*",
         "laravel/fortify": "^1.33",
         "laravel/framework": "^12.0",
@@ -15,6 +16,7 @@
         "laravel/tinker": "^2.10.1",
         "laravel/ui": "^4.6",
         "maatwebsite/excel": "^3.1",
+        "pragmarx/google2fa-laravel": "^2.3",
         "spatie/laravel-activitylog": "^4.10",
         "spatie/laravel-permission": "^6.24",
         "stripe/stripe-php": "*",
@@ -35,7 +37,10 @@
         "Database\\Factories\\": "database/factories/",
         "Database\\Seeders\\": "database/seeders/",
         "Maatwebsite\\Excel\\": "vendor/maatwebsite/excel/src"
-    }
+    },
+    "files": [
+        "app/Helpers/TranslationHelper.php"
+    ]
     },
     "autoload-dev": {
         "psr-4": {

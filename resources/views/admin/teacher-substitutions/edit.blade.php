@@ -41,8 +41,8 @@
                                         <option value="">Select Absent Teacher</option>
                                         @foreach($teachers as $teacher)
                                             <option value="{{ $teacher->id }}" 
-                                                    {{ old('absent_teacher_id', $teacherSubstitution->absent_teacher_id) == $teacher->id ? 'selected' : '' }}>
-                                                {{ $teacher->teacher_id }} - {{ $teacher->user->name ?? 'N/A' }}
+                                                    {{ (old('absent_teacher_id') ?? $teacherSubstitution->absent_teacher_id) == $teacher->id ? 'selected' : '' }}>
+                                                {{ $teacher->teacher_id }} - {{ $teacher->name }}
                                             </option>
                                         @endforeach
                                     </select>

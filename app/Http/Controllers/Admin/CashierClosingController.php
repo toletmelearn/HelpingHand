@@ -14,7 +14,9 @@ class CashierClosingController extends Controller
 {
     public function __construct()
     {
-        $this->middleware(['auth', 'role:accountant']);
+        $this->middleware('auth');
+        $this->middleware('permission:view-cashier-closing')->only(['index', 'show']);
+        $this->middleware('permission:manage-cashier-closing')->only(['create', 'store']);
     }
 
     /**

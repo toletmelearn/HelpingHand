@@ -47,7 +47,7 @@
                                     <option value="">All Teachers</option>
                                     @foreach($teachers as $teacher)
                                         <option value="{{ $teacher->id }}" {{ request('teacher_id') == $teacher->id ? 'selected' : '' }}>
-                                            {{ $teacher->teacher_id }} - {{ $teacher->user->name ?? 'N/A' }}
+                                            {{ $teacher->employee_id ?? $teacher->id }} - {{ $teacher->user->name ?? 'N/A' }}
                                         </option>
                                     @endforeach
                                 </select>
@@ -81,12 +81,12 @@
                                     <td>{{ $substitution->substitution_date->format('d M Y') }}</td>
                                     <td>
                                         {{ $substitution->absentTeacher->user->name ?? 'N/A' }} 
-                                        <br><small class="text-muted">{{ $substitution->absentTeacher->teacher_id }}</small>
+                                        <br><small class="text-muted">{{ $substitution->absentTeacher->employee_id ?? $substitution->absentTeacher->id }}</small>
                                     </td>
                                     <td>
                                         @if($substitution->substituteTeacher)
                                             {{ $substitution->substituteTeacher->user->name ?? 'N/A' }}
-                                            <br><small class="text-muted">{{ $substitution->substituteTeacher->teacher_id }}</small>
+                                            <br><small class="text-muted">{{ $substitution->substituteTeacher->employee_id ?? $substitution->substituteTeacher->id }}</small>
                                         @else
                                             <span class="badge badge-warning">Not Assigned</span>
                                         @endif
@@ -121,17 +121,22 @@
                                                class="btn btn-outline-secondary" title="Edit">
                                                 <i class="fas fa-edit"></i>
                                             </a>
-                                            @if($substitution->isPending())
-                                                <a href="{{ route('admin.teacher-substitutions.assign', $substitution) }}" 
-                                                   class="btn btn-outline-success" title="Assign Substitute">
-                                                    <i class="fas fa-user-check"></i>
-                                                </a>
+                                            @if($substitution->isPending() && $substitution->substituteTeacher)
+                                                <form action="{{ route('admin.teacher-substitutions.assign', $substitution) }}" method="POST" style="display:inline;">
+                                                    @csrf
+                                                    <input type="hidden" name="substitute_teacher_id" value="{{ $substitution->substitute_teacher_id }}">
+                                                    <button type="submit" class="btn btn-outline-success" title="Assign Substitute">
+                                                        <i class="fas fa-user-check"></i>
+                                                    </button>
+                                                </form>
                                             @endif
                                             @if($substitution->isAssigned())
-                                                <a href="{{ route('admin.teacher-substitutions.approve', $substitution) }}" 
-                                                   class="btn btn-outline-success" title="Approve">
-                                                    <i class="fas fa-check"></i>
-                                                </a>
+                                                <form action="{{ route('admin.teacher-substitutions.approve', $substitution) }}" method="POST" style="display:inline;">
+                                                    @csrf
+                                                    <button type="submit" class="btn btn-outline-success" title="Approve">
+                                                        <i class="fas fa-check"></i>
+                                                    </button>
+                                                </form>
                                             @endif
                                             <form action="{{ route('admin.teacher-substitutions.destroy', $substitution) }}" 
                                                   method="POST" style="display:inline;" 

@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Parent Login Form</title>
+</head>
+<body>
+    <h1>Test Parent Login Form</h1>
+    
+    <form method="POST" action="http://127.0.0.1:8000/parent/login">
+        <input type="hidden" name="_token" value="{{ csrf_token() }}">
+        
+        <div>
+            <label>Mobile:</label>
+            <input type="text" name="mobile" value="9876543211" required>
+        </div>
+        
+        <div>
+            <label>Password:</label>
+            <input type="password" name="password" value="STU001" required>
+        </div>
+        
+        <div>
+            <button type="submit">Login</button>
+        </div>
+    </form>
+    
+    <p>Current URL: {{ url()->current() }}</p>
+    <p>Form action: http://127.0.0.1:8000/parent/login</p>
+</body>
+</html>

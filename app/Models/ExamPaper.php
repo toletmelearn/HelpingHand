@@ -43,6 +43,10 @@ class ExamPaper extends Model
         'valid_until',
         'metadata',            // Additional metadata as JSON
         'exam_id',             // Link to specific exam
+        'class_id',            // Link to specific class
+        'paper_content',       // Content of the exam paper
+        'approved_by_admin',   // Admin who approved the paper
+        'approved_by_exam_dept', // Exam department who approved the paper
         'version',             // Version control
         'status',              // draft, submitted, approved, locked, revoked
         'revision_notes',      // Revision history
@@ -111,13 +115,33 @@ class ExamPaper extends Model
     {
         return $this->belongsTo(User::class, 'approved_by');
     }
-
+    
+    public function createdBy()
+    {
+        return $this->belongsTo(User::class, 'created_by');
+    }
+    
+    public function approvedByAdmin()
+    {
+        return $this->belongsTo(User::class, 'approved_by_admin');
+    }
+    
+    public function approvedByExamDept()
+    {
+        return $this->belongsTo(User::class, 'approved_by_exam_dept');
+    }
+    
     // Scopes
     public function scopePublished($query)
     {
         return $query->where('is_published', true);
     }
-
+    
+    public function class()
+    {
+        return $this->belongsTo(SchoolClass::class, 'class_id');
+    }
+    
     public function scopeApproved($query)
     {
         return $query->where('is_approved', true);

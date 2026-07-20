@@ -220,6 +220,39 @@ class BellTimingController extends BaseApiController
     }
 
     /**
+     * Get today's active schedule for a class section.
+     */
+    public function todaysSchedule(string $classSection): JsonResponse
+    {
+        try {
+            $day = now()->format('l');
+
+            $schedule = BellTiming::getTodaysSchedule($day, $classSection)
+                ->map(function (BellTiming $bellTiming) {
+                    return [
+                        'id' => $bellTiming->id,
+                        'period_name' => $bellTiming->period_name,
+                        'start_time' => optional($bellTiming->start_time)->format('H:i:s'),
+                        'end_time' => optional($bellTiming->end_time)->format('H:i:s'),
+                        'is_break' => $bellTiming->is_break,
+                        'order_index' => $bellTiming->order_index,
+                        'custom_label' => $bellTiming->custom_label,
+                        'color_code' => $bellTiming->color_code,
+                    ];
+                })
+                ->values();
+
+            return $this->success([
+                'class_section' => $classSection,
+                'day' => $day,
+                'schedule' => $schedule,
+            ], "Today's bell schedule retrieved successfully");
+        } catch (\Exception $e) {
+            return $this->error('Failed to retrieve today\'s bell schedule: ' . $e->getMessage());
+        }
+    }
+
+    /**
      * Bulk create schedule for a week.
      */
     public function bulkCreate(Request $request): JsonResponse

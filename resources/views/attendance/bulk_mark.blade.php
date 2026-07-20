@@ -115,12 +115,17 @@
                     </div>
                 </div>
 
+                <div class="alert alert-warning">
+                    <i class="bi bi-exclamation-triangle"></i>
+                    Bulk attendance must be previewed first. Direct bulk marking is disabled until safe apply is enabled.
+                </div>
+
                 <div class="d-grid gap-2 d-md-flex justify-content-md-end">
                     <a href="{{ route('attendance.index') }}" class="btn btn-secondary me-md-2">
                         Cancel
                     </a>
-                    <button type="submit" class="btn btn-primary">
-                        <i class="bi bi-save"></i> Mark Attendance
+                    <button type="submit" formaction="{{ \Illuminate\Support\Facades\Route::has('attendance.preflight-view') ? route('attendance.preflight-view') : route('admin.attendance.preflight-view') }}" formmethod="post" class="btn btn-outline-secondary me-2">
+                        <i class="bi bi-eye"></i> Preview
                     </button>
                 </div>
             </form>
@@ -139,10 +144,10 @@
                 <li>Select the period (optional)</li>
                 <li>Choose one or more classes from the list</li>
                 <li>Select the default attendance status for all students</li>
-                <li>Click "Mark Attendance" to record attendance for all students in selected classes</li>
+                <li>Click Preview to review the students and warnings before any future safe apply flow</li>
             </ol>
             <div class="alert alert-warning">
-                <i class="bi bi-exclamation-triangle"></i> <strong>Note:</strong> This will mark attendance for ALL students in the selected classes with the default status. Use carefully.
+                <i class="bi bi-exclamation-triangle"></i> <strong>Note:</strong> Direct bulk marking is disabled until safe apply is enabled.
             </div>
         </div>
     </div>

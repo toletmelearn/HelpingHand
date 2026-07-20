@@ -12,9 +12,11 @@ class AcademicSession extends Model
 
     protected $fillable = [
         'name',
+        'code',
         'start_date',
         'end_date',
         'is_current',
+        'is_active',
         'description'
     ];
 

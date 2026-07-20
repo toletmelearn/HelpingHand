@@ -1,0 +1,1588 @@
+MODEL SCANNER SUMMARY
+Total model files found: 144
+================================================================================
+
+Class: AcademicSession
+  Table: Inferred (plural of class)
+  Fillable: ['name', 'code', 'start_date', 'end_date', 'is_current', 'is_active', 'description']
+  Casts: {'start_date': 'date', 'end_date': 'date', 'is_current': 'boolean'}
+  Soft Deletes: Yes
+  Relationships: ['classes (hasMany)']
+  Accessors/Mutators: []
+  Global Scopes: []
+  Responsibility: Manages AcademicSession records.
+----------------------------------------
+
+Class: AdminConfiguration
+  Table: Inferred (plural of class)
+  Fillable: ['module', 'key', 'value', 'type', 'label', 'description', 'is_active', 'updated_by']
+  Casts: {'is_active': 'boolean', 'value': 'array'}
+  Soft Deletes: No
+  Relationships: []
+  Accessors/Mutators: []
+  Global Scopes: []
+  Responsibility: Manages AdminConfiguration records.
+----------------------------------------
+
+Class: AdmissionEnquiry
+  Table: admission_enquiries
+  Fillable: ['candidate_name', 'parent_name', 'phone', 'email', 'status', 'interview_date', 'interview_score', 'entrance_score']
+  Casts: {}
+  Soft Deletes: No
+  Relationships: []
+  Accessors/Mutators: []
+  Global Scopes: []
+  Responsibility: Manages AdmissionEnquiry records.
+----------------------------------------
+
+Class: AdmitCard
+  Table: Inferred (plural of class)
+  Fillable: ['student_id', 'exam_id', 'admit_card_format_id', 'academic_session', 'status', 'data', 'validation_data', 'generated_by', 'published_by', 'published_at', 'revoked_by', 'revoked_at', 'pdf_hash', 'version']
+  Casts: {'data': 'array', 'validation_data': 'array', 'published_at': 'datetime', 'revoked_at': 'datetime', 'version': 'integer'}
+  Soft Deletes: No
+  Relationships: []
+  Accessors/Mutators: []
+  Global Scopes: []
+  Responsibility: Manages AdmitCard records.
+----------------------------------------
+
+Class: AdmitCardFormat
+  Table: Inferred (plural of class)
+  Fillable: ['name', 'header_html', 'body_html', 'footer_html', 'background_image', 'is_active', 'created_by']
+  Casts: {'is_active': 'boolean'}
+  Soft Deletes: No
+  Relationships: []
+  Accessors/Mutators: []
+  Global Scopes: []
+  Responsibility: Manages AdmitCardFormat records.
+----------------------------------------
+
+Class: AdvancedReport
+  Table: Inferred (plural of class)
+  Fillable: ['name', 'description', 'type', 'module', 'filters', 'columns', 'chart_type', 'is_active', 'created_by']
+  Casts: {'filters': 'array', 'columns': 'array', 'is_active': 'boolean'}
+  Soft Deletes: No
+  Relationships: ['creator (belongsTo)']
+  Accessors/Mutators: []
+  Global Scopes: []
+  Responsibility: Manages AdvancedReport records.
+----------------------------------------
+
+Class: Alumni
+  Table: alumni
+  Fillable: ['student_id', 'graduation_year', 'current_occupation', 'contact_email', 'feedback']
+  Casts: {}
+  Soft Deletes: No
+  Relationships: ['student (belongsTo)']
+  Accessors/Mutators: []
+  Global Scopes: []
+  Responsibility: Manages Alumni records.
+----------------------------------------
+
+Class: Asset
+  Table: Inferred (plural of class)
+  Fillable: ['asset_code', 'name', 'category_id', 'vendor', 'cost', 'purchase_date', 'warranty_expiry_date', 'warranty_details', 'condition', 'status', 'description', 'location', 'serial_number', 'quantity', 'available_quantity', 'is_active']
+  Casts: {'purchase_date': 'date', 'warranty_expiry_date': 'date', 'cost': 'decimal:2'}
+  Soft Deletes: No
+  Relationships: []
+  Accessors/Mutators: []
+  Global Scopes: []
+  Responsibility: Manages Asset records.
+----------------------------------------
+
+Class: AssetCategory
+  Table: Inferred (plural of class)
+  Fillable: ['name', 'type', 'description', 'is_active']
+  Casts: {}
+  Soft Deletes: No
+  Relationships: ['assets (hasMany)']
+  Accessors/Mutators: []
+  Global Scopes: []
+  Responsibility: Manages AssetCategory records.
+----------------------------------------
+
+Class: Attendance
+  Table: Inferred (plural of class)
+  Fillable: ['student_id', 'teacher_id', 'date', 'status', '// present', 'absent', 'late', 'half_day\n        remarks', 'period', '// for period-wise attendance\n        subject', '// subject name\n        class', '// class/section\n        session', '// academic session\n        marked_by', '// teacher/user who marked attendance\n        ip_address', '// for tracking\n        device_info // device information']
+  Casts: {'date': 'date', 'created_at': 'datetime', 'updated_at': 'datetime'}
+  Soft Deletes: No
+  Relationships: ['student (belongsTo)', 'teacher (belongsTo)', 'markedBy (belongsTo)']
+  Accessors/Mutators: []
+  Global Scopes: []
+  Responsibility: Manages Attendance records.
+----------------------------------------
+
+Class: AuditLog
+  Table: Inferred (plural of class)
+  Fillable: ['user_type', 'user_id', 'model_type', 'model_id', 'field_name', 'old_value', 'new_value', 'action', 'ip_address', 'user_agent', 'performed_at']
+  Casts: {'performed_at': 'datetime'}
+  Soft Deletes: No
+  Relationships: ['user (hasOne)']
+  Accessors/Mutators: ['getUserNameAttribute (accessor)']
+  Global Scopes: []
+  Responsibility: Manages AuditLog records.
+----------------------------------------
+
+Class: Backup
+  Table: Inferred (plural of class)
+  Fillable: ['filename', 'path', 'type', 'location', 'size', 'status', 'notes', 'metadata', 'created_by', 'scheduled_at', 'completed_at']
+  Casts: {'metadata': 'array', 'scheduled_at': 'datetime', 'completed_at': 'datetime'}
+  Soft Deletes: No
+  Relationships: []
+  Accessors/Mutators: ['getStatusLabelAttribute (accessor)', 'getTypeLabelAttribute (accessor)', 'getLocationLabelAttribute (accessor)', 'getSizeFormattedAttribute (accessor)']
+  Global Scopes: []
+  Responsibility: Manages Backup records.
+----------------------------------------
+
+Class: BellSchedule
+  Table: Inferred (plural of class)
+  Fillable: ['name', 'season_type', 'start_date', 'end_date', 'status', 'periods', 'target_group', 'created_by', 'updated_by']
+  Casts: {'start_date': 'date', 'end_date': 'date', 'periods': 'array', 'created_by': 'integer', 'updated_by': 'integer'}
+  Soft Deletes: No
+  Relationships: []
+  Accessors/Mutators: []
+  Global Scopes: []
+  Responsibility: Manages BellSchedule records.
+----------------------------------------
+
+Class: BellTiming
+  Table: Inferred (plural of class)
+  Fillable: ['day_of_week', '// Monday', 'Tuesday', 'etc.\n        period_name', '// Period 1', 'Period 2', 'Lunch', 'Break', 'etc.\n        start_time', '// HH:MM:SS format\n        end_time', '// HH:MM:SS format\n        class_section', '// Specific class/section if needed\n        is_active', '// Whether this schedule is currently active\n        is_break', '// Whether this is a break time\n        order_index', '// Order of periods in a day\n        academic_year', '// Academic year identifier\n        semester', '// Semester identifier\n        custom_label', '// Custom label for special periods\n        color_code', '// Color for calendar representation\n        created_by', '// User who created the schedule']
+  Casts: {'start_time': 'datetime:H:i:s', 'end_time': 'datetime:H:i:s', 'is_active': 'boolean', 'is_break': 'boolean', 'order_index': 'integer', 'created_at': 'datetime', 'updated_at': 'datetime'}
+  Soft Deletes: No
+  Relationships: ['createdBy (belongsTo)']
+  Accessors/Mutators: ['getDurationAttribute (accessor)', 'getDurationFormattedAttribute (accessor)', 'getDayOrderAttribute (accessor)', 'getPeriodTypeAttribute (accessor)']
+  Global Scopes: []
+  Responsibility: Manages BellTiming records.
+----------------------------------------
+
+Class: BiometricDevice
+  Table: Inferred (plural of class)
+  Fillable: ['name', 'device_type', 'connection_type', 'ip_address', 'port', 'api_url', 'username', 'password', 'api_key', 'device_config', 'sync_frequency', 'real_time_sync', 'is_active', 'status', 'last_sync_at', 'last_error', 'retry_count', 'next_sync_at', 'description']
+  Casts: {'device_config': 'array', 'sync_frequency': 'integer', 'real_time_sync': 'boolean', 'is_active': 'boolean', 'retry_count': 'integer', 'last_sync_at': 'datetime', 'next_sync_at': 'datetime'}
+  Soft Deletes: Yes
+  Relationships: ['syncLogs (hasMany)', 'biometricRecords (hasMany)']
+  Accessors/Mutators: ['getDisplayNameAttribute (accessor)', 'getConnectionStringAttribute (accessor)', 'getIsOnlineAttribute (accessor)', 'getPasswordAttribute (accessor)', 'getApiKeyAttribute (accessor)', 'setPasswordAttribute (mutator)', 'setApiKeyAttribute (mutator)']
+  Global Scopes: []
+  Responsibility: Manages BiometricDevice records.
+----------------------------------------
+
+Class: BiometricSetting
+  Table: Inferred (plural of class)
+  Fillable: ['school_start_time', 'school_end_time', 'grace_period_minutes', 'lunch_break_duration', 'break_time_duration', 'half_day_minimum_hours', 'late_tolerance_limit', 'early_departure_tolerance', 'exclude_lunch_from_working_hours', 'exclude_breaks_from_working_hours', 'is_active', 'description', 'enable_late_arrival_notifications', 'enable_early_departure_notifications', 'enable_half_day_notifications', 'enable_performance_notifications', 'notification_preferences']
+  Casts: {'school_start_time': 'datetime:H:i:s', 'school_end_time': 'datetime:H:i:s', 'grace_period_minutes': 'integer', 'lunch_break_duration': 'integer', 'break_time_duration': 'integer', 'half_day_minimum_hours': 'decimal:2', 'late_tolerance_limit': 'integer', 'early_departure_tolerance': 'integer', 'exclude_lunch_from_working_hours': 'boolean', 'exclude_breaks_from_working_hours': 'boolean', 'is_active': 'boolean', 'enable_late_arrival_notifications': 'boolean', 'enable_early_departure_notifications': 'boolean', 'enable_half_day_notifications': 'boolean', 'enable_performance_notifications': 'boolean', 'notification_preferences': 'array'}
+  Soft Deletes: No
+  Relationships: []
+  Accessors/Mutators: ['getSchoolStartTimeFormattedAttribute (accessor)', 'getSchoolEndTimeFormattedAttribute (accessor)', 'getTotalWorkingHoursAttribute (accessor)']
+  Global Scopes: []
+  Responsibility: Manages BiometricSetting records.
+----------------------------------------
+
+Class: BiometricSyncLog
+  Table: Inferred (plural of class)
+  Fillable: ['biometric_device_id', 'sync_type', 'started_at', 'completed_at', 'status', 'records_processed', 'records_created', 'records_updated', 'duplicates_skipped', 'errors_count', 'error_details', 'sync_metadata', 'log_message']
+  Casts: {'sync_metadata': 'array', 'records_processed': 'integer', 'records_created': 'integer', 'records_updated': 'integer', 'duplicates_skipped': 'integer', 'errors_count': 'integer', 'started_at': 'datetime', 'completed_at': 'datetime'}
+  Soft Deletes: No
+  Relationships: ['biometricDevice (belongsTo)', 'biometricRecords (hasMany)']
+  Accessors/Mutators: ['getDurationAttribute (accessor)', 'getSuccessRateAttribute (accessor)']
+  Global Scopes: []
+  Responsibility: Manages BiometricSyncLog records.
+----------------------------------------
+
+Class: Book
+  Table: Inferred (plural of class)
+  Fillable: ['book_name', 'isbn', 'author', 'publisher', 'subject', 'class_grade', 'total_quantity', 'rack_shelf_number', 'cover_image', 'is_active']
+  Casts: {}
+  Soft Deletes: No
+  Relationships: []
+  Accessors/Mutators: ['getAvailableCopiesAttribute (accessor)', 'getIssuedCopiesAttribute (accessor)']
+  Global Scopes: []
+  Responsibility: Manages Book records.
+----------------------------------------
+
+Class: BookIssue
+  Table: Inferred (plural of class)
+  Fillable: ['book_id', 'student_id', 'issued_by', 'issue_date', 'due_date', 'return_date', 'delay_days', 'fine_amount', 'status']
+  Casts: {'issue_date': 'date', 'due_date': 'date', 'return_date': 'date'}
+  Soft Deletes: No
+  Relationships: []
+  Accessors/Mutators: []
+  Global Scopes: []
+  Responsibility: Manages BookIssue records.
+----------------------------------------
+
+Class: Budget
+  Table: Inferred (plural of class)
+  Fillable: ['name', 'description', 'fiscal_year', 'total_amount', 'allocated_amount', 'spent_amount', 'status', 'approval_date', 'lock_date', 'close_date', 'approved_by', 'created_by']
+  Casts: {'total_amount': 'decimal:2', 'allocated_amount': 'decimal:2', 'spent_amount': 'decimal:2', 'approval_date': 'date', 'lock_date': 'date', 'close_date': 'date'}
+  Soft Deletes: No
+  Relationships: []
+  Accessors/Mutators: ['getStatusLabelAttribute (accessor)', 'getUtilizationPercentageAttribute (accessor)', 'getRemainingPercentageAttribute (accessor)']
+  Global Scopes: []
+  Responsibility: Manages Budget records.
+----------------------------------------
+
+Class: BudgetCategory
+  Table: Inferred (plural of class)
+  Fillable: ['name', 'description', 'type', 'default_allocation_percentage', 'is_active', 'created_by']
+  Casts: {'default_allocation_percentage': 'decimal:2', 'is_active': 'boolean'}
+  Soft Deletes: No
+  Relationships: []
+  Accessors/Mutators: ['getTypeLabelAttribute (accessor)', 'getTotalExpensesAttribute (accessor)', 'getFormattedPercentageAttribute (accessor)']
+  Global Scopes: []
+  Responsibility: Manages BudgetCategory records.
+----------------------------------------
+
+Class: CBSEResult
+  Table: cbse_results
+  Fillable: ['student_id', 'exam_id', 'subject_id', 'pt_marks', 'notebook_marks', 'sea_marks', 'exam_marks', 'total_marks', 'percentage', 'grade', 'result_status', 'academic_year', 'term', 'remarks', 'class_rank', 'section_rank', 'is_locked', 'locked_by', 'locked_at', 'generated_by', 'generated_at', 'updated_by']
+  Casts: {'pt_marks': 'decimal:2', 'notebook_marks': 'decimal:2', 'sea_marks': 'decimal:2', 'exam_marks': 'decimal:2', 'total_marks': 'decimal:2', 'percentage': 'decimal:2', 'is_locked': 'boolean', 'class_rank': 'integer', 'section_rank': 'integer', 'locked_at': 'datetime', 'generated_at': 'datetime'}
+  Soft Deletes: No
+  Relationships: ['student (belongsTo)', 'exam (belongsTo)', 'subject (belongsTo)', 'lockedBy (belongsTo)', 'generatedBy (belongsTo)', 'updatedBy (belongsTo)']
+  Accessors/Mutators: ['getFullNameAttribute (accessor)', 'getClassNameAttribute (accessor)', 'getSectionNameAttribute (accessor)', 'setPtMarksAttribute (mutator)', 'setNotebookMarksAttribute (mutator)', 'setSeaMarksAttribute (mutator)', 'setExamMarksAttribute (mutator)']
+  Global Scopes: []
+  Responsibility: Manages CBSEResult records.
+----------------------------------------
+
+Class: CashierClosing
+  Table: Inferred (plural of class)
+  Fillable: ['cashier_id', 'closing_date', 'opening_balance', 'expected_cash', 'expected_upi', 'expected_bank', 'expected_cheque', 'expected_online', 'actual_cash', 'actual_upi', 'actual_bank', 'actual_cheque', 'actual_online', 'discrepancy_reason', 'status', 'remarks']
+  Casts: {'closing_date': 'date', 'opening_balance': 'decimal:2', 'expected_cash': 'decimal:2', 'expected_upi': 'decimal:2', 'expected_bank': 'decimal:2', 'expected_cheque': 'decimal:2', 'expected_online': 'decimal:2', 'actual_cash': 'decimal:2', 'actual_upi': 'decimal:2', 'actual_bank': 'decimal:2', 'actual_cheque': 'decimal:2', 'actual_online': 'decimal:2', 'cashier_id': 'integer'}
+  Soft Deletes: No
+  Relationships: ['cashier (belongsTo)']
+  Accessors/Mutators: []
+  Global Scopes: []
+  Responsibility: Manages CashierClosing records.
+----------------------------------------
+
+Class: Certificate
+  Table: Inferred (plural of class)
+  Fillable: ['certificate_type', 'serial_number', 'recipient_id', 'recipient_type', 'content_data', 'formatted_content', 'status', 'created_by', 'approved_by', 'approved_at', 'published_at', 'revoked_at', 'revocation_reason', 'metadata']
+  Casts: {'content_data': 'array', 'metadata': 'array', 'approved_at': 'datetime', 'published_at': 'datetime', 'revoked_at': 'datetime'}
+  Soft Deletes: No
+  Relationships: ['recipient (morphTo)']
+  Accessors/Mutators: ['getStatusLabelAttribute (accessor)']
+  Global Scopes: []
+  Responsibility: Manages Certificate records.
+----------------------------------------
+
+Class: CertificateTemplate
+  Table: Inferred (plural of class)
+  Fillable: ['name', 'type', 'template_content', 'template_variables', 'is_default', 'is_active', 'created_by', 'updated_by']
+  Casts: {'template_variables': 'array', 'is_default': 'boolean', 'is_active': 'boolean'}
+  Soft Deletes: No
+  Relationships: []
+  Accessors/Mutators: []
+  Global Scopes: []
+  Responsibility: Manages CertificateTemplate records.
+----------------------------------------
+
+Class: ClassManagement
+  Table: class_management
+  Fillable: ['name', 'order', 'section', 'stream', 'capacity', 'description', 'is_active']
+  Casts: {}
+  Soft Deletes: No
+  Relationships: []
+  Accessors/Mutators: ['getDisplayNameAttribute (accessor)']
+  Global Scopes: []
+  Responsibility: Manages ClassManagement records.
+----------------------------------------
+
+Class: ClassTeacherAssignment
+  Table: Inferred (plural of class)
+  Fillable: ['teacher_id', 'assigned_class', 'start_date', 'end_date', 'is_active']
+  Casts: {'start_date': 'date', 'end_date': 'date', 'is_active': 'boolean'}
+  Soft Deletes: No
+  Relationships: []
+  Accessors/Mutators: []
+  Global Scopes: []
+  Responsibility: Manages ClassTeacherAssignment records.
+----------------------------------------
+
+Class: CustomField
+  Table: Inferred (plural of class)
+  Fillable: ['module', 'field_name', 'field_type', 'validation_rules', 'is_required']
+  Casts: {'validation_rules': 'array', 'is_required': 'boolean'}
+  Soft Deletes: No
+  Relationships: ['values (hasMany)']
+  Accessors/Mutators: []
+  Global Scopes: []
+  Responsibility: Manages CustomField records.
+----------------------------------------
+
+Class: CustomFieldValue
+  Table: Inferred (plural of class)
+  Fillable: ['custom_field_id', 'model_type', 'model_id', 'field_value']
+  Casts: {}
+  Soft Deletes: No
+  Relationships: ['customField (belongsTo)', 'model (morphTo)']
+  Accessors/Mutators: []
+  Global Scopes: []
+  Responsibility: Manages CustomFieldValue records.
+----------------------------------------
+
+Class: DailyTeachingWork
+  Table: Inferred (plural of class)
+  Fillable: ['date', 'class_name', 'section', 'subject', 'period_number', 'teacher_id', 'topic_covered', 'teaching_summary', 'attachments', 'homework', 'status', 'academic_session', 'syllabus_mapping', 'created_by', 'updated_by']
+  Casts: {'date': 'date', 'attachments': 'array', 'homework': 'array', 'syllabus_mapping': 'array', 'period_number': 'integer', 'teacher_id': 'integer', 'created_by': 'integer', 'updated_by': 'integer'}
+  Soft Deletes: No
+  Relationships: []
+  Accessors/Mutators: []
+  Global Scopes: []
+  Responsibility: Manages DailyTeachingWork records.
+----------------------------------------
+
+Class: DefaulterLog
+  Table: defaulter_logs
+  Fillable: ['student_id', 'stage', 'action_type', 'status', 'details', 'performed_by']
+  Casts: {'student_id': 'integer', 'performed_by': 'integer'}
+  Soft Deletes: No
+  Relationships: ['student (belongsTo)', 'performedBy (belongsTo)']
+  Accessors/Mutators: []
+  Global Scopes: []
+  Responsibility: Manages DefaulterLog records.
+----------------------------------------
+
+Class: DefaulterStage
+  Table: defaulter_stages
+  Fillable: ['student_id', 'stage', 'outstanding_amount', 'last_action_date', 'remarks']
+  Casts: {'student_id': 'integer', 'outstanding_amount': 'decimal:2', 'last_action_date': 'datetime'}
+  Soft Deletes: No
+  Relationships: ['student (belongsTo)']
+  Accessors/Mutators: []
+  Global Scopes: []
+  Responsibility: Manages DefaulterStage records.
+----------------------------------------
+
+Class: DisciplinaryAction
+  Table: disciplinary_actions
+  Fillable: ['incident_id', 'action_type', 'action_details', 'parent_notified_at']
+  Casts: {'parent_notified_at': 'datetime'}
+  Soft Deletes: No
+  Relationships: ['incident (belongsTo)']
+  Accessors/Mutators: []
+  Global Scopes: []
+  Responsibility: Manages DisciplinaryAction records.
+----------------------------------------
+
+Class: DisciplinaryIncident
+  Table: disciplinary_incidents
+  Fillable: ['student_id', 'incident_date', 'title', 'description', 'reported_by', 'demerit_points', 'status']
+  Casts: {'incident_date': 'date', 'demerit_points': 'integer'}
+  Soft Deletes: No
+  Relationships: ['student (belongsTo)', 'reporter (belongsTo)', 'actions (hasMany)']
+  Accessors/Mutators: []
+  Global Scopes: []
+  Responsibility: Manages DisciplinaryIncident records.
+----------------------------------------
+
+Class: DiscountApproval
+  Table: discount_approvals
+  Fillable: ['student_id', 'discount_rule_id', 'fee_type_id', 'amount', 'month', 'academic_year', 'status', '// pending_verification', 'active', 'rejected\n        verification_slip', 'created_by', 'verified_by']
+  Casts: {}
+  Soft Deletes: No
+  Relationships: ['student (belongsTo)', 'discountRule (belongsTo)', 'feeType (belongsTo)', 'creator (belongsTo)', 'verifier (belongsTo)']
+  Accessors/Mutators: []
+  Global Scopes: []
+  Responsibility: Manages DiscountApproval records.
+----------------------------------------
+
+Class: DiscountRule
+  Table: discount_rules
+  Fillable: ['name', 'type', '// sibling', 'staff_child', 'merit', 'category\n        config', 'priority', 'is_active']
+  Casts: {'config': 'array', 'is_active': 'boolean', 'priority': 'integer'}
+  Soft Deletes: No
+  Relationships: ['appliedDiscounts (hasMany)']
+  Accessors/Mutators: []
+  Global Scopes: []
+  Responsibility: Manages DiscountRule records.
+----------------------------------------
+
+Class: DocumentFormat
+  Table: Inferred (plural of class)
+  Fillable: ['name', 'type', 'description', 'template_content', 'css_styles', 'header_content', 'footer_content', 'is_active', 'is_default', 'page_size', 'orientation', 'margin_top', 'margin_bottom', 'margin_left', 'margin_right']
+  Casts: {'is_active': 'boolean', 'is_default': 'boolean', 'template_content': 'array', '// For storing structured template data\n        css_styles': 'array'}
+  Soft Deletes: No
+  Relationships: []
+  Accessors/Mutators: []
+  Global Scopes: []
+  Responsibility: Manages DocumentFormat records.
+----------------------------------------
+
+Class: Driver
+  Table: drivers
+  Fillable: ['name', 'license_no', 'phone_no', 'status']
+  Casts: {}
+  Soft Deletes: No
+  Relationships: []
+  Accessors/Mutators: []
+  Global Scopes: []
+  Responsibility: Manages Driver records.
+----------------------------------------
+
+Class: Exam
+  Table: Inferred (plural of class)
+  Fillable: ['name', 'exam_type', 'class_id', 'subject_id', 'class_name', 'subject', 'exam_date', 'start_time', 'end_time', 'total_marks', 'passing_marks', 'description', 'academic_year', 'term', 'status', 'created_by']
+  Casts: {'exam_date': 'date', 'start_time': 'datetime:H:i', 'end_time': 'datetime:H:i', 'total_marks': 'float', 'passing_marks': 'float'}
+  Soft Deletes: No
+  Relationships: ['schoolClass (belongsTo)', 'subjectInfo (belongsTo)', 'teacher (belongsTo)', 'examPapers (hasMany)']
+  Accessors/Mutators: ['getMaxMarksAttribute (accessor)']
+  Global Scopes: []
+  Responsibility: Manages Exam records.
+----------------------------------------
+
+Class: ExamBlueprint
+  Table: Inferred (plural of class)
+  Fillable: ['exam_id', 'topic_name', 'weightage_percentage', 'competency_level']
+  Casts: {'weightage_percentage': 'float'}
+  Soft Deletes: No
+  Relationships: []
+  Accessors/Mutators: []
+  Global Scopes: []
+  Responsibility: Manages ExamBlueprint records.
+----------------------------------------
+
+Class: ExamHead
+  Table: Inferred (plural of class)
+  Fillable: ['teacher_id', 'assigned_by', 'assigned_at', 'status']
+  Casts: {'assigned_at': 'datetime'}
+  Soft Deletes: No
+  Relationships: ['teacher (belongsTo)', 'assignedBy (belongsTo)']
+  Accessors/Mutators: []
+  Global Scopes: []
+  Responsibility: Manages ExamHead records.
+----------------------------------------
+
+Class: ExamInvigilatorDuty
+  Table: Inferred (plural of class)
+  Fillable: ['exam_id', 'teacher_id', 'room_number', 'role']
+  Casts: {}
+  Soft Deletes: No
+  Relationships: []
+  Accessors/Mutators: []
+  Global Scopes: []
+  Responsibility: Manages ExamInvigilatorDuty records.
+----------------------------------------
+
+Class: ExamPaper
+  Table: Inferred (plural of class)
+  Fillable: ['title', 'subject', 'class_section', 'exam_type', '// Mid-term', 'Final', 'Unit Test', 'Quiz', 'etc.\n        academic_year', 'semester', 'paper_type', '// Question Paper', 'Answer Key', 'Solution', 'Syllabus\n        file_path', 'file_name', 'file_size', 'file_extension', 'uploaded_by', 'is_published', 'is_answer_key', 'marks_distribution', 'duration_minutes', 'total_marks', 'instructions', 'exam_date', 'exam_time', 'created_by', 'approved_by', 'is_approved', 'download_count', 'access_level', '// public', 'teachers_only', 'students_only', 'private\n        allowed_classes', '// JSON array of classes allowed to access\n        password_protected', 'access_password', 'valid_from', 'valid_until', 'metadata', '// Additional metadata as JSON\n        exam_id', '// Link to specific exam\n        class_id', '// Link to specific class\n        paper_content', '// Content of the exam paper\n        approved_by_admin', '// Admin who approved the paper\n        approved_by_exam_dept', '// Exam department who approved the paper\n        version', '// Version control\n        status', '// draft', 'submitted', 'approved', 'locked', 'revoked\n        revision_notes', '// Revision history\n        print_count', '// Print tracking\n        confidential_flag', '// Confidential marking\n        template_used', '// Template used to create the paper\n        questions_data', '// Store typed questions\n        auto_calculated_total // Auto-calculated total marks']
+  Casts: {'exam_date': 'date', 'exam_time': 'datetime:H:i', 'valid_from': 'datetime', 'valid_until': 'datetime', 'is_published': 'boolean', 'is_answer_key': 'boolean', 'is_approved': 'boolean', 'password_protected': 'boolean', 'download_count': 'integer', 'duration_minutes': 'integer', 'total_marks': 'integer', 'auto_calculated_total': 'integer', 'print_count': 'integer', 'version': 'integer', 'confidential_flag': 'boolean', 'allowed_classes': 'array', 'marks_distribution': 'array', 'metadata': 'array', 'questions_data': 'array', 'revision_notes': 'array', 'created_at': 'datetime', 'updated_at': 'datetime'}
+  Soft Deletes: No
+  Relationships: ['uploadedBy (belongsTo)', 'approvedBy (belongsTo)', 'createdBy (belongsTo)', 'approvedByAdmin (belongsTo)', 'approvedByExamDept (belongsTo)', 'class (belongsTo)', 'exam (belongsTo)']
+  Accessors/Mutators: []
+  Global Scopes: []
+  Responsibility: Manages ExamPaper records.
+----------------------------------------
+
+Class: ExamPaperTemplate
+  Table: Inferred (plural of class)
+  Fillable: ['name', 'description', 'template_content', '// HTML content for the template\n        subject', 'class_section', 'academic_year', 'is_active', 'created_by', 'updated_by', 'header_content', 'instruction_block', 'footer_content', 'section_config', '// JSON for sections (A', 'B', 'C', 'etc.)\n        marks_distribution', '// JSON for marks distribution\n        metadata']
+  Casts: {'is_active': 'boolean', 'section_config': 'array', 'marks_distribution': 'array', 'metadata': 'array'}
+  Soft Deletes: No
+  Relationships: []
+  Accessors/Mutators: []
+  Global Scopes: []
+  Responsibility: Manages ExamPaperTemplate records.
+----------------------------------------
+
+Class: ExamRelievingDuty
+  Table: Inferred (plural of class)
+  Fillable: ['exam_id', 'teacher_id', 'time_slot', 'room_number']
+  Casts: {}
+  Soft Deletes: No
+  Relationships: []
+  Accessors/Mutators: []
+  Global Scopes: []
+  Responsibility: Manages ExamRelievingDuty records.
+----------------------------------------
+
+Class: ExamSeatingArrangement
+  Table: Inferred (plural of class)
+  Fillable: ['exam_id', 'student_id', 'room_number', 'seat_number']
+  Casts: {}
+  Soft Deletes: No
+  Relationships: []
+  Accessors/Mutators: []
+  Global Scopes: []
+  Responsibility: Manages ExamSeatingArrangement records.
+----------------------------------------
+
+Class: ExaminationPattern
+  Table: Inferred (plural of class)
+  Fillable: ['name', 'code', 'pattern_config', 'is_default', 'is_active', 'sort_order', 'description']
+  Casts: {'pattern_config': 'array', 'is_default': 'boolean', 'is_active': 'boolean', 'sort_order': 'integer'}
+  Soft Deletes: No
+  Relationships: []
+  Accessors/Mutators: []
+  Global Scopes: []
+  Responsibility: Manages ExaminationPattern records.
+----------------------------------------
+
+Class: Expense
+  Table: Inferred (plural of class)
+  Fillable: ['budget_id', 'budget_category_id', 'title', 'description', 'amount', 'expense_date', 'receipt_number', 'vendor_name', 'payment_method', 'status', 'approval_notes', 'approved_by', 'approved_at', 'created_by']
+  Casts: {'amount': 'decimal:2', 'expense_date': 'date', 'approved_at': 'datetime'}
+  Soft Deletes: No
+  Relationships: []
+  Accessors/Mutators: ['getStatusLabelAttribute (accessor)', 'getPaymentMethodLabelAttribute (accessor)']
+  Global Scopes: []
+  Responsibility: Manages Expense records.
+----------------------------------------
+
+Class: Fee
+  Table: Inferred (plural of class)
+  Fillable: ['student_id', 'fee_structure_id', 'academic_year', 'term', 'amount', 'paid_amount', 'due_amount', 'status', 'due_date', 'payment_date', 'notes']
+  Casts: {'amount': 'decimal:2', 'paid_amount': 'decimal:2', 'due_amount': 'decimal:2', 'due_date': 'date', 'payment_date': 'date'}
+  Soft Deletes: No
+  Relationships: []
+  Accessors/Mutators: []
+  Global Scopes: []
+  Responsibility: Manages Fee records.
+----------------------------------------
+
+Class: FeeCollection
+  Table: Inferred (plural of class)
+  Fillable: ['receipt_no', 'student_id', 'fee_structure_id', 'total_amount', 'discount', 'late_fine', 'final_amount', 'payment_date', 'payment_mode', 'remarks', 'collected_by']
+  Casts: {'total_amount': 'decimal:2', 'discount': 'decimal:2', 'late_fine': 'decimal:2', 'final_amount': 'decimal:2', 'payment_date': 'date', 'payment_mode': 'string', 'collected_by': 'integer'}
+  Soft Deletes: Yes
+  Relationships: ['feeCollectionItems (hasMany)']
+  Accessors/Mutators: ['getFormattedPaymentDateAttribute (accessor)']
+  Global Scopes: []
+  Responsibility: Manages FeeCollection records.
+----------------------------------------
+
+Class: FeeCollectionItem
+  Table: Inferred (plural of class)
+  Fillable: ['fee_collection_id', 'fee_type_id', 'amount']
+  Casts: {'amount': 'decimal:2'}
+  Soft Deletes: No
+  Relationships: []
+  Accessors/Mutators: []
+  Global Scopes: []
+  Responsibility: Manages FeeCollectionItem records.
+----------------------------------------
+
+Class: FeeHead
+  Table: Inferred (plural of class)
+  Fillable: ['name', 'code', 'description', 'type', 'is_active']
+  Casts: {'is_active': 'boolean', 'type': 'string'}
+  Soft Deletes: No
+  Relationships: []
+  Accessors/Mutators: []
+  Global Scopes: []
+  Responsibility: Manages FeeHead records.
+----------------------------------------
+
+Class: FeeRefund
+  Table: fee_refunds
+  Fillable: ['student_id', 'fee_collection_id', 'amount', 'type', '// refund', 'reversal\n        reason', 'payment_mode', 'processed_by', 'processed_at']
+  Casts: {'amount': 'decimal:2', 'processed_at': 'datetime', 'processed_by': 'integer', 'student_id': 'integer', 'fee_collection_id': 'integer'}
+  Soft Deletes: No
+  Relationships: ['student (belongsTo)', 'feeCollection (belongsTo)', 'processedBy (belongsTo)']
+  Accessors/Mutators: []
+  Global Scopes: []
+  Responsibility: Manages FeeRefund records.
+----------------------------------------
+
+Class: FeeReminder
+  Table: Inferred (plural of class)
+  Fillable: ['fee_id', 'student_id', 'rule', 'channel', 'recipient', 'message', 'status', 'retry_count', 'error_message', 'sent_at']
+  Casts: {'sent_at': 'datetime', 'retry_count': 'integer'}
+  Soft Deletes: No
+  Relationships: []
+  Accessors/Mutators: []
+  Global Scopes: []
+  Responsibility: Manages FeeReminder records.
+----------------------------------------
+
+Class: FeeReversalRequest
+  Table: fee_reversal_requests
+  Fillable: ['fee_collection_id', 'student_id', 'requested_by', 'reason', 'status', '// pending', 'approved', 'rejected\n        processed_by', 'reversal_date']
+  Casts: {'reversal_date': 'datetime'}
+  Soft Deletes: No
+  Relationships: ['feeCollection (belongsTo)', 'student (belongsTo)', 'requester (belongsTo)', 'processor (belongsTo)']
+  Accessors/Mutators: []
+  Global Scopes: []
+  Responsibility: Manages FeeReversalRequest records.
+----------------------------------------
+
+Class: FeeStructure
+  Table: Inferred (plural of class)
+  Fillable: ['class_name', 'academic_year', 'frequency', 'installment_count', 'installment_frequency', 'status', 'created_by']
+  Casts: {'status': 'string', 'frequency': 'string', 'installment_count': 'integer', 'installment_frequency': 'string', 'created_by': 'integer'}
+  Soft Deletes: Yes
+  Relationships: ['feeStructureItems (hasMany)']
+  Accessors/Mutators: ['getTotalAmountAttribute (accessor)']
+  Global Scopes: []
+  Responsibility: Manages FeeStructure records.
+----------------------------------------
+
+Class: FeeStructureDetail
+  Table: Inferred (plural of class)
+  Fillable: ['fee_structure_id', 'fee_head_id', 'amount', 'frequency', 'applicable_months', 'is_late_fee_applicable', 'late_fee_amount', 'late_fee_days_after', 'is_mandatory']
+  Casts: {'amount': 'decimal:2', 'is_late_fee_applicable': 'boolean', 'late_fee_amount': 'decimal:2', 'applicable_months': 'array', 'is_mandatory': 'boolean'}
+  Soft Deletes: No
+  Relationships: []
+  Accessors/Mutators: []
+  Global Scopes: []
+  Responsibility: Manages FeeStructureDetail records.
+----------------------------------------
+
+Class: FeeStructureItem
+  Table: Inferred (plural of class)
+  Fillable: ['fee_structure_id', 'fee_type_id', 'amount', 'due_day', 'billing_frequency', 'charge_months', 'late_fee_rule_id', 'exam_id']
+  Casts: {'amount': 'decimal:2', 'due_day': 'integer', 'billing_frequency': 'string', 'charge_months': 'array', 'late_fee_rule_id': 'integer', 'exam_id': 'integer'}
+  Soft Deletes: No
+  Relationships: ['installments (hasMany)']
+  Accessors/Mutators: []
+  Global Scopes: []
+  Responsibility: Manages FeeStructureItem records.
+----------------------------------------
+
+Class: FeeStructureItemInstallment
+  Table: Inferred (plural of class)
+  Fillable: ['fee_structure_item_id', 'month', 'amount']
+  Casts: {'amount': 'decimal:2'}
+  Soft Deletes: No
+  Relationships: []
+  Accessors/Mutators: []
+  Global Scopes: []
+  Responsibility: Manages FeeStructureItemInstallment records.
+----------------------------------------
+
+Class: FeeType
+  Table: Inferred (plural of class)
+  Fillable: ['name', 'description', 'is_optional', 'status', 'category', 'default_frequency', 'default_charge_months', 'default_late_fee_rule_id']
+  Casts: {'is_optional': 'boolean', 'status': 'string', 'default_charge_months': 'array'}
+  Soft Deletes: Yes
+  Relationships: ['defaultLateFeeRule (belongsTo)', 'feeStructureItems (hasMany)', 'feeCollectionItems (hasMany)']
+  Accessors/Mutators: []
+  Global Scopes: []
+  Responsibility: Manages FeeType records.
+----------------------------------------
+
+Class: FieldPermission
+  Table: Inferred (plural of class)
+  Fillable: ['model_type', 'field_name', 'role', 'permission_level', 'is_active', 'created_by', 'updated_by']
+  Casts: {'is_active': 'boolean'}
+  Soft Deletes: No
+  Relationships: []
+  Accessors/Mutators: []
+  Global Scopes: []
+  Responsibility: Manages FieldPermission records.
+----------------------------------------
+
+Class: FinancialYearClosing
+  Table: financial_year_closings
+  Fillable: ['from_session_code', 'to_session_code', 'status', 'total_students_processed', 'total_balance_carried', 'total_advance_carried', 'total_scholarship_carried', 'total_refund_carried', 'processed_by', 'confirmed_at', 'remarks', 'last_processed_student_id', 'processed_batch', 'total_batches', 'progress_percent', 'started_at', 'completed_at', 'closed_by', 'checksum', 'closing_version', 'error_message']
+  Casts: {'total_students_processed': 'integer', 'total_balance_carried': 'decimal:2', 'total_advance_carried': 'decimal:2', 'total_scholarship_carried': 'decimal:2', 'total_refund_carried': 'decimal:2', 'confirmed_at': 'datetime', 'processed_by': 'integer', 'progress_percent': 'decimal:2', 'started_at': 'datetime', 'completed_at': 'datetime', 'last_processed_student_id': 'integer', 'processed_batch': 'integer', 'total_batches': 'integer'}
+  Soft Deletes: No
+  Relationships: ['processedBy (belongsTo)']
+  Accessors/Mutators: []
+  Global Scopes: []
+  Responsibility: Manages FinancialYearClosing records.
+----------------------------------------
+
+Class: GateEntry
+  Table: gate_entries
+  Fillable: ['visitor_name', 'purpose', 'check_in', 'check_out', 'vehicle_no', 'host_user_id']
+  Casts: {}
+  Soft Deletes: No
+  Relationships: ['host (belongsTo)']
+  Accessors/Mutators: []
+  Global Scopes: []
+  Responsibility: Manages GateEntry records.
+----------------------------------------
+
+Class: GradingSystem
+  Table: Inferred (plural of class)
+  Fillable: ['name', 'grade', 'min_percentage', 'max_percentage', 'grade_points', 'description', 'is_active', 'order']
+  Casts: {'min_percentage': 'decimal:2', 'max_percentage': 'decimal:2', 'grade_points': 'decimal:2', 'is_active': 'boolean', 'order': 'integer'}
+  Soft Deletes: No
+  Relationships: []
+  Accessors/Mutators: []
+  Global Scopes: []
+  Responsibility: Manages GradingSystem records.
+----------------------------------------
+
+Class: Guardian
+  Table: Inferred (plural of class)
+  Fillable: ['name', 'relationship', 'phone', 'email', 'occupation', 'address', 'aadhar_number', 'is_primary', 'is_active']
+  Casts: {}
+  Soft Deletes: No
+  Relationships: []
+  Accessors/Mutators: []
+  Global Scopes: []
+  Responsibility: Manages Guardian records.
+----------------------------------------
+
+Class: HomeworkNotice
+  Table: Inferred (plural of class)
+  Fillable: ['title', 'description', 'type', '// homework', 'notice', 'announcement\n        class_id', 'section_id', 'subject_id', 'assigned_by', 'due_date', 'publish_date', 'status', 'priority', 'visible_to_parent', 'attachment_path', 'parent_notes']
+  Casts: {'due_date': 'datetime', 'publish_date': 'datetime', 'status': 'string', 'priority': 'string', 'visible_to_parent': 'boolean'}
+  Soft Deletes: Yes
+  Relationships: ['schoolClass (belongsTo)', 'subject (belongsTo)', 'teacherLogin (belongsTo)', 'section (belongsTo)']
+  Accessors/Mutators: []
+  Global Scopes: []
+  Responsibility: Manages HomeworkNotice records.
+----------------------------------------
+
+Class: HomeworkSubmission
+  Table: homework_submissions
+  Fillable: ['homework_notice_id', 'student_id', 'submission_date', 'file_path', 'student_notes', 'marks_obtained', 'grade', 'remarks', 'evaluated_by', 'evaluated_at', 'status']
+  Casts: {'submission_date': 'datetime', 'evaluated_at': 'datetime', 'marks_obtained': 'decimal:2'}
+  Soft Deletes: No
+  Relationships: ['student (belongsTo)', 'homeworkNotice (belongsTo)', 'evaluator (belongsTo)']
+  Accessors/Mutators: []
+  Global Scopes: []
+  Responsibility: Manages HomeworkSubmission records.
+----------------------------------------
+
+Class: Hostel
+  Table: hostels
+  Fillable: ['name', 'type', 'capacity']
+  Casts: {}
+  Soft Deletes: No
+  Relationships: ['rooms (hasMany)']
+  Accessors/Mutators: []
+  Global Scopes: []
+  Responsibility: Manages Hostel records.
+----------------------------------------
+
+Class: HostelRoom
+  Table: hostel_rooms
+  Fillable: ['hostel_id', 'room_no', 'capacity', 'cost_per_bed']
+  Casts: {}
+  Soft Deletes: No
+  Relationships: ['hostel (belongsTo)', 'allocations (hasMany)']
+  Accessors/Mutators: []
+  Global Scopes: []
+  Responsibility: Manages HostelRoom records.
+----------------------------------------
+
+Class: IdCard
+  Table: Inferred (plural of class)
+  Fillable: ['student_id', 'template_id', 'card_number', 'issue_date', 'expiry_date', 'status', 'printed_by', 'printed_at']
+  Casts: {'issue_date': 'date', 'expiry_date': 'date', 'printed_at': 'datetime', 'status': 'string'}
+  Soft Deletes: Yes
+  Relationships: ['student (belongsTo)', 'printedBy (belongsTo)']
+  Accessors/Mutators: []
+  Global Scopes: []
+  Responsibility: Manages IdCard records.
+----------------------------------------
+
+Class: ImportError
+  Table: Inferred (plural of class)
+  Fillable: ['import_session_id', 'row_number', 'raw_row_data', 'error_message']
+  Casts: {'raw_row_data': 'array'}
+  Soft Deletes: No
+  Relationships: ['session (belongsTo)']
+  Accessors/Mutators: []
+  Global Scopes: []
+  Responsibility: Manages ImportError records.
+----------------------------------------
+
+Class: ImportMappingProfile
+  Table: Inferred (plural of class)
+  Fillable: ['profile_name', 'module', 'mappings', 'created_by']
+  Casts: {'mappings': 'array'}
+  Soft Deletes: No
+  Relationships: ['creator (belongsTo)']
+  Accessors/Mutators: []
+  Global Scopes: []
+  Responsibility: Manages ImportMappingProfile records.
+----------------------------------------
+
+Class: ImportSession
+  Table: Inferred (plural of class)
+  Fillable: ['uuid', 'module', 'status', 'column_mappings', 'settings', 'total_rows', 'processed_rows', 'success_rows', 'error_rows', 'resume_pointer', 'start_time', 'end_time', 'created_by']
+  Casts: {'column_mappings': 'array', 'settings': 'array', 'start_time': 'datetime', 'end_time': 'datetime'}
+  Soft Deletes: No
+  Relationships: ['errors (hasMany)', 'creator (belongsTo)']
+  Accessors/Mutators: []
+  Global Scopes: []
+  Responsibility: Manages ImportSession records.
+----------------------------------------
+
+Class: ImportTemplate
+  Table: Inferred (plural of class)
+  Fillable: ['template_name', 'version', 'file_path', 'schema_definition', 'is_active']
+  Casts: {'schema_definition': 'array', 'is_active': 'boolean'}
+  Soft Deletes: No
+  Relationships: []
+  Accessors/Mutators: []
+  Global Scopes: []
+  Responsibility: Manages ImportTemplate records.
+----------------------------------------
+
+Class: InventoryTransaction
+  Table: Inferred (plural of class)
+  Fillable: ['asset_id', 'user_id', 'transaction_type', 'quantity', 'from_location', 'to_location', 'assigned_to', 'reason', 'notes']
+  Casts: {}
+  Soft Deletes: No
+  Relationships: []
+  Accessors/Mutators: []
+  Global Scopes: []
+  Responsibility: Manages InventoryTransaction records.
+----------------------------------------
+
+Class: Language
+  Table: Inferred (plural of class)
+  Fillable: ['name', 'code', 'flag_icon', 'is_active', 'is_default', 'sort_order']
+  Casts: {'is_active': 'boolean', 'is_default': 'boolean', 'sort_order': 'integer'}
+  Soft Deletes: No
+  Relationships: ['translations (hasMany)']
+  Accessors/Mutators: ['getFlagEmojiAttribute (accessor)']
+  Global Scopes: []
+  Responsibility: Manages Language records.
+----------------------------------------
+
+Class: LanguageSetting
+  Table: Inferred (plural of class)
+  Fillable: ['locale', 'name', 'flag', 'is_default', 'is_active', 'created_by', 'updated_by']
+  Casts: {'is_default': 'boolean', 'is_active': 'boolean'}
+  Soft Deletes: No
+  Relationships: []
+  Accessors/Mutators: ['getFlagUrlAttribute (accessor)']
+  Global Scopes: []
+  Responsibility: Manages LanguageSetting records.
+----------------------------------------
+
+Class: LateFeeRule
+  Table: Inferred (plural of class)
+  Fillable: ['name', 'type', '// flat', 'daily_incremental', 'slab\n        amount', 'grace_days', 'slab_config', 'max_limit']
+  Casts: {'amount': 'decimal:2', 'grace_days': 'integer', 'slab_config': 'array', 'max_limit': 'decimal:2'}
+  Soft Deletes: No
+  Relationships: []
+  Accessors/Mutators: []
+  Global Scopes: []
+  Responsibility: Manages LateFeeRule records.
+----------------------------------------
+
+Class: LessonPlan
+  Table: Inferred (plural of class)
+  Fillable: ['teacher_id', 'class_id', 'section_id', 'subject_id', 'title', 'date', 'topic', 'learning_objectives', 'teaching_method', 'homework_classwork', 'books_notebooks_required', 'submission_assessment_notes', 'plan_type', 'start_date', 'end_date', 'full_content', 'parent_visible_content', 'show_to_parents', 'created_by', 'modified_by']
+  Casts: {'date': 'date', 'start_date': 'date', 'end_date': 'date', 'show_to_parents': 'boolean'}
+  Soft Deletes: Yes
+  Relationships: []
+  Accessors/Mutators: []
+  Global Scopes: []
+  Responsibility: Manages LessonPlan records.
+----------------------------------------
+
+Class: LibrarySetting
+  Table: Inferred (plural of class)
+  Fillable: ['default_issue_days', 'fine_per_day', 'low_stock_threshold', 'auto_reminder_enabled']
+  Casts: {'fine_per_day': 'decimal:2', 'auto_reminder_enabled': 'boolean'}
+  Soft Deletes: No
+  Relationships: []
+  Accessors/Mutators: []
+  Global Scopes: []
+  Responsibility: Manages LibrarySetting records.
+----------------------------------------
+
+Class: MedicalCheckup
+  Table: medical_checkups
+  Fillable: ['student_id', 'checkup_date', 'doctor_name', 'diagnosis', 'treatment', 'vaccination_logs']
+  Casts: {'checkup_date': 'date'}
+  Soft Deletes: No
+  Relationships: ['student (belongsTo)']
+  Accessors/Mutators: []
+  Global Scopes: []
+  Responsibility: Manages MedicalCheckup records.
+----------------------------------------
+
+Class: MedicalRecord
+  Table: medical_records
+  Fillable: ['student_id', 'blood_group', 'height_cm', 'weight_kg', 'allergies', 'medical_conditions', 'emergency_contact_name', 'emergency_contact_phone']
+  Casts: {}
+  Soft Deletes: No
+  Relationships: ['student (belongsTo)']
+  Accessors/Mutators: []
+  Global Scopes: []
+  Responsibility: Manages MedicalRecord records.
+----------------------------------------
+
+Class: NotebookCheck
+  Table: notebook_checks
+  Fillable: ['student_id', 'subject_id', 'check_date', 'deficiencies', 'recheck_date', 'remarks', 'is_signed', 'checked_by']
+  Casts: {'check_date': 'date', 'recheck_date': 'date', 'is_signed': 'boolean'}
+  Soft Deletes: No
+  Relationships: ['student (belongsTo)', 'subject (belongsTo)', 'checker (belongsTo)']
+  Accessors/Mutators: []
+  Global Scopes: []
+  Responsibility: Manages NotebookCheck records.
+----------------------------------------
+
+Class: NotificationLog
+  Table: Inferred (plural of class)
+  Fillable: ['notification_setting_id', 'recipient_type', '// student', 'parent', 'teacher', 'admin\n        recipient_id', 'notification_type', '// sms', 'email\n        subject', 'message', 'status', '// pending', 'sent', 'failed\n        sent_at', 'failed_reason', 'retry_count']
+  Casts: {'sent_at': 'datetime', 'retry_count': 'integer'}
+  Soft Deletes: No
+  Relationships: ['notificationSetting (belongsTo)', 'recipient (morphTo)']
+  Accessors/Mutators: []
+  Global Scopes: []
+  Responsibility: Manages NotificationLog records.
+----------------------------------------
+
+Class: NotificationSetting
+  Table: Inferred (plural of class)
+  Fillable: ['event_type', 'notification_type', '// sms', 'email', 'both\n        is_enabled', 'template_subject', 'template_body', 'recipients', '// json array\n        conditions', '// json array\n        schedule_type', '// immediate', 'daily', 'weekly\n        created_by']
+  Casts: {'is_enabled': 'boolean', 'recipients': 'array', 'conditions': 'array'}
+  Soft Deletes: No
+  Relationships: ['creator (belongsTo)', 'logs (hasMany)']
+  Accessors/Mutators: []
+  Global Scopes: []
+  Responsibility: Manages NotificationSetting records.
+----------------------------------------
+
+Class: NotificationTemplate
+  Table: Inferred (plural of class)
+  Fillable: ['name', 'event_type', 'channel', 'subject', 'template_content', 'variables', 'is_active', 'delay_minutes', 'recipient_roles', 'conditions', 'description', 'template_format', '// pdf', 'excel', 'csv', 'html\n        header_config', 'footer_config', 'layout_config', 'styles', 'permissions', 'category', '// notification', 'report', 'export\n        preview_image']
+  Casts: {'variables': 'array', 'recipient_roles': 'array', 'conditions': 'array', 'header_config': 'array', 'footer_config': 'array', 'layout_config': 'array', 'styles': 'array', 'permissions': 'array', 'is_active': 'boolean', 'delay_minutes': 'integer'}
+  Soft Deletes: Yes
+  Relationships: []
+  Accessors/Mutators: ['getDisplayNameAttribute (accessor)', 'getIsDelayedAttribute (accessor)']
+  Global Scopes: []
+  Responsibility: Manages NotificationTemplate records.
+----------------------------------------
+
+Class: OnlineQuiz
+  Table: online_quizzes
+  Fillable: ['exam_id', 'title', 'duration_minutes', 'total_questions']
+  Casts: {'duration_minutes': 'integer', 'total_questions': 'integer'}
+  Soft Deletes: No
+  Relationships: ['exam (belongsTo)', 'questions (hasMany)']
+  Accessors/Mutators: []
+  Global Scopes: []
+  Responsibility: Manages OnlineQuiz records.
+----------------------------------------
+
+Class: ParentModel
+  Table: parents
+  Fillable: ['name', 'email', 'phone', 'mobile', 'admission_number', 'password', 'student_id', 'status']
+  Casts: {'email_verified_at': 'datetime'}
+  Soft Deletes: No
+  Relationships: ['student (belongsTo)', 'students (hasMany)']
+  Accessors/Mutators: ['getStudentAttribute (accessor)', 'getStudentIdAttribute (accessor)']
+  Global Scopes: []
+  Responsibility: Manages ParentModel records.
+----------------------------------------
+
+Class: PaymentAllocation
+  Table: payment_allocations
+  Fillable: ['student_id', 'credit_ledger_id', 'debit_ledger_id', 'amount', 'allocation_type', '// auto', 'manual']
+  Casts: {'amount': 'decimal:2', 'student_id': 'integer', 'credit_ledger_id': 'integer', 'debit_ledger_id': 'integer'}
+  Soft Deletes: No
+  Relationships: ['student (belongsTo)', 'creditLedger (belongsTo)', 'debitLedger (belongsTo)']
+  Accessors/Mutators: []
+  Global Scopes: []
+  Responsibility: Manages PaymentAllocation records.
+----------------------------------------
+
+Class: PerformanceAnalytics
+  Table: Inferred (plural of class)
+  Fillable: ['metric_type', 'metric_value', 'date_recorded', 'user_id', 'module_accessed', 'duration', '// in seconds\n        ip_address', 'user_agent', 'additional_data']
+  Casts: {'date_recorded': 'date', 'duration': 'integer', 'additional_data': 'array'}
+  Soft Deletes: No
+  Relationships: ['user (belongsTo)']
+  Accessors/Mutators: []
+  Global Scopes: []
+  Responsibility: Manages PerformanceAnalytics records.
+----------------------------------------
+
+Class: PerformanceScore
+  Table: Inferred (plural of class)
+  Fillable: ['teacher_id', 'period_start', 'period_end', 'period_type', 'punctuality_score', 'discipline_rating', 'consistency_index', 'performance_grade', 'total_days', 'present_days', 'late_arrivals', 'early_departures', 'absent_days', 'avg_working_hours', 'detailed_metrics', 'comments']
+  Casts: {'period_start': 'date', 'period_end': 'date', 'punctuality_score': 'decimal:2', 'discipline_rating': 'decimal:2', 'consistency_index': 'decimal:2', 'avg_working_hours': 'decimal:2', 'detailed_metrics': 'array', 'total_days': 'integer', 'present_days': 'integer', 'late_arrivals': 'integer', 'early_departures': 'integer', 'absent_days': 'integer'}
+  Soft Deletes: No
+  Relationships: ['teacher (belongsTo)']
+  Accessors/Mutators: ['getAttendancePercentageAttribute (accessor)', 'getPunctualityPercentageAttribute (accessor)', 'getOverallScoreAttribute (accessor)']
+  Global Scopes: []
+  Responsibility: Manages PerformanceScore records.
+----------------------------------------
+
+Class: Permission
+  Table: Inferred (plural of class)
+  Fillable: ['name', 'guard_name']
+  Casts: {}
+  Soft Deletes: No
+  Relationships: []
+  Accessors/Mutators: []
+  Global Scopes: []
+  Responsibility: Manages Permission records.
+----------------------------------------
+
+Class: ProcessedStripeEvent
+  Table: processed_stripe_events
+  Fillable: ['event_id', 'event_type', 'payment_intent', 'status', 'error_message', 'payload_hash', 'attempts', 'processed_at']
+  Casts: {'processed_at': 'datetime', 'attempts': 'integer'}
+  Soft Deletes: No
+  Relationships: []
+  Accessors/Mutators: []
+  Global Scopes: []
+  Responsibility: Manages ProcessedStripeEvent records.
+----------------------------------------
+
+Class: PromotionRule
+  Table: Inferred (plural of class)
+  Fillable: ['class_name', 'min_overall_percentage', 'max_failed_subjects', 'min_attendance_percentage', 'academic_year']
+  Casts: {'min_overall_percentage': 'float', 'max_failed_subjects': 'integer', 'min_attendance_percentage': 'float'}
+  Soft Deletes: No
+  Relationships: []
+  Accessors/Mutators: []
+  Global Scopes: []
+  Responsibility: Manages PromotionRule records.
+----------------------------------------
+
+Class: PtmMeeting
+  Table: ptm_meetings
+  Fillable: ['teacher_id', 'parent_id', 'meeting_date', 'time_slot', 'status', 'notes']
+  Casts: {'meeting_date': 'date'}
+  Soft Deletes: No
+  Relationships: ['teacher (belongsTo)', 'parent (belongsTo)']
+  Accessors/Mutators: []
+  Global Scopes: []
+  Responsibility: Manages PtmMeeting records.
+----------------------------------------
+
+Class: PurchaseRequest
+  Table: purchase_requests
+  Fillable: ['item_name', 'quantity', 'estimated_cost', 'requested_by', 'status', 'approved_by']
+  Casts: {}
+  Soft Deletes: No
+  Relationships: ['requester (belongsTo)', 'approver (belongsTo)']
+  Accessors/Mutators: []
+  Global Scopes: []
+  Responsibility: Manages PurchaseRequest records.
+----------------------------------------
+
+Class: QuizQuestion
+  Table: quiz_questions
+  Fillable: ['quiz_id', 'question_text', 'option_a', 'option_b', 'option_c', 'option_d', 'correct_option']
+  Casts: {}
+  Soft Deletes: No
+  Relationships: ['quiz (belongsTo)']
+  Accessors/Mutators: []
+  Global Scopes: []
+  Responsibility: Manages QuizQuestion records.
+----------------------------------------
+
+Class: QuizSubmission
+  Table: quiz_submissions
+  Fillable: ['student_id', 'quiz_id', 'score', 'answers_json']
+  Casts: {'answers_json': 'array'}
+  Soft Deletes: No
+  Relationships: ['student (belongsTo)', 'quiz (belongsTo)']
+  Accessors/Mutators: []
+  Global Scopes: []
+  Responsibility: Manages QuizSubmission records.
+----------------------------------------
+
+Class: ReportCardTemplate
+  Table: Inferred (plural of class)
+  Fillable: ['name', 'layout_config', 'scholastic_sections', 'is_active']
+  Casts: {'layout_config': 'array', 'scholastic_sections': 'array', 'is_active': 'boolean'}
+  Soft Deletes: No
+  Relationships: []
+  Accessors/Mutators: []
+  Global Scopes: []
+  Responsibility: Manages ReportCardTemplate records.
+----------------------------------------
+
+Class: Result
+  Table: Inferred (plural of class)
+  Fillable: ['student_id', 'exam_id', 'subject', 'marks_obtained', 'total_marks', 'percentage', 'grade', 'academic_year', 'term', 'comments', 'remarks', 'result_status', 'class_rank', 'section_rank', 'is_locked', 'generated_by', 'generated_at', 'uploaded_by_teacher_id', 'uploaded_at', 'status', 'original_marks_obtained', 'grace_marks_applied', 'moderated_by', 'moderation_reason']
+  Casts: {'marks_obtained': 'float', 'total_marks': 'float', 'percentage': 'float', 'class_rank': 'integer', 'section_rank': 'integer', 'is_locked': 'boolean', 'generated_at': 'datetime', 'uploaded_at': 'datetime', 'additional_data': 'array'}
+  Soft Deletes: No
+  Relationships: []
+  Accessors/Mutators: []
+  Global Scopes: []
+  Responsibility: Manages Result records.
+----------------------------------------
+
+Class: ResultFormat
+  Table: Inferred (plural of class)
+  Fillable: ['name', 'code', 'template_html', 'fields', 'is_default', 'is_active', 'sort_order', 'description']
+  Casts: {'fields': 'array', 'is_default': 'boolean', 'is_active': 'boolean', 'sort_order': 'integer'}
+  Soft Deletes: No
+  Relationships: []
+  Accessors/Mutators: []
+  Global Scopes: []
+  Responsibility: Manages ResultFormat records.
+----------------------------------------
+
+Class: Role
+  Table: Inferred (plural of class)
+  Fillable: ['name', 'display_name', 'description']
+  Casts: {}
+  Soft Deletes: No
+  Relationships: []
+  Accessors/Mutators: []
+  Global Scopes: []
+  Responsibility: Manages Role records.
+----------------------------------------
+
+Class: Route
+  Table: routes
+  Fillable: ['name', 'start_point', 'end_point', 'monthly_fare']
+  Casts: {}
+  Soft Deletes: No
+  Relationships: ['stops (hasMany)']
+  Accessors/Mutators: []
+  Global Scopes: []
+  Responsibility: Manages Route records.
+----------------------------------------
+
+Class: RouteStop
+  Table: route_stops
+  Fillable: ['route_id', 'stop_name', 'arrival_time', 'fare']
+  Casts: {}
+  Soft Deletes: No
+  Relationships: ['route (belongsTo)']
+  Accessors/Mutators: []
+  Global Scopes: []
+  Responsibility: Manages RouteStop records.
+----------------------------------------
+
+Class: SchoolClass
+  Table: Inferred (plural of class)
+  Fillable: ['name', 'class_order', 'description', 'is_active']
+  Casts: {'class_order': 'integer', 'is_active': 'boolean'}
+  Soft Deletes: Yes
+  Relationships: ['students (hasMany)']
+  Accessors/Mutators: []
+  Global Scopes: []
+  Responsibility: Manages SchoolClass records.
+----------------------------------------
+
+Class: Section
+  Table: Inferred (plural of class)
+  Fillable: ['name', 'capacity', 'description']
+  Casts: {'capacity': 'integer'}
+  Soft Deletes: Yes
+  Relationships: ['classes (hasMany)']
+  Accessors/Mutators: []
+  Global Scopes: []
+  Responsibility: Manages Section records.
+----------------------------------------
+
+Class: SelfServiceToken
+  Table: Inferred (plural of class)
+  Fillable: ['teacher_id', 'token', 'device_name', 'ip_address', 'expires_at', 'last_used_at', 'is_active', 'permissions']
+  Casts: {'permissions': 'array', 'is_active': 'boolean', 'expires_at': 'datetime', 'last_used_at': 'datetime'}
+  Soft Deletes: No
+  Relationships: ['teacher (belongsTo)']
+  Accessors/Mutators: ['getRemainingDaysAttribute (accessor)']
+  Global Scopes: []
+  Responsibility: Manages SelfServiceToken records.
+----------------------------------------
+
+Class: SlowLearner
+  Table: slow_learners
+  Fillable: ['student_id', 'subject_id', 'diagnostic_date', 'remedial_notes', 'progress_status']
+  Casts: {}
+  Soft Deletes: No
+  Relationships: ['student (belongsTo)', 'subject (belongsTo)']
+  Accessors/Mutators: []
+  Global Scopes: []
+  Responsibility: Manages SlowLearner records.
+----------------------------------------
+
+Class: SpecialDayOverride
+  Table: Inferred (plural of class)
+  Fillable: ['override_date', 'type', 'bell_schedule_id', 'custom_periods', 'remarks', 'created_by', 'updated_by']
+  Casts: {'override_date': 'date', 'custom_periods': 'array', 'bell_schedule_id': 'integer', 'created_by': 'integer', 'updated_by': 'integer'}
+  Soft Deletes: No
+  Relationships: []
+  Accessors/Mutators: []
+  Global Scopes: []
+  Responsibility: Manages SpecialDayOverride records.
+----------------------------------------
+
+Class: Student
+  Table: Inferred (plural of class)
+  Fillable: ['name', 'father_name', 'mother_name', 'date_of_birth', 'aadhar_number', 'admission_no', 'phone', 'mobile', 'gender', 'category', 'class', 'section', 'roll_number', 'religion', 'caste', 'blood_group', 'address', 'user_id', 'is_verified', 'guardian_name', 'class_id', 'section_id']
+  Casts: {'date_of_birth': 'date', 'admission_no': 'string', 'mobile': 'string', 'class_id': 'integer', 'guardian_name': 'string'}
+  Soft Deletes: Yes
+  Relationships: ['user (belongsTo)', 'staffParent (belongsTo)', 'guardian (belongsTo)', 'attendances (hasMany)', 'fees (hasMany)', 'results (hasMany)', 'documents (hasMany)', 'schoolClass (belongsTo)', 'class (belongsTo)', 'section (belongsTo)', 'schoolSection (belongsTo)', 'feeCollections (hasMany)', 'feeAssignments (hasMany)', 'parent (belongsTo)', 'transportAssignment (hasOne)', 'transportDues (hasMany)', 'discountsApplied (hasMany)', 'ledgerRecords (hasMany)', 'financialAccount (hasOne)']
+  Accessors/Mutators: ['getFullNameAttribute (accessor)', 'getAgeAttribute (accessor)', 'setBloodGroupAttribute (mutator)']
+  Global Scopes: []
+  Responsibility: Manages Student records.
+----------------------------------------
+
+Class: StudentDiscountApplied
+  Table: student_discounts_applied
+  Fillable: ['student_id', 'discount_rule_id', 'fee_type_id', 'amount', 'month', 'academic_year']
+  Casts: {}
+  Soft Deletes: No
+  Relationships: ['student (belongsTo)', 'discountRule (belongsTo)', 'feeType (belongsTo)']
+  Accessors/Mutators: []
+  Global Scopes: []
+  Responsibility: Manages StudentDiscountApplied records.
+----------------------------------------
+
+Class: StudentDocument
+  Table: Inferred (plural of class)
+  Fillable: ['student_id', 'document_type', 'document_path', 'original_filename', 'is_verified', 'verified_by', 'verified_at', 'verification_notes', 'file_size', 'file_mime_type']
+  Casts: {'verified_at': 'datetime', 'is_verified': 'boolean'}
+  Soft Deletes: No
+  Relationships: []
+  Accessors/Mutators: []
+  Global Scopes: []
+  Responsibility: Manages StudentDocument records.
+----------------------------------------
+
+Class: StudentFeeAssignment
+  Table: Inferred (plural of class)
+  Fillable: ['student_id', 'fee_structure_id', 'academic_year']
+  Casts: {}
+  Soft Deletes: No
+  Relationships: []
+  Accessors/Mutators: []
+  Global Scopes: []
+  Responsibility: Manages StudentFeeAssignment records.
+----------------------------------------
+
+Class: StudentFeeLedger
+  Table: student_fee_ledgers
+  Fillable: ['student_id', 'date', 'description', 'reference_type', '// fee_collection', 'fee_structure_item', 'transport_due', 'discount_applied', 'late_fine\n        reference_id', 'debit', 'credit', 'running_balance', 'academic_year', 'class_id', 'fee_type_id', 'unpaid_amount']
+  Casts: {'date': 'date', 'debit': 'decimal:2', 'credit': 'decimal:2', 'running_balance': 'decimal:2', 'class_id': 'integer', 'fee_type_id': 'integer', 'unpaid_amount': 'decimal:2'}
+  Soft Deletes: No
+  Relationships: ['student (belongsTo)', 'schoolClass (belongsTo)', 'feeType (belongsTo)', 'reference (morphTo)', 'auditLogs (hasMany)']
+  Accessors/Mutators: []
+  Global Scopes: []
+  Responsibility: Manages StudentFeeLedger records.
+----------------------------------------
+
+Class: StudentFinancialAccount
+  Table: student_financial_accounts
+  Fillable: ['student_id', 'account_no', 'status', 'created_by', 'updated_by', 'ip_address']
+  Casts: {'student_id': 'integer', 'status': 'string', 'created_by': 'integer', 'updated_by': 'integer'}
+  Soft Deletes: Yes
+  Relationships: ['student (belongsTo)', 'createdBy (belongsTo)', 'updatedBy (belongsTo)']
+  Accessors/Mutators: []
+  Global Scopes: []
+  Responsibility: Manages StudentFinancialAccount records.
+----------------------------------------
+
+Class: StudentHostelAllocation
+  Table: student_hostel_allocations
+  Fillable: ['student_id', 'room_id', 'status']
+  Casts: {}
+  Soft Deletes: No
+  Relationships: ['student (belongsTo)', 'room (belongsTo)']
+  Accessors/Mutators: []
+  Global Scopes: []
+  Responsibility: Manages StudentHostelAllocation records.
+----------------------------------------
+
+Class: StudentLeave
+  Table: student_leaves
+  Fillable: ['student_id', 'start_date', 'end_date', 'reason', 'status', 'approved_by']
+  Casts: {}
+  Soft Deletes: No
+  Relationships: ['student (belongsTo)', 'approver (belongsTo)']
+  Accessors/Mutators: []
+  Global Scopes: []
+  Responsibility: Manages StudentLeave records.
+----------------------------------------
+
+Class: StudentPromotionLog
+  Table: Inferred (plural of class)
+  Fillable: ['student_id', 'academic_session_id', 'from_class', 'to_class', 'promoted_by', 'promoted_at', 'remarks']
+  Casts: {'promoted_at': 'datetime'}
+  Soft Deletes: No
+  Relationships: ['student (belongsTo)', 'academicSession (belongsTo)', 'promotedBy (belongsTo)']
+  Accessors/Mutators: []
+  Global Scopes: []
+  Responsibility: Manages StudentPromotionLog records.
+----------------------------------------
+
+Class: StudentStatus
+  Table: Inferred (plural of class)
+  Fillable: ['student_id', 'status', 'status_date', 'reason', 'remarks', 'document_number', 'document_issue_date', 'issued_by']
+  Casts: {'status_date': 'date', 'document_issue_date': 'date'}
+  Soft Deletes: No
+  Relationships: []
+  Accessors/Mutators: []
+  Global Scopes: []
+  Responsibility: Manages StudentStatus records.
+----------------------------------------
+
+Class: StudentTransport
+  Table: student_transport
+  Fillable: ['student_id', 'route_id', 'stop_id', 'vehicle_id']
+  Casts: {}
+  Soft Deletes: No
+  Relationships: ['student (belongsTo)', 'route (belongsTo)', 'stop (belongsTo)', 'vehicle (belongsTo)']
+  Accessors/Mutators: []
+  Global Scopes: []
+  Responsibility: Manages StudentTransport records.
+----------------------------------------
+
+Class: StudentTransportDue
+  Table: transport_fees
+  Fillable: ['student_id', 'route_id', 'stop_id', 'vehicle_id', 'month', 'academic_year', 'amount', 'status', '// unpaid', 'paid\n        route_name_snapshot', 'stop_name_snapshot', 'fare_snapshot', 'payment_date', 'payment_mode', 'transaction_id', 'receipt_no', 'collected_by', 'remarks']
+  Casts: {'amount': 'decimal:2', 'fare_snapshot': 'decimal:2', 'payment_date': 'date'}
+  Soft Deletes: No
+  Relationships: ['student (belongsTo)', 'route (belongsTo)', 'stop (belongsTo)', 'vehicle (belongsTo)', 'collector (belongsTo)', 'adjustments (hasMany)']
+  Accessors/Mutators: []
+  Global Scopes: []
+  Responsibility: Manages StudentTransportDue records.
+----------------------------------------
+
+Class: StudyMaterial
+  Table: study_materials
+  Fillable: ['class_id', 'subject_id', 'title', 'description', 'file_path', 'uploaded_by']
+  Casts: {}
+  Soft Deletes: No
+  Relationships: ['schoolClass (belongsTo)', 'subject (belongsTo)', 'uploader (belongsTo)']
+  Accessors/Mutators: []
+  Global Scopes: []
+  Responsibility: Manages StudyMaterial records.
+----------------------------------------
+
+Class: Subject
+  Table: Inferred (plural of class)
+  Fillable: ['name', 'code', 'subject_type', 'is_active', 'sort_order']
+  Casts: {'is_active': 'boolean', 'sort_order': 'integer'}
+  Soft Deletes: Yes
+  Relationships: ['results (hasMany)']
+  Accessors/Mutators: ['getDisplayNameAttribute (accessor)']
+  Global Scopes: []
+  Responsibility: Manages Subject records.
+----------------------------------------
+
+Class: Syllabus
+  Table: Inferred (plural of class)
+  Fillable: ['subject', 'class_name', 'section', 'title', 'description', 'chapters', 'start_date', 'end_date', 'academic_session', 'total_duration_hours', 'learning_objectives', 'assessment_criteria', 'status', 'created_by', 'updated_by']
+  Casts: {'chapters': 'array', 'learning_objectives': 'array', 'assessment_criteria': 'array', 'start_date': 'date', 'end_date': 'date', 'total_duration_hours': 'decimal:2', 'created_by': 'integer', 'updated_by': 'integer'}
+  Soft Deletes: No
+  Relationships: []
+  Accessors/Mutators: []
+  Global Scopes: []
+  Responsibility: Manages Syllabus records.
+----------------------------------------
+
+Class: Teacher
+  Table: Inferred (plural of class)
+  Fillable: ['name', 'email', 'phone', 'mobile', 'address', 'date_of_birth', 'gender', 'qualification', 'experience_details', 'subject_specialization', 'designation', 'salary', 'date_of_joining', 'profile_image', 'photo', 'status', 'is_exam_head', 'is_exam_cell_member', 'employee_id', 'password', 'aadhar_number', 'bank_account_number', 'ifsc_code', 'wing', 'teacher_type', 'subjects', 'employment_type', 'uan_number', 'pan_number']
+  Casts: {'date_of_birth': 'date', 'date_of_joining': 'date', 'is_exam_head': 'boolean', 'is_exam_cell_member': 'boolean'}
+  Soft Deletes: Yes
+  Relationships: ['user (belongsTo)', 'attendances (hasMany)', 'examPapers (hasMany)', 'classes (belongsTo)', 'documents (hasMany)', 'experiences (hasMany)', 'leaves (hasMany)', 'salaries (hasMany)', 'absentSubstitutions (hasMany)', 'substituteSubstitutions (hasMany)', 'biometricRecords (hasMany)', 'teacherAttendances (hasMany)', 'teacherLogins (hasMany)', 'classSubjectAssignments (hasMany)', 'examHead (hasOne)', 'uploadedResults (hasMany)', 'assignedClasses (belongsTo)', 'assignedSubjects (belongsTo)']
+  Accessors/Mutators: ['getFullNameAttribute (accessor)', 'getAgeAttribute (accessor)', 'getYearsOfServiceAttribute (accessor)', 'getPhotoUrlAttribute (accessor)', 'setPasswordAttribute (mutator)']
+  Global Scopes: []
+  Responsibility: Manages Teacher records.
+----------------------------------------
+
+Class: TeacherAttendance
+  Table: Inferred (plural of class)
+  Fillable: ['teacher_id', 'date', 'status', 'remarks', 'marked_by', 'updated_by']
+  Casts: {'date': 'date'}
+  Soft Deletes: No
+  Relationships: []
+  Accessors/Mutators: []
+  Global Scopes: []
+  Responsibility: Manages TeacherAttendance records.
+----------------------------------------
+
+Class: TeacherBiometricRecord
+  Table: Inferred (plural of class)
+  Fillable: ['teacher_id', 'date', 'first_in_time', 'last_out_time', 'multiple_punches', 'calculated_duration', 'arrival_status', 'departure_status', 'grace_minutes_used', 'late_minutes', 'early_departure_minutes', 'remarks', 'import_source', 'biometric_device_id', 'device_punch_id', 'sync_timestamp', 'is_synced', 'sync_log_id']
+  Casts: {'date': 'date', 'first_in_time': 'datetime:H:i:s', 'last_out_time': 'datetime:H:i:s', 'multiple_punches': 'array', 'calculated_duration': 'decimal:2', 'grace_minutes_used': 'integer', 'late_minutes': 'integer', 'early_departure_minutes': 'integer', 'sync_timestamp': 'datetime', 'is_synced': 'boolean'}
+  Soft Deletes: Yes
+  Relationships: ['teacher (belongsTo)', 'biometricDevice (belongsTo)', 'syncLog (belongsTo)']
+  Accessors/Mutators: ['getWorkingDurationFormattedAttribute (accessor)', 'getStatusBadgeAttribute (accessor)']
+  Global Scopes: []
+  Responsibility: Manages TeacherBiometricRecord records.
+----------------------------------------
+
+Class: TeacherClassAssignment
+  Table: Inferred (plural of class)
+  Fillable: ['teacher_id', 'class_id', 'subject_assigned', 'role', 'is_primary', 'assigned_at']
+  Casts: {'is_primary': 'boolean', 'assigned_at': 'datetime'}
+  Soft Deletes: No
+  Relationships: ['teacher (belongsTo)', 'class (belongsTo)']
+  Accessors/Mutators: []
+  Global Scopes: []
+  Responsibility: Manages TeacherClassAssignment records.
+----------------------------------------
+
+Class: TeacherClassSubjectAssignment
+  Table: Inferred (plural of class)
+  Fillable: ['teacher_id', 'class_id', 'section_id', 'subject_id', 'is_class_teacher', 'is_primary_subject_teacher', 'academic_year']
+  Casts: {'is_class_teacher': 'boolean', 'is_primary_subject_teacher': 'boolean'}
+  Soft Deletes: No
+  Relationships: ['teacher (belongsTo)', 'schoolClass (belongsTo)', 'section (belongsTo)', 'subject (belongsTo)']
+  Accessors/Mutators: []
+  Global Scopes: []
+  Responsibility: Manages TeacherClassSubjectAssignment records.
+----------------------------------------
+
+Class: TeacherDocument
+  Table: Inferred (plural of class)
+  Fillable: ['teacher_id', 'document_type', 'document_path', 'original_filename', 'is_verified', 'verified_by', 'verified_at', 'verification_notes', 'file_size', 'file_mime_type']
+  Casts: {'verified_at': 'datetime', 'is_verified': 'boolean'}
+  Soft Deletes: No
+  Relationships: []
+  Accessors/Mutators: []
+  Global Scopes: []
+  Responsibility: Manages TeacherDocument records.
+----------------------------------------
+
+Class: TeacherExperience
+  Table: Inferred (plural of class)
+  Fillable: ['teacher_id', 'organization_name', 'position', 'employment_type', 'start_date', 'end_date', 'currently_working', 'responsibilities', 'salary', 'reason_for_leaving', 'certificate_path']
+  Casts: {'currently_working': 'boolean', 'salary': 'decimal:2'}
+  Soft Deletes: No
+  Relationships: []
+  Accessors/Mutators: ['getDurationAttribute (accessor)']
+  Global Scopes: []
+  Responsibility: Manages TeacherExperience records.
+----------------------------------------
+
+Class: TeacherLeave
+  Table: Inferred (plural of class)
+  Fillable: ['teacher_id', 'leave_type', 'start_date', 'end_date', 'days', 'reason', 'status', 'approved_by', 'approved_at', 'approval_notes']
+  Casts: {'days': 'integer', 'start_date': 'date', 'end_date': 'date', 'approved_at': 'datetime'}
+  Soft Deletes: No
+  Relationships: []
+  Accessors/Mutators: ['getDurationAttribute (accessor)']
+  Global Scopes: []
+  Responsibility: Manages TeacherLeave records.
+----------------------------------------
+
+Class: TeacherLogin
+  Table: Inferred (plural of class)
+  Fillable: ['teacher_id', 'school_id', 'username', 'password', 'status', 'force_password_change', 'last_login']
+  Casts: {'force_password_change': 'boolean', 'last_login': 'datetime'}
+  Soft Deletes: No
+  Relationships: ['teacher (belongsTo)', 'school (belongsTo)']
+  Accessors/Mutators: []
+  Global Scopes: []
+  Responsibility: Manages TeacherLogin records.
+----------------------------------------
+
+Class: TeacherSalary
+  Table: Inferred (plural of class)
+  Fillable: ['teacher_id', 'pay_scale', 'basic_salary', 'hra', 'da', 'ta', 'medical_allowance', 'special_allowance', 'gross_salary', 'pf_amount', 'esi_amount', 'tax_deduction', 'other_deductions', 'net_salary', 'payment_status', 'payment_date', 'payment_method', 'reference_number', 'paid_by', 'remarks']
+  Casts: {'payment_date': 'datetime', 'basic_salary': 'decimal:2', 'hra': 'decimal:2', 'da': 'decimal:2', 'ta': 'decimal:2', 'medical_allowance': 'decimal:2', 'special_allowance': 'decimal:2', 'gross_salary': 'decimal:2', 'pf_amount': 'decimal:2', 'esi_amount': 'decimal:2', 'tax_deduction': 'decimal:2', 'other_deductions': 'decimal:2', 'net_salary': 'decimal:2'}
+  Soft Deletes: No
+  Relationships: []
+  Accessors/Mutators: []
+  Global Scopes: []
+  Responsibility: Manages TeacherSalary records.
+----------------------------------------
+
+Class: TeacherSubjectAssignment
+  Table: Inferred (plural of class)
+  Fillable: ['teacher_id', 'subject_id', 'class_id', 'is_primary', 'assigned_at']
+  Casts: {'is_primary': 'boolean', 'assigned_at': 'datetime'}
+  Soft Deletes: No
+  Relationships: ['teacher (belongsTo)', 'subject (belongsTo)', 'class (belongsTo)']
+  Accessors/Mutators: []
+  Global Scopes: []
+  Responsibility: Manages TeacherSubjectAssignment records.
+----------------------------------------
+
+Class: TeacherSubstitution
+  Table: Inferred (plural of class)
+  Fillable: ['substitution_date', 'absent_teacher_id', 'substitute_teacher_id', 'class_id', 'section_id', 'subject_id', 'period_number', 'period_name', 'status', 'reason', 'created_by', 'updated_by', 'assigned_at']
+  Casts: {'substitution_date': 'date', 'assigned_at': 'datetime'}
+  Soft Deletes: No
+  Relationships: []
+  Accessors/Mutators: []
+  Global Scopes: []
+  Responsibility: Manages TeacherSubstitution records.
+----------------------------------------
+
+Class: TimetableSlot
+  Table: Inferred (plural of class)
+  Fillable: ['school_class_id', 'section_id', 'bell_timing_id', 'subject_id', 'teacher_id', 'room_number', 'academic_year']
+  Casts: {}
+  Soft Deletes: No
+  Relationships: ['schoolClass (belongsTo)', 'section (belongsTo)', 'bellTiming (belongsTo)', 'subject (belongsTo)', 'teacher (belongsTo)']
+  Accessors/Mutators: []
+  Global Scopes: []
+  Responsibility: Manages TimetableSlot records.
+----------------------------------------
+
+Class: Translation
+  Table: Inferred (plural of class)
+  Fillable: ['language_id', 'key', 'value', 'module', 'is_published']
+  Casts: {'is_published': 'boolean'}
+  Soft Deletes: No
+  Relationships: ['language (belongsTo)']
+  Accessors/Mutators: []
+  Global Scopes: []
+  Responsibility: Manages Translation records.
+----------------------------------------
+
+Class: TransportAdjustment
+  Table: transport_adjustments
+  Fillable: ['student_id', 'transport_fee_id', 'amount', 'remarks', 'created_by']
+  Casts: {'amount': 'decimal:2'}
+  Soft Deletes: No
+  Relationships: ['student (belongsTo)', 'transportFee (belongsTo)', 'creator (belongsTo)']
+  Accessors/Mutators: []
+  Global Scopes: []
+  Responsibility: Manages TransportAdjustment records.
+----------------------------------------
+
+Class: TransportFee
+  Table: transport_fees
+  Fillable: ['student_id', 'route_id', 'stop_id', 'vehicle_id', 'month', 'academic_year', 'amount', 'status', '// unpaid', 'paid\n        route_name_snapshot', 'stop_name_snapshot', 'fare_snapshot', 'payment_date', 'payment_mode', 'transaction_id', 'receipt_no', 'collected_by', 'remarks']
+  Casts: {'amount': 'decimal:2', 'fare_snapshot': 'decimal:2', 'payment_date': 'date'}
+  Soft Deletes: No
+  Relationships: ['student (belongsTo)', 'route (belongsTo)', 'stop (belongsTo)', 'vehicle (belongsTo)', 'collector (belongsTo)', 'adjustments (hasMany)']
+  Accessors/Mutators: []
+  Global Scopes: []
+  Responsibility: Manages TransportFee records.
+----------------------------------------
+
+Class: UniformCheck
+  Table: uniform_checks
+  Fillable: ['student_id', 'check_date', 'is_compliant', 'remarks']
+  Casts: {}
+  Soft Deletes: No
+  Relationships: ['student (belongsTo)']
+  Accessors/Mutators: []
+  Global Scopes: []
+  Responsibility: Manages UniformCheck records.
+----------------------------------------
+
+Class: User
+  Table: Inferred (plural of class)
+  Fillable: ['name', 'email', 'password', 'phone', 'address', 'role', 'status', 'last_login_at', 'last_login_ip', 'two_factor_secret', 'two_factor_recovery_codes', 'two_factor_confirmed_at']
+  Casts: {'email_verified_at': 'datetime', 'password': 'hashed', 'last_login_at': 'datetime', 'two_factor_confirmed_at': 'datetime'}
+  Soft Deletes: No
+  Relationships: ['student (hasOne)', 'teacher (hasOne)', 'lessonPlans (hasMany)', 'createdLessonPlans (hasMany)', 'modifiedLessonPlans (hasMany)', 'guardians (hasMany)', 'roles (belongsTo)', 'notifications (morphMany)', 'unreadNotifications (morphMany)', 'classTeacherAssignments (hasMany)']
+  Accessors/Mutators: []
+  Global Scopes: []
+  Responsibility: Manages User records.
+----------------------------------------
+
+Class: Vehicle
+  Table: vehicles
+  Fillable: ['plate_no', 'model', 'capacity', 'status']
+  Casts: {}
+  Soft Deletes: No
+  Relationships: []
+  Accessors/Mutators: []
+  Global Scopes: []
+  Responsibility: Manages Vehicle records.
+----------------------------------------
+
+Class: WorkingHoursConfiguration
+  Table: Inferred (plural of class)
+  Fillable: ['name', 'description', 'exclude_lunch_break', 'exclude_other_breaks', 'calculation_method', 'is_default', 'custom_breaks']
+  Casts: {'exclude_lunch_break': 'boolean', 'exclude_other_breaks': 'boolean', 'is_default': 'boolean', 'custom_breaks': 'array'}
+  Soft Deletes: No
+  Relationships: []
+  Accessors/Mutators: ['getCalculationMethodLabelAttribute (accessor)']
+  Global Scopes: []
+  Responsibility: Manages WorkingHoursConfiguration records.
+----------------------------------------
+

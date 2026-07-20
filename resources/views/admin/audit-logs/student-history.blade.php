@@ -34,14 +34,14 @@
                                     <p class="mb-1"><strong>Total Changes:</strong> {{ $logs->count() }}</p>
                                     <p class="mb-1"><strong>First Change:</strong> 
                                         @if($logs->count() > 0)
-                                            {{ $logs->sortByDesc('logged_at')->last()->logged_at->format('d M Y h:i A') }}
+                                            {{ $logs->sortByDesc('performed_at')->last()->performed_at->format('d M Y h:i A') }}
                                         @else
                                             N/A
                                         @endif
                                     </p>
                                     <p class="mb-1"><strong>Last Change:</strong> 
                                         @if($logs->count() > 0)
-                                            {{ $logs->first()->logged_at->format('d M Y h:i A') }}
+                                            {{ $logs->first()->performed_at->format('d M Y h:i A') }}
                                         @else
                                             N/A
                                         @endif
@@ -98,7 +98,7 @@
                                             {{ $log->getReadableAction() }}
                                         </span>
                                     </td>
-                                    <td>{{ $log->logged_at->format('d M Y h:i A') }}</td>
+                                    <td>{{ $log->performed_at->format('d M Y h:i A') }}</td>
                                 </tr>
                                 @empty
                                 <tr>

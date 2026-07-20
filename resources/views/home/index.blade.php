@@ -1,4 +1,4 @@
-﻿@extends('layouts.public')
+@extends('layouts.public')
 
 @section('content')
 <div class="container">
@@ -66,7 +66,7 @@
                             <a href="{{ route('students.index') }}" class="btn btn-primary w-100">Manage Students</a>
                         </div>
                         <div class="col-md-3">
-                            <a href="{{ route('teachers.index') }}" class="btn btn-secondary w-100">Manage Teachers</a>
+                            <a href="{{ route('admin.teachers.index') }}" class="btn btn-secondary w-100">Manage Teachers</a>
                         </div>
                         <div class="col-md-3">
                             <a href="{{ route('attendance.index') }}" class="btn btn-success w-100">Attendance</a>

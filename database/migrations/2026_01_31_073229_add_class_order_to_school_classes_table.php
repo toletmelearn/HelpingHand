@@ -11,10 +11,28 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::table('school_classes', function (Blueprint $table) {
-            $table->unsignedInteger('class_order')->unique()->after('name');
-            $table->boolean('is_active')->default(true)->after('description');
-        });
+        if (!Schema::hasColumn('school_classes', 'class_order')) {
+            Schema::table('school_classes', function (Blueprint $table) {
+                $table->unsignedInteger('class_order')->after('name');
+            });
+        }
+
+        if (!Schema::hasColumn('school_classes', 'is_active')) {
+            Schema::table('school_classes', function (Blueprint $table) {
+                $table->boolean('is_active')->default(true)->after('description');
+            });
+        }
+
+        // Ensure unique index on class_order exists
+        $indexExists = false;
+        if (Schema::getConnection()->getDriverName() !== 'sqlite') {
+            $indexExists = !empty(DB::select("SELECT INDEX_NAME FROM information_schema.statistics WHERE table_schema = DATABASE() AND table_name = 'school_classes' AND column_name = 'class_order'"));
+        }
+        if (!$indexExists) {
+            Schema::table('school_classes', function (Blueprint $table) {
+                $table->unique('class_order');
+            });
+        }
     }
 
     /**

@@ -18,7 +18,9 @@ class FinanceReconciliationController extends Controller
 
     public function __construct(AuditLogService $auditLogService)
     {
-        $this->middleware(['auth', 'role:accountant']);
+        $this->middleware('auth');
+        $this->middleware('permission:view-reconciliation')->only(['unresolved', 'overpayments', 'refunds', 'orphans', 'mismatches']);
+        $this->middleware('permission:manage-reconciliation')->only(['bulkAssign', 'rebuildLedger', 'issueRefund']);
         $this->auditLogService = $auditLogService;
     }
 
@@ -64,7 +66,7 @@ class FinanceReconciliationController extends Controller
         $query = \App\Models\Student::withTrashed()
             ->select('students.*')
             ->selectRaw('(SELECT SUM(debit) - SUM(credit) FROM student_fee_ledgers WHERE student_fee_ledgers.student_id = students.id) as outstanding')
-            ->having('outstanding', '<', 0)
+            ->whereRaw('(SELECT SUM(debit) - SUM(credit) FROM student_fee_ledgers WHERE student_fee_ledgers.student_id = students.id) < 0')
             ->with('schoolClass');
 
         if ($request->filled('search')) {
@@ -151,11 +153,18 @@ class FinanceReconciliationController extends Controller
      */
     public function mismatches(Request $request)
     {
+        $calculatedBalanceSql = '(SELECT SUM(debit) - SUM(credit) FROM student_fee_ledgers WHERE student_fee_ledgers.student_id = students.id)';
+        $latestRunningBalanceSql = '(SELECT running_balance FROM student_fee_ledgers WHERE student_fee_ledgers.student_id = students.id ORDER BY date DESC, id DESC LIMIT 1)';
+
         $query = \App\Models\Student::withTrashed()
             ->select('students.*')
-            ->selectRaw('(SELECT SUM(debit) - SUM(credit) FROM student_fee_ledgers WHERE student_fee_ledgers.student_id = students.id) as calculated_balance')
-            ->selectRaw('(SELECT running_balance FROM student_fee_ledgers WHERE student_fee_ledgers.student_id = students.id ORDER BY date DESC, id DESC LIMIT 1) as latest_running_balance')
-            ->havingRaw('calculated_balance != latest_running_balance OR (calculated_balance IS NOT NULL AND latest_running_balance IS NULL) OR (calculated_balance IS NULL AND latest_running_balance IS NOT NULL)')
+            ->selectRaw("{$calculatedBalanceSql} as calculated_balance")
+            ->selectRaw("{$latestRunningBalanceSql} as latest_running_balance")
+            ->whereRaw(
+                "{$calculatedBalanceSql} != {$latestRunningBalanceSql}"
+                . " OR ({$calculatedBalanceSql} IS NOT NULL AND {$latestRunningBalanceSql} IS NULL)"
+                . " OR ({$calculatedBalanceSql} IS NULL AND {$latestRunningBalanceSql} IS NOT NULL)"
+            )
             ->with('schoolClass');
 
         if ($request->filled('search')) {

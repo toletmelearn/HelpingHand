@@ -14,7 +14,7 @@ class DailyTeachingWorkPolicy
      */
     public function viewAny(User $user): bool
     {
-        return $user->hasRole('admin') || $user->hasRole('teacher') || $user->hasRole('class-teacher') || $user->hasRole('student');
+        return $user->hasRole('admin') || $user->hasRole('teacher') || $user->hasRole('class-teacher') || $user->hasRole('student') || $user->hasPermission('view-daily-teaching-work');
     }
 
     /**
@@ -22,7 +22,7 @@ class DailyTeachingWorkPolicy
      */
     public function view(User $user, DailyTeachingWork $dailyTeachingWork): bool
     {
-        if ($user->hasRole('admin')) {
+        if ($user->hasRole('admin') || $user->hasPermission('view-daily-teaching-work')) {
             return true;
         }
         
@@ -52,7 +52,7 @@ class DailyTeachingWorkPolicy
      */
     public function create(User $user): bool
     {
-        return $user->hasRole('admin') || $user->hasRole('teacher');
+        return $user->hasRole('admin') || $user->hasRole('teacher') || $user->hasPermission('create-daily-teaching-work');
     }
 
     /**
@@ -60,7 +60,7 @@ class DailyTeachingWorkPolicy
      */
     public function update(User $user, DailyTeachingWork $dailyTeachingWork): bool
     {
-        if ($user->hasRole('admin')) {
+        if ($user->hasRole('admin') || $user->hasPermission('edit-daily-teaching-work')) {
             return true;
         }
         
@@ -76,7 +76,7 @@ class DailyTeachingWorkPolicy
      */
     public function delete(User $user, DailyTeachingWork $dailyTeachingWork): bool
     {
-        if ($user->hasRole('admin')) {
+        if ($user->hasRole('admin') || $user->hasPermission('delete-daily-teaching-work')) {
             return true;
         }
         
@@ -105,7 +105,7 @@ class DailyTeachingWorkPolicy
     
     public function downloadAttachment(User $user, DailyTeachingWork $dailyTeachingWork): bool
     {
-        if ($user->hasRole('admin')) {
+        if ($user->hasRole('admin') || $user->hasPermission('download-daily-teaching-work-attachments')) {
             return true;
         }
         

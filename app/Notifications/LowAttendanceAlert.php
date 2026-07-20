@@ -12,54 +12,53 @@ class LowAttendanceAlert extends Notification
     use Queueable;
 
     protected $student;
-    protected $attendancePercentage;
-    
+    protected $alertData;
+
     /**
      * Create a new notification instance.
      */
-    public function __construct($student, $attendancePercentage)
+    public function __construct($student, $alertData)
     {
         $this->student = $student;
-        $this->attendancePercentage = $attendancePercentage;
+        $this->alertData = $alertData;
     }
 
     /**
      * Get the notification's delivery channels.
-     *
-     * @return array<int, string>
      */
-    public function via(object $notifiable): array
+    public function via($notifiable): array
     {
-        return ['mail'];
+        return ['mail', 'database'];
     }
 
     /**
      * Get the mail representation of the notification.
      */
-    public function toMail(object $notifiable): MailMessage
+    public function toMail($notifiable): MailMessage
     {
         return (new MailMessage)
-                    ->subject('Low Attendance Alert - ' . $this->student->name)
-                    ->greeting('Dear ' . $notifiable->name)
-                    ->line('We are concerned to inform you that your ward, ' . $this->student->name . ', has low attendance.')
-                    ->line('Current Attendance: ' . $this->attendancePercentage . '%')
-                    ->line('Minimum required attendance is typically 75%.')
-                    ->line('Please ensure regular attendance to maintain academic progress.')
-                    ->action('View Attendance Details', url('/students/' . $this->student->id . '/attendance'))
-                    ->line('Thank you for your attention to this matter.');
+            ->subject('Low Attendance Alert - ' . $this->student->name)
+            ->line('Your child ' . $this->student->name . ' has low attendance.')
+            ->line('Current attendance rate: ' . $this->alertData['attendance_rate'] . '%')
+            ->line('Required attendance: 75%')
+            ->line('Absent days: ' . $this->alertData['absent_days'])
+            ->action('View Attendance Details', url('/parent/attendance/' . $this->student->id))
+            ->line('Please ensure your child attends school regularly.')
+            ->line('Thank you for your attention to this matter.');
     }
 
     /**
      * Get the array representation of the notification.
-     *
-     * @return array<string, mixed>
      */
-    public function toArray(object $notifiable): array
+    public function toArray($notifiable): array
     {
         return [
             'student_id' => $this->student->id,
             'student_name' => $this->student->name,
-            'attendance_percentage' => $this->attendancePercentage,
+            'attendance_rate' => $this->alertData['attendance_rate'],
+            'absent_days' => $this->alertData['absent_days'],
+            'message' => 'Low attendance alert for ' . $this->student->name,
+            'type' => 'low_attendance'
         ];
     }
 }

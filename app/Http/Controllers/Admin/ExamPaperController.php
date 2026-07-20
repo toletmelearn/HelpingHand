@@ -18,17 +18,12 @@ class ExamPaperController extends Controller
     public function __construct()
     {
         $this->middleware('auth');
-        $this->middleware(function ($request, $next) {
-            if (!Auth::user()->hasRole('admin')) {
-                abort(403, 'Unauthorized access');
-            }
-            return $next($request);
-        });
     }
     
     public function index(Request $request)
     {
-        $query = ExamPaper::with(['uploadedBy', 'approvedBy', 'exam']);
+        $this->authorize('viewAny', ExamPaper::class);
+        $query = ExamPaper::with(['uploadedBy', 'approvedBy', 'exam', 'createdBy', 'class']);
         
         // Apply filters
         if ($request->filled('subject')) {
@@ -120,9 +115,11 @@ class ExamPaperController extends Controller
         return redirect()->route('admin.exam-papers.index')->with('success', 'Exam paper created successfully.');
     }
     
-    public function show(ExamPaper $examPaper)
+    public function show($id)
     {
-        $examPaper->load(['uploadedBy', 'approvedBy', 'exam']);
+        $examPaper = ExamPaper::with(['createdBy', 'approvedByAdmin', 'exam', 'class', 'uploadedBy', 'approvedBy'])->findOrFail($id);
+        $this->authorize('view', $examPaper);
+
         return view('admin.exam-papers.show', compact('examPaper'));
     }
     
@@ -189,102 +186,183 @@ class ExamPaperController extends Controller
         return redirect()->route('admin.exam-papers.index')->with('success', 'Exam paper updated successfully.');
     }
     
-    public function destroy(ExamPaper $examPaper)
+    public function destroy($id)
     {
-        if (!$examPaper->canAdminEdit()) {
-            return redirect()->back()->with('error', 'Cannot delete this exam paper as it is locked.');
+        $paper = ExamPaper::findOrFail($id);
+        $this->authorize('delete', $paper);
+        
+        if ($paper->file_path) {
+            Storage::disk('public')->delete($paper->file_path);
         }
         
-        // Delete file if exists
-        if ($examPaper->file_path) {
-            Storage::disk('public')->delete($examPaper->file_path);
-        }
-        
-        $examPaper->delete();
+        $paper->delete();
         
         return redirect()->route('admin.exam-papers.index')->with('success', 'Exam paper deleted successfully.');
     }
     
+    public function showApproveConfirmation($id)
+    {
+        $examPaper = ExamPaper::with(['createdBy', 'approvedByAdmin', 'exam', 'class'])->findOrFail($id);
+        $this->authorize('approve', $examPaper);
+        
+        return view('admin.exam-papers.confirm-approval', compact('examPaper'));
+    }
+
     public function submit(ExamPaper $examPaper)
     {
+        $this->authorize('submit', $examPaper);
         if ($examPaper->status !== 'draft') {
             return redirect()->back()->with('error', 'Cannot submit exam paper that is not in draft status.');
         }
         
-        $examPaper->transitionTo('submitted', Auth::id(), 'Submitted for approval');
+        $examPaper->update(['status' => 'submitted']);
         
         return redirect()->back()->with('success', 'Exam paper submitted for approval successfully.');
     }
     
-    public function approve(ExamPaper $examPaper)
+    public function approve($id)
     {
-        if ($examPaper->transitionTo('approved', Auth::id(), 'Approved by admin')) {
-            return redirect()->back()->with('success', 'Exam paper approved successfully.');
-        } else {
-            return redirect()->back()->with('error', 'Cannot approve exam paper.');
-        }
+        $paper = ExamPaper::findOrFail($id);
+        $this->authorize('approve', $paper);
+        $paper->is_approved = 1;
+        $paper->status = 'admin_approved';
+        $paper->save();
+
+        return back()->with('success','Approved');
     }
     
+    public function examApprove($id)
+    {
+        $examPaper = ExamPaper::findOrFail($id);
+        $this->authorize('approve', $examPaper);
+        
+        $examPaper->update([
+            'status' => 'exam_approved',
+            'exam_approved_by' => Auth::id(),
+            'is_approved' => true
+        ]);
+
+        return back()->with('success', 'Exam paper approved by exam department successfully');
+    }
+    
+    public function publish($id)
+    {
+        $paper = ExamPaper::findOrFail($id);
+        $this->authorize('approve', $paper);
+        $paper->is_published = 1;
+        $paper->status = 'published';
+        $paper->save();
+
+        return back()->with('success','Published');
+    }
+
+    public function reject($id)
+    {
+        $paper = ExamPaper::findOrFail($id);
+        $this->authorize('approve', $paper);
+        $paper->status = 'draft';
+        $paper->is_approved = 0;
+        $paper->save();
+
+        return back()->with('error','Rejected');
+    }
+
     public function lock(ExamPaper $examPaper)
     {
-        if ($examPaper->transitionTo('locked', Auth::id(), 'Locked by admin')) {
-            return redirect()->back()->with('success', 'Exam paper locked successfully.');
-        } else {
-            return redirect()->back()->with('error', 'Cannot lock exam paper.');
-        }
+        $this->authorize('lock', $examPaper);
+        $examPaper->update(['status' => 'locked']);
+        
+        return redirect()->back()->with('success', 'Exam paper locked successfully.');
     }
     
-    public function download(ExamPaper $examPaper)
+    public function download($id)
     {
-        if (!$examPaper->isValid()) {
-            abort(403, 'This exam paper is not available for download.');
+        $examPaper = ExamPaper::findOrFail($id);
+        $this->authorize('view', $examPaper);
+
+        if (!$examPaper->file_path) {
+            return back()->with('error', 'No file available for download');
         }
+
+        $filePath = storage_path('app/public/' . $examPaper->file_path);
         
-        $examPaper->incrementDownloadCount();
-        
-        return response()->download(storage_path('app/public/' . $examPaper->file_path), $examPaper->file_name);
+        if (!file_exists($filePath)) {
+            return back()->with('error', 'File not found');
+        }
+
+        return response()->download($filePath);
     }
     
     public function print(ExamPaper $examPaper)
     {
-        if (!$examPaper->isValid()) {
-            abort(403, 'This exam paper is not available for printing.');
-        }
-        
-        $examPaper->incrementPrintCount();
-        
+        $this->authorize('view', $examPaper);
         return view('admin.exam-papers.print', compact('examPaper'));
     }
     
     public function clone(ExamPaper $examPaper)
     {
+        $this->authorize('clone', $examPaper);
         $newPaper = $examPaper->replicate();
         $newPaper->title = $examPaper->title . ' (Copy)';
         $newPaper->status = 'draft';
         $newPaper->version = 1;
-        $newPaper->created_by = Auth::id();
-        $newPaper->uploaded_by = Auth::id();
         $newPaper->save();
         
         return redirect()->route('admin.exam-papers.edit', $newPaper->id)->with('success', 'Exam paper cloned successfully.');
     }
     
-    public function available(Request $request)
+    public function availableForClass(Request $request)
     {
-        $papers = ExamPaper::accessible()->orderBy('created_at', 'desc')->paginate(15);
+        $this->authorize('viewAny', ExamPaper::class);
+        $papers = ExamPaper::where('is_published', true)
+            ->where('is_approved', true)
+            ->orderBy('created_at', 'desc')
+            ->paginate(15);
         
         return view('admin.exam-papers.available', compact('papers'));
     }
     
+    public function search(Request $request)
+    {
+        $this->authorize('viewAny', ExamPaper::class);
+        $query = ExamPaper::query();
+        
+        if ($request->filled('q')) {
+            $searchTerm = $request->q;
+            $query->where(function($q) use ($searchTerm) {
+                $q->where('title', 'LIKE', "%$searchTerm%")
+                  ->orWhere('subject', 'LIKE', "%$searchTerm%")
+                  ->orWhereHas('createdBy', function($q) use ($searchTerm) {
+                      $q->where('name', 'LIKE', "%$searchTerm%");
+                  });
+            });
+        }
+        
+        $examPapers = $query->with(['createdBy', 'exam', 'class'])
+            ->orderBy('created_at', 'desc')
+            ->paginate(15);
+        
+        return view('admin.exam-papers.search', compact('examPapers'));
+    }
+    
     public function upcoming(Request $request)
     {
-        $upcomingPapers = ExamPaper::with(['exam', 'uploadedBy'])
-                                  ->where('exam_date', '>=', now())
-                                  ->where('is_published', true)
-                                  ->where('is_approved', true)
-                                  ->orderBy('exam_date')
-                                  ->paginate(15);
+        $this->authorize('viewAny', ExamPaper::class);
+        $upcomingPapers = ExamPaper::where('is_published', true)
+            ->where('is_approved', true)
+            ->whereNotNull('exam_date')
+            ->where('exam_date', '>=', now())
+            ->orderBy('exam_date')
+            ->paginate(15);
         
         return view('admin.exam-papers.upcoming', compact('upcomingPapers'));
+    }
+    
+    public function togglePublish(ExamPaper $examPaper)
+    {
+        $this->authorize('approve', $examPaper);
+        $examPaper->update(['is_published' => !$examPaper->is_published]);
+        
+        return response()->json(['success' => true, 'is_published' => $examPaper->is_published]);
     }
 }

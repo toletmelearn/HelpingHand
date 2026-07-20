@@ -11,11 +11,6 @@ use App\Models\TeacherLeave;
 use App\Models\TeacherSalary;
 use App\Models\HomeworkNotice;
 use App\Models\HomeworkSubmission;
-use App\Models\Vehicle;
-use App\Models\Route;
-use App\Models\Driver;
-use App\Models\RouteStop;
-use App\Models\StudentTransport;
 use App\Models\MedicalRecord;
 use App\Models\MedicalCheckup;
 use App\Models\DisciplinaryIncident;
@@ -221,50 +216,6 @@ class HrAndLmsFeatureTest extends TestCase
             $table->timestamps();
         });
 
-        $schema->create('vehicles', function ($table) {
-            $table->bigIncrements('id');
-            $table->string('plate_no')->nullable();
-            $table->string('model')->nullable();
-            $table->integer('capacity')->nullable();
-            $table->string('status')->default('active');
-            $table->timestamps();
-        });
-
-        $schema->create('routes', function ($table) {
-            $table->bigIncrements('id');
-            $table->string('name');
-            $table->string('start_point');
-            $table->string('end_point');
-            $table->decimal('monthly_fare', 10, 2);
-            $table->timestamps();
-        });
-
-        $schema->create('drivers', function ($table) {
-            $table->bigIncrements('id');
-            $table->string('name');
-            $table->string('license_no')->nullable();
-            $table->string('phone_no')->nullable();
-            $table->string('status')->default('active');
-            $table->timestamps();
-        });
-
-        $schema->create('route_stops', function ($table) {
-            $table->bigIncrements('id');
-            $table->unsignedBigInteger('route_id');
-            $table->string('stop_name');
-            $table->time('arrival_time')->nullable();
-            $table->timestamps();
-        });
-
-        $schema->create('student_transport', function ($table) {
-            $table->bigIncrements('id');
-            $table->unsignedBigInteger('student_id');
-            $table->unsignedBigInteger('route_id');
-            $table->unsignedBigInteger('stop_id');
-            $table->unsignedBigInteger('vehicle_id');
-            $table->timestamps();
-        });
-
         $schema->create('medical_records', function ($table) {
             $table->bigIncrements('id');
             $table->unsignedBigInteger('student_id');
@@ -381,11 +332,6 @@ class HrAndLmsFeatureTest extends TestCase
         $schema->dropIfExists('disciplinary_incidents');
         $schema->dropIfExists('medical_checkups');
         $schema->dropIfExists('medical_records');
-        $schema->dropIfExists('student_transport');
-        $schema->dropIfExists('route_stops');
-        $schema->dropIfExists('drivers');
-        $schema->dropIfExists('routes');
-        $schema->dropIfExists('vehicles');
         $schema->dropIfExists('parents');
         $schema->dropIfExists('exams');
         $schema->dropIfExists('subjects');
@@ -695,76 +641,6 @@ class HrAndLmsFeatureTest extends TestCase
     }
 
     /** @test */
-    public function test_admin_can_manage_transport_route(): void
-    {
-        $admin = User::create([
-            'name' => 'Admin User',
-            'email' => 'admin@example.com',
-            'password' => Hash::make('password123'),
-        ]);
-
-        $vehicle = Vehicle::create([
-            'plate_no' => 'MH-12-AB-1234',
-            'model' => 'Tata Starbus',
-            'capacity' => 40,
-            'status' => 'active',
-        ]);
-
-        $student = Student::create([
-            'name' => 'Student One',
-            'class_id' => 1,
-        ]);
-
-        // 1. Store Route
-        $response = $this->actingAs($admin)->post('/admin/transport/route', [
-            'name' => 'Route A',
-            'start_point' => 'Station',
-            'end_point' => 'School',
-            'monthly_fare' => 1500.00,
-        ]);
-
-        $response->assertRedirect(route('admin.transport.index'));
-        $this->assertDatabaseHas('routes', [
-            'name' => 'Route A',
-            'start_point' => 'Station',
-            'monthly_fare' => 1500.00,
-        ]);
-
-        $route = Route::first();
-
-        // 2. Store Stop
-        $response = $this->actingAs($admin)->post('/admin/transport/stop', [
-            'route_id' => $route->id,
-            'stop_name' => 'Stop 1',
-            'arrival_time' => '07:30:00',
-        ]);
-
-        $response->assertRedirect(route('admin.transport.index'));
-        $this->assertDatabaseHas('route_stops', [
-            'route_id' => $route->id,
-            'stop_name' => 'Stop 1',
-        ]);
-
-        $stop = RouteStop::first();
-
-        // 3. Assign Student
-        $response = $this->actingAs($admin)->post('/admin/transport/assign', [
-            'student_id' => $student->id,
-            'route_id' => $route->id,
-            'stop_id' => $stop->id,
-            'vehicle_id' => $vehicle->id,
-        ]);
-
-        $response->assertRedirect(route('admin.transport.index'));
-        $this->assertDatabaseHas('student_transport', [
-            'student_id' => $student->id,
-            'route_id' => $route->id,
-            'stop_id' => $stop->id,
-            'vehicle_id' => $vehicle->id,
-        ]);
-    }
-
-    /** @test */
     public function test_teacher_can_log_notebook_checking(): void
     {
         $teacher = Teacher::create([
@@ -982,52 +858,5 @@ class HrAndLmsFeatureTest extends TestCase
         $response->assertStatus(200);
         $response->assertViewHas('incidents');
         $response->assertViewHas('totalDemerits', 2);
-    }
-
-    /** @test */
-    public function test_parent_can_view_assigned_transport(): void
-    {
-        $student = Student::create([
-            'name' => 'Jane Student',
-            'class_id' => 1,
-        ]);
-
-        $parent = ParentModel::create([
-            'name' => 'Parent Name',
-            'email' => 'parent@example.com',
-            'password' => Hash::make('password123'),
-            'student_id' => $student->id,
-        ]);
-
-        $route = Route::create([
-            'name' => 'Route A',
-            'start_point' => 'Station',
-            'end_point' => 'School',
-            'monthly_fare' => 1500.00,
-        ]);
-
-        $stop = RouteStop::create([
-            'route_id' => $route->id,
-            'stop_name' => 'Stop 1',
-        ]);
-
-        $vehicle = Vehicle::create([
-            'plate_no' => 'MH-12-AB-1234',
-            'model' => 'Tata Starbus',
-            'capacity' => 40,
-        ]);
-
-        $transport = StudentTransport::create([
-            'student_id' => $student->id,
-            'route_id' => $route->id,
-            'stop_id' => $stop->id,
-            'vehicle_id' => $vehicle->id,
-        ]);
-
-        $response = $this->actingAs($parent, 'parent')->get('/parent/transport');
-
-        $response->assertStatus(200);
-        $response->assertViewHas('transport');
-        $response->assertViewHas('student');
     }
 }

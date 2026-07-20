@@ -3,6 +3,13 @@
 @section('title', 'Add Result')
 
 @section('content')
+<!-- Debug Info -->
+<div class="alert alert-info alert-dismissible fade show" role="alert" id="debugInfo" style="display:none;">
+    <strong>Debug Information:</strong>
+    <div id="debugContent"></div>
+    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+</div>
+
 <div class="container">
     <div class="row justify-content-center">
         <div class="col-md-8">
@@ -46,11 +53,14 @@
 
                         <div class="form-group mb-3">
                             <label for="subject">Subject *</label>
-                            <input type="text" name="subject" id="subject" class="form-control @error('subject') is-invalid @enderror" value="{{ old('subject') }}" required>
+                            <select name="subject" id="subject" class="form-control @error('subject') is-invalid @enderror" required>
+                                <option value="">Select Subject</option>
+                                <!-- Will be populated dynamically based on selected exam -->
+                            </select>
                             @error('subject')
                                 <div class="invalid-feedback">{{ $message }}</div>
                             @enderror
-                            <small class="form-text text-muted">This should match the subject of the selected exam</small>
+                            <small class="form-text text-muted">Subject will auto-load from selected exam</small>
                         </div>
 
                         <div class="row">
@@ -90,16 +100,7 @@
                             @enderror
                         </div>
 
-                        <div class="form-group mb-3">
-                            <label for="result_status">Result Status *</label>
-                            <select name="result_status" id="result_status" class="form-control @error('result_status') is-invalid @enderror" required>
-                                <option value="pass" {{ old('result_status') == 'pass' ? 'selected' : '' }}>Pass</option>
-                                <option value="fail" {{ old('result_status') == 'fail' ? 'selected' : '' }}>Fail</option>
-                            </select>
-                            @error('result_status')
-                                <div class="invalid-feedback">{{ $message }}</div>
-                            @enderror
-                        </div>
+
 
                         <div class="form-group mb-3">
                             <label for="comments">Comments</label>
@@ -111,6 +112,9 @@
 
                         <div class="form-group">
                             <button type="submit" class="btn btn-primary">Add Result</button>
+                            <button type="button" class="btn btn-info" id="previewBtn" disabled>
+                                <i class="bi bi-eye"></i> Preview Format
+                            </button>
                             <a href="{{ route('admin.results.index') }}" class="btn btn-secondary">Cancel</a>
                         </div>
                     </form>
@@ -119,4 +123,116 @@
         </div>
     </div>
 </div>
+@endsection
+
+@section('scripts')
+<script>
+// Test if script is loading at all
+console.log("=== SCRIPT LOADING TEST ===");
+console.log("RESULT PAGE JS LOADED");
+
+// Test if DOM is ready
+if (document.readyState === "loading") {
+    console.log("DOM still loading...");
+    document.addEventListener("DOMContentLoaded", initScript);
+} else {
+    console.log("DOM already ready, initializing...");
+    initScript();
+}
+
+function initScript() {
+    console.log("=== INITIALIZING SCRIPT ===");
+    console.log("JS working");
+    console.log("CSRF Token:", document.querySelector('meta[name="csrf-token"]').getAttribute('content'));
+
+    const examDropdown = document.getElementById("exam_id");
+    const subjectDropdown = document.getElementById("subject");
+    const totalMarksField = document.getElementById("total_marks");
+
+    console.log("Elements found:", {
+        examDropdown: !!examDropdown,
+        subjectDropdown: !!subjectDropdown,
+        totalMarksField: !!totalMarksField
+    });
+
+    if (!examDropdown) {
+        console.log("Exam dropdown not found");
+        return;
+    }
+
+    // Enable preview button when form is partially filled
+    const previewBtn = document.getElementById("previewBtn");
+    const studentDropdown = document.getElementById("student_id");
+    const marksObtainedField = document.getElementById("marks_obtained");
+    const termField = document.getElementById("term");
+    
+    function checkPreviewAvailability() {
+        const hasStudent = studentDropdown && studentDropdown.value;
+        const hasExam = examDropdown && examDropdown.value;
+        const hasSubject = subjectDropdown && subjectDropdown.innerHTML.includes("<option");
+        
+        if (hasStudent && hasExam && hasSubject) {
+            previewBtn.disabled = false;
+            previewBtn.title = "Preview sample report card format";
+        } else {
+            previewBtn.disabled = true;
+            previewBtn.title = "Select student, exam, and subject first";
+        }
+    }
+    
+    // Check on form changes
+    [studentDropdown, examDropdown, subjectDropdown].forEach(el => {
+        if (el) el.addEventListener("change", checkPreviewAvailability);
+    });
+    
+    // Preview button click handler
+    if (previewBtn) {
+        previewBtn.addEventListener("click", function() {
+            const studentId = studentDropdown.value;
+            const examId = examDropdown.value;
+            
+            if (!studentId || !examId) return;
+            
+            // Open preview in new tab
+            const previewUrl = `/admin/results/report-card/${studentId}/${examId}?preview=1`;
+            window.open(previewUrl, "_blank");
+        });
+    }
+    
+    examDropdown.addEventListener("change", function () {
+
+        console.log("Exam changed:", this.value);
+        console.log("Attempting to fetch data for exam ID:", this.value);
+
+        let examId = this.value;
+        if (!examId) return;
+
+        // Test route without auth middleware
+        fetch(`/test-subject-ajax/${examId}`)
+            .then(res => res.json())
+            .then(data => {
+
+                console.log("Data received:", data);
+
+                if (data.success) {
+
+                    subjectDropdown.innerHTML =
+                        `<option value="${data.subject}" selected>${data.subject}</option>`;
+
+                    totalMarksField.value = data.total_marks;
+                    checkPreviewAvailability(); // Check if preview can be enabled
+                } else {
+                    console.log("Error from server:", data.message);
+                    subjectDropdown.innerHTML = '<option value="">Error loading subject</option>';;
+                }
+            })
+            .catch(err => {
+                console.log("Fetch error:", err);
+                subjectDropdown.innerHTML = '<option value="">Network error</option>';
+            });
+
+    });
+
+}
+</script>
 @endsection

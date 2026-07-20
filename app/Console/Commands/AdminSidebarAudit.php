@@ -104,10 +104,10 @@ class AdminSidebarAudit extends Command
             'Finance' => ['admin.fees.index', 'admin.fee-structures.index'],
             'Budget' => ['admin.budgets.index', 'admin.expenses.index', 'admin.budget-categories.index'],
             'Library' => ['admin.books.index', 'admin.book-issues.index', 'admin.library-settings.index'],
-            'Inventory' => ['admin.inventory.index', 'admin.assets.index', 'admin.admin.inventory.categories.index'],
+            'Inventory' => ['admin.inventory.index', 'admin.assets.index', 'admin.inventory.categories.index'],
             'Certificates' => ['admin.certificates.index', 'admin.certificate-templates.index'],
             'Configuration' => [
-                'admin.admin.configurations.index', 'admin.language-settings.index',
+                'admin.configurations.index', 'admin.language-settings.index',
                 'admin.notification-settings.index', 'admin.role-permissions.index',
                 'admin.field-permissions.index', 'admin.class-teacher-control.student-records',
                 'admin.teacher-subject-assignments.index', 'admin.teacher-class-assignments.index',

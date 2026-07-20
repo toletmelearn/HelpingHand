@@ -11,12 +11,8 @@ use App\Models\Section;
 use App\Models\AcademicSession;
 use App\Models\StudentFeeLedger;
 use App\Models\Fee;
-use App\Models\FeeType;
-use App\Models\TransportFee;
 use App\Models\FinancialYearClosing;
-use App\Models\TransportAdjustment;
 use App\Services\LedgerService;
-use App\Services\TransportAdjustmentService;
 use App\Services\FinancialYearClosingService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
@@ -45,7 +41,6 @@ class HelpingHandIntegrationTest extends TestCase
         config([
             'features.new_ledger_sync' => true,
             'features.year_closing_queue' => true,
-            'features.transport_adjustments' => true,
             'queue.default' => 'sync',
         ]);
 
@@ -101,34 +96,6 @@ class HelpingHandIntegrationTest extends TestCase
         ]);
 
         // Seed tables to satisfy foreign key constraints
-        DB::table('routes')->insert([
-            'id' => 1,
-            'name' => 'Route A',
-            'start_point' => 'A',
-            'end_point' => 'B',
-            'monthly_fare' => 1000.00,
-            'created_at' => now(),
-            'updated_at' => now(),
-        ]);
-
-        DB::table('route_stops')->insert([
-            'id' => 1,
-            'route_id' => 1,
-            'stop_name' => 'Stop A',
-            'fare' => 1000.00,
-            'created_at' => now(),
-            'updated_at' => now(),
-        ]);
-
-        DB::table('vehicles')->insert([
-            'id' => 1,
-            'plate_no' => 'DL-1C-AA-1234',
-            'model' => 'Bus A',
-            'capacity' => 40,
-            'created_at' => now(),
-            'updated_at' => now(),
-        ]);
-
         DB::table('fee_structures')->insert([
             'id' => 1,
             'class_name' => 'Class 10',
@@ -230,63 +197,5 @@ class HelpingHandIntegrationTest extends TestCase
             'reference_type' => 'year_closing',
             'debit' => 1500.00,
         ]);
-    }
-
-    /** @test */
-    public function transport_adjustment_service_posts_immutable_records_without_modifying_initial_due()
-    {
-        $transportFeeType = FeeType::firstOrCreate(['name' => 'Transport Fee']);
-
-        // 1. Setup transport fee due record
-        $transportFee = TransportFee::create([
-            'student_id' => $this->student->id,
-            'route_id' => 1,
-            'stop_id' => 1,
-            'vehicle_id' => 1,
-            'month' => 'April',
-            'academic_year' => '2024-25',
-            'amount' => 1000.00,
-            'status' => 'unpaid',
-            'route_name_snapshot' => 'Route A',
-            'stop_name_snapshot' => 'Stop A',
-            'fare_snapshot' => 1000.00,
-        ]);
-
-        // Post the debit to ledger
-        LedgerService::postDebit(
-            $this->student->id,
-            '2024-04-01',
-            'Monthly Transport Fee - April',
-            'student_transport_due',
-            $transportFee->id,
-            1000.00
-        );
-
-        $this->assertEquals(1000.00, LedgerService::getOutstandingBalance($this->student->id));
-
-        // 2. Perform adjustment of +500.00
-        $adjustmentService = app(TransportAdjustmentService::class);
-        $adjustment = $adjustmentService->postAdjustment(
-            $this->student->id,
-            $transportFee->id,
-            500.00,
-            'Mid-route adjustment',
-            $this->adminUser->id
-        );
-
-        // 3. Verify initial transport fee amount remains unchanged at 1000.00
-        $transportFee->refresh();
-        $this->assertEquals(1000.00, $transportFee->amount);
-
-        // 4. Verify transport adjustment was created
-        $this->assertDatabaseHas('transport_adjustments', [
-            'id' => $adjustment->id,
-            'student_id' => $this->student->id,
-            'amount' => 500.00,
-            'remarks' => 'Mid-route adjustment'
-        ]);
-
-        // 5. Verify total ledger balance now reflects 1500.00 (1000 + 500)
-        $this->assertEquals(1500.00, LedgerService::getOutstandingBalance($this->student->id));
     }
 }

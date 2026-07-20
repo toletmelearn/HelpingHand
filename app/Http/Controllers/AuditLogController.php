@@ -77,4 +77,24 @@ class AuditLogController extends Controller
 
         return view('admin.audit-logs.model-logs', compact('logs', 'modelType', 'modelId'));
     }
+    
+    // Method to get student history specifically
+    public function studentHistory($studentId)
+    {
+        $student = \App\Models\Student::with(['class', 'section'])->find($studentId);
+            
+        // If student not found, show a meaningful error
+        if (!$student) {
+            abort(404, 'Student not found');
+        }
+            
+        $query = AuditLog::where('model_type', 'App\\Models\\Student')
+                         ->where('model_id', $studentId)
+                         ->with('user')
+                         ->orderBy('performed_at', 'desc');
+            
+        $logs = $query->paginate(20);
+            
+        return view('admin.audit-logs.student-history', compact('logs', 'student'));
+    }
 }

@@ -13,7 +13,7 @@ class ExamPaperTemplatePolicy
      */
     public function viewAny(User $user): bool
     {
-        return $user->hasRole('admin');
+        return $user->hasRole('admin') || $user->hasPermission('view-exam-paper-templates');
     }
 
     /**
@@ -21,7 +21,7 @@ class ExamPaperTemplatePolicy
      */
     public function view(User $user, ExamPaperTemplate $examPaperTemplate): bool
     {
-        return $user->hasRole('admin');
+        return $user->hasRole('admin') || $user->hasPermission('view-exam-paper-templates');
     }
 
     /**
@@ -29,7 +29,7 @@ class ExamPaperTemplatePolicy
      */
     public function create(User $user): bool
     {
-        return $user->hasRole('admin');
+        return $user->hasRole('admin') || $user->hasPermission('create-exam-paper-templates');
     }
 
     /**
@@ -37,7 +37,7 @@ class ExamPaperTemplatePolicy
      */
     public function update(User $user, ExamPaperTemplate $examPaperTemplate): bool
     {
-        return $user->hasRole('admin');
+        return $user->hasRole('admin') || $user->hasPermission('edit-exam-paper-templates');
     }
 
     /**
@@ -45,7 +45,7 @@ class ExamPaperTemplatePolicy
      */
     public function delete(User $user, ExamPaperTemplate $examPaperTemplate): bool
     {
-        return $user->hasRole('admin');
+        return $user->hasRole('admin') || $user->hasPermission('delete-exam-paper-templates');
     }
 
     /**
@@ -69,7 +69,7 @@ class ExamPaperTemplatePolicy
      */
     public function toggleStatus(User $user, ExamPaperTemplate $examPaperTemplate): bool
     {
-        return $user->hasRole('admin');
+        return $user->hasRole('admin') || $user->hasPermission('toggle-template-status');
     }
     
     /**
@@ -77,6 +77,6 @@ class ExamPaperTemplatePolicy
      */
     public function preview(User $user, ExamPaperTemplate $examPaperTemplate): bool
     {
-        return $user->hasRole('admin');
+        return $user->hasRole('admin') || $user->hasPermission('preview-exam-paper-templates');
     }
 }

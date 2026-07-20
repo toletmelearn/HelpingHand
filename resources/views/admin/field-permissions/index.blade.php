@@ -104,25 +104,33 @@
                                                 {{ $permission->is_active ? 'Active' : 'Inactive' }}
                                             </span>
                                         </td>
-                                        <td>
-                                            <div class="btn-group" role="group">
-                                                <a href="{{ route('admin.field-permissions.show', $permission) }}" 
-                                                   class="btn btn-sm btn-info" title="View">
-                                                    <i class="fas fa-eye"></i>
-                                                </a>
-                                                <a href="{{ route('admin.field-permissions.edit', $permission) }}" 
-                                                   class="btn btn-sm btn-warning" title="Edit">
-                                                    <i class="fas fa-edit"></i>
-                                                </a>
-                                                <form action="{{ route('admin.field-permissions.destroy', $permission) }}" 
-                                                      method="POST" class="d-inline" 
-                                                      onsubmit="return confirm('Are you sure you want to delete this permission?');">
-                                                    @csrf
-                                                    @method('DELETE')
-                                                    <button type="submit" class="btn btn-sm btn-danger" title="Delete">
-                                                        <i class="fas fa-trash"></i>
-                                                    </button>
-                                                </form>
+                                        <td class="text-nowrap">
+                                            <div class="dropdown">
+                                                <button class="btn btn-sm btn-outline-primary dropdown-toggle" type="button" id="actionsDropdown{{ $permission->id }}" data-bs-toggle="dropdown" aria-expanded="false">
+                                                    Actions
+                                                </button>
+                                                <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="actionsDropdown{{ $permission->id }}">
+                                                    <li>
+                                                        <a class="dropdown-item" href="{{ route('admin.field-permissions.show', $permission) }}">
+                                                            <i class="fas fa-eye me-2"></i> View
+                                                        </a>
+                                                    </li>
+                                                    <li>
+                                                        <a class="dropdown-item" href="{{ route('admin.field-permissions.edit', $permission) }}">
+                                                            <i class="fas fa-edit me-2"></i> Edit
+                                                        </a>
+                                                    </li>
+                                                    <li><hr class="dropdown-divider"></li>
+                                                    <li>
+                                                        <form action="{{ route('admin.field-permissions.destroy', $permission) }}" method="POST" class="px-3 py-1" onsubmit="return confirm('Are you sure you want to delete this permission?');">
+                                                            @csrf
+                                                            @method('DELETE')
+                                                            <button type="submit" class="btn btn-sm btn-danger w-100 text-start">
+                                                                <i class="fas fa-trash me-2"></i> Delete
+                                                            </button>
+                                                        </form>
+                                                    </li>
+                                                </ul>
                                             </div>
                                         </td>
                                     </tr>

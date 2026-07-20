@@ -14,8 +14,10 @@ class ClassManagement extends Model
 {
     use Auditable;
     
+    protected $table = 'class_management';
+    
     protected $fillable = [
-        'name', 'section', 'stream', 'capacity', 'description', 'is_active'
+        'name', 'order', 'section', 'stream', 'capacity', 'description', 'is_active'
     ];
     
     // Define relationship with students
@@ -44,5 +46,20 @@ class ClassManagement extends Model
         return $this->belongsToMany(Subject::class, 'class_subject_assignments', 'class_id', 'subject_id')
                     ->withPivot('teacher_id', 'assigned_at')
                     ->withTimestamps();
+    }
+    
+    // Scope for ordering classes properly
+    public function scopeOrdered($query)
+    {
+        return $query->orderBy('order')->orderBy('name');
+    }
+    
+    // Get the proper display name for the class
+    public function getDisplayNameAttribute()
+    {
+        if ($this->section) {
+            return $this->name . ' (' . $this->section . ')';
+        }
+        return $this->name;
     }
 }

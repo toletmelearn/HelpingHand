@@ -13,6 +13,7 @@ class SchoolClass extends Model
     protected $fillable = [
         'name',
         'class_order',
+        'academic_session_id',
         'description',
         'is_active'
     ];

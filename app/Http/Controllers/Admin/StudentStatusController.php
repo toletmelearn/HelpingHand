@@ -10,6 +10,9 @@ use Illuminate\Support\Facades\Validator;
 
 class StudentStatusController extends Controller
 {
+    private const GENERIC_STATUS_VALUES = 'active,inactive';
+    private const TERMINAL_STATUS_MESSAGE = 'Terminal statuses such as Passed Out, Left School, and TC Issued must be handled through their dedicated workflows.';
+
     public function __construct()
     {
         $this->middleware('auth');
@@ -40,13 +43,15 @@ class StudentStatusController extends Controller
     {
         $validator = Validator::make($request->all(), [
             'student_id' => 'required|exists:students,id',
-            'status' => 'required|string|in:passed_out,tc_issued,left_school,active,inactive',
+            'status' => 'required|string|in:' . self::GENERIC_STATUS_VALUES,
             'status_date' => 'required|date',
             'reason' => 'nullable|string|max:255',
             'remarks' => 'nullable|string|max:500',
             'document_number' => 'nullable|string|max:100',
             'document_issue_date' => 'nullable|date',
             'issued_by' => 'nullable|string|max:100',
+        ], [
+            'status.in' => self::TERMINAL_STATUS_MESSAGE,
         ]);
         
         if ($validator->fails()) {
@@ -66,7 +71,7 @@ class StudentStatusController extends Controller
      */
     public function show(string $id)
     {
-        $studentStatus = StudentStatus::with('student')->findOrFail($id);
+        $studentStatus = StudentStatus::with(['student.schoolClass', 'student.section'])->findOrFail($id);
         return view('admin.student-statuses.show', compact('studentStatus'));
     }
 
@@ -89,13 +94,15 @@ class StudentStatusController extends Controller
         
         $validator = Validator::make($request->all(), [
             'student_id' => 'required|exists:students,id',
-            'status' => 'required|string|in:passed_out,tc_issued,left_school,active,inactive',
+            'status' => 'required|string|in:' . self::GENERIC_STATUS_VALUES,
             'status_date' => 'required|date',
             'reason' => 'nullable|string|max:255',
             'remarks' => 'nullable|string|max:500',
             'document_number' => 'nullable|string|max:100',
             'document_issue_date' => 'nullable|date',
             'issued_by' => 'nullable|string|max:100',
+        ], [
+            'status.in' => self::TERMINAL_STATUS_MESSAGE,
         ]);
         
         if ($validator->fails()) {

@@ -8,16 +8,14 @@
         <div class="col-12">
             <div class="card">
                 <div class="card-header">
-                    <h3 class="card-title">Student Verification</h3>
-                    <div class="card-tools">
-                        <form method="GET" class="form-inline">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h3 class="card-title mb-0">Student Verification</h3>
+                        <form method="GET">
                             <div class="input-group">
-                                <input type="text" name="search" class="form-control float-right" placeholder="Search Students" value="{{ request('search') }}">
-                                <div class="input-group-append">
-                                    <button type="submit" class="btn btn-default">
-                                        <i class="fas fa-search"></i>
-                                    </button>
-                                </div>
+                                <input type="text" name="search" class="form-control" placeholder="Search Students" value="{{ request('search') }}">
+                                <button type="submit" class="btn btn-outline-secondary">
+                                    <i class="fas fa-search"></i>
+                                </button>
                             </div>
                         </form>
                     </div>
@@ -47,16 +45,16 @@
                                 <td>{{ $student->date_of_birth ? $student->date_of_birth->format('d/m/Y') : '-' }}</td>
                                 <td>
                                     @if($student->documents->count() > 0)
-                                        <span class="badge badge-info">{{ $student->documents->count() }} docs</span>
+                                        <span class="badge bg-info">{{ $student->documents->count() }} docs</span>
                                     @else
-                                        <span class="badge badge-warning">No docs</span>
+                                        <span class="badge bg-warning text-dark">No docs</span>
                                     @endif
                                 </td>
                                 <td>
                                     @if($student->is_verified)
-                                        <span class="badge badge-success">Verified</span>
+                                        <span class="badge bg-success">Verified</span>
                                     @else
-                                        <span class="badge badge-danger">Pending</span>
+                                        <span class="badge bg-danger">Pending</span>
                                     @endif
                                 </td>
                                 <td>

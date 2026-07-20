@@ -29,6 +29,14 @@ class BaseApiController extends Controller
     }
 
     /**
+     * Backward-compatible success response wrapper.
+     */
+    public function sendResponse($result, $message = 'Success', $code = 200): JsonResponse
+    {
+        return $this->success($result, $message, $code);
+    }
+
+    /**
      * Error response
      *
      * @param string $message
@@ -46,6 +54,14 @@ class BaseApiController extends Controller
         ];
 
         return response()->json($response, $code);
+    }
+
+    /**
+     * Backward-compatible error response wrapper.
+     */
+    public function sendError($error, $errorMessages = [], $code = 404): JsonResponse
+    {
+        return $this->error($error, $code, $errorMessages);
     }
 
     /**

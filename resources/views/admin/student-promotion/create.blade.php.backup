@@ -1,0 +1,931 @@
+@extends('layouts.admin')
+
+@section('title', 'Promote Students')
+
+@section('content')
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h4 class="card-title">Promote Students</h4>
+                    <p class="text-muted mb-0">Promote students from one class to another for the academic session</p>
+                </div>
+                <div class="card-body">
+                    <form action="{{ route('admin.student-promotions.store') }}" method="POST" id="promotion-form">
+                        @csrf
+                        
+                        <!-- Academic Session Selection -->
+                        <div class="row mb-4">
+                            <div class="col-md-12">
+                                <div class="form-group">
+                                    <label for="academic_session_id">Academic Session <span class="text-danger">*</span></label>
+                                    <select name="academic_session_id" id="academic_session_id" class="form-control @error('academic_session_id') is-invalid @enderror" required>
+                                        <option value="">Select Academic Session</option>
+                                        @php
+                                            $currentSession = \App\Models\AcademicSession::current()->first();
+                                            $allSessions = \App\Models\AcademicSession::orderBy('start_date', 'desc')->get();
+                                        @endphp
+                                        @foreach($allSessions as $session)
+                                            <option value="{{ $session->id }}" {{ $currentSession && $currentSession->id == $session->id ? 'selected' : '' }}>
+                                                {{ $session->name }} ({{ \Carbon\Carbon::parse($session->start_date)->format('M Y') }} - {{ \Carbon\Carbon::parse($session->end_date)->format('M Y') }})
+                                                @if($currentSession && $currentSession->id == $session->id) - Current @endif
+                                            </option>
+                                        @endforeach
+                                    </select>
+                                    @error('academic_session_id')
+                                        <div class="invalid-feedback">{{ $message }}</div>
+                                    @enderror
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Class Selection -->
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label for="from_class">From Class <span class="text-danger">*</span></label>
+                                    <select name="from_class" id="from_class" class="form-control @error('from_class') is-invalid @enderror" required>
+                                        <option value="">Select Source Class</option>
+                                        @foreach($currentClasses as $class)
+                                            <option value="{{ $class->id }}" {{ request('from_class') == $class->id ? 'selected' : '' }}>
+                                                {{ $class->name }}
+                                            </option>
+                                        @endforeach
+                                    </select>
+                                    @error('from_class')
+                                        <div class="invalid-feedback">{{ $message }}</div>
+                                    @enderror
+                                </div>
+                            </div>
+                            
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label for="to_class">To Class <span class="text-danger">*</span></label>
+                                    <select name="to_class" id="to_class" class="form-control @error('to_class') is-invalid @enderror" required disabled>
+                                        <option value="">Select Destination Class</option>
+                                        @if(isset($preLoadedDestinations) && $preLoadedDestinations->count() > 0)
+                                            @foreach($preLoadedDestinations as $dest)
+                                                <option value="{{ $dest->id }}">{{ $dest->name }}</option>
+                                            @endforeach
+                                        @endif
+                                    </select>
+                                    <div id="destination-message" class="text-muted small mt-1">Select "From Class" first to enable this field</div>
+                                    @error('to_class')
+                                        <div class="invalid-feedback">{{ $message }}</div>
+                                    @enderror
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Student Selection Section -->
+                        <div class="form-group">
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <label class="mb-0">Select Students to Promote <span class="text-danger">*</span></label>
+                                <div>
+                                    <span id="student-count" class="badge badge-info mr-2">0 of 0 students selected</span>
+                                    <button type="button" class="btn btn-sm btn-outline-primary" id="select-all-btn" style="display:none;">
+                                        <i class="fas fa-check-square"></i> Select All
+                                    </button>
+                                    <button type="button" class="btn btn-sm btn-outline-secondary" id="deselect-all-btn" style="display:none;">
+                                        <i class="fas fa-square"></i> Deselect All
+                                    </button>
+                                </div>
+                            </div>
+                            
+                            <div id="students-list" class="border rounded p-3 bg-light" style="min-height: 150px;">
+                                <!-- Students will be loaded here via AJAX -->
+                                <div class="col-12 text-center text-muted">
+                                    <i class="fas fa-info-circle"></i> Please select a class first to load students
+                                </div>
+                            </div>
+                            <div id="loading-students" class="text-center py-4" style="display:none;">
+                                <div class="spinner-border text-primary" role="status">
+                                    <span class="sr-only">Loading...</span>
+                                </div>
+                                <p class="mt-2 text-muted"><i class="fas fa-spinner fa-spin"></i> Loading students...</p>
+                            </div>
+                        </div>
+                        
+                        <!-- Remarks Field -->
+                        <div class="form-group">
+                            <label for="remarks">Remarks / Notes (Optional)</label>
+                            <textarea name="remarks" id="remarks" class="form-control" rows="3" placeholder="Add any notes or remarks about this promotion..."></textarea>
+                        </div>
+                        
+                        <!-- Action Buttons -->
+                        <div class="form-group mt-4">
+                            <button type="submit" class="btn btn-primary btn-lg" id="promote-btn" disabled>
+                                <i class="fas fa-arrow-up"></i> Promote Selected Students
+                            </button>
+                            <a href="{{ route('admin.student-promotions.index') }}" class="btn btn-secondary btn-lg">
+                                <i class="fas fa-times"></i> Cancel
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Confirmation Modal -->
+<div class="modal fade" id="confirmationModal" tabindex="-1" role="dialog" aria-labelledby="confirmationModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered" role="document">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title" id="confirmationModalLabel">
+                    <i class="fas fa-exclamation-triangle"></i> Confirm Student Promotion
+                </h5>
+                <button type="button" class="close text-white" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <p class="lead">Are you sure you want to promote the selected students?</p>
+                <table class="table table-sm table-bordered">
+                    <tr>
+                        <th width="40%">Academic Session:</th>
+                        <td id="confirm-session"></td>
+                    </tr>
+                    <tr>
+                        <th>From Class:</th>
+                        <td id="confirm-from-class"></td>
+                    </tr>
+                    <tr>
+                        <th>To Class:</th>
+                        <td id="confirm-to-class"></td>
+                    </tr>
+                    <tr>
+                        <th>Students Selected:</th>
+                        <td id="confirm-student-count" class="font-weight-bold text-primary"></td>
+                    </tr>
+                </table>
+                <div class="alert alert-warning mb-0">
+                    <i class="fas fa-info-circle"></i> This action will update the class for all selected students and create a promotion log.
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">
+                    <i class="fas fa-times"></i> Cancel
+                </button>
+                <button type="button" class="btn btn-primary" id="confirm-promotion-btn">
+                    <i class="fas fa-check"></i> Confirm Promotion
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+
+<script>
+    // DEFINE ROUTES FOR JAVASCRIPT USE
+    // This is the "Option A" suggested by your AI, which handles URL generation on the server side
+    // where it knows the correct paths, prefixes, and protocols.
+    // We use a placeholder 'student_id_placeholder' or 'class_id_placeholder' which we replace in JS.
+    // Using 0 as int placeholder for 'class' param to satisfy Route url generation if needed.
+    var PROMOTION_ROUTES = {
+        getStudentsByClass: "{{ route('admin.student-promotions.get-students', ['class' => 'CLASS_ID_PLACEHOLDER']) }}",
+        getDestinationClasses: "{{ route('admin.student-promotions.get-destination-classes', ['class' => 'CLASS_ID_PLACEHOLDER']) }}"
+    };
+</script>
+
+<script>
+    var PRELOADED_ALL_CLASSES = {!! json_encode($allClasses->map(function($c){ return ['id' => $c->id, 'name' => $c->name]; })->values()) !!};
+</script>
+
+<script>
+function logDebug(message, type = 'info') {
+    console.log('[' + type.toUpperCase() + '] ' + message);
+}
+
+$(document).ready(function() {
+    logDebug('Page loaded');
+    logDebug('Binding events');
+    logDebug('From class element exists: ' + ($('#from_class').length > 0));
+    logDebug('To class element exists: ' + ($('#to_class').length > 0));
+    logDebug('Elements bound to change event: ' + $('#from_class').length);
+    
+    // Global AJAX error handler
+    $(document).ajaxError(function(event, xhr, settings, thrownError) {
+        if (xhr.status === 401 || xhr.status === 403) {
+            logDebug('Authentication error in AJAX request to: ' + settings.url, 'error');
+            alert('Session expired. Please refresh the page and log in again.');
+            window.location.href = '/login';
+        } else if (xhr.status === 500) {
+            logDebug('Server error in AJAX request to: ' + settings.url + ', Error: ' + thrownError, 'error');
+        }
+    });
+    
+    var totalStudents = 0;
+    
+    // Update student count
+    function updateStudentCount() {
+        var selectedCount = $('.student-checkbox:checked').length;
+        var toClassValue = $('#to_class').val();
+        var sessionValue = $('#academic_session_id').val();
+        
+        $('#student-count').text(selectedCount + ' of ' + totalStudents + ' students selected');
+        
+        logDebug('Update Student Count: selected=' + selectedCount + ', to_class=' + toClassValue + ', session=' + sessionValue);
+        
+        // Enable/disable promote button
+        if(selectedCount > 0 && toClassValue && sessionValue) {
+            $('#promote-btn').prop('disabled', false);
+            logDebug('Promote button enabled');
+        } else {
+            $('#promote-btn').prop('disabled', true);
+            logDebug('Promote button disabled');
+        }
+    }
+    
+    // Select All button
+    $('#select-all-btn').click(function() {
+        $('.student-checkbox').prop('checked', true);
+        $('.student-card').addClass('selected');
+        updateStudentCount();
+        logDebug('Selected all students');
+    });
+    
+    // Deselect All button
+    $('#deselect-all-btn').click(function() {
+        $('.student-checkbox').prop('checked', false);
+        $('.student-card').removeClass('selected');
+        updateStudentCount();
+        logDebug('Deselected all students');
+    });
+    
+    // --- SERVER-SIDE PRE-LOAD HANDLING ---
+    // This data is passed directly from the Controller, bypassing AJAX for the initial view
+    var preSelectedClassId = {{ $selectedClass ? $selectedClass->id : 'null' }};
+    var preStudents = {!! isset($preLoadedStudents) ? json_encode($preLoadedStudents) : '[]' !!};
+    var preDestinations = {!! isset($preLoadedDestinations) ? json_encode($preLoadedDestinations) : '[]' !!};
+
+    // If Controller found a class (via URL), select it and populate lists immediately
+    if (preSelectedClassId) {
+        console.log('Using Server-Preloaded Data for Class ID: ' + preSelectedClassId);
+        
+        // 1. Set From Class Dropdown
+        $('#from_class').val(preSelectedClassId);
+
+        // 2. Populate Students List
+        renderStudentList(preStudents);
+
+        // 3. Populate Destination Dropdown
+        renderDestinationOptions(preDestinations);
+        
+        // Update Counts
+        updateStudentCount();
+        
+        // Enable To Class dropdown since we have pre-loaded data
+        $('#to_class').prop('disabled', false);
+    } 
+    // Fallback: Check if URL param exists but controller didn't match (Client-side retry)
+    else {
+        var urlClass = {!! json_encode(request('from_class')) !!};
+        if (urlClass && !$('#from_class').val()) {
+            $('#from_class option').filter(function() {
+                return $(this).text().trim() == urlClass || $(this).val() == urlClass;
+            }).prop('selected', true).trigger('change');
+        }
+    }
+
+    // --- REUSABLE RENDER FUNCTIONS ---
+    function renderStudentList(students) {
+        var html = '';
+        if (students && students.length > 0) {
+            totalStudents = students.length;
+            html += '<div class="row">';
+            $.each(students, function(index, student) {
+                html += '<div class="col-md-4 col-sm-6 mb-2">';
+                html += '<div class="card student-card" style="border: 1px solid #dee2e6;">';
+                html += '<div class="card-body p-2">';
+                html += '<div class="custom-control custom-checkbox mb-0">';
+                html += '<input class="custom-control-input student-checkbox" type="checkbox" name="students[]" value="' + student.id + '" id="student_' + student.id + '">';
+                html += '<label class="custom-control-label" for="student_' + student.id + '" style="display: block;">';
+                html += '<strong>' + student.name + '</strong><br>';
+                html += '<small class="text-muted">Roll: ' + student.roll_number + '</small>';
+                html += '</label>';
+                html += '</div>';
+                html += '</div>';
+                html += '</div>';
+            });
+            html += '</div>';
+            $('#select-all-btn, #deselect-all-btn').show();
+        } else {
+            html = '<div class="col-12 text-center text-muted"><i class="fas fa-users-slash"></i> No students found.</div>';
+            $('#select-all-btn, #deselect-all-btn').hide();
+        }
+        $('#students-list').html(html);
+        $('.student-checkbox').change(function() {
+            updateStudentCount();
+            // Highlight selected cards
+            if ($(this).is(':checked')) {
+                $(this).closest('.student-card').addClass('selected');
+            } else {
+                $(this).closest('.student-card').removeClass('selected');
+            }
+        });
+        $('#loading-students').hide();
+        $('#students-list').show();
+    }
+
+    function renderDestinationOptions(classes) {
+        var selectHtml = '<option value="">Select Destination Class</option>';
+        if(classes && classes.length > 0) {
+            $.each(classes, function(index, classObj) {
+                selectHtml += '<option value="' + classObj.id + '">' + classObj.name + '</option>';
+            });
+        } else {
+            selectHtml = '<option value="">No eligible classes found</option>';
+        }
+        $('#to_class').html(selectHtml);
+        $('#to_class').trigger('change');
+    }
+    
+    // --- EVENT HANDLERS ---
+    
+    // From Class Change (Manual Selection) - Still uses AJAX
+    $('#from_class').change(function() {
+        var fromClass = $(this).val();
+        
+        // Reset UI
+        $('#to_class').html('<option value="">Select Destination Class</option>').prop('disabled', true);
+        $('#destination-message').html('<i class="fas fa-spinner fa-spin"></i> Loading destination classes...');
+        
+        if (!fromClass) {
+            $('#to_class').prop('disabled', true);
+            $('#destination-message').text('Select "From Class" first to enable this field');
+            return;
+        }
+
+        $('#students-list').hide();
+        $('#loading-students').show();
+
+        // AJAX: Load Students
+        var studentsUrl = PROMOTION_ROUTES.getStudentsByClass.replace('CLASS_ID_PLACEHOLDER', fromClass);
+        console.log('DEBUG: Fetching Students from:', studentsUrl);
+        
+        $.ajaxSetup({
+            headers: {
+                'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content'),
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            xhrFields: {
+                withCredentials: true
+            }
+        });
+        
+        $.ajax({
+            url: studentsUrl,
+            type: 'GET',
+            headers: { 
+                'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content'),
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            dataType: 'json',
+            xhrFields: {
+                withCredentials: true
+            },
+            beforeSend: function(xhr) { 
+                console.log('DEBUG: Sending Students AJAX...');
+                console.log('DEBUG: CSRF Token:', $('meta[name="csrf-token"]').attr('content'));
+                console.log('DEBUG: Cookies:', document.cookie);
+                
+                // Add authentication check
+                if (!$('meta[name="csrf-token"]').attr('content')) {
+                    console.error('CSRF token not found!');
+                }
+            },
+            success: function(data) { 
+                console.log('DEBUG: Students AJAX Success:', data);
+                
+                // Handle both response formats
+                var studentsData = data.students || data;
+                if (!Array.isArray(studentsData)) {
+                    studentsData = [];
+                }
+                
+                renderStudentList(studentsData); 
+            },
+            error: function(xhr, status, error) { 
+                console.log('DEBUG: Students AJAX Error:');
+                console.log('Status:', xhr.status);
+                console.log('Status Text:', xhr.statusText);
+                console.log('Response Text:', xhr.responseText);
+                console.log('Error:', error);
+                
+                var errorMessage = 'Error loading students';
+                if (xhr.status === 401) {
+                    errorMessage = 'Authentication required. Please refresh the page and try again.';
+                } else if (xhr.status === 403) {
+                    errorMessage = 'Access forbidden. Please check your permissions.';
+                } else if (xhr.responseText) {
+                    try {
+                        var response = JSON.parse(xhr.responseText);
+                        if (response.message) {
+                            errorMessage = response.message;
+                        }
+                    } catch (e) {
+                        errorMessage = xhr.responseText.substring(0, 200) + '...'; // Limit response size
+                    }
+                }
+                
+                $('#students-list').html('<div class="text-danger">' + errorMessage + '</div>').show(); 
+                $('#loading-students').hide(); 
+            }
+        });
+
+        // AJAX: Load Destination Classes
+        var dUrl = PROMOTION_ROUTES.getDestinationClasses.replace('CLASS_ID_PLACEHOLDER', fromClass);
+        console.log('DEBUG: Fetching Destinations from:', dUrl);
+        
+        $.ajax({
+            url: dUrl,
+            type: 'GET',
+            headers: { 
+                'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content'),
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            dataType: 'json',
+            xhrFields: {
+                withCredentials: true
+            },
+            beforeSend: function(xhr) { 
+                console.log('DEBUG: Sending Destinations AJAX...');
+                console.log('DEBUG: CSRF Token:', $('meta[name="csrf-token"]').attr('content'));
+                console.log('DEBUG: Cookies:', document.cookie);
+                
+                // Add authentication check
+                if (!$('meta[name="csrf-token"]').attr('content')) {
+                    console.error('CSRF token not found!');
+                }
+            },
+            success: function(response) {
+                console.log('DEBUG: Destinations AJAX Success:', response);
+                
+                // Enable the destination class dropdown
+                $('#to_class').prop('disabled', false);
+                
+                var list = Array.isArray(response) ? response : [];
+                if (list.length === 0) {
+                    var fallback = PRELOADED_ALL_CLASSES.filter(function(item){ return String(item.id) !== String(fromClass); });
+                    renderDestinationOptions(fallback);
+                } else {
+                    renderDestinationOptions(list);
+                }
+                $('#to_class').trigger('change');
+                
+                // Update destination message
+                if (list.length > 0) {
+                    $('#destination-message').html('<i class="fas fa-check-circle text-success"></i> ' + list.length + ' destination classes available');
+                } else {
+                    $('#destination-message').html('<i class="fas fa-info-circle text-info"></i> No higher classes found, showing alternative options');
+                }
+            },
+            error: function(xhr, status, error) {
+                console.log('DEBUG: Destinations AJAX Error:');
+                console.log('Status:', xhr.status);
+                console.log('Status Text:', xhr.statusText);
+                console.log('Response Text:', xhr.responseText);
+                console.log('Error:', error);
+                
+                // Show error message for destination classes
+                var errorMessage = 'Error loading destination classes';
+                if (xhr.status === 401) {
+                    errorMessage = 'Authentication required for destination classes';
+                } else if (xhr.status === 403) {
+                    errorMessage = 'Access forbidden for destination classes';
+                } else if (xhr.responseText) {
+                    try {
+                        var response = JSON.parse(xhr.responseText);
+                        if (response.message) {
+                            errorMessage = response.message;
+                        }
+                    } catch (e) {
+                        errorMessage = xhr.responseText.substring(0, 200) + '...'; // Limit response size
+                    }
+                }
+                console.log('DEBUG: ' + errorMessage);
+                
+                // Enable the destination class dropdown even on error to allow manual selection
+                $('#to_class').prop('disabled', false);
+                
+                // Still show fallback options
+                var fallback = PRELOADED_ALL_CLASSES.filter(function(item){ return String(item.id) !== String(fromClass); });
+                renderDestinationOptions(fallback);
+                
+                // Update destination message
+                $('#destination-message').html('<i class="fas fa-exclamation-triangle text-warning"></i> Error loading classes, showing all options');
+            }
+        });
+    });
+    
+    // To Class change event
+    $('#to_class').change(updateStudentCount);
+    
+    // Academic Session change event
+    $('#academic_session_id').change(updateStudentCount);
+    
+    // Form submission with confirmation
+    $('#promotion-form').submit(function(e) {
+        e.preventDefault();
+        logDebug('Form submission attempt');
+        
+        var selectedCount = $('.student-checkbox:checked').length;
+        if(selectedCount === 0) {
+            alert('Please select at least one student to promote.');
+            return false;
+        }
+        
+        // Populate confirmation modal
+        var sessionText = $('#academic_session_id option:selected').text();
+        var fromClassText = $('#from_class option:selected').text();
+        var toClassText = $('#to_class option:selected').text();
+        
+        $('#confirm-session').text(sessionText);
+        $('#confirm-from-class').text(fromClassText);
+        $('#confirm-to-class').text(toClassText);
+        $('#confirm-student-count').text(selectedCount + ' student' + (selectedCount > 1 ? 's' : ''));
+        
+        // Show confirmation modal
+        $('#confirmationModal').modal('show');
+    });
+    
+    // Confirm promotion button
+    $('#confirm-promotion-btn').click(function() {
+        $('#confirmationModal').modal('hide');
+        logDebug('Submitting promotion form...');
+        // Delay submission slightly to ensure modal closes
+        setTimeout(function() {
+            $('#promotion-form')[0].submit();
+        }, 300);
+    });
+    
+    // Close modal button handler
+    $('.close[data-dismiss="modal"]').click(function() {
+        $(this).closest('.modal').modal('hide');
+    });
+    
+    // Cancel button handler
+    $('.btn-secondary[data-dismiss="modal"]').click(function() {
+        $('#confirmationModal').modal('hide');
+    });
+    
+    // Auto-select Class logic for Named Parameters (fixes pre-selection blank issue)
+    var urlClass = {!! json_encode(request('from_class')) !!};
+    if (urlClass && !$('#from_class').val()) {
+        logDebug('Attempting to pre-select class by name: ' + urlClass);
+        $('#from_class option').filter(function() {
+            // Fuzzy match (case insensitive) or exact
+            return $(this).text().trim().toLowerCase() === urlClass.toLowerCase() || $(this).text().trim() === urlClass;
+        }).prop('selected', true);
+    }
+
+    // Trigger change event if class is pre-selected
+    if($('#from_class').val()) {
+        logDebug('Auto-triggering change for pre-selected class');
+        $('#from_class').trigger('change');
+    }
+});
+</script>
+
+<style>
+.custom-control-label {
+    cursor: pointer;
+    user-select: none;
+}
+.badge-info {
+    font-size: 0.9rem;
+    padding: 0.4rem 0.8rem;
+}
+#students-list {
+    max-height: 400px;
+    overflow-y: auto;
+}
+.student-card {
+    transition: all 0.2s ease-in-out;
+}
+.student-card.selected {
+    border: 2px solid #007bff !important;
+    background-color: #f8f9ff;
+}
+</style>
+
+<script>
+// Critical fix for Student Promotion functionality
+(function() {
+    'use strict';
+    
+    // Wait for DOM to be fully loaded
+    document.addEventListener('DOMContentLoaded', function() {
+        console.log('Student Promotion Critical Fix: DOM loaded');
+        
+        // Check if we're on the right page
+        if (!document.querySelector('#from_class') || !document.querySelector('#to_class')) {
+            console.log('Student Promotion Critical Fix: Required elements not found');
+            return;
+        }
+        
+        // Function to enable the To Class dropdown
+        function enableToClass() {
+            const toClass = document.getElementById('to_class');
+            const destinationMessage = document.getElementById('destination-message');
+            
+            if (toClass) {
+                toClass.disabled = false;
+                console.log('Student Promotion Critical Fix: To Class dropdown enabled');
+                
+                if (destinationMessage) {
+                    destinationMessage.innerHTML = '<i class="fas fa-info-circle"></i> Please select a destination class';
+                }
+            }
+        }
+        
+        // Function to handle From Class selection
+        function handleFromClassChange() {
+            const fromClass = document.getElementById('from_class');
+            const toClass = document.getElementById('to_class');
+            const destinationMessage = document.getElementById('destination-message');
+            
+            if (!fromClass || !toClass) return;
+            
+            const selectedValue = fromClass.value;
+            console.log('Student Promotion Critical Fix: From Class changed to', selectedValue);
+            
+            if (selectedValue) {
+                // Enable the To Class dropdown immediately
+                enableToClass();
+                
+                // Update message
+                if (destinationMessage) {
+                    destinationMessage.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Loading destination classes...';
+                }
+                
+                // Trigger AJAX requests
+                loadDestinationClasses(selectedValue);
+                loadStudents(selectedValue);
+            } else {
+                // Disable To Class if no From Class selected
+                toClass.disabled = true;
+                if (destinationMessage) {
+                    destinationMessage.innerHTML = 'Select "From Class" first to enable this field';
+                }
+            }
+        }
+        
+        // Simple AJAX function
+        function makeAjaxRequest(url, successCallback, errorCallback) {
+            const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+            
+            if (!csrfToken) {
+                console.error('Student Promotion Critical Fix: CSRF token not found');
+                if (errorCallback) errorCallback('CSRF token missing');
+                return;
+            }
+            
+            fetch(url, {
+                method: 'GET',
+                headers: {
+                    'X-CSRF-TOKEN': csrfToken,
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'Accept': 'application/json'
+                },
+                credentials: 'same-origin'
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                return response.json();
+            })
+            .then(data => {
+                if (successCallback) successCallback(data);
+            })
+            .catch(error => {
+                console.error('Student Promotion Critical Fix: AJAX Error:', error);
+                if (errorCallback) errorCallback(error.message);
+            });
+        }
+        
+        // Function to load destination classes via AJAX
+        function loadDestinationClasses(fromClassId) {
+            const url = `/admin/student-promotions/destination-classes/${fromClassId}`;
+            
+            makeAjaxRequest(url, 
+                function(data) {
+                    console.log('Student Promotion Critical Fix: Destination classes loaded', data);
+                    populateDestinationClasses(Array.isArray(data) ? data : []);
+                },
+                function(error) {
+                    console.error('Student Promotion Critical Fix: Error loading destination classes', error);
+                    // Still enable the dropdown even on error
+                    enableToClass();
+                    showErrorMessage('Error loading destination classes: ' + error);
+                }
+            );
+        }
+        
+        // Function to load students via AJAX
+        function loadStudents(fromClassId) {
+            const url = `/admin/student-promotions/class/${fromClassId}/students`;
+            
+            makeAjaxRequest(url,
+                function(data) {
+                    console.log('Student Promotion Critical Fix: Students loaded', data);
+                    populateStudents(data.students || []);
+                },
+                function(error) {
+                    console.error('Student Promotion Critical Fix: Error loading students', error);
+                    showStudentError('Error loading students: ' + error);
+                }
+            );
+        }
+        
+        // Function to populate destination classes dropdown
+        function populateDestinationClasses(classes) {
+            const toClass = document.getElementById('to_class');
+            const destinationMessage = document.getElementById('destination-message');
+            
+            if (!toClass) return;
+            
+            // Clear existing options
+            toClass.innerHTML = '<option value="">Select Destination Class</option>';
+            
+            // Add new options
+            if (Array.isArray(classes) && classes.length > 0) {
+                classes.forEach(cls => {
+                    const option = document.createElement('option');
+                    option.value = cls.id;
+                    option.textContent = cls.name;
+                    toClass.appendChild(option);
+                });
+                
+                if (destinationMessage) {
+                    destinationMessage.innerHTML = `<i class="fas fa-check-circle text-success"></i> ${classes.length} destination classes available`;
+                }
+            } else {
+                if (destinationMessage) {
+                    destinationMessage.innerHTML = '<i class="fas fa-info-circle text-info"></i> No destination classes found';
+                }
+            }
+        }
+        
+        // Function to populate students list
+        function populateStudents(students) {
+            const studentsList = document.getElementById('students-list');
+            const loadingStudents = document.getElementById('loading-students');
+            const selectAllBtn = document.getElementById('select-all-btn');
+            const deselectAllBtn = document.getElementById('deselect-all-btn');
+            
+            if (!studentsList) return;
+            
+            if (loadingStudents) {
+                loadingStudents.style.display = 'none';
+            }
+            
+            if (Array.isArray(students) && students.length > 0) {
+                let html = '<div class="row">';
+                students.forEach(student => {
+                    html += `
+                        <div class="col-md-4 col-sm-6 mb-2">
+                            <div class="card student-card" style="border: 1px solid #dee2e6;">
+                                <div class="card-body p-2">
+                                    <div class="custom-control custom-checkbox mb-0">
+                                        <input class="custom-control-input student-checkbox" type="checkbox" name="students[]" value="${student.id}" id="student_${student.id}">
+                                        <label class="custom-control-label" for="student_${student.id}" style="display: block;">
+                                            <strong>${student.name}</strong><br>
+                                            <small class="text-muted">Roll: ${student.roll_number}</small>
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                });
+                html += '</div>';
+                
+                studentsList.innerHTML = html;
+                studentsList.style.display = 'block';
+                
+                if (selectAllBtn) selectAllBtn.style.display = 'inline-block';
+                if (deselectAllBtn) deselectAllBtn.style.display = 'inline-block';
+                
+                // Add event listeners to checkboxes
+                document.querySelectorAll('.student-checkbox').forEach(checkbox => {
+                    checkbox.addEventListener('change', function() {
+                        const card = this.closest('.student-card');
+                        if (this.checked) {
+                            card.classList.add('selected');
+                        } else {
+                            card.classList.remove('selected');
+                        }
+                        updateStudentCount();
+                    });
+                });
+                
+            } else {
+                studentsList.innerHTML = '<div class="col-12 text-center text-muted"><i class="fas fa-users-slash"></i> No students found.</div>';
+                studentsList.style.display = 'block';
+                
+                if (selectAllBtn) selectAllBtn.style.display = 'none';
+                if (deselectAllBtn) deselectAllBtn.style.display = 'none';
+            }
+        }
+        
+        // Function to update student count
+        function updateStudentCount() {
+            const checkboxes = document.querySelectorAll('.student-checkbox');
+            const checkedCount = Array.from(checkboxes).filter(cb => cb.checked).length;
+            const totalCount = checkboxes.length;
+            
+            const countElement = document.getElementById('student-count');
+            if (countElement) {
+                countElement.textContent = `${checkedCount} of ${totalCount} students selected`;
+            }
+            
+            // Enable/disable promote button
+            const promoteBtn = document.getElementById('promote-btn');
+            const toClass = document.getElementById('to_class');
+            const academicSession = document.getElementById('academic_session_id');
+            
+            if (promoteBtn && toClass && academicSession) {
+                const hasStudents = checkedCount > 0;
+                const hasToClass = toClass.value !== '';
+                const hasSession = academicSession.value !== '';
+                
+                promoteBtn.disabled = !(hasStudents && hasToClass && hasSession);
+            }
+        }
+        
+        // Function to show error messages
+        function showErrorMessage(message) {
+            const destinationMessage = document.getElementById('destination-message');
+            if (destinationMessage) {
+                destinationMessage.innerHTML = `<i class="fas fa-exclamation-triangle text-warning"></i> ${message}`;
+            }
+        }
+        
+        function showStudentError(message) {
+            const studentsList = document.getElementById('students-list');
+            const loadingStudents = document.getElementById('loading-students');
+            
+            if (loadingStudents) {
+                loadingStudents.style.display = 'none';
+            }
+            
+            if (studentsList) {
+                studentsList.innerHTML = `<div class="text-danger">${message}</div>`;
+                studentsList.style.display = 'block';
+            }
+        }
+        
+        // Bind event listeners
+        const fromClass = document.getElementById('from_class');
+        if (fromClass) {
+            fromClass.addEventListener('change', handleFromClassChange);
+            console.log('Student Promotion Critical Fix: From Class change event bound');
+        }
+        
+        // Bind select all/deselect all buttons
+        const selectAllBtn = document.getElementById('select-all-btn');
+        const deselectAllBtn = document.getElementById('deselect-all-btn');
+        
+        if (selectAllBtn) {
+            selectAllBtn.addEventListener('click', function() {
+                document.querySelectorAll('.student-checkbox').forEach(checkbox => {
+                    checkbox.checked = true;
+                    checkbox.closest('.student-card').classList.add('selected');
+                });
+                updateStudentCount();
+            });
+        }
+        
+        if (deselectAllBtn) {
+            deselectAllBtn.addEventListener('click', function() {
+                document.querySelectorAll('.student-checkbox').forEach(checkbox => {
+                    checkbox.checked = false;
+                    checkbox.closest('.student-card').classList.remove('selected');
+                });
+                updateStudentCount();
+            });
+        }
+        
+        // Bind other change events
+        const toClass = document.getElementById('to_class');
+        const academicSession = document.getElementById('academic_session_id');
+        
+        if (toClass) {
+            toClass.addEventListener('change', updateStudentCount);
+        }
+        
+        if (academicSession) {
+            academicSession.addEventListener('change', updateStudentCount);
+        }
+        
+        console.log('Student Promotion Critical Fix: All event listeners bound successfully');
+    });
+})();
+</script>
+@endsection

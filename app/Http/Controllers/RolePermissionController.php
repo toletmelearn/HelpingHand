@@ -12,7 +12,7 @@ class RolePermissionController extends Controller
 {
     public function __construct()
     {
-        $this->middleware('auth');
+        $this->middleware(['auth', 'role:admin']);
     }
     
     /**
@@ -32,9 +32,27 @@ class RolePermissionController extends Controller
     public function edit($roleId)
     {
         $role = Role::with('permissions')->findOrFail($roleId);
-        $allPermissions = Permission::all();
-        
-        return view('admin.roles.permissions-edit', compact('role', 'allPermissions'));
+        $allPermissions = Permission::orderBy('label')->get();
+
+        $groupedPermissions = $allPermissions
+            ->groupBy(fn ($permission) => $permission->module ?? 'other')
+            ->sortKeys()
+            ->mapWithKeys(function ($permissions, $moduleKey) {
+                // Recover the richer module label (e.g. "Bell Schedules & Special
+                // Day Overrides") from a "View {label}" / "Manage {label}"
+                // permission's own label, rather than losing detail by
+                // title-casing the bare module key. Falls back to a title-cased
+                // key for the original hand-picked modules, whose labels don't
+                // follow that prefix pattern.
+                $prefixed = $permissions->first(fn ($p) => str_starts_with((string) $p->label, 'View ') || str_starts_with((string) $p->label, 'Manage '));
+                $label = $prefixed
+                    ? preg_replace('/^(View|Manage)\s+/', '', $prefixed->label)
+                    : \Illuminate\Support\Str::of($moduleKey)->replace('-', ' ')->title();
+
+                return [$moduleKey => ['label' => $label, 'permissions' => $permissions]];
+            });
+
+        return view('admin.roles.permissions-edit', compact('role', 'allPermissions', 'groupedPermissions'));
     }
     
     /**

@@ -1,4 +1,4 @@
-﻿@extends('layouts.admin')
+@extends('layouts.admin')
 
 @section('content')
 <div class="container">
@@ -90,8 +90,8 @@
                                 <div class="card-body text-center">
                                     <h6 class="card-title"><i class="bi bi-person-badge text-info"></i> Teacher Management</h6>
                                     <div class="mt-3">
-                                        <a href="{{ route('teachers.index') }}" class="btn btn-sm btn-outline-info mb-2 d-block">All Teachers</a>
-                                        <a href="{{ route('teachers.create') }}" class="btn btn-sm btn-outline-info d-block">Add Teacher</a>
+                                        <a href="{{ route('admin.teachers.index') }}" class="btn btn-sm btn-outline-info mb-2 d-block">All Teachers</a>
+                                        <a href="{{ route('admin.teachers.create') }}" class="btn btn-sm btn-outline-info d-block">Add Teacher</a>
                                         <a href="{{ url('/teachers-dashboard') }}" class="btn btn-sm btn-outline-info d-block">Teacher Dashboard</a>
                                     </div>
                                 </div>
@@ -612,8 +612,17 @@
                                 <div class="card-body text-center">
                                     <h6 class="card-title"><i class="bi bi-bar-chart-line text-warning"></i> Detailed Reports</h6>
                                     <div class="mt-3">
-                                        <a href="#" class="btn btn-sm btn-outline-warning mb-2 d-block">Fee Reports</a>
-                                        <a href="#" class="btn btn-sm btn-outline-warning mb-2 d-block">Salary Reports</a>
+                                        @if(Route::has('fees.reports.index'))
+                                            <a href="{{ route('fees.reports.index') }}" class="btn btn-sm btn-outline-warning mb-2 d-block">Fee Reports</a>
+                                        @else
+                                            <a href="#" class="btn btn-sm btn-outline-warning mb-2 d-block">Fee Reports</a>
+                                        @endif
+
+                                        @if(Route::has('admin.hr.payroll.index'))
+                                            <a href="{{ route('admin.hr.payroll.index') }}" class="btn btn-sm btn-outline-warning mb-2 d-block">Salary Reports</a>
+                                        @else
+                                            <a href="#" class="btn btn-sm btn-outline-warning mb-2 d-block">Salary Reports</a>
+                                        @endif
                                         <a href="#" class="btn btn-sm btn-outline-warning d-block">Performance Reports</a>
                                     </div>
                                 </div>

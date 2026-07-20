@@ -13,7 +13,7 @@ class TeacherPolicy
      */
     public function viewAny(User $user): bool
     {
-        return $user->hasRole('admin') || $user->hasRole('teacher');
+        return $user->hasRole('admin') || $user->hasRole('teacher') || $user->hasPermission('view-teachers');
     }
 
     /**
@@ -21,7 +21,7 @@ class TeacherPolicy
      */
     public function view(User $user, Teacher $teacher): bool
     {
-        if ($user->hasRole('admin')) {
+        if ($user->hasRole('admin') || $user->hasPermission('view-teachers')) {
             return true;
         }
         
@@ -37,7 +37,7 @@ class TeacherPolicy
      */
     public function create(User $user): bool
     {
-        return $user->hasRole('admin');
+        return $user->hasRole('admin') || $user->hasPermission('create-teachers');
     }
 
     /**
@@ -45,7 +45,7 @@ class TeacherPolicy
      */
     public function update(User $user, Teacher $teacher): bool
     {
-        if ($user->hasRole('admin')) {
+        if ($user->hasRole('admin') || $user->hasPermission('edit-teachers')) {
             return true;
         }
         
@@ -61,7 +61,7 @@ class TeacherPolicy
      */
     public function delete(User $user, Teacher $teacher): bool
     {
-        return $user->hasRole('admin');
+        return $user->hasRole('admin') || $user->hasPermission('delete-teachers');
     }
 
     /**

@@ -22,6 +22,14 @@ class FeeCollectionController extends Controller
     public function __construct(FeePaymentLockService $lockService)
     {
         $this->middleware('auth');
+        $this->middleware('permission:view-fees')->only([
+            'index', 'searchStudents', 'getStudentFeeDashboard', 'getReceipt', 'show', 'getReceiptPdf',
+            'createCollectionForm', 'receipt', 'listReversalRequests', 'demandRegister', 'exportDemandRegister',
+            'collectionRegister', 'exportCollectionRegister', 'generateUpiQr',
+        ]);
+        $this->middleware('permission:can-manage-fees')->only([
+            'collectFee', 'store', 'processCollection', 'reverseCollection', 'approveReversal', 'rejectReversal',
+        ]);
         $this->lockService = $lockService;
     }
 
@@ -57,7 +65,13 @@ class FeeCollectionController extends Controller
             $classes = collect();
         }
 
-        return view('admin.fees.index', compact('todayCollection', 'monthlyCollection', 'pendingFees', 'totalStudents', 'classes'));
+        try {
+            $sections = \App\Models\Section::orderBy('name')->get();
+        } catch (\Exception $e) {
+            $sections = collect();
+        }
+
+        return view('admin.fees.index', compact('todayCollection', 'monthlyCollection', 'pendingFees', 'totalStudents', 'classes', 'sections'));
     }
 
     public function searchStudents(Request $request)
@@ -84,6 +98,10 @@ class FeeCollectionController extends Controller
                 });
             }
 
+            if ($request->filled('section_id')) {
+                $query->where('section_id', $request->section_id);
+            }
+
             $students = $query->limit(100)->get();
 
             if ($students->count() == 0) {
@@ -92,6 +110,20 @@ class FeeCollectionController extends Controller
                     'message' => 'No student found'
                 ]);
             }
+
+            // Single grouped query for the whole result set, not one query per
+            // student -- this endpoint can return up to 100 rows per search.
+            $ledgerTotals = \App\Models\StudentFeeLedger::whereIn('student_id', $students->pluck('id'))
+                ->selectRaw('student_id, SUM(credit) as total_paid, SUM(debit) - SUM(credit) as outstanding_due')
+                ->groupBy('student_id')
+                ->get()
+                ->keyBy('student_id');
+
+            $students->each(function ($student) use ($ledgerTotals) {
+                $totals = $ledgerTotals->get($student->id);
+                $student->total_paid = $totals ? round((float) $totals->total_paid, 2) : 0.00;
+                $student->outstanding_due = $totals ? round((float) $totals->outstanding_due, 2) : 0.00;
+            });
 
             return response()->json([
                 'status' => true,
@@ -139,13 +171,49 @@ class FeeCollectionController extends Controller
             ->latest()
             ->get();
 
+        $feeSummary = $this->getStudentFeeSummary($studentId);
+
         return view('admin.fees.student-dashboard', [
             'student' => $student,
             'feeData' => $feeData ?? [],
             'frequency' => $frequency ?? 'monthly',
             'feeStructure' => $feeStructure ?? null,
-            'feeCollections' => $feeCollections ?? []
+            'feeCollections' => $feeCollections ?? [],
+            'totalPaid' => $feeSummary['total_paid'],
+            'outstandingDues' => $feeSummary['outstanding_due'],
+            'lastTransaction' => $feeSummary['last_transaction'],
         ]);
+    }
+
+    /**
+     * Total paid, outstanding due, and most recent credited transaction for
+     * a student -- the ledger already tracks every credit (live collections
+     * and opening-balance imports alike), so this is the same source of
+     * truth the Outstanding/Demand registers use, just scoped to one student.
+     */
+    private function getStudentFeeSummary($studentId): array
+    {
+        $totalPaid = 0.00;
+        $outstandingDue = 0.00;
+        $lastTransaction = null;
+
+        try {
+            $totalPaid = (float) \App\Models\StudentFeeLedger::where('student_id', $studentId)->sum('credit');
+            $outstandingDue = \App\Services\LedgerService::getOutstandingBalance($studentId);
+            $lastTransaction = \App\Models\StudentFeeLedger::where('student_id', $studentId)
+                ->where('credit', '>', 0)
+                ->orderBy('date', 'desc')
+                ->orderBy('id', 'desc')
+                ->first();
+        } catch (\Exception $e) {
+            // Ignore missing table in tests
+        }
+
+        return [
+            'total_paid' => $totalPaid,
+            'outstanding_due' => $outstandingDue,
+            'last_transaction' => $lastTransaction,
+        ];
     }
 
     private function getPaymentStatus($student, $month, $feeTypeId)
@@ -548,13 +616,11 @@ class FeeCollectionController extends Controller
             return $item->feeType;
         });
 
-        // 1. Calculate Ledger Outstanding
-        $outstandingDues = 0.00;
-        try {
-            $outstandingDues = \App\Services\LedgerService::getOutstandingBalance($student->id);
-        } catch (\Exception $e) {
-            // Ignore missing table in tests
-        }
+        // 1. Calculate Ledger Outstanding, total paid so far, and last transaction
+        $feeSummary = $this->getStudentFeeSummary($student->id);
+        $outstandingDues = $feeSummary['outstanding_due'];
+        $totalPaid = $feeSummary['total_paid'];
+        $lastTransaction = $feeSummary['last_transaction'];
 
         // 2. Calculate eligible discounts
         $suggestedDiscount = 0.00;
@@ -621,12 +687,14 @@ class FeeCollectionController extends Controller
         $paymentModes = ['cash' => 'Cash', 'upi' => 'UPI', 'bank' => 'Bank Transfer', 'card' => 'Card', 'online' => 'Online'];
 
         return view('admin.fees.collect-form', compact(
-            'student', 
-            'feeStructure', 
-            'feeTypes', 
-            'months', 
+            'student',
+            'feeStructure',
+            'feeTypes',
+            'months',
             'paymentModes',
             'outstandingDues',
+            'totalPaid',
+            'lastTransaction',
             'suggestedDiscount',
             'discountDetails',
             'outstandingInvoices'
@@ -1562,8 +1630,7 @@ class FeeCollectionController extends Controller
                 ->leftJoin('students', 'students.id', '=', 'fee_collections.student_id')
                 ->leftJoin('users', 'users.id', '=', 'fee_collections.collected_by')
                 ->whereDate('payment_date', '>=', $startDate)
-                ->whereDate('payment_date', '<=', $endDate)
-                ->withTrashed();
+                ->whereDate('payment_date', '<=', $endDate);
 
             if ($request->filled('cashier_id')) {
                 $query->where('fee_collections.collected_by', $request->cashier_id);

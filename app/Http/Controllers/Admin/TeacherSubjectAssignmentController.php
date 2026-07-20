@@ -7,8 +7,9 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use App\Models\Teacher;
 use App\Models\Subject;
-use App\Models\ClassManagement;
-use App\Models\TeacherSubjectAssignment;
+use App\Models\SchoolClass;
+use App\Models\Section;
+use App\Models\TeacherClassSubjectAssignment;
 
 class TeacherSubjectAssignmentController extends Controller
 {
@@ -19,12 +20,28 @@ class TeacherSubjectAssignmentController extends Controller
      */
     public function index()
     {
-        // Get all teacher-subject assignments with related data
-        $assignments = TeacherSubjectAssignment::with(['teacher', 'subject', 'class'])
-            ->orderBy('teacher_id')
-            ->paginate(10);
+        $query = TeacherClassSubjectAssignment::with(['teacher', 'subject', 'schoolClass', 'section']);
         
-        return view('admin.assignments.teacher-subject.index', compact('assignments'));
+        // Apply filters
+        if (request()->has('teacher_id') && request('teacher_id')) {
+            $query->where('teacher_id', request('teacher_id'));
+        }
+        
+        if (request()->has('class_id') && request('class_id')) {
+            $query->where('class_id', request('class_id'));
+        }
+        
+        if (request()->has('academic_year') && request('academic_year')) {
+            $query->where('academic_year', request('academic_year'));
+        }
+        
+        $assignments = $query->orderBy('teacher_id')->paginate(15);
+        
+        // Get data for filters
+        $teachers = Teacher::orderBy('name')->get();
+        $classes = SchoolClass::orderBy('name')->get();
+        
+        return view('admin.assignments.teacher-subject.index', compact('assignments', 'teachers', 'classes'));
     }
 
     /**
@@ -36,9 +53,10 @@ class TeacherSubjectAssignmentController extends Controller
     {
         $teachers = Teacher::orderBy('name')->get();
         $subjects = Subject::orderBy('name')->get();
-        $classes = ClassManagement::orderBy('name')->get();
+        $classes = SchoolClass::orderBy('name')->get();
+        $sections = Section::orderBy('name')->get();
         
-        return view('admin.assignments.teacher-subject.create', compact('teachers', 'subjects', 'classes'));
+        return view('admin.assignments.teacher-subject.create', compact('teachers', 'subjects', 'classes', 'sections'));
     }
 
     /**
@@ -51,34 +69,72 @@ class TeacherSubjectAssignmentController extends Controller
     {
         $request->validate([
             'teacher_id' => 'required|exists:teachers,id',
-            'subject_ids' => 'required|array',
-            'subject_ids.*' => 'exists:subjects,id',
-            'class_ids' => 'required|array',
-            'class_ids.*' => 'exists:class_managements,id',
+            'class_id' => 'required|exists:school_classes,id',
+            'section_id' => 'nullable|exists:sections,id',
+            'subject_id' => 'required|exists:subjects,id',
+            'academic_year' => 'nullable|string|max:20',
+            'is_class_teacher' => 'boolean',
+            'is_primary_subject_teacher' => 'boolean',
         ]);
 
-        // Create assignments
-        foreach ($request->subject_ids as $subjectId) {
-            foreach ($request->class_ids as $classId) {
-                // Check if assignment already exists
-                $existing = TeacherSubjectAssignment::where('teacher_id', $request->teacher_id)
-                    ->where('subject_id', $subjectId)
-                    ->where('class_id', $classId)
-                    ->first();
+        $academicYear = $request->academic_year ?? date('Y') . '-' . (date('Y') + 1);
+        $isClassTeacher = $request->has('is_class_teacher');
+        $isPrimarySubjectTeacher = $request->has('is_primary_subject_teacher');
 
-                if (!$existing) {
-                    TeacherSubjectAssignment::create([
-                        'teacher_id' => $request->teacher_id,
-                        'subject_id' => $subjectId,
-                        'class_id' => $classId,
-                        'assigned_at' => now(),
-                    ]);
+        DB::beginTransaction();
+        try {
+            // Check class teacher limit BEFORE making assignment
+            if ($isClassTeacher) {
+                // Count existing class teacher assignments for this teacher
+                $existingClassTeacherCount = TeacherClassSubjectAssignment::where('teacher_id', $request->teacher_id)
+                    ->where('is_class_teacher', true)
+                    ->count();
+                
+                // Maximum 2 class teacher assignments allowed
+                if ($existingClassTeacherCount >= 2) {
+                    return redirect()->back()
+                        ->withErrors(['error' => 'Teacher already assigned as class teacher for maximum allowed classes (2).'])
+                        ->withInput();
                 }
+                
+                // Remove existing class teacher for this class/section only
+                TeacherClassSubjectAssignment::where('class_id', $request->class_id)
+                    ->where('section_id', $request->section_id)
+                    ->where('academic_year', $academicYear)
+                    ->where('is_class_teacher', true)
+                    ->update(['is_class_teacher' => false]);
             }
-        }
 
-        return redirect()->route('admin.teacher-subject-assignments.index')
-            ->with('success', 'Teacher-subject assignments created successfully.');
+            // Use updateOrCreate to handle existing assignments
+            // IMPORTANT: Only set is_class_teacher if checkbox is checked
+            $assignment = TeacherClassSubjectAssignment::updateOrCreate(
+                [
+                    'teacher_id' => $request->teacher_id,
+                    'class_id' => $request->class_id,
+                    'section_id' => $request->section_id,
+                    'subject_id' => $request->subject_id,
+                    'academic_year' => $academicYear,
+                ],
+                [
+                    'is_class_teacher' => $isClassTeacher, // Only set is_class_teacher if checkbox checked // Only set if checkbox checked
+                    'is_primary_subject_teacher' => $isPrimarySubjectTeacher,
+                ]
+            );
+
+            DB::commit();
+
+            $message = $assignment->wasRecentlyCreated
+                ? 'Teacher assigned successfully.'
+                : 'Assignment updated successfully.';
+
+            return redirect()->route('admin.teacher-subject-assignments.index')
+                ->with('success', $message);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return redirect()->back()
+                ->withErrors(['error' => 'Error creating assignment: ' . $e->getMessage()])
+                ->withInput();
+        }
     }
 
     /**
@@ -89,12 +145,13 @@ class TeacherSubjectAssignmentController extends Controller
      */
     public function edit($id)
     {
-        $assignment = TeacherSubjectAssignment::with(['teacher', 'subject', 'class'])->findOrFail($id);
+        $assignment = TeacherClassSubjectAssignment::with(['teacher', 'subject', 'schoolClass', 'section'])->findOrFail($id);
         $teachers = Teacher::orderBy('name')->get();
         $subjects = Subject::orderBy('name')->get();
-        $classes = ClassManagement::orderBy('name')->get();
+        $classes = SchoolClass::orderBy('name')->get();
+        $sections = Section::orderBy('name')->get();
         
-        return view('admin.assignments.teacher-subject.edit', compact('assignment', 'teachers', 'subjects', 'classes'));
+        return view('admin.assignments.teacher-subject.edit', compact('assignment', 'teachers', 'subjects', 'classes', 'sections'));
     }
 
     /**
@@ -107,21 +164,55 @@ class TeacherSubjectAssignmentController extends Controller
     {
         $request->validate([
             'teacher_id' => 'required|exists:teachers,id',
-            'subject_id' => 'required|exists:subjects,id',
             'class_id' => 'required|exists:school_classes,id',
-            'is_primary' => 'boolean',
+            'section_id' => 'nullable|exists:sections,id',
+            'subject_id' => 'required|exists:subjects,id',
+            'academic_year' => 'nullable|string|max:20',
+            'is_class_teacher' => 'boolean',
+            'is_primary_subject_teacher' => 'boolean',
         ]);
 
-        $assignment = TeacherSubjectAssignment::findOrFail($id);
-        $assignment->update($request->only(['teacher_id', 'subject_id', 'class_id', 'is_primary']));
+        $assignment = TeacherClassSubjectAssignment::findOrFail($id);
+        $isClassTeacher = $request->has('is_class_teacher');
+        $isPrimarySubjectTeacher = $request->has('is_primary_subject_teacher');
 
-        return redirect()->route('admin.teacher-subject-assignments.index')
-            ->with('success', 'Assignment updated successfully.');
+        DB::beginTransaction();
+        try {
+            // If making class teacher, remove existing class teacher for this class/section
+            if ($isClassTeacher) {
+                TeacherClassSubjectAssignment::where('class_id', $request->class_id)
+                    ->where('section_id', $request->section_id)
+                    ->where('academic_year', $request->academic_year ?? $assignment->academic_year)
+                    ->where('is_class_teacher', true)
+                    ->where('id', '!=', $id) // Exclude current assignment
+                    ->update(['is_class_teacher' => false]);
+            }
+
+            $assignment->update([
+                'teacher_id' => $request->teacher_id,
+                'class_id' => $request->class_id,
+                'section_id' => $request->section_id,
+                'subject_id' => $request->subject_id,
+                'academic_year' => $request->academic_year,
+                'is_class_teacher' => $isClassTeacher, // Only set is_class_teacher if checkbox checked
+                'is_primary_subject_teacher' => $isPrimarySubjectTeacher,
+            ]);
+
+            DB::commit();
+
+            return redirect()->route('admin.teacher-subject-assignments.index')
+                ->with('success', 'Assignment updated successfully.');
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return redirect()->back()
+                ->withErrors(['error' => 'Error updating assignment: ' . $e->getMessage()])
+                ->withInput();
+        }
     }
 
     public function destroy($id)
     {
-        $assignment = TeacherSubjectAssignment::findOrFail($id);
+        $assignment = TeacherClassSubjectAssignment::findOrFail($id);
         $assignment->delete();
         
         return redirect()->route('admin.teacher-subject-assignments.index')

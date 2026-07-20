@@ -40,11 +40,16 @@ return new class extends Migration
         // Verify results
         $totalStudents = DB::table('students')->count();
         $studentsWithSchoolClassId = DB::table('students')->whereNotNull('school_class_id')->count();
-        
+
         echo "\n=== BACKFILL RESULTS ===\n";
         echo "Total students: {$totalStudents}\n";
         echo "Students with school_class_id: {$studentsWithSchoolClassId}\n";
-        echo "Completion: " . round(($studentsWithSchoolClassId / $totalStudents) * 100, 2) . "%\n";
+
+        if ($totalStudents > 0) {
+            echo "Completion: " . round(($studentsWithSchoolClassId / $totalStudents) * 100, 2) . "%\n";
+        } else {
+            echo "Completion: 0%\n";
+        }
     }
 
     /**

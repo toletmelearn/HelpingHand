@@ -1,0 +1,41 @@
+Targeted Sidebar URL Simulation (Optimized)
+===========================================
+
+Testing with Clerk user: ID=2, Email=Yadav@school.com
+
+URL: /admin/dashboard -> Status: 200
+URL: /admin/students -> Status: 200
+URL: /admin/student-promotions -> Status: 200
+URL: /admin/student-statuses -> Status: 200
+URL: /admin/teachers -> Status: 200
+URL: /admin/teacher-substitutions -> Status: 200
+URL: /admin/teacher-biometrics -> Status: 200
+URL: /admin/classes -> Status: 200
+URL: /admin/sections -> Status: 200
+URL: /admin/subjects -> Status: 200
+URL: /admin/academic-sessions -> Status: 200
+URL: /admin/syllabi -> Status: 200
+URL: /admin/daily-teaching-work -> Status: 200
+URL: /admin/lesson-plans -> Status: 200
+URL: /admin/attendance -> Status: 200
+URL: /admin/exams -> Status: 403
+URL: /admin/exam-papers -> Status: 403
+URL: /admin/exam-paper-templates -> Status: 403
+URL: /admin/results -> Status: 403
+URL: /admin/result-formats -> Status: 200
+URL: /admin/admit-cards -> Status: 200
+URL: /admin/admit-card-formats -> Status: 403
+URL: /admin/configurations -> Status: 200
+URL: /admin/fees -> Status: 200
+URL: /admin/fee-structures -> Status: 200
+URL: /admin/budgets -> Status: 200
+URL: /admin/expenses -> Status: 200
+URL: /admin/budget-categories -> Status: 200
+URL: /admin/books -> Status: 200
+URL: /admin/book-issues -> Status: 200
+URL: /admin/library-settings -> Status: 200
+URL: /admin/inventory -> Status: 500
+URL: /admin/assets -> Status: 200
+URL: /admin/admin/inventory/categories -> Status: 404
+URL: /admin/certificates -> Status: 200
+URL: /admin/certificate-templates -> Status: 200

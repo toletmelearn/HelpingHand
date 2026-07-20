@@ -128,7 +128,7 @@ $(document).ready(function() {
             ];
             
             pillsHtml = months.map(m => {
-                const isActive = activeMonths.includes(m.name) || (!storedVal && m.name !== 'June');
+                const isActive = activeMonths.includes(m.name) || !storedVal;
                 return `<button type="button" class="btn btn-xs btn-sm ${isActive ? 'btn-primary' : 'btn-outline-secondary'} month-pill" data-value="${m.name}">${m.label}</button>`;
             }).join('');
             

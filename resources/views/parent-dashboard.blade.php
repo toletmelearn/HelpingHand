@@ -110,7 +110,7 @@
                             <a href="{{ route('results.index') ?? '#' }}" class="btn btn-info w-100">View Results</a>
                         </div>
                         <div class="col-md-3 mb-3">
-                            <a href="{{ route('fees.payment') ?? '#' }}" class="btn btn-warning w-100">Pay Fees</a>
+                            <a href="{{ route('parent.payment.history') }}" class="btn btn-warning w-100">Fee History</a>
                         </div>
                     </div>
                 </div>

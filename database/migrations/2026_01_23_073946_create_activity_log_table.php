@@ -21,6 +21,7 @@ return new class extends Migration
             $table->text('properties')->nullable();
             $table->uuid('batch_uuid')->nullable();
             $table->timestamp('created_at')->nullable();
+            $table->timestamp('updated_at')->nullable();
             $table->index(['log_name']);
         });
     }

@@ -14,6 +14,8 @@ class BudgetController extends Controller
     public function __construct()
     {
         $this->middleware('auth');
+        $this->middleware('permission:view-budgets')->only(['index', 'show']);
+        $this->middleware('permission:manage-budgets')->only(['create', 'store', 'edit', 'update', 'destroy', 'approve', 'lock', 'close']);
     }
     
     /**
@@ -112,7 +114,7 @@ class BudgetController extends Controller
             
             DB::commit();
             
-            return redirect()->route('admin.budget.index')
+            return redirect()->route('admin.budgets.index')
                            ->with('success', 'Budget created successfully.');
         } catch (\Exception $e) {
             DB::rollback();
@@ -148,7 +150,7 @@ class BudgetController extends Controller
     public function edit(Budget $budget)
     {
         if (!$budget->canBeModified()) {
-            return redirect()->route('admin.budget.show', $budget)
+            return redirect()->route('admin.budgets.show', $budget)
                            ->with('error', 'This budget cannot be modified in its current status.');
         }
         
@@ -164,7 +166,7 @@ class BudgetController extends Controller
     public function update(Request $request, Budget $budget)
     {
         if (!$budget->canBeModified()) {
-            return redirect()->route('admin.budget.show', $budget)
+            return redirect()->route('admin.budgets.show', $budget)
                            ->with('error', 'This budget cannot be modified in its current status.');
         }
         
@@ -201,7 +203,7 @@ class BudgetController extends Controller
             
             DB::commit();
             
-            return redirect()->route('admin.budget.show', $budget)
+            return redirect()->route('admin.budgets.show', $budget)
                            ->with('success', 'Budget updated successfully.');
         } catch (\Exception $e) {
             DB::rollback();
@@ -215,16 +217,16 @@ class BudgetController extends Controller
     public function destroy(Budget $budget)
     {
         if (!$budget->canBeModified()) {
-            return redirect()->route('admin.budget.index')
+            return redirect()->route('admin.budgets.index')
                            ->with('error', 'This budget cannot be deleted in its current status.');
         }
         
         try {
             $budget->delete();
-            return redirect()->route('admin.budget.index')
+            return redirect()->route('admin.budgets.index')
                            ->with('success', 'Budget deleted successfully.');
         } catch (\Exception $e) {
-            return redirect()->route('admin.budget.index')
+            return redirect()->route('admin.budgets.index')
                            ->with('error', 'Failed to delete budget: ' . $e->getMessage());
         }
     }
@@ -235,7 +237,7 @@ class BudgetController extends Controller
     public function approve(Budget $budget)
     {
         if ($budget->status !== 'draft') {
-            return redirect()->route('admin.budget.show', $budget)
+            return redirect()->route('admin.budgets.show', $budget)
                            ->with('error', 'Only draft budgets can be approved.');
         }
         
@@ -245,10 +247,10 @@ class BudgetController extends Controller
             $budget->approved_by = Auth::id();
             $budget->save();
             
-            return redirect()->route('admin.budget.show', $budget)
+            return redirect()->route('admin.budgets.show', $budget)
                            ->with('success', 'Budget approved successfully.');
         } catch (\Exception $e) {
-            return redirect()->route('admin.budget.show', $budget)
+            return redirect()->route('admin.budgets.show', $budget)
                            ->with('error', 'Failed to approve budget: ' . $e->getMessage());
         }
     }
@@ -259,7 +261,7 @@ class BudgetController extends Controller
     public function lock(Budget $budget)
     {
         if ($budget->status !== 'approved') {
-            return redirect()->route('admin.budget.show', $budget)
+            return redirect()->route('admin.budgets.show', $budget)
                            ->with('error', 'Only approved budgets can be locked.');
         }
         
@@ -268,10 +270,10 @@ class BudgetController extends Controller
             $budget->lock_date = now();
             $budget->save();
             
-            return redirect()->route('admin.budget.show', $budget)
+            return redirect()->route('admin.budgets.show', $budget)
                            ->with('success', 'Budget locked successfully.');
         } catch (\Exception $e) {
-            return redirect()->route('admin.budget.show', $budget)
+            return redirect()->route('admin.budgets.show', $budget)
                            ->with('error', 'Failed to lock budget: ' . $e->getMessage());
         }
     }
@@ -282,7 +284,7 @@ class BudgetController extends Controller
     public function close(Budget $budget)
     {
         if ($budget->status !== 'locked') {
-            return redirect()->route('admin.budget.show', $budget)
+            return redirect()->route('admin.budgets.show', $budget)
                            ->with('error', 'Only locked budgets can be closed.');
         }
         
@@ -291,10 +293,10 @@ class BudgetController extends Controller
             $budget->close_date = now();
             $budget->save();
             
-            return redirect()->route('admin.budget.show', $budget)
+            return redirect()->route('admin.budgets.show', $budget)
                            ->with('success', 'Budget closed successfully.');
         } catch (\Exception $e) {
-            return redirect()->route('admin.budget.show', $budget)
+            return redirect()->route('admin.budgets.show', $budget)
                            ->with('error', 'Failed to close budget: ' . $e->getMessage());
         }
     }

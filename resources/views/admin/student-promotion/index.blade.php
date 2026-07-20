@@ -32,15 +32,10 @@
                             <tbody>
                                 @forelse($studentsByClass as $student)
                                     <tr>
-                                        <td>{{ $student->class }}</td>
+                                        <td>{{ $student->schoolClass->name ?? 'N/A' }}</td>
+                                        <td>{{ $student->total }}</td>
                                         <td>
-                                            @php
-                                                $count = App\Models\Student::where('class', $student->class)->count();
-                                            @endphp
-                                            {{ $count }}
-                                        </td>
-                                        <td>
-                                            <a href="{{ route('admin.student-promotions.create') }}?from_class={{ urlencode($student->class) }}" 
+                                            <a href="{{ route('admin.student-promotions.create') }}?from_class={{ $student->class_id }}"
                                                class="btn btn-sm btn-primary">
                                                 Promote Class
                                             </a>

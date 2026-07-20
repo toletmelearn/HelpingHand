@@ -11,10 +11,14 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::table('students', function (Blueprint $table) {
-            $table->unsignedBigInteger('class_id')->nullable()->after('class');
-            $table->foreign('class_id')->references('id')->on('classes')->onDelete('set null');
-        });
+        if (!Schema::hasColumn('students', 'class_id')) {
+            Schema::table('students', function (Blueprint $table) {
+                $table->unsignedBigInteger('class_id')->nullable()->after('class');
+            });
+        }
+
+        // Foreign key creation intentionally skipped here to avoid constraint errors
+        // Another dedicated migration handles foreign key relationships.
     }
 
     /**

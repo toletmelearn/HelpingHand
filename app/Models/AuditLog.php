@@ -86,4 +86,17 @@ class AuditLog extends Model
     {
         return $this->action === 'delete';
     }
+    
+    // Relationships
+    public function user()
+    {
+        return $this->hasOne(User::class, 'id', 'user_id');
+    }
+    
+    // Accessor for user name
+    public function getUserNameAttribute(): string
+    {
+        $user = $this->user;
+        return $user ? $user->name ?? 'Unknown User' : 'Unknown User';
+    }
 }

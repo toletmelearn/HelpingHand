@@ -14,6 +14,7 @@ use App\Models\AcademicSession;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
+use App\Support\Attendance\AttendanceCreditCalculator;
 
 class PerformanceAnalyticsController extends Controller
 {
@@ -236,13 +237,10 @@ class PerformanceAnalyticsController extends Controller
 
     private function getOverallAttendanceRate($startDate, $endDate)
     {
-        $totalRecords = Attendance::whereBetween('date', [$startDate, $endDate])->count();
-        $presentRecords = Attendance::whereBetween('date', [$startDate, $endDate])
-            ->where('status', 'present')
-            ->orWhere('status', 'late')
-            ->count();
+        $records = Attendance::whereBetween('date', [$startDate, $endDate])->get(['status']);
+        $summary = AttendanceCreditCalculator::summarizeRecords($records, 'status');
         
-        return $totalRecords > 0 ? round(($presentRecords / $totalRecords) * 100, 2) : 0;
+        return $summary['attendance_rate'];
     }
 
     private function exportToExcel($data)

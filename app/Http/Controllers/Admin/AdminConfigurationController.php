@@ -42,7 +42,7 @@ class AdminConfigurationController extends Controller
                         ['name' => 'priority_based', 'enabled' => true, 'weight' => 100],
                         ['name' => 'oldest_due_first', 'enabled' => true, 'weight' => 50]
                     ],
-                    'priority_list' => ['admission', 'tuition', 'late_fine', 'late_fee', 'transport']
+                    'priority_list' => ['admission', 'tuition', 'late_fine', 'late_fee']
                 ]],
                 'upi_vpa' => ['label' => 'School UPI VPA (e.g. school@upi)', 'type' => 'string', 'default' => ''],
                 'bank_account_name' => ['label' => 'Bank Account Holder Name', 'type' => 'string', 'default' => ''],

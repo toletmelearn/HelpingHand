@@ -1,0 +1,18 @@
+User & Role Diagnostics
+=======================
+
+Total users: 2
+ID: 1 | Name: Admin | Email: admin@school.com | Verified At: 2026-02-09 12:20:32 | Roles: [admin]
+ID: 2 | Name: Yadav | Email: Yadav@school.com | Verified At: NULL | Roles: [clerk]
+
+Role & Permission mapping
+=========================
+Role: admin | Permissions: [can-be-class-teacher, can-mark-attendance, can-edit-attendance, can-upload-marks, can-edit-marks, can-upload-syllabus, can-approve-substitutions, can-access-student-data, can-edit-class-student-data, can-request-correction, can-view-full-attendance-history, can-view-fee-status, can-manage-fees, can-generate-fee-reports, can-view-salary-data, no-academic-access, full-access, assign-permissions, suspend-users, access-audit-logs, view-fees, create-fees, edit-fees, delete-fees, view-fee-structures, create-fee-structures, edit-fee-structures, delete-fee-structures, view-students, create-students, edit-students, delete-students, view-teachers, create-teachers, edit-teachers, delete-teachers, view-exams, create-exams, edit-exams, delete-exams, view-results, create-results, edit-results, delete-results, view-attendance, create-attendance, edit-attendance, delete-attendance, view-admit-cards, create-admit-cards, edit-admit-cards, delete-admit-cards, view-admit-card-formats, create-admit-card-formats, edit-admit-card-formats, delete-admit-card-formats, view-exam-papers, create-exam-papers, edit-exam-papers, delete-exam-papers, submit-exam-papers, approve-exam-papers, lock-exam-papers, clone-exam-papers, view-exam-paper-templates, create-exam-paper-templates, edit-exam-paper-templates, delete-exam-paper-templates, toggle-template-status, preview-exam-paper-templates, view-daily-teaching-work, create-daily-teaching-work, edit-daily-teaching-work, delete-daily-teaching-work, download-daily-teaching-work-attachments, view-syllabi, create-syllabi, edit-syllabi, delete-syllabi, view-syllabus-progress-report]
+Role: teacher | Permissions: [can-mark-attendance, can-upload-marks, can-upload-syllabus, view-students, view-exams, view-results, view-attendance, view-daily-teaching-work, create-daily-teaching-work, download-daily-teaching-work-attachments]
+Role: student | Permissions: []
+Role: parent | Permissions: []
+Role: accountant | Permissions: [can-manage-fees, can-generate-fee-reports, view-fees, create-fees, edit-fees, delete-fees, view-fee-structures, create-fee-structures, edit-fee-structures, delete-fee-structures, view-admit-cards, view-admit-card-formats, view-daily-teaching-work]
+Role: clerk | Permissions: [can-view-fee-status, can-manage-fees, can-generate-fee-reports, can-view-salary-data, view-fees, create-fees, edit-fees, view-fee-structures, create-fee-structures, view-students, create-students, edit-students, delete-students, view-teachers, create-teachers, view-attendance, create-attendance]
+
+Session Auth Check:
+Auth Check: No

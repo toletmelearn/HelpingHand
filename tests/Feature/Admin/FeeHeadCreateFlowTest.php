@@ -5,6 +5,7 @@ namespace Tests\Feature\Admin;
 use App\Models\FeeType;
 use App\Models\Role;
 use App\Models\User;
+use Database\Seeders\PermissionSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -18,6 +19,9 @@ class FeeHeadCreateFlowTest extends TestCase
         $admin = User::factory()->create();
         $adminRole = Role::firstOrCreate(['name' => 'admin'], ['display_name' => 'Admin']);
         $admin->roles()->attach($adminRole->id);
+        // Fee Head Master is permission-gated (view-fee-types/manage-fee-types);
+        // the admin role only holds them once the catalog is seeded.
+        (new PermissionSeeder())->run();
 
         $this->actingAs($admin)
             ->get(route('admin.fee-types.create'))
@@ -56,6 +60,7 @@ class FeeHeadCreateFlowTest extends TestCase
         $admin = User::factory()->create();
         $adminRole = Role::firstOrCreate(['name' => 'admin'], ['display_name' => 'Admin']);
         $admin->roles()->attach($adminRole->id);
+        (new PermissionSeeder())->run();
 
         FeeType::create(['name' => 'Existing Fee', 'status' => 'active']);
 

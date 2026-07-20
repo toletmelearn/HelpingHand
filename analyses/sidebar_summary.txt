@@ -1,0 +1,29 @@
+SIDEBAR AUDIT REPORT
+================================================================================
+
+Registry-driven dynamic loading detected: Yes
+
+Total links found: 8
+========================================
+
+--- HARDCODED/STATIC ENTRIES ---
+
+--- PLACEHOLDER ENTRIES (Points to '#' or JS voids) ---
+• Title: 'Academic Session Import (Soon) getModuleStatus('academic-sessions')] }}">●' | URL: 'javascript:void(0);'
+• Title: 'Fee Head Import (Soon) getModuleStatus('fee-heads')] }}">●' | URL: 'javascript:void(0);'
+• Title: 'Discount Import (Soon) getModuleStatus('discounts')] }}">●' | URL: 'javascript:void(0);'
+• Title: 'Scholarship Import (Soon) getModuleStatus('scholarships')] }}">●' | URL: 'javascript:void(0);'
+• Title: 'Transport Stop Import (Soon) getModuleStatus('stops')] }}">●' | URL: 'javascript:void(0);'
+• Title: 'Vehicle Import (Soon) getModuleStatus('vehicles')] }}">●' | URL: 'javascript:void(0);'
+• Title: 'Staff Import (Soon) getModuleStatus('staff')] }}">●' | URL: 'javascript:void(0);'
+• Title: 'User Import (Soon) getModuleStatus('users')] }}">●' | URL: 'javascript:void(0);'
+
+--- PERMISSION GATES FOUND IN SIDEBAR ---
+
+--- ROLE CHECKS FOUND IN SIDEBAR ---
+• $section['roles'] ?? ['admin', 'super-admin']
+• 'accountant'
+• 'admin'
+• 'teacher'
+• ['admin', 'staff']
+• ['admin', 'super-admin']

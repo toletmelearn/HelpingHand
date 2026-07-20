@@ -1,0 +1,1446 @@
+CONTROLLER SCANNER SUMMARY
+Total controller files found: 206
+================================================================================
+
+Controller: App\Http\Controllers\API\AttendanceController
+  Path: API\AttendanceController.php
+  Methods: ['index', 'store', 'show', 'update', 'destroy', 'studentMonthlyReport', 'dailyReport', 'bulkMark']
+  Dependencies Injected: []
+  Services Used: ['AttendanceClassResolver']
+----------------------------------------
+
+Controller: App\Http\Controllers\API\AuthController
+  Path: API\AuthController.php
+  Methods: ['login', 'register', 'logout', 'logoutAll', 'me', 'updateProfile', 'changePassword', 'refreshToken']
+  Dependencies Injected: []
+  Services Used: []
+----------------------------------------
+
+Controller: App\Http\Controllers\API\BaseApiController
+  Path: API\BaseApiController.php
+  Methods: ['success', 'sendResponse', 'error', 'sendError', 'validationError']
+  Dependencies Injected: []
+  Services Used: []
+----------------------------------------
+
+Controller: App\Http\Controllers\API\BellTimingController
+  Path: API\BellTimingController.php
+  Methods: ['index', 'store', 'show', 'update', 'destroy', 'weeklyTimetable', 'currentPeriod', 'todaysSchedule', 'bulkCreate']
+  Dependencies Injected: []
+  Services Used: []
+----------------------------------------
+
+Controller: App\Http\Controllers\Api\BiometricController
+  Path: API\BiometricController.php
+  Methods: ['testConnection', 'syncDevice', 'getDeviceStatus', 'getSyncLogs', 'getSyncStatistics', 'syncAllDevices', 'webhook']
+  Dependencies Injected: ['BiometricSyncService']
+  Services Used: ['BiometricSyncService']
+----------------------------------------
+
+Controller: App\Http\Controllers\API\DashboardController
+  Path: API\DashboardController.php
+  Methods: ['studentDashboard', 'parentDashboard', 'teacherDashboard']
+  Dependencies Injected: []
+  Services Used: []
+----------------------------------------
+
+Controller: App\Http\Controllers\API\ExamPaperController
+  Path: API\ExamPaperController.php
+  Methods: ['index', 'store', 'show', 'update', 'destroy', 'download', 'togglePublish']
+  Dependencies Injected: []
+  Services Used: []
+----------------------------------------
+
+Controller: App\Http\Controllers\API\GuardianController
+  Path: API\GuardianController.php
+  Methods: ['index', 'store', 'show', 'update', 'destroy', 'children', 'notifications']
+  Dependencies Injected: []
+  Services Used: []
+----------------------------------------
+
+Controller: App\Http\Controllers\API\LessonPlanController
+  Path: API\LessonPlanController.php
+  Methods: ['index', 'show', 'todayLessons', 'weekLessons', 'myLessonPlans', 'store', 'update']
+  Dependencies Injected: []
+  Services Used: []
+----------------------------------------
+
+Controller: App\Http\Controllers\API\NotificationController
+  Path: API\NotificationController.php
+  Methods: ['index', 'markAsRead', 'markAllAsRead', 'unreadCount']
+  Dependencies Injected: []
+  Services Used: []
+----------------------------------------
+
+Controller: App\Http\Controllers\Api\SelfServiceController
+  Path: API\SelfServiceController.php
+  Methods: ['authenticate', 'getAttendance', 'getMonthlySummary', 'getPerformanceTrends', 'downloadReport']
+  Dependencies Injected: []
+  Services Used: []
+----------------------------------------
+
+Controller: App\Http\Controllers\API\StudentController
+  Path: API\StudentController.php
+  Methods: ['index', 'store', 'show', 'update', 'destroy', 'attendance', 'results', 'fees']
+  Dependencies Injected: []
+  Services Used: []
+----------------------------------------
+
+Controller: App\Http\Controllers\API\TeacherController
+  Path: API\TeacherController.php
+  Methods: ['index', 'store', 'show', 'update', 'destroy', 'classes', 'examPapers', 'subjectClasses', 'attendanceData', 'gradingData']
+  Dependencies Injected: []
+  Services Used: []
+----------------------------------------
+
+Controller: App\Http\Controllers\Admin\AISmartFeaturesController
+  Path: Admin\AISmartFeaturesController.php
+  Methods: ['index', 'autoTimetable', 'feeDefaulterList', 'topperList', 'attendanceWarning', 'resultAnalysis', 'autoGenerateReport', 'smartNotifications']
+  Dependencies Injected: []
+  Services Used: []
+----------------------------------------
+
+Controller: App\Http\Controllers\Admin\AcademicSessionController
+  Path: Admin\AcademicSessionController.php
+  Methods: ['index', 'create', 'store', 'show', 'edit', 'update', 'destroy', 'restore']
+  Dependencies Injected: []
+  Services Used: []
+----------------------------------------
+
+Controller: App\Http\Controllers\Admin\AccountManagementController
+  Path: Admin\AccountManagementController.php
+  Methods: ['index', 'changePassword', 'toggleStatus', 'syncAccounts']
+  Dependencies Injected: []
+  Services Used: []
+----------------------------------------
+
+Controller: App\Http\Controllers\Admin\AccountantDashboardController
+  Path: Admin\AccountantDashboardController.php
+  Methods: ['index']
+  Dependencies Injected: []
+  Services Used: []
+----------------------------------------
+
+Controller: App\Http\Controllers\Admin\AdminAdmissionController
+  Path: Admin\AdminAdmissionController.php
+  Methods: ['index', 'storeEnquiry', 'scheduleInterview', 'evaluate', 'showConfirmForm', 'confirmAdmission']
+  Dependencies Injected: []
+  Services Used: []
+----------------------------------------
+
+Controller: App\Http\Controllers\Admin\AdminAlumniController
+  Path: Admin\AdminAlumniController.php
+  Methods: ['index', 'store']
+  Dependencies Injected: []
+  Services Used: []
+----------------------------------------
+
+Controller: App\Http\Controllers\Admin\AdminConfigurationController
+  Path: Admin\AdminConfigurationController.php
+  Methods: ['index', 'update', 'toggle', 'resetToDefaults']
+  Dependencies Injected: []
+  Services Used: []
+----------------------------------------
+
+Controller: App\Http\Controllers\Admin\AdminDashboardController
+  Path: Admin\AdminDashboardController.php
+  Methods: ['index']
+  Dependencies Injected: []
+  Services Used: []
+----------------------------------------
+
+Controller: App\Http\Controllers\Admin\AdminExamController
+  Path: Admin\AdminExamController.php
+  Methods: ['resultMonitor', 'classResults']
+  Dependencies Injected: []
+  Services Used: []
+----------------------------------------
+
+Controller: App\Http\Controllers\Admin\AdminExamPaperController
+  Path: Admin\AdminExamPaperController.php
+  Methods: ['showApproveConfirmation', 'index', 'show', 'approve', 'examApprove', 'publish', 'reject', 'download', 'submit', 'lock', 'print', 'clone', 'destroy', 'availableForClass', 'search', 'upcoming', 'togglePublish']
+  Dependencies Injected: []
+  Services Used: []
+----------------------------------------
+
+Controller: App\Http\Controllers\Admin\AdminGateEntryController
+  Path: Admin\AdminGateEntryController.php
+  Methods: ['index', 'store', 'checkout']
+  Dependencies Injected: []
+  Services Used: []
+----------------------------------------
+
+Controller: App\Http\Controllers\Admin\AdminHostelController
+  Path: Admin\AdminHostelController.php
+  Methods: ['index', 'storeHostel', 'storeRoom', 'storeAllocation']
+  Dependencies Injected: []
+  Services Used: []
+----------------------------------------
+
+Controller: App\Http\Controllers\Admin\AdminInventoryPurchaseController
+  Path: Admin\AdminInventoryPurchaseController.php
+  Methods: ['index', 'store', 'updateStatus']
+  Dependencies Injected: []
+  Services Used: []
+----------------------------------------
+
+Controller: App\Http\Controllers\Admin\AdminMarksController
+  Path: Admin\AdminMarksController.php
+  Methods: ['index']
+  Dependencies Injected: []
+  Services Used: []
+----------------------------------------
+
+Controller: App\Http\Controllers\Admin\AdminParentController
+  Path: Admin\AdminParentController.php
+  Methods: ['index', 'show', 'update', 'resetPassword']
+  Dependencies Injected: []
+  Services Used: []
+----------------------------------------
+
+Controller: App\Http\Controllers\Admin\AdminPayrollController
+  Path: Admin\AdminPayrollController.php
+  Methods: ['index', 'generate', 'downloadSlip']
+  Dependencies Injected: []
+  Services Used: []
+----------------------------------------
+
+Controller: App\Http\Controllers\Admin\AdminResultMonitorController
+  Path: Admin\AdminResultMonitorController.php
+  Methods: ['index', 'classResults']
+  Dependencies Injected: []
+  Services Used: []
+----------------------------------------
+
+Controller: App\Http\Controllers\Admin\AdminStudentController
+  Path: Admin\AdminStudentController.php
+  Methods: ['index', 'showClassStudents', 'list', 'create', 'store', 'show', 'edit', 'update', 'destroy']
+  Dependencies Injected: []
+  Services Used: []
+----------------------------------------
+
+Controller: App\Http\Controllers\Admin\AdminTeacherLeaveController
+  Path: Admin\AdminTeacherLeaveController.php
+  Methods: ['index', 'show', 'update']
+  Dependencies Injected: []
+  Services Used: []
+----------------------------------------
+
+Controller: App\Http\Controllers\Admin\AdminTransportController
+  Path: Admin\AdminTransportController.php
+  Methods: ['index', 'storeRoute', 'storeStop', 'storeAssignment']
+  Dependencies Injected: []
+  Services Used: []
+----------------------------------------
+
+Controller: App\Http\Controllers\Admin\AdminUploadedMarksController
+  Path: Admin\AdminUploadedMarksController.php
+  Methods: ['index', 'exportToExcel', 'deleteResult', 'unlockResult']
+  Dependencies Injected: []
+  Services Used: []
+----------------------------------------
+
+Controller: App\Http\Controllers\Admin\AdmitCardController
+  Path: Admin\AdmitCardController.php
+  Methods: ['index', 'create', 'store', 'publish', 'lock', 'preview', 'bulkPublish', 'bulkLock', 'revoke', 'bulkRevoke', 'blockDefaulters', 'unblockCleared']
+  Dependencies Injected: []
+  Services Used: []
+----------------------------------------
+
+Controller: App\Http\Controllers\Admin\AdmitCardFormatController
+  Path: Admin\AdmitCardFormatController.php
+  Methods: ['index', 'create', 'store', 'show', 'edit', 'update', 'destroy']
+  Dependencies Injected: []
+  Services Used: []
+----------------------------------------
+
+Controller: App\Http\Controllers\Admin\AdvancedReportController
+  Path: Admin\AdvancedReportController.php
+  Methods: ['index', 'dashboard', 'create', 'store', 'show', 'edit', 'update', 'destroy', 'export']
+  Dependencies Injected: []
+  Services Used: []
+----------------------------------------
+
+Controller: App\Http\Controllers\Admin\AnalyticsController
+  Path: Admin\AnalyticsController.php
+  Methods: ['index', 'attendanceHeatmap', 'lateArrivals', 'earlyDepartures', 'disciplineScore']
+  Dependencies Injected: []
+  Services Used: []
+----------------------------------------
+
+Controller: App\Http\Controllers\Admin\AssetCategoryController
+  Path: Admin\AssetCategoryController.php
+  Methods: ['index', 'create', 'store', 'show', 'edit', 'update', 'destroy']
+  Dependencies Injected: []
+  Services Used: []
+----------------------------------------
+
+Controller: App\Http\Controllers\Admin\AssetController
+  Path: Admin\AssetController.php
+  Methods: ['index', 'create', 'store', 'show', 'edit', 'update', 'destroy', 'issue', 'return']
+  Dependencies Injected: []
+  Services Used: []
+----------------------------------------
+
+Controller: App\Http\Controllers\Admin\BackupController
+  Path: Admin\BackupController.php
+  Methods: ['index', 'create', 'store', 'show', 'edit', 'update', 'destroy', 'download', 'createManual', 'schedule']
+  Dependencies Injected: []
+  Services Used: []
+----------------------------------------
+
+Controller: App\Http\Controllers\Admin\BiometricDeviceController
+  Path: Admin\BiometricDeviceController.php
+  Methods: ['index', 'create', 'store', 'show', 'edit', 'update', 'destroy', 'testConnection', 'sync', 'syncLogs']
+  Dependencies Injected: []
+  Services Used: []
+----------------------------------------
+
+Controller: App\Http\Controllers\Admin\BookController
+  Path: Admin\BookController.php
+  Methods: ['index', 'create', 'store', 'show', 'edit', 'update', 'destroy', 'dashboard']
+  Dependencies Injected: []
+  Services Used: []
+----------------------------------------
+
+Controller: App\Http\Controllers\Admin\BookIssueController
+  Path: Admin\BookIssueController.php
+  Methods: ['index', 'create', 'store', 'show', 'edit', 'update', 'destroy', 'returnBook', 'reports', 'exportReport']
+  Dependencies Injected: []
+  Services Used: []
+----------------------------------------
+
+Controller: App\Http\Controllers\Admin\BudgetCategoryController
+  Path: Admin\BudgetCategoryController.php
+  Methods: ['index', 'create', 'store', 'show', 'edit', 'update', 'destroy', 'toggleActive']
+  Dependencies Injected: []
+  Services Used: []
+----------------------------------------
+
+Controller: App\Http\Controllers\Admin\BudgetController
+  Path: Admin\BudgetController.php
+  Methods: ['index', 'create', 'store', 'show', 'edit', 'update', 'destroy', 'approve', 'lock', 'close']
+  Dependencies Injected: []
+  Services Used: []
+----------------------------------------
+
+Controller: App\Http\Controllers\Admin\BudgetDashboardController
+  Path: Admin\BudgetDashboardController.php
+  Methods: ['index', 'analytics', 'reports']
+  Dependencies Injected: []
+  Services Used: []
+----------------------------------------
+
+Controller: App\Http\Controllers\Admin\CBSEReportCardController
+  Path: Admin\CBSEReportCardController.php
+  Methods: ['index', 'generate', 'print', 'downloadPdf', 'batchGenerate', 'classToppers', 'subjectToppers', 'analyzeResults']
+  Dependencies Injected: []
+  Services Used: []
+----------------------------------------
+
+Controller: App\Http\Controllers\Admin\CacheManagementController
+  Path: Admin\CacheManagementController.php
+  Methods: ['index', 'clearAll', 'clearSpecific', 'optimize']
+  Dependencies Injected: ['CacheService']
+  Services Used: ['CacheService']
+----------------------------------------
+
+Controller: App\Http\Controllers\Admin\CashierClosingController
+  Path: Admin\CashierClosingController.php
+  Methods: ['index', 'create', 'store', 'show']
+  Dependencies Injected: []
+  Services Used: []
+----------------------------------------
+
+Controller: App\Http\Controllers\Admin\CertificateController
+  Path: Admin\CertificateController.php
+  Methods: ['index', 'create', 'store', 'show', 'edit', 'update', 'destroy', 'approve', 'publish', 'lock', 'revoke', 'preview']
+  Dependencies Injected: []
+  Services Used: []
+----------------------------------------
+
+Controller: App\Http\Controllers\Admin\CertificateTemplateController
+  Path: Admin\CertificateTemplateController.php
+  Methods: ['index', 'create', 'store', 'show', 'edit', 'update', 'destroy', 'setDefault']
+  Dependencies Injected: []
+  Services Used: []
+----------------------------------------
+
+Controller: App\Http\Controllers\Admin\ClassAssignmentController
+  Path: Admin\ClassAssignmentController.php
+  Methods: ['assignSections', 'saveSectionAssignment', 'assignSubjects', 'saveSubjectAssignment', 'assignSubjectTeachers', 'saveSubjectTeacherAssignment', 'assignClassTeacher', 'saveClassTeacherAssignment']
+  Dependencies Injected: []
+  Services Used: []
+----------------------------------------
+
+Controller: App\Http\Controllers\Admin\ClassController
+  Path: Admin\ClassController.php
+  Methods: ['index', 'create', 'store', 'show', 'edit', 'update', 'destroy']
+  Dependencies Injected: []
+  Services Used: []
+----------------------------------------
+
+Controller: App\Http\Controllers\Admin\ClassTeacherController
+  Path: Admin\ClassTeacherController.php
+  Methods: ['studentRecords', 'editStudent', 'updateStudent']
+  Dependencies Injected: []
+  Services Used: []
+----------------------------------------
+
+Controller: App\Http\Controllers\Admin\DailyTeachingWorkController
+  Path: Admin\DailyTeachingWorkController.php
+  Methods: ['index', 'create', 'store', 'show', 'edit', 'update', 'destroy', 'downloadAttachment', 'getByDateClass']
+  Dependencies Injected: []
+  Services Used: []
+----------------------------------------
+
+Controller: App\Http\Controllers\Admin\DatabaseOptimizationController
+  Path: Admin\DatabaseOptimizationController.php
+  Methods: ['index', 'optimize', 'analyzeSlowQueries', 'performanceStats', 'clearCache', 'maintenance', 'identifyNPlusOne', 'generateDetailedReport', 'optimizeModelRelationships']
+  Dependencies Injected: ['DatabaseOptimizationService']
+  Services Used: ['DatabaseOptimizationService']
+----------------------------------------
+
+Controller: App\Http\Controllers\Admin\DefaulterController
+  Path: Admin\DefaulterController.php
+  Methods: ['dashboard', 'index', 'takeAction', 'bulkAction', 'override', 'history']
+  Dependencies Injected: ['DefaulterService']
+  Services Used: ['DefaulterService']
+----------------------------------------
+
+Controller: App\Http\Controllers\Admin\DiscountApprovalController
+  Path: Admin\DiscountApprovalController.php
+  Methods: ['index', 'store', 'verify', 'reject']
+  Dependencies Injected: []
+  Services Used: []
+----------------------------------------
+
+Controller: App\Http\Controllers\Admin\DocumentFormatController
+  Path: Admin\DocumentFormatController.php
+  Methods: ['index', 'create', 'store', 'show', 'edit', 'update', 'destroy', 'setDefault']
+  Dependencies Injected: []
+  Services Used: []
+----------------------------------------
+
+Controller: App\Http\Controllers\Admin\EnhancedResultController
+  Path: Admin\EnhancedResultController.php
+  Methods: ['index', 'showStudentResult', 'generateOptimizedReport', 'generatePerformanceAnalysis', 'bulkOperations', 'subjectComparison', 'trendAnalysis', 'accessibleResultView']
+  Dependencies Injected: ['OptimizedResultService', 'AccessibilityService']
+  Services Used: ['AccessibilityService', 'OptimizedResultService']
+----------------------------------------
+
+Controller: App\Http\Controllers\Admin\ExamArrangementController
+  Path: Admin\ExamArrangementController.php
+  Methods: ['index', 'seatingIndex', 'generateSeating', 'saveSeating', 'invigilatorIndex', 'saveInvigilators', 'relievingIndex', 'saveRelieving']
+  Dependencies Injected: []
+  Services Used: []
+----------------------------------------
+
+Controller: App\Http\Controllers\Admin\ExamBlueprintController
+  Path: Admin\ExamBlueprintController.php
+  Methods: ['index', 'store', 'destroy']
+  Dependencies Injected: []
+  Services Used: []
+----------------------------------------
+
+Controller: App\Http\Controllers\Admin\ExamController
+  Path: Admin\ExamController.php
+  Methods: ['index', 'create', 'store', 'show', 'edit', 'update', 'destroy', 'getExamDetails']
+  Dependencies Injected: []
+  Services Used: []
+----------------------------------------
+
+Controller: App\Http\Controllers\Admin\ExamPaperController
+  Path: Admin\ExamPaperController.php
+  Methods: ['index', 'create', 'store', 'show', 'edit', 'update', 'destroy', 'submit', 'approve', 'lock', 'download', 'print', 'clone', 'available', 'upcoming']
+  Dependencies Injected: []
+  Services Used: []
+----------------------------------------
+
+Controller: App\Http\Controllers\Admin\ExamPaperTemplateController
+  Path: Admin\ExamPaperTemplateController.php
+  Methods: ['index', 'create', 'store', 'show', 'edit', 'update', 'destroy', 'toggleStatus', 'preview']
+  Dependencies Injected: []
+  Services Used: []
+----------------------------------------
+
+Controller: App\Http\Controllers\Admin\ExaminationPatternController
+  Path: Admin\ExaminationPatternController.php
+  Methods: ['index', 'create', 'store', 'show', 'edit', 'update', 'destroy']
+  Dependencies Injected: []
+  Services Used: []
+----------------------------------------
+
+Controller: App\Http\Controllers\Admin\ExpenseController
+  Path: Admin\ExpenseController.php
+  Methods: ['index', 'create', 'store', 'show', 'edit', 'update', 'destroy', 'approve', 'reject']
+  Dependencies Injected: []
+  Services Used: []
+----------------------------------------
+
+Controller: App\Http\Controllers\Admin\FeeAutomationController
+  Path: Admin\FeeAutomationController.php
+  Methods: ['pendingFees', 'defaulters', 'feeDashboard', 'sendWhatsappReminder']
+  Dependencies Injected: []
+  Services Used: []
+----------------------------------------
+
+Controller: App\Http\Controllers\Admin\FeeCollectionController
+  Path: Admin\FeeCollectionController.php
+  Methods: ['index', 'searchStudents', 'getStudentFeeDashboard', 'collectFee', 'getReceipt', 'show', 'getReceiptPdf', 'createCollectionForm', 'store', 'processCollection', 'receipt', 'reverseCollection', 'generateUpiQr', 'listReversalRequests', 'approveReversal', 'rejectReversal', 'demandRegister', 'exportDemandRegister', 'collectionRegister', 'exportCollectionRegister']
+  Dependencies Injected: ['FeePaymentLockService']
+  Services Used: ['FeePaymentLockService']
+----------------------------------------
+
+Controller: App\Http\Controllers\Admin\FeeController
+  Path: Admin\FeeController.php
+  Methods: ['index', 'create', 'store', 'show', 'edit', 'update', 'destroy']
+  Dependencies Injected: []
+  Services Used: []
+----------------------------------------
+
+Controller: App\Http\Controllers\Admin\FeeReceiptController
+  Path: Admin\FeeReceiptController.php
+  Methods: ['downloadPdf']
+  Dependencies Injected: []
+  Services Used: []
+----------------------------------------
+
+Controller: App\Http\Controllers\Admin\FeeStructureController
+  Path: Admin\FeeStructureController.php
+  Methods: ['index', 'create', 'store', 'edit', 'update', 'destroy', 'activate', 'deactivate', 'show', 'feeTypeMaster', 'updateFeeTypeMaster', 'copyStructure']
+  Dependencies Injected: []
+  Services Used: []
+----------------------------------------
+
+Controller: App\Http\Controllers\Admin\FinanceReconciliationController
+  Path: Admin\FinanceReconciliationController.php
+  Methods: ['unresolved', 'overpayments', 'refunds', 'orphans', 'mismatches', 'bulkAssign', 'rebuildLedger']
+  Dependencies Injected: ['AuditLogService']
+  Services Used: ['LedgerService', 'AuditLogService']
+----------------------------------------
+
+Controller: App\Http\Controllers\Admin\FinanceReportController
+  Path: Admin\FinanceReportController.php
+  Methods: ['index', 'export']
+  Dependencies Injected: []
+  Services Used: []
+----------------------------------------
+
+Controller: App\Http\Controllers\Admin\FinancialYearClosingController
+  Path: Admin\FinancialYearClosingController.php
+  Methods: ['index', 'stage', 'rollback', 'confirm']
+  Dependencies Injected: []
+  Services Used: ['FinancialYearClosingService']
+----------------------------------------
+
+Controller: App\Http\Controllers\Admin\GradingSystemController
+  Path: Admin\GradingSystemController.php
+  Methods: ['index', 'create', 'store', 'show', 'edit', 'update', 'destroy']
+  Dependencies Injected: []
+  Services Used: []
+----------------------------------------
+
+Controller: App\Http\Controllers\Admin\HomeworkController
+  Path: Admin\HomeworkController.php
+  Methods: ['index', 'show']
+  Dependencies Injected: []
+  Services Used: []
+----------------------------------------
+
+Controller: App\Http\Controllers\Admin\HomeworkNoticeController
+  Path: Admin\HomeworkNoticeController.php
+  Methods: ['index', 'create', 'store', 'show', 'edit', 'update', 'destroy', 'upcoming']
+  Dependencies Injected: []
+  Services Used: []
+----------------------------------------
+
+Controller: App\Http\Controllers\Admin\HostelController
+  Path: Admin\HostelController.php
+  Methods: ['index', 'allocateBed', 'vacateBed']
+  Dependencies Injected: []
+  Services Used: []
+----------------------------------------
+
+Controller: App\Http\Controllers\Admin\IdCardController
+  Path: Admin\IdCardController.php
+  Methods: ['index', 'create', 'store', 'show', 'edit', 'update', 'destroy', 'print', 'generateForStudent']
+  Dependencies Injected: []
+  Services Used: []
+----------------------------------------
+
+Controller: App\Http\Controllers\Admin\InstallmentFeeController
+  Path: Admin\InstallmentFeeController.php
+  Methods: ['index', 'create', 'store', 'edit', 'update', 'assignToClass', 'generateInstallmentSchedule', 'processInstallmentPayment', 'paymentHistory', 'generateReport', 'autoGenerateLateFines']
+  Dependencies Injected: ['FeePaymentLockService']
+  Services Used: ['FeePaymentLockService']
+----------------------------------------
+
+Controller: App\Http\Controllers\Admin\InventoryController
+  Path: Admin\InventoryController.php
+  Methods: ['index', 'assetMaster', 'furnitureManagement', 'labEquipmentManagement', 'electronicsManagement', 'reports', 'auditLogs', 'exportAuditLogs']
+  Dependencies Injected: []
+  Services Used: []
+----------------------------------------
+
+Controller: App\Http\Controllers\Admin\LanguageController
+  Path: Admin\LanguageController.php
+  Methods: ['index', 'create', 'store', 'show', 'edit', 'update', 'destroy', 'translations', 'storeTranslation', 'updateTranslation', 'destroyTranslation', 'switchLanguage', 'exportTranslations', 'importTranslations']
+  Dependencies Injected: []
+  Services Used: []
+----------------------------------------
+
+Controller: App\Http\Controllers\Admin\LanguageSettingController
+  Path: Admin\LanguageSettingController.php
+  Methods: ['index', 'create', 'store', 'show', 'edit', 'update', 'destroy', 'setDefault', 'toggleStatus']
+  Dependencies Injected: []
+  Services Used: []
+----------------------------------------
+
+Controller: App\Http\Controllers\Admin\LessonPlanController
+  Path: Admin\LessonPlanController.php
+  Methods: ['index', 'show']
+  Dependencies Injected: []
+  Services Used: []
+----------------------------------------
+
+Controller: App\Http\Controllers\Admin\LibraryController
+  Path: Admin\LibraryController.php
+  Methods: ['index', 'issueBook', 'returnBook', 'opac', 'updateSettings']
+  Dependencies Injected: []
+  Services Used: []
+----------------------------------------
+
+Controller: App\Http\Controllers\Admin\LibrarySettingController
+  Path: Admin\LibrarySettingController.php
+  Methods: ['index', 'update']
+  Dependencies Injected: []
+  Services Used: []
+----------------------------------------
+
+Controller: App\Http\Controllers\Admin\MarksModerationController
+  Path: Admin\MarksModerationController.php
+  Methods: ['index', 'moderate', 'applyGrace']
+  Dependencies Injected: ['AssessmentModeratorService']
+  Services Used: ['AssessmentModeratorService']
+----------------------------------------
+
+Controller: App\Http\Controllers\Admin\NotificationSettingController
+  Path: Admin\NotificationSettingController.php
+  Methods: ['index', 'create', 'store', 'show', 'edit', 'update', 'destroy', 'logs', 'sendTest', 'sendBulk']
+  Dependencies Injected: []
+  Services Used: []
+----------------------------------------
+
+Controller: App\Http\Controllers\Admin\NotificationTemplateController
+  Path: Admin\NotificationTemplateController.php
+  Methods: ['index', 'create', 'store', 'show', 'edit', 'update', 'destroy', 'test']
+  Dependencies Injected: []
+  Services Used: []
+----------------------------------------
+
+Controller: App\Http\Controllers\Admin\OperationsController
+  Path: Admin\OperationsController.php
+  Methods: ['dashboard', 'health', 'backupIndex', 'backupRun', 'backupRestore', 'backupDownload', 'backupDelete', 'queueIndex', 'queueRetry', 'queueRetryAll', 'queueClearFailed', 'schedulerIndex', 'notificationsIndex', 'notificationsRetry', 'verificationIndex', 'verificationRun', 'logsIndex', 'timelineIndex', 'licenseIndex', 'licenseActivate', 'maintenanceIndex', 'maintenanceToggle', 'performanceIndex', 'settings', 'updateSettings']
+  Dependencies Injected: ['DiagnosticEngine', 'BackupService', 'QueueMonitor', 'SchedulerInspector', 'LogService', 'PerformanceTracker', 'InstallationChecker', 'ErpRegistry']
+  Services Used: ['DiagnosticEngine', 'PerformanceTracker', 'BackupService', 'LogService', 'QueueMonitor', 'InstallationChecker', 'SchedulerInspector', 'ErpRegistry']
+----------------------------------------
+
+Controller: App\Http\Controllers\Admin\PaymentSettingsController
+  Path: Admin\PaymentSettingsController.php
+  Methods: ['showPaymentSettings', 'updatePaymentSettings']
+  Dependencies Injected: []
+  Services Used: []
+----------------------------------------
+
+Controller: App\Http\Controllers\Admin\PerformanceAnalyticsController
+  Path: Admin\PerformanceAnalyticsController.php
+  Methods: ['index', 'dashboard', 'export']
+  Dependencies Injected: []
+  Services Used: []
+----------------------------------------
+
+Controller: App\Http\Controllers\Admin\PerformanceController
+  Path: Admin\PerformanceController.php
+  Methods: ['index', 'scores', 'calculate']
+  Dependencies Injected: []
+  Services Used: []
+----------------------------------------
+
+Controller: App\Http\Controllers\Admin\PermissionController
+  Path: Admin\PermissionController.php
+  Methods: ['index', 'create', 'store', 'show', 'edit', 'update', 'destroy']
+  Dependencies Injected: []
+  Services Used: []
+----------------------------------------
+
+Controller: App\Http\Controllers\Admin\ProfessionalDashboardController
+  Path: Admin\ProfessionalDashboardController.php
+  Methods: ['adminDashboard', 'getRealTimeUpdates', 'refreshSection', 'getDashboardWidgets', 'savePreferences', 'exportDashboardData', 'getNotifications', 'markNotificationRead']
+  Dependencies Injected: ['ProfessionalDashboardService']
+  Services Used: ['ProfessionalDashboardService']
+----------------------------------------
+
+Controller: App\Http\Controllers\Admin\ProfessionalFeeManagementController
+  Path: Admin\ProfessionalFeeManagementController.php
+  Methods: ['dashboard', 'feeHeads', 'createFeeHead', 'createFeeStructure', 'storeFeeStructure', 'assignToStudent', 'collectionReport', 'defaulters', 'generateReceipt', 'forecasting', 'bulkAssign', 'previewStructure', 'exportData']
+  Dependencies Injected: ['ProfessionalFeeManagementService']
+  Services Used: ['ProfessionalFeeManagementService']
+----------------------------------------
+
+Controller: App\Http\Controllers\Admin\ProfessionalHomeworkController
+  Path: Admin\ProfessionalHomeworkController.php
+  Methods: ['index', 'show', 'destroy']
+  Dependencies Injected: []
+  Services Used: []
+----------------------------------------
+
+Controller: App\Http\Controllers\Admin\ProfessionalLessonPlanController
+  Path: Admin\ProfessionalLessonPlanController.php
+  Methods: ['index', 'show', 'destroy']
+  Dependencies Injected: []
+  Services Used: []
+----------------------------------------
+
+Controller: App\Http\Controllers\Admin\ReportBuilderController
+  Path: Admin\ReportBuilderController.php
+  Methods: ['index', 'generate', 'export', 'saveTemplate', 'templates', 'scheduleReport']
+  Dependencies Injected: []
+  Services Used: []
+----------------------------------------
+
+Controller: App\Http\Controllers\Admin\ReportCardDesignerController
+  Path: Admin\ReportCardDesignerController.php
+  Methods: ['index', 'storeTemplate', 'storePromotionRule', 'checkPromotion']
+  Dependencies Injected: ['AcademicRankerService']
+  Services Used: ['AcademicRankerService']
+----------------------------------------
+
+Controller: App\Http\Controllers\Admin\ReportController
+  Path: Admin\ReportController.php
+  Methods: ['index', 'generate', 'templates']
+  Dependencies Injected: []
+  Services Used: []
+----------------------------------------
+
+Controller: App\Http\Controllers\Admin\ResultController
+  Path: Admin\ResultController.php
+  Methods: ['index', 'create', 'store', 'show', 'edit', 'update', 'destroy', 'generateReportCard', 'generateProfessionalFormat', 'generateCBSEProfessionalFormat', 'generateRankings', 'getClassToppers', 'lockResults', 'unlockResults', 'getStatistics', 'showBulkImport', 'processBulkImport', 'downloadSampleTemplate', 'exportResults', 'getSubjectByExam', 'showGenerateReportCardForm', 'generateReportCardFromForm', 'generateFinalResult']
+  Dependencies Injected: ['ProfessionalResultService', 'BulkResultImportService']
+  Services Used: ['ProfessionalResultService', 'BulkResultImportService']
+----------------------------------------
+
+Controller: App\Http\Controllers\Admin\ResultFormatController
+  Path: Admin\ResultFormatController.php
+  Methods: ['index', 'create', 'store', 'show', 'edit', 'update', 'destroy']
+  Dependencies Injected: []
+  Services Used: []
+----------------------------------------
+
+Controller: App\Http\Controllers\Admin\ResultMonitorController
+  Path: Admin\ResultMonitorController.php
+  Methods: ['index', 'classResultsView', 'classResults', 'getResultStatus']
+  Dependencies Injected: []
+  Services Used: []
+----------------------------------------
+
+Controller: App\Http\Controllers\Admin\RoleDashboardController
+  Path: Admin\RoleDashboardController.php
+  Methods: ['showDashboard', 'adminDashboard', 'teacherDashboard', 'studentDashboard', 'accountantDashboard']
+  Dependencies Injected: []
+  Services Used: []
+----------------------------------------
+
+Controller: App\Http\Controllers\Admin\SchoolClassController
+  Path: Admin\SchoolClassController.php
+  Methods: ['index', 'create', 'store', 'show', 'edit', 'update', 'destroy', 'restore']
+  Dependencies Injected: []
+  Services Used: []
+----------------------------------------
+
+Controller: App\Http\Controllers\Admin\SectionController
+  Path: Admin\SectionController.php
+  Methods: ['index', 'create', 'store', 'show', 'edit', 'update', 'destroy', 'restore']
+  Dependencies Injected: []
+  Services Used: []
+----------------------------------------
+
+Controller: App\Http\Controllers\Admin\SecurityController
+  Path: Admin\SecurityController.php
+  Methods: ['index', 'performAudit', 'auditHistory', 'generateReport', 'configure', 'updateSettings', 'monitorEvents', 'getRecommendations', 'testSecurity']
+  Dependencies Injected: ['SecurityAuditService']
+  Services Used: ['SecurityAuditService']
+----------------------------------------
+
+Controller: App\Http\Controllers\Admin\SetupWizardController
+  Path: Admin\SetupWizardController.php
+  Methods: ['index', 'showStep', 'submitStep', 'completeSetup', 'showResetForm', 'performReset']
+  Dependencies Injected: []
+  Services Used: []
+----------------------------------------
+
+Controller: App\Http\Controllers\Admin\SmartAttendanceController
+  Path: Admin\SmartAttendanceController.php
+  Methods: ['index', 'sendAttendanceAlerts', 'monthlyReport', 'bulkMonthlyReports', 'autoMarkAttendance', 'analytics']
+  Dependencies Injected: []
+  Services Used: []
+----------------------------------------
+
+Controller: App\Http\Controllers\Admin\StudentFinancialAccountController
+  Path: Admin\StudentFinancialAccountController.php
+  Methods: ['index', 'show', 'postAdjustment', 'exportPdf', 'exportExcel']
+  Dependencies Injected: ['LedgerService']
+  Services Used: ['FinanceAccountService']
+----------------------------------------
+
+Controller: App\Http\Controllers\Admin\StudentPromotionController
+  Path: Admin\StudentPromotionController.php
+  Methods: ['index', 'create', 'store', 'getStudentsByClass', 'getDestinationClasses', 'studentHistory', 'markAsPassedOut']
+  Dependencies Injected: []
+  Services Used: []
+----------------------------------------
+
+Controller: App\Http\Controllers\Admin\StudentStatusController
+  Path: Admin\StudentStatusController.php
+  Methods: ['index', 'create', 'store', 'show', 'edit', 'update', 'destroy']
+  Dependencies Injected: []
+  Services Used: []
+----------------------------------------
+
+Controller: App\Http\Controllers\Admin\SubjectController
+  Path: Admin\SubjectController.php
+  Methods: ['index', 'create', 'store', 'show', 'edit', 'update', 'destroy', 'restore']
+  Dependencies Injected: []
+  Services Used: []
+----------------------------------------
+
+Controller: App\Http\Controllers\Admin\SyllabusController
+  Path: Admin\SyllabusController.php
+  Methods: ['index', 'create', 'store', 'show', 'edit', 'update', 'destroy', 'progressReport']
+  Dependencies Injected: []
+  Services Used: []
+----------------------------------------
+
+Controller: App\Http\Controllers\Admin\SyncMonitorController
+  Path: Admin\SyncMonitorController.php
+  Methods: ['index', 'statistics', 'syncAll']
+  Dependencies Injected: ['BiometricSyncService']
+  Services Used: ['BiometricSyncService']
+----------------------------------------
+
+Controller: App\Http\Controllers\Admin\TeacherAttendanceController
+  Path: Admin\TeacherAttendanceController.php
+  Methods: ['index', 'create', 'store', 'show', 'reports', 'markAllPresent', 'updateAttendance', 'export']
+  Dependencies Injected: []
+  Services Used: []
+----------------------------------------
+
+Controller: App\Http\Controllers\Admin\TeacherBiometricController
+  Path: Admin\TeacherBiometricController.php
+  Methods: ['index', 'create', 'store', 'upload', 'show', 'edit', 'update', 'destroy', 'settings', 'updateSettings', 'reports', 'export', 'collection']
+  Dependencies Injected: []
+  Services Used: []
+----------------------------------------
+
+Controller: App\Http\Controllers\Admin\TeacherBulkUploadController
+  Path: Admin\TeacherBulkUploadController.php
+  Methods: ['create', 'store', 'downloadSample']
+  Dependencies Injected: []
+  Services Used: []
+----------------------------------------
+
+Controller: App\Http\Controllers\Admin\TeacherClassAssignmentController
+  Path: Admin\TeacherClassAssignmentController.php
+  Methods: ['index', 'create', 'store', 'edit', 'update', 'destroy']
+  Dependencies Injected: []
+  Services Used: []
+----------------------------------------
+
+Controller: App\Http\Controllers\Admin\TeacherClassSubjectAssignmentController
+  Path: Admin\TeacherClassSubjectAssignmentController.php
+  Methods: ['index', 'store']
+  Dependencies Injected: []
+  Services Used: []
+----------------------------------------
+
+Controller: App\Http\Controllers\Admin\TeacherSubjectAssignmentController
+  Path: Admin\TeacherSubjectAssignmentController.php
+  Methods: ['index', 'create', 'store', 'edit', 'update', 'destroy']
+  Dependencies Injected: []
+  Services Used: []
+----------------------------------------
+
+Controller: App\Http\Controllers\Admin\TeacherSubstitutionController
+  Path: Admin\TeacherSubstitutionController.php
+  Methods: ['index', 'create', 'store', 'show', 'edit', 'update', 'destroy', 'suggestSubstitutes', 'findAvailableTeachers', 'assignSubstitute', 'approveSubstitute', 'cancelSubstitute', 'today', 'absenceOverview', 'substitutionRules']
+  Dependencies Injected: []
+  Services Used: []
+----------------------------------------
+
+Controller: App\Http\Controllers\Admin\TerminalStatusReconciliationReportController
+  Path: Admin\TerminalStatusReconciliationReportController.php
+  Methods: ['index']
+  Dependencies Injected: []
+  Services Used: ['TerminalStatusReconciliationDetector']
+----------------------------------------
+
+Controller: App\Http\Controllers\Admin\TimetableController
+  Path: Admin\TimetableController.php
+  Methods: ['index', 'store', 'destroy', 'checkConflictsApi']
+  Dependencies Injected: []
+  Services Used: []
+----------------------------------------
+
+Controller: App\Http\Controllers\Admin\TransportFeeController
+  Path: Admin\TransportFeeController.php
+  Methods: ['index', 'collectForm', 'collect', 'generateDues']
+  Dependencies Injected: []
+  Services Used: ['LedgerService']
+----------------------------------------
+
+Controller: App\Http\Controllers\Admin\UniversalImportController
+  Path: Admin\UniversalImportController.php
+  Methods: ['dashboard', 'history', 'mappingProfiles', 'templates', 'showWizard', 'upload', 'dryRun', 'execute', 'rollback', 'progress', 'downloadErrors']
+  Dependencies Injected: ['ImportEngine']
+  Services Used: ['ImportEngine']
+----------------------------------------
+
+Controller: App\Http\Controllers\Admin\VisitorController
+  Path: Admin\VisitorController.php
+  Methods: ['index', 'checkIn', 'checkOut']
+  Dependencies Injected: []
+  Services Used: []
+----------------------------------------
+
+Controller: App\Http\Controllers\AttendanceController
+  Path: AttendanceController.php
+  Methods: ['index', 'create', 'store', 'show', 'edit', 'update', 'reports', 'studentReport', 'bulkMark', 'export', 'destroy', 'preflight', 'preflightView']
+  Dependencies Injected: []
+  Services Used: ['AttendanceBulkPreflightService', 'AttendanceClassResolver']
+----------------------------------------
+
+Controller: App\Http\Controllers\AuditLogController
+  Path: AuditLogController.php
+  Methods: ['index', 'show', 'destroy', 'getModelLogs', 'studentHistory']
+  Dependencies Injected: []
+  Services Used: []
+----------------------------------------
+
+Controller: App\Http\Controllers\Auth\CentralLoginController
+  Path: Auth\CentralLoginController.php
+  Methods: ['showLoginForm', 'login', 'logout']
+  Dependencies Injected: []
+  Services Used: []
+----------------------------------------
+
+Controller: App\Http\Controllers\Auth\LoginController
+  Path: Auth\LoginController.php
+  Methods: ['showLoginForm', 'login', 'logout']
+  Dependencies Injected: []
+  Services Used: []
+----------------------------------------
+
+Controller: App\Http\Controllers\Auth\TwoFactorAuthenticationController
+  Path: Auth\TwoFactorAuthenticationController.php
+  Methods: ['show', 'enable', 'verify', 'disable', 'regenerateRecoveryCodes', 'challenge']
+  Dependencies Injected: []
+  Services Used: []
+----------------------------------------
+
+Controller: App\Http\Controllers\BellScheduleController
+  Path: BellScheduleController.php
+  Methods: ['index', 'create', 'store', 'show', 'edit', 'update', 'destroy', 'getCurrentSchedule', 'liveMonitor']
+  Dependencies Injected: []
+  Services Used: []
+----------------------------------------
+
+Controller: App\Http\Controllers\BellTimingController
+  Path: BellTimingController.php
+  Methods: ['index', 'create', 'store', 'show', 'edit', 'update', 'destroy', 'weeklyTimetable', 'todaysSchedule', 'currentPeriod', 'bulkCreate', 'printTimetable']
+  Dependencies Injected: []
+  Services Used: []
+----------------------------------------
+
+Controller: App\Http\Controllers\ClassManagementController
+  Path: ClassManagementController.php
+  Methods: ['index', 'create', 'store', 'show', 'edit', 'update', 'destroy']
+  Dependencies Injected: []
+  Services Used: []
+----------------------------------------
+
+Controller: App\Http\Controllers\ClassTeacherAssignmentController
+  Path: ClassTeacherAssignmentController.php
+  Methods: ['index', 'create', 'store', 'show', 'edit', 'update', 'destroy', 'studentRecords']
+  Dependencies Injected: []
+  Services Used: []
+----------------------------------------
+
+Controller: App\Http\Controllers\Controller
+  Path: Controller.php
+  Methods: []
+  Dependencies Injected: []
+  Services Used: []
+----------------------------------------
+
+Controller: App\Http\Controllers\ExamHead\ExamHeadDashboardController
+  Path: ExamHead\ExamHeadDashboardController.php
+  Methods: ['index']
+  Dependencies Injected: []
+  Services Used: []
+----------------------------------------
+
+Controller: App\Http\Controllers\ExamPaperController
+  Path: ExamPaperController.php
+  Methods: ['index', 'create', 'store', 'show', 'edit', 'update', 'destroy', 'download', 'availableForClass', 'search', 'upcoming', 'togglePublish']
+  Dependencies Injected: []
+  Services Used: []
+----------------------------------------
+
+Controller: App\Http\Controllers\FieldPermissionController
+  Path: FieldPermissionController.php
+  Methods: ['index', 'create', 'store', 'show', 'edit', 'update', 'destroy']
+  Dependencies Injected: []
+  Services Used: []
+----------------------------------------
+
+Controller: App\Http\Controllers\FinalResultController
+  Path: FinalResultController.php
+  Methods: ['generate', 'downloadPdf', 'print']
+  Dependencies Injected: []
+  Services Used: []
+----------------------------------------
+
+Controller: App\Http\Controllers\HomeController
+  Path: HomeController.php
+  Methods: ['index', 'welcome']
+  Dependencies Injected: []
+  Services Used: []
+----------------------------------------
+
+Controller: App\Http\Controllers\NotificationController
+  Path: NotificationController.php
+  Methods: ['index', 'markAsRead', 'markAllAsRead']
+  Dependencies Injected: []
+  Services Used: []
+----------------------------------------
+
+Controller: App\Http\Controllers\ParentController
+  Path: ParentController.php
+  Methods: ['index', 'viewChild', 'getChildAttendance', 'getChildResults', 'getChildFees']
+  Dependencies Injected: []
+  Services Used: []
+----------------------------------------
+
+Controller: App\Http\Controllers\Parent\HomeworkController
+  Path: Parent\HomeworkController.php
+  Methods: ['index', 'show']
+  Dependencies Injected: []
+  Services Used: []
+----------------------------------------
+
+Controller: App\Http\Controllers\Parent\LessonPlanController
+  Path: Parent\LessonPlanController.php
+  Methods: ['index', 'show', 'booksToSend', 'weeklyOverview']
+  Dependencies Injected: []
+  Services Used: []
+----------------------------------------
+
+Controller: App\Http\Controllers\Parent\ParentAuthController
+  Path: Parent\ParentAuthController.php
+  Methods: ['showLogin', 'login', 'logout', 'dashboard', 'switchStudent']
+  Dependencies Injected: []
+  Services Used: []
+----------------------------------------
+
+Controller: App\Http\Controllers\Parent\ParentDashboardController
+  Path: Parent\ParentDashboardController.php
+  Methods: ['index', 'paymentHistory', 'feeStructure', 'downloadReceipt']
+  Dependencies Injected: []
+  Services Used: []
+----------------------------------------
+
+Controller: App\Http\Controllers\Parent\ParentExamPaperController
+  Path: Parent\ParentExamPaperController.php
+  Methods: ['index', 'show', 'download']
+  Dependencies Injected: []
+  Services Used: []
+----------------------------------------
+
+Controller: App\Http\Controllers\Parent\ParentHostelController
+  Path: Parent\ParentHostelController.php
+  Methods: ['index']
+  Dependencies Injected: []
+  Services Used: []
+----------------------------------------
+
+Controller: App\Http\Controllers\Parent\ParentPaymentController
+  Path: Parent\ParentPaymentController.php
+  Methods: ['showPaymentForm', 'processStripePayment', 'callbackSuccess']
+  Dependencies Injected: ['PaymentGatewayService']
+  Services Used: ['PaymentGatewayService']
+----------------------------------------
+
+Controller: App\Http\Controllers\Parent\ParentPtmController
+  Path: Parent\ParentPtmController.php
+  Methods: ['index', 'store']
+  Dependencies Injected: []
+  Services Used: []
+----------------------------------------
+
+Controller: App\Http\Controllers\Parent\ParentTransportController
+  Path: Parent\ParentTransportController.php
+  Methods: ['index']
+  Dependencies Injected: []
+  Services Used: []
+----------------------------------------
+
+Controller: App\Http\Controllers\Parent\ProfessionalHomeworkController
+  Path: Parent\ProfessionalHomeworkController.php
+  Methods: ['index', 'show']
+  Dependencies Injected: []
+  Services Used: []
+----------------------------------------
+
+Controller: App\Http\Controllers\Parent\ProfessionalLessonPlanController
+  Path: Parent\ProfessionalLessonPlanController.php
+  Methods: ['index', 'show']
+  Dependencies Injected: []
+  Services Used: []
+----------------------------------------
+
+Controller: App\Http\Controllers\PaymentController
+  Path: PaymentController.php
+  Methods: ['showPaymentForm', 'processPayment', 'createPaymentIntent', 'handleWebhook']
+  Dependencies Injected: ['StripePaymentService']
+  Services Used: ['StripePaymentService', 'AuditLogService']
+----------------------------------------
+
+Controller: App\Http\Controllers\ResultController
+  Path: ResultController.php
+  Methods: ['index', 'create', 'store', 'show', 'edit', 'update', 'destroy', 'generateSingleSubjectResult', 'generatePdf', 'toggleLock', 'bulkUpload']
+  Dependencies Injected: []
+  Services Used: []
+----------------------------------------
+
+Controller: App\Http\Controllers\ResultEntryController
+  Path: ResultEntryController.php
+  Methods: ['index', 'create', 'store', 'edit', 'update', 'destroy', 'verify', 'unverify', 'bulkEntryForm', 'processBulkEntry']
+  Dependencies Injected: []
+  Services Used: []
+----------------------------------------
+
+Controller: App\Http\Controllers\ResultVerificationController
+  Path: ResultVerificationController.php
+  Methods: ['index', 'show', 'bulkVerify', 'bulkUnverify', 'statistics']
+  Dependencies Injected: []
+  Services Used: []
+----------------------------------------
+
+Controller: App\Http\Controllers\RolePermissionController
+  Path: RolePermissionController.php
+  Methods: ['index', 'edit', 'update', 'editUserRoles', 'updateUserRoles']
+  Dependencies Injected: []
+  Services Used: []
+----------------------------------------
+
+Controller: App\Http\Controllers\SectionController
+  Path: SectionController.php
+  Methods: ['index', 'create', 'store', 'show', 'edit', 'update', 'destroy']
+  Dependencies Injected: []
+  Services Used: []
+----------------------------------------
+
+Controller: App\Http\Controllers\SpecialDayOverrideController
+  Path: SpecialDayOverrideController.php
+  Methods: ['index', 'create', 'store', 'show', 'edit', 'update', 'destroy']
+  Dependencies Injected: []
+  Services Used: []
+----------------------------------------
+
+Controller: App\Http\Controllers\StudentAdmitCardController
+  Path: StudentAdmitCardController.php
+  Methods: ['index', 'show', 'downloadPdf']
+  Dependencies Injected: []
+  Services Used: []
+----------------------------------------
+
+Controller: App\Http\Controllers\StudentController
+  Path: StudentController.php
+  Methods: ['index', 'create', 'store', 'show', 'edit', 'update', 'destroy']
+  Dependencies Injected: []
+  Services Used: []
+----------------------------------------
+
+Controller: App\Http\Controllers\StudentDailyTeachingWorkController
+  Path: StudentDailyTeachingWorkController.php
+  Methods: ['index', 'show', 'downloadAttachment']
+  Dependencies Injected: []
+  Services Used: []
+----------------------------------------
+
+Controller: App\Http\Controllers\StudentImportExportController
+  Path: StudentImportExportController.php
+  Methods: ['exportCSV', 'exportExcel', 'collection', 'headings', 'previewImportCsv', 'applyImportCsv', 'importCSV']
+  Dependencies Injected: []
+  Services Used: ['StudentImportNormalizer']
+----------------------------------------
+
+Controller: App\Http\Controllers\StudentResultController
+  Path: StudentResultController.php
+  Methods: ['index', 'show', 'generatePDF']
+  Dependencies Injected: []
+  Services Used: []
+----------------------------------------
+
+Controller: App\Http\Controllers\StudentVerificationController
+  Path: StudentVerificationController.php
+  Methods: ['index', 'show', 'uploadDocuments', 'verifyDocument', 'markAsVerified']
+  Dependencies Injected: []
+  Services Used: []
+----------------------------------------
+
+Controller: App\Http\Controllers\Student\StudentDisciplineController
+  Path: Student\StudentDisciplineController.php
+  Methods: ['index']
+  Dependencies Injected: []
+  Services Used: []
+----------------------------------------
+
+Controller: App\Http\Controllers\Student\StudentExamPaperController
+  Path: Student\StudentExamPaperController.php
+  Methods: ['index', 'download']
+  Dependencies Injected: []
+  Services Used: []
+----------------------------------------
+
+Controller: App\Http\Controllers\Student\StudentHomeworkController
+  Path: Student\StudentHomeworkController.php
+  Methods: ['index', 'submitForm', 'storeSubmission']
+  Dependencies Injected: []
+  Services Used: []
+----------------------------------------
+
+Controller: App\Http\Controllers\Student\StudentLeaveController
+  Path: Student\StudentLeaveController.php
+  Methods: ['index', 'store']
+  Dependencies Injected: []
+  Services Used: []
+----------------------------------------
+
+Controller: App\Http\Controllers\Student\StudentMedicalController
+  Path: Student\StudentMedicalController.php
+  Methods: ['index']
+  Dependencies Injected: []
+  Services Used: []
+----------------------------------------
+
+Controller: App\Http\Controllers\Student\StudentQuizController
+  Path: Student\StudentQuizController.php
+  Methods: ['index', 'showTake', 'storeSubmission']
+  Dependencies Injected: []
+  Services Used: []
+----------------------------------------
+
+Controller: App\Http\Controllers\SubjectController
+  Path: SubjectController.php
+  Methods: ['index', 'create', 'store', 'show', 'edit', 'update', 'destroy']
+  Dependencies Injected: []
+  Services Used: []
+----------------------------------------
+
+Controller: App\Http\Controllers\TeacherController
+  Path: TeacherController.php
+  Methods: ['index', 'create', 'store', 'show', 'edit', 'update', 'toggleExamHead', 'destroy']
+  Dependencies Injected: []
+  Services Used: []
+----------------------------------------
+
+Controller: App\Http\Controllers\TeacherExperienceController
+  Path: TeacherExperienceController.php
+  Methods: ['index', 'generateExperienceCertificate']
+  Dependencies Injected: []
+  Services Used: []
+----------------------------------------
+
+Controller: App\Http\Controllers\TeacherResultController
+  Path: TeacherResultController.php
+  Methods: ['index', 'enterMarks', 'saveMarks', 'showResults']
+  Dependencies Injected: []
+  Services Used: []
+----------------------------------------
+
+Controller: App\Http\Controllers\Teacher\BiometricController
+  Path: Teacher\BiometricController.php
+  Methods: ['dashboard', 'getRecords', 'monthlySummary', 'downloadReport', 'notificationPreferences', 'updateNotificationPreferences', 'collection']
+  Dependencies Injected: []
+  Services Used: []
+----------------------------------------
+
+Controller: App\Http\Controllers\Teacher\ClassTeacherChecklistController
+  Path: Teacher\ClassTeacherChecklistController.php
+  Methods: ['index', 'store']
+  Dependencies Injected: []
+  Services Used: []
+----------------------------------------
+
+Controller: App\Http\Controllers\Teacher\ExamHeadController
+  Path: Teacher\ExamHeadController.php
+  Methods: ['index', 'approve', 'edit']
+  Dependencies Injected: []
+  Services Used: []
+----------------------------------------
+
+Controller: App\Http\Controllers\Teacher\LessonPlanController
+  Path: Teacher\LessonPlanController.php
+  Methods: ['index', 'create', 'store', 'show', 'edit', 'update', 'destroy']
+  Dependencies Injected: []
+  Services Used: []
+----------------------------------------
+
+Controller: App\Http\Controllers\Teacher\ProfessionalLessonPlanController
+  Path: Teacher\ProfessionalLessonPlanController.php
+  Methods: ['index', 'create', 'store', 'show', 'edit', 'update', 'destroy']
+  Dependencies Injected: []
+  Services Used: []
+----------------------------------------
+
+Controller: App\Http\Controllers\Teacher\TeacherAttendanceController
+  Path: Teacher\TeacherAttendanceController.php
+  Methods: ['dashboard', 'markAttendance', 'storeAttendance', 'reports', 'studentAttendance', 'editAttendance', 'updateAttendance', 'exportAttendance']
+  Dependencies Injected: ['AttendanceService', 'AttendanceNotificationService']
+  Services Used: ['AttendanceNotificationService', 'AttendanceService']
+----------------------------------------
+
+Controller: App\Http\Controllers\Teacher\TeacherAuthController
+  Path: Teacher\TeacherAuthController.php
+  Methods: ['showLogin', 'login', 'logout']
+  Dependencies Injected: []
+  Services Used: []
+----------------------------------------
+
+Controller: App\Http\Controllers\Teacher\TeacherClassController
+  Path: Teacher\TeacherClassController.php
+  Methods: ['index', 'students']
+  Dependencies Injected: []
+  Services Used: ['TeacherAcademicService']
+----------------------------------------
+
+Controller: App\Http\Controllers\Teacher\TeacherDashboardController
+  Path: Teacher\TeacherDashboardController.php
+  Methods: ['index']
+  Dependencies Injected: []
+  Services Used: ['TeacherAcademicService']
+----------------------------------------
+
+Controller: App\Http\Controllers\Teacher\TeacherExamController
+  Path: Teacher\TeacherExamController.php
+  Methods: ['index', 'create', 'store', 'show', 'edit', 'update', 'destroy']
+  Dependencies Injected: []
+  Services Used: ['TeacherAcademicService']
+----------------------------------------
+
+Controller: App\Http\Controllers\Teacher\TeacherExamPaperController
+  Path: Teacher\TeacherExamPaperController.php
+  Methods: ['index', 'create', 'store', 'show', 'edit', 'update', 'destroy']
+  Dependencies Injected: []
+  Services Used: []
+----------------------------------------
+
+Controller: App\Http\Controllers\Teacher\TeacherHomeworkController
+  Path: Teacher\TeacherHomeworkController.php
+  Methods: ['index', 'create', 'store', 'edit', 'update', 'destroy', 'show']
+  Dependencies Injected: []
+  Services Used: []
+----------------------------------------
+
+Controller: App\Http\Controllers\Teacher\TeacherHomeworkSubmissionController
+  Path: Teacher\TeacherHomeworkSubmissionController.php
+  Methods: ['index', 'evaluateForm', 'storeEvaluation']
+  Dependencies Injected: []
+  Services Used: []
+----------------------------------------
+
+Controller: App\Http\Controllers\Teacher\TeacherLeaveController
+  Path: Teacher\TeacherLeaveController.php
+  Methods: ['index', 'create', 'store']
+  Dependencies Injected: []
+  Services Used: []
+----------------------------------------
+
+Controller: App\Http\Controllers\Teacher\TeacherMarksController
+  Path: Teacher\TeacherMarksController.php
+  Methods: ['index', 'uploadForm', 'show', 'store']
+  Dependencies Injected: []
+  Services Used: []
+----------------------------------------
+
+Controller: App\Http\Controllers\Teacher\TeacherNotebookCheckingController
+  Path: Teacher\TeacherNotebookCheckingController.php
+  Methods: ['index', 'store']
+  Dependencies Injected: []
+  Services Used: []
+----------------------------------------
+
+Controller: App\Http\Controllers\Teacher\TeacherNoticeController
+  Path: Teacher\TeacherNoticeController.php
+  Methods: ['index']
+  Dependencies Injected: []
+  Services Used: []
+----------------------------------------
+
+Controller: App\Http\Controllers\Teacher\TeacherProfileController
+  Path: Teacher\TeacherProfileController.php
+  Methods: ['show', 'update', 'changePasswordForm', 'changePassword']
+  Dependencies Injected: []
+  Services Used: []
+----------------------------------------
+
+Controller: App\Http\Controllers\Teacher\TeacherQuizController
+  Path: Teacher\TeacherQuizController.php
+  Methods: ['index', 'storeQuiz', 'showQuiz', 'storeQuestion']
+  Dependencies Injected: []
+  Services Used: []
+----------------------------------------
+
+Controller: App\Http\Controllers\Teacher\TeacherRemedialController
+  Path: Teacher\TeacherRemedialController.php
+  Methods: ['index', 'store']
+  Dependencies Injected: []
+  Services Used: []
+----------------------------------------
+
+Controller: App\Http\Controllers\Teacher\TeacherSalaryController
+  Path: Teacher\TeacherSalaryController.php
+  Methods: ['index', 'downloadSlip']
+  Dependencies Injected: []
+  Services Used: []
+----------------------------------------
+
+Controller: App\Http\Controllers\Teacher\TeacherSectionController
+  Path: Teacher\TeacherSectionController.php
+  Methods: ['getSectionsByClass']
+  Dependencies Injected: []
+  Services Used: []
+----------------------------------------
+
+Controller: App\Http\Controllers\Teacher\TeacherStudentLeaveController
+  Path: Teacher\TeacherStudentLeaveController.php
+  Methods: ['index', 'update']
+  Dependencies Injected: []
+  Services Used: []
+----------------------------------------
+
+Controller: App\Http\Controllers\UserController
+  Path: UserController.php
+  Methods: ['index', 'create', 'store', 'show', 'edit', 'update', 'destroy']
+  Dependencies Injected: []
+  Services Used: []
+----------------------------------------
+
+Controller: App\Http\Controllers\WebhookController
+  Path: WebhookController.php
+  Methods: ['handleBiometricWebhook', 'healthCheck', 'getConfigInfo']
+  Dependencies Injected: ['BiometricSyncService']
+  Services Used: ['BiometricSyncService']
+----------------------------------------
+

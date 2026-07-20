@@ -55,16 +55,27 @@ class ExamController extends Controller
             'start_time' => 'required|date_format:H:i',
             'end_time' => 'required|date_format:H:i|after:start_time',
             'total_marks' => 'required|numeric|min:0',
-            'passing_marks' => 'required|numeric|min:0|max:total_marks',
+            'passing_marks' => 'required|numeric|min:0',
             'description' => 'nullable|string',
             'academic_year' => 'required|string|max:20',
             'term' => 'required|string|max:50',
-            'status' => 'required|in:active,scheduled,cancelled,completed'
+            'status' => 'required|in:active,scheduled,ongoing,cancelled,completed'
         ]);
+        
+        // Validate that passing marks don't exceed total marks
+        if ($request->passing_marks > $request->total_marks) {
+            return redirect()->back()->withErrors(['passing_marks' => 'Passing marks cannot be greater than total marks.']);
+        }
 
+        // Normalize status value to match database enum
+        $normalizedStatus = $request->status === 'active' ? 'scheduled' : $request->status;
+        
         Exam::create(array_merge(
-            $request->all(),
-            ['created_by' => Auth::id()]
+            $request->except('status'),
+            [
+                'status' => $normalizedStatus,
+                'created_by' => Auth::id()
+            ]
         ));
 
         return redirect()->route('admin.exams.index')
@@ -108,14 +119,25 @@ class ExamController extends Controller
             'start_time' => 'required|date_format:H:i',
             'end_time' => 'required|date_format:H:i|after:start_time',
             'total_marks' => 'required|numeric|min:0',
-            'passing_marks' => 'required|numeric|min:0|max:total_marks',
+            'passing_marks' => 'required|numeric|min:0',
             'description' => 'nullable|string',
             'academic_year' => 'required|string|max:20',
             'term' => 'required|string|max:50',
-            'status' => 'required|in:active,scheduled,cancelled,completed'
+            'status' => 'required|in:active,scheduled,ongoing,cancelled,completed'
         ]);
+        
+        // Validate that passing marks don't exceed total marks
+        if ($request->passing_marks > $request->total_marks) {
+            return redirect()->back()->withErrors(['passing_marks' => 'Passing marks cannot be greater than total marks.']);
+        }
 
-        $exam->update($request->all());
+        // Normalize status value to match database enum
+        $normalizedStatus = $request->status === 'active' ? 'scheduled' : $request->status;
+        
+        $exam->update(array_merge(
+            $request->except('status'),
+            ['status' => $normalizedStatus]
+        ));
 
         return redirect()->route('admin.exams.index')
                          ->with('success', 'Exam updated successfully.');
@@ -132,5 +154,18 @@ class ExamController extends Controller
 
         return redirect()->route('admin.exams.index')
                          ->with('success', 'Exam deleted successfully.');
+    }
+    
+    /**
+     * Get exam details for AJAX requests
+     */
+    public function getExamDetails(Exam $exam)
+    {
+        return response()->json([
+            'subject' => $exam->subject,
+            'total_marks' => $exam->total_marks,
+            'passing_marks' => $exam->passing_marks,
+            'name' => $exam->name
+        ]);
     }
 }

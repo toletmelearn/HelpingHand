@@ -67,11 +67,14 @@
                                                    class="btn btn-outline-secondary" title="Edit">
                                                     <i class="fas fa-edit"></i>
                                                 </a>
-                                                @if($substitution->isPending())
-                                                    <a href="{{ route('admin.teacher-substitutions.assign', $substitution) }}" 
-                                                       class="btn btn-outline-success" title="Assign Substitute">
-                                                        <i class="fas fa-user-check"></i>
-                                                    </a>
+                                                @if($substitution->isPending() && $substitution->substituteTeacher)
+                                                    <form action="{{ route('admin.teacher-substitutions.assign', $substitution) }}" method="POST" style="display:inline;">
+                                                        @csrf
+                                                        <input type="hidden" name="substitute_teacher_id" value="{{ $substitution->substitute_teacher_id }}">
+                                                        <button type="submit" class="btn btn-outline-success" title="Assign Substitute">
+                                                            <i class="fas fa-user-check"></i>
+                                                        </button>
+                                                    </form>
                                                 @endif
                                             </div>
                                         </td>

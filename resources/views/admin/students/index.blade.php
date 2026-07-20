@@ -172,6 +172,43 @@
                         @endif
                         
                     @else
+                        @if(auth()->user()->hasRole('admin'))
+                        <!-- Manage Classes -->
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <h5 class="mb-0">Manage Classes</h5>
+                            <button type="button" class="btn btn-success btn-sm" data-bs-toggle="modal" data-bs-target="#addClassModal">
+                                <i class="fas fa-plus"></i> Add New Class
+                            </button>
+                        </div>
+                        <div class="table-responsive mb-4">
+                            <table class="table table-sm table-bordered align-middle">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Class</th>
+                                        <th class="text-center">Total Students (all sections)</th>
+                                        <th class="text-center">Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @forelse($classTotals as $ct)
+                                    <tr>
+                                        <td>{{ $ct->schoolClass->name ?? 'N/A' }}</td>
+                                        <td class="text-center">{{ $ct->total }}</td>
+                                        <td class="text-center">
+                                            <button type="button" class="btn btn-outline-danger btn-sm"
+                                                    onclick="openDeleteClassModal({{ $ct->class_id }}, '{{ addslashes($ct->schoolClass->name ?? '') }}', {{ $ct->total }})">
+                                                <i class="fas fa-trash"></i> Delete Class &amp; Students
+                                            </button>
+                                        </td>
+                                    </tr>
+                                    @empty
+                                    <tr><td colspan="3" class="text-center text-muted">No classes found.</td></tr>
+                                    @endforelse
+                                </tbody>
+                            </table>
+                        </div>
+                        @endif
+
                         <!-- Class-Section Grouped View -->
                         <div class="row">
                             @forelse($classSections as $cs)
@@ -180,10 +217,10 @@
                                     <div class="card-body">
                                         <h5 class="card-title">{{ $cs->schoolClass->name ?? 'N/A' }}</h5>
                                         <p class="card-text">
-                                            <strong>Section:</strong> {{ $cs->section ?: 'N/A' }}<br>
+                                            <strong>Section:</strong> {{ $cs->section->name ?? 'N/A' }}<br>
                                             <strong>Students:</strong> {{ $cs->total }}
                                         </p>
-                                        <a href="{{ route('admin.students.index', array_filter(['class_id' => $cs->class_id, 'section_id' => $cs->section_id, 'section' => $cs->section_id ? null : $cs->section], fn($value) => $value !== null && $value !== '')) }}" 
+                                        <a href="{{ route('admin.students.index', array_filter(['class_id' => $cs->class_id, 'section_id' => $cs->section_id, 'section' => $cs->section_id ? null : $cs->section], fn($value) => $value !== null && $value !== '')) }}"
                                            class="btn btn-primary btn-sm">
                                             <i class="fas fa-eye"></i> View
                                         </a>
@@ -205,6 +242,96 @@
     </div>
 </div>
 
+@if(auth()->user()->hasRole('admin') && isset($showingStudents) && !$showingStudents)
+<!-- Add New Class -->
+<div class="modal fade" id="addClassModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="POST" action="{{ route('admin.school-classes.store') }}">
+                @csrf
+                <div class="modal-header">
+                    <h5 class="modal-title">Add New Class</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Class Name</label>
+                        <input type="text" name="name" class="form-control" placeholder="e.g. Class 13" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Order / Level</label>
+                        <input type="number" name="class_order" class="form-control" min="1" placeholder="Position in the class sequence, e.g. 16" required>
+                        <small class="text-muted">Determines ordering and which class students promote into next -- must be unique.</small>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Academic Session (optional)</label>
+                        <select name="academic_session_id" class="form-select">
+                            <option value="">-- None --</option>
+                            @foreach($academicSessions ?? [] as $session)
+                                <option value="{{ $session->id }}">{{ $session->name ?? $session->id }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-success">Create Class</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Class & Students -->
+<div class="modal fade" id="deleteClassModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="POST" id="deleteClassForm">
+                @csrf
+                @method('DELETE')
+                <div class="modal-header bg-danger text-white">
+                    <h5 class="modal-title"><i class="fas fa-exclamation-triangle"></i> Delete Class &amp; Students</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="text-danger fw-bold">
+                        This permanently removes the class "<span id="deleteClassName"></span>" and all
+                        <span id="deleteClassCount"></span> student(s) currently in it -- across every section.
+                        This cannot be undone from the UI.
+                    </p>
+                    <p>Type the class name exactly to confirm:</p>
+                    <input type="text" id="deleteClassConfirmInput" class="form-control" autocomplete="off">
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-danger" id="deleteClassSubmitBtn" disabled>
+                        <i class="fas fa-trash"></i> Delete Class &amp; Students
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+let deleteClassExpectedName = '';
+
+function openDeleteClassModal(classId, className, total) {
+    deleteClassExpectedName = className;
+    document.getElementById('deleteClassName').textContent = className;
+    document.getElementById('deleteClassCount').textContent = total;
+    document.getElementById('deleteClassConfirmInput').value = '';
+    document.getElementById('deleteClassSubmitBtn').disabled = true;
+    document.getElementById('deleteClassForm').action = '/admin/school-classes/' + classId + '/with-students';
+    new bootstrap.Modal(document.getElementById('deleteClassModal')).show();
+}
+
+document.getElementById('deleteClassConfirmInput').addEventListener('input', function () {
+    document.getElementById('deleteClassSubmitBtn').disabled = (this.value !== deleteClassExpectedName);
+});
+</script>
+@endif
+
 @if(\App\Helpers\FieldPermissionHelper::canEditField('student', 'photo'))
 <div class="modal fade" id="changeStudentPhotoModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog">
@@ -216,8 +343,8 @@
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body">
-                    <input type="file" name="photo" class="form-control" accept="image/jpeg,image/png,image/gif" required>
-                    <small class="text-muted">JPEG, PNG or GIF, up to 2MB.</small>
+                    <input type="file" name="photo" class="form-control" accept="image/jpeg,image/png,image/gif,image/webp,image/bmp" required>
+                    <small class="text-muted">JPEG, PNG, GIF, WEBP or BMP, up to 8MB.</small>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>

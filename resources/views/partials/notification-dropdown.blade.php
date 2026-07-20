@@ -55,7 +55,7 @@ document.addEventListener('DOMContentLoaded', function() {
             e.preventDefault();
             const notificationId = this.getAttribute('data-id');
             
-            fetch(`/api/notifications/${notificationId}/read`, {
+            fetch(`/api/v1/notifications/${notificationId}/read`, {
                 method: 'PUT',
                 headers: {
                     'Content-Type': 'application/json',
@@ -82,7 +82,7 @@ document.addEventListener('DOMContentLoaded', function() {
     document.getElementById('mark-all-read').addEventListener('click', function(e) {
         e.preventDefault();
         
-        fetch('/api/notifications/mark-all-read', {
+        fetch('/api/v1/notifications/mark-all-read', {
             method: 'PUT',
             headers: {
                 'Content-Type': 'application/json',
@@ -109,7 +109,7 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Function to update notification count
     function updateNotificationCount() {
-        fetch('/api/notifications/unread-count', {
+        fetch('/api/v1/notifications/unread-count', {
             method: 'GET',
             headers: {
                 'X-Requested-With': 'XMLHttpRequest',

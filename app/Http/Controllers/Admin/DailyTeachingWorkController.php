@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\DailyTeachingWork;
 use App\Models\Teacher;
+use App\Models\Subject;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -52,9 +53,9 @@ class DailyTeachingWorkController extends Controller
         $dailyWorks = $query->paginate(15);
         
         // Get filters for dropdowns
-        $teachers = Teacher::all();
+        $teachers = Teacher::active()->get();
         $classes = DailyTeachingWork::select('class_name')->distinct()->pluck('class_name');
-        $subjects = DailyTeachingWork::select('subject')->distinct()->pluck('subject');
+        $subjects = Subject::where('is_active', true)->pluck('name', 'name');
         $sections = DailyTeachingWork::select('section')->distinct()->pluck('section');
         
         return view('admin.daily-teaching-work.index', compact('dailyWorks', 'teachers', 'classes', 'subjects', 'sections'));
@@ -65,10 +66,10 @@ class DailyTeachingWorkController extends Controller
      */
     public function create()
     {
-        $teachers = Teacher::all();
+        $teachers = Teacher::active()->get();
         $classes = collect(["Nursery", "LKG", "UKG", "1st", "2nd", "3rd", "4th", "5th", "6th", "7th", "8th", "9th", "10th", "11th", "12th"]);
         $sections = collect(["A", "B", "C", "D", "E"]);
-        $subjects = DailyTeachingWork::select('subject')->distinct()->pluck('subject');
+        $subjects = Subject::where('is_active', true)->pluck('name', 'name');
         
         return view('admin.daily-teaching-work.create', compact('teachers', 'classes', 'sections', 'subjects'));
     }
@@ -142,10 +143,10 @@ class DailyTeachingWorkController extends Controller
      */
     public function edit(DailyTeachingWork $dailyTeachingWork)
     {
-        $teachers = Teacher::all();
+        $teachers = Teacher::active()->get();
         $classes = collect(["Nursery", "LKG", "UKG", "1st", "2nd", "3rd", "4th", "5th", "6th", "7th", "8th", "9th", "10th", "11th", "12th"]);
         $sections = collect(["A", "B", "C", "D", "E"]);
-        $subjects = DailyTeachingWork::select('subject')->distinct()->pluck('subject');
+        $subjects = Subject::where('is_active', true)->pluck('name', 'name');
         
         return view('admin.daily-teaching-work.edit', compact('dailyTeachingWork', 'teachers', 'classes', 'sections', 'subjects'));
     }

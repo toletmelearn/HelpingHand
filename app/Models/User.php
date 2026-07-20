@@ -100,6 +100,41 @@ class User extends Authenticatable
         return $this->belongsToMany(Role::class, 'role_user', 'user_id', 'role_id');
     }
 
+    public function counselledEnquiries()
+    {
+        return $this->hasMany(AdmissionEnquiry::class, 'counsellor_id');
+    }
+
+    public function appointmentsToMeet()
+    {
+        return $this->hasMany(Appointment::class, 'teacher_id');
+    }
+
+    public function appointmentsCreated()
+    {
+        return $this->hasMany(Appointment::class, 'receptionist_id');
+    }
+
+    public function assignedCallLogs()
+    {
+        return $this->hasMany(CallLog::class, 'assigned_user_id');
+    }
+
+    public function couriersReceived()
+    {
+        return $this->hasMany(Courier::class, 'recipient_user_id');
+    }
+
+    public function gatePasses()
+    {
+        return $this->hasMany(GatePass::class, 'user_id');
+    }
+
+    public function gatePassesApproved()
+    {
+        return $this->hasMany(GatePass::class, 'approved_by');
+    }
+
     // Methods for role management
     public function assignRole($roleName)
     {
@@ -117,14 +152,48 @@ class User extends Authenticatable
         }
     }
 
+    public function isSuperAdmin(): bool
+    {
+        return $this->roles()->whereIn('name', ['super-admin', 'super_admin'])->exists();
+    }
+
     public function hasRole($roleName)
     {
-        return $this->roles()->where('name', $roleName)->exists();
+        if (!\Illuminate\Support\Facades\Schema::hasTable('roles')) {
+            return false;
+        }
+        if (is_array($roleName)) {
+            return $this->hasAnyRole($roleName);
+        }
+        
+        $rolesToCheck = [$roleName];
+        if ($roleName === 'staff') {
+            $rolesToCheck = ['staff', 'clerk', 'accountant'];
+        }
+        
+        return $this->roles()->whereIn('name', $rolesToCheck)->exists();
     }
 
     public function hasAnyRole($roles)
     {
-        return $this->roles()->whereIn('name', is_array($roles) ? $roles : [$roles])->exists();
+        if (!\Illuminate\Support\Facades\Schema::hasTable('roles')) {
+            return false;
+        }
+        $roles = is_array($roles) ? $roles : [$roles];
+        
+        // Expand 'staff' to include 'clerk' and 'accountant'
+        $expandedRoles = [];
+        foreach ($roles as $role) {
+            if ($role === 'staff') {
+                $expandedRoles[] = 'staff';
+                $expandedRoles[] = 'clerk';
+                $expandedRoles[] = 'accountant';
+            } else {
+                $expandedRoles[] = $role;
+            }
+        }
+        
+        return $this->roles()->whereIn('name', array_unique($expandedRoles))->exists();
     }
 
     public function hasAllRoles($roles)
@@ -185,5 +254,33 @@ class User extends Authenticatable
                     ->where('assigned_class', $className)
                     ->where('is_active', true)
                     ->first();
+    }
+    
+    public function scopeRole($query, $roleName)
+    {
+        return $query->whereHas('roles', function($q) use ($roleName) {
+            $q->where('name', $roleName);
+        });
+    }
+    
+    public function hasPermission($permissionName)
+    {
+        if (!\Illuminate\Support\Facades\Schema::hasTable('roles') || !\Illuminate\Support\Facades\Schema::hasTable('permissions')) {
+            return false;
+        }
+        foreach ($this->roles as $role) {
+            if ($role->permissions()->where('name', $permissionName)->exists()) {
+                return true;
+            }
+        }
+        return false;
+    }
+    
+    /**
+     * Alias for hasPermission to support Spatie Laravel Permission naming conventions.
+     */
+    public function hasPermissionTo($permissionName)
+    {
+        return $this->hasPermission($permissionName);
     }
 }

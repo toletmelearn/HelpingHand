@@ -2,8 +2,8 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Subject extends Model
@@ -13,25 +13,53 @@ class Subject extends Model
     protected $fillable = [
         'name',
         'code',
-        'description',
-        'is_active'
+        'subject_type',
+        'is_active',
+        'sort_order'
     ];
 
     protected $casts = [
         'is_active' => 'boolean',
+        'sort_order' => 'integer'
     ];
 
-    public function teachers()
+    /**
+     * Get the results for this subject
+     */
+    public function results()
     {
-        return $this->belongsToMany(Teacher::class, 'teacher_subject_assignments')
-                    ->withPivot('class_id', 'assigned_at', 'is_primary')
-                    ->withTimestamps();
+        return $this->hasMany(CBSEResult::class, 'subject_id');
     }
 
-    public function classes()
+    /**
+     * Scope for active subjects
+     */
+    public function scopeActive($query)
     {
-        return $this->belongsToMany(SchoolClass::class, 'class_subject_assignments')
-                    ->withPivot('teacher_id', 'assigned_at')
-                    ->withTimestamps();
+        return $query->where('is_active', true);
+    }
+
+    /**
+     * Scope for scholastic subjects
+     */
+    public function scopeScholastic($query)
+    {
+        return $query->where('subject_type', 'scholastic');
+    }
+
+    /**
+     * Scope for co-scholastic subjects
+     */
+    public function scopeCoScholastic($query)
+    {
+        return $query->where('subject_type', 'co_scholastic');
+    }
+
+    /**
+     * Get display name
+     */
+    public function getDisplayNameAttribute()
+    {
+        return $this->name . ' (' . $this->code . ')';
     }
 }

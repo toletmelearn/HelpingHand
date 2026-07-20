@@ -10,6 +10,8 @@ class Permission extends Model
     protected $fillable = [
         'name',
         'guard_name',
+        'module',
+        'label',
     ];
     
     protected $hidden = [

@@ -38,10 +38,10 @@ class Role extends Model
         if (is_string($permissionName)) {
             $permission = Permission::where('name', $permissionName)->first();
             if ($permission) {
-                $this->permissions()->attach($permission->id);
+                $this->permissions()->syncWithoutDetaching([$permission->id]);
             }
         } else {
-            $this->permissions()->attach($permissionName);
+            $this->permissions()->syncWithoutDetaching([is_object($permissionName) ? $permissionName->id : $permissionName]);
         }
     }
     

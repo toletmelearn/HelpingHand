@@ -57,7 +57,9 @@ return new class extends Migration
             $table->index(['exam_date', 'exam_time']);
             $table->index(['is_published', 'is_approved']);
             $table->index(['access_level', 'valid_until']);
-            $table->fullText(['title', 'subject', 'class_section']); // For search
+            if (\Illuminate\Support\Facades\Schema::getConnection()->getDriverName() !== 'sqlite') {
+                $table->fullText(['title', 'subject', 'class_section']); // For search
+            }
         });
     }
 

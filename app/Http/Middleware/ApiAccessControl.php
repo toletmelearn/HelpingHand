@@ -3,6 +3,9 @@
 namespace App\Http\Middleware;
 
 use Closure;
+use App\Models\Student;
+use App\Models\Teacher;
+use App\Models\User;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Illuminate\Support\Facades\Auth;
@@ -20,7 +23,11 @@ class ApiAccessControl
     public function handle(Request $request, Closure $next): Response
     {
         // Rate limiting
-        $this->rateLimit($request);
+        $rateLimitResponse = $this->rateLimit($request);
+
+        if ($rateLimitResponse instanceof Response) {
+            return $rateLimitResponse;
+        }
         
         // API access logging
         $this->logApiAccess($request);
@@ -103,31 +110,270 @@ class ApiAccessControl
     /**
      * Authorize the request based on user roles and permissions
      */
-    private function authorizeRequest(Request $request)
+    private function authorizeRequest(Request $request): bool
     {
-        // Allow all requests for now - in a real implementation,
-        // you would check user roles and permissions here
-        // For example:
-        // 
-        // if (Auth::check()) {
-        //     $user = Auth::user();
-        //     
-        //     // Teachers can only access their own data
-        //     if ($user->hasRole('teacher')) {
-        //         return $this->authorizeTeacherAccess($request, $user);
-        //     }
-        //     
-        //     // Parents can only access their children's data
-        //     if ($user->hasRole('parent')) {
-        //         return $this->authorizeParentAccess($request, $user);
-        //     }
-        //     
-        //     // Students can only access their own data
-        //     if ($user->hasRole('student')) {
-        //         return $this->authorizeStudentAccess($request, $user);
-        //     }
-        // }
-        
-        return true; // Allow all access for demonstration
+        $routeName = $request->route()?->getName();
+
+        if (in_array($routeName, $this->publicTemporaryBlocklist(), true)) {
+            return false;
+        }
+
+        if (in_array($routeName, $this->publicAllowlist(), true)) {
+            return true;
+        }
+
+        $user = $request->user();
+
+        if (!$user instanceof User) {
+            return false;
+        }
+
+        if ($this->isAdmin($user) && $this->tokenAllows($user, 'mobile:admin')) {
+            return true;
+        }
+
+        if (in_array($routeName, $this->oldTokenRecoveryRoutes(), true)) {
+            return true;
+        }
+
+        if (in_array($routeName, $this->authSelfRoutes(), true)) {
+            return $this->tokenAllows($user, 'mobile:user');
+        }
+
+        if (in_array($routeName, $this->notificationRoutes(), true)) {
+            return $this->tokenAllows($user, 'mobile:user');
+        }
+
+        if (in_array($routeName, $this->highRiskBlocklist(), true)) {
+            return false;
+        }
+
+        if (in_array($routeName, $this->parentBlockedRoutes(), true)) {
+            return false;
+        }
+
+        if (in_array($routeName, $this->studentSelfRoutes(), true)) {
+            return $this->hasRole($user, 'student')
+                && $this->isStudentSelf($request, $user)
+                && $this->tokenAllows($user, 'mobile:student');
+        }
+
+        if (in_array($routeName, $this->teacherSelfRoutes(), true)) {
+            return $this->hasRole($user, 'teacher')
+                && $this->isTeacherSelf($request, $user)
+                && $this->tokenAllows($user, 'mobile:teacher');
+        }
+
+        return false;
+    }
+
+    private function publicAllowlist(): array
+    {
+        return [
+            'api.v1.login',
+            'api.v1.register',
+            'api.v1.bell-timing.today',
+        ];
+    }
+
+    private function publicTemporaryBlocklist(): array
+    {
+        return [
+            'api.v1.exam-papers.available-for-class',
+            'api.v1.exam-papers.search',
+        ];
+    }
+
+    private function authSelfRoutes(): array
+    {
+        return [
+            'api.v1.me',
+            'api.v1.update-profile',
+            'api.v1.change-password',
+        ];
+    }
+
+    private function oldTokenRecoveryRoutes(): array
+    {
+        return [
+            'api.v1.logout',
+            'api.v1.logout-all',
+            'api.v1.refresh-token',
+        ];
+    }
+
+    private function notificationRoutes(): array
+    {
+        return [
+            'api.v1.notifications.index',
+            'api.v1.notifications.mark-as-read',
+            'api.v1.notifications.mark-all-read',
+            'api.v1.notifications.unread-count',
+        ];
+    }
+
+    private function studentSelfRoutes(): array
+    {
+        return [
+            'api.v1.dashboard.student',
+            'api.v1.students.show',
+            'api.v1.students.attendance',
+            'api.v1.students.results',
+            'api.v1.students.fees',
+            'api.v1.attendance.student-monthly',
+        ];
+    }
+
+    private function teacherSelfRoutes(): array
+    {
+        return [
+            'api.v1.dashboard.teacher',
+            'api.v1.teachers.show',
+            'api.v1.teachers.classes',
+            'api.v1.teachers.papers',
+            'api.v1.teachers.subject-classes',
+            'api.v1.teachers.attendance-data',
+            'api.v1.teachers.grading-data',
+            'api.v1.lesson-plans.my',
+        ];
+    }
+
+    private function parentBlockedRoutes(): array
+    {
+        return [
+            'api.v1.dashboard.parent',
+            'api.v1.guardians.index',
+            'api.v1.guardians.store',
+            'api.v1.guardians.show',
+            'api.v1.guardians.update',
+            'api.v1.guardians.destroy',
+            'api.v1.guardians.children',
+            'api.v1.guardians.notifications',
+        ];
+    }
+
+    private function highRiskBlocklist(): array
+    {
+        return [
+            'api.v1.students.index',
+            'api.v1.students.store',
+            'api.v1.students.update',
+            'api.v1.students.destroy',
+            'api.v1.teachers.index',
+            'api.v1.teachers.store',
+            'api.v1.teachers.update',
+            'api.v1.teachers.destroy',
+            'api.v1.guardians.index',
+            'api.v1.guardians.store',
+            'api.v1.guardians.show',
+            'api.v1.guardians.update',
+            'api.v1.guardians.destroy',
+            'api.v1.guardians.children',
+            'api.v1.guardians.notifications',
+            'api.v1.attendance.index',
+            'api.v1.attendance.store',
+            'api.v1.attendance.show',
+            'api.v1.attendance.update',
+            'api.v1.attendance.destroy',
+            'api.v1.attendance.daily-report',
+            'api.v1.attendance.bulk-mark',
+            'api.v1.exam-papers.index',
+            'api.v1.exam-papers.store',
+            'api.v1.exam-papers.update',
+            'api.v1.exam-papers.destroy',
+            'api.v1.exam-papers.toggle-publish',
+            'api.v1.bell-timing.store',
+            'api.v1.bell-timing.update',
+            'api.v1.bell-timing.destroy',
+            'api.v1.bell-timing.bulk-create',
+            'api.v1.lesson-plans.store',
+            'api.v1.lesson-plans.update',
+        ];
+    }
+
+    private function isAdmin(User $user): bool
+    {
+        if (method_exists($user, 'hasAnyRole')) {
+            return $user->hasAnyRole(['admin', 'super-admin', 'super_admin']);
+        }
+
+        return $this->hasRole($user, 'admin')
+            || $this->hasRole($user, 'super-admin')
+            || $this->hasRole($user, 'super_admin');
+    }
+
+    private function isStudentSelf(Request $request, User $user): bool
+    {
+        if ($request->route()?->getName() === 'api.v1.dashboard.student') {
+            return Student::where('user_id', $user->id)->exists();
+        }
+
+        $studentId = $this->routeParameterId($request, ['student', 'id', 'studentId']);
+
+        if (!$studentId) {
+            return false;
+        }
+
+        return Student::where('id', $studentId)
+            ->where('user_id', $user->id)
+            ->exists();
+    }
+
+    private function isTeacherSelf(Request $request, User $user): bool
+    {
+        $routeName = $request->route()?->getName();
+
+        if (in_array($routeName, ['api.v1.dashboard.teacher', 'api.v1.lesson-plans.my'], true)) {
+            return Teacher::where('user_id', $user->id)->exists();
+        }
+
+        $teacherId = $this->routeParameterId($request, ['teacher', 'id']);
+
+        if (!$teacherId) {
+            return false;
+        }
+
+        return Teacher::where('id', $teacherId)
+            ->where('user_id', $user->id)
+            ->exists();
+    }
+
+    private function routeParameterId(Request $request, array $names): ?int
+    {
+        foreach ($names as $name) {
+            $value = $request->route($name);
+
+            if (is_object($value) && isset($value->id)) {
+                return (int) $value->id;
+            }
+
+            if (is_numeric($value)) {
+                return (int) $value;
+            }
+        }
+
+        return null;
+    }
+
+    private function hasRole(User $user, string $role): bool
+    {
+        return method_exists($user, 'hasRole') && $user->hasRole($role);
+    }
+
+    private function tokenAllows(User $user, array|string $abilities): bool
+    {
+        $token = $user->currentAccessToken();
+
+        if (!$token || !method_exists($token, 'can')) {
+            return false;
+        }
+
+        foreach ((array) $abilities as $ability) {
+            if ($token->can($ability)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 }

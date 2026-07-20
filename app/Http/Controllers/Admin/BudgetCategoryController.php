@@ -12,6 +12,8 @@ class BudgetCategoryController extends Controller
     public function __construct()
     {
         $this->middleware('auth');
+        $this->middleware('permission:view-budgets')->only(['index', 'show']);
+        $this->middleware('permission:manage-budgets')->only(['create', 'store', 'edit', 'update', 'destroy', 'toggleActive']);
     }
     
     /**
@@ -89,7 +91,7 @@ class BudgetCategoryController extends Controller
             $category->created_by = Auth::id();
             $category->save();
             
-            return redirect()->route('admin.budget-category.index')
+            return redirect()->route('admin.budget-categories.index')
                            ->with('success', 'Budget category created successfully.');
         } catch (\Exception $e) {
             return back()->withErrors(['error' => 'Failed to create budget category: ' . $e->getMessage()])
@@ -148,7 +150,7 @@ class BudgetCategoryController extends Controller
             $budgetCategory->is_active = $request->boolean('is_active', true);
             $budgetCategory->save();
             
-            return redirect()->route('admin.budget-category.show', $budgetCategory)
+            return redirect()->route('admin.budget-categories.show', $budgetCategory)
                            ->with('success', 'Budget category updated successfully.');
         } catch (\Exception $e) {
             return back()->withErrors(['error' => 'Failed to update budget category: ' . $e->getMessage()])
@@ -163,21 +165,21 @@ class BudgetCategoryController extends Controller
     {
         // Check if category is used in any budgets or expenses
         if ($budgetCategory->expenses()->count() > 0) {
-            return redirect()->route('admin.budget-category.show', $budgetCategory)
+            return redirect()->route('admin.budget-categories.show', $budgetCategory)
                            ->with('error', 'Cannot delete category that has associated expenses.');
         }
         
         if ($budgetCategory->budgets()->count() > 0) {
-            return redirect()->route('admin.budget-category.show', $budgetCategory)
+            return redirect()->route('admin.budget-categories.show', $budgetCategory)
                            ->with('error', 'Cannot delete category that is used in budgets.');
         }
         
         try {
             $budgetCategory->delete();
-            return redirect()->route('admin.budget-category.index')
+            return redirect()->route('admin.budget-categories.index')
                            ->with('success', 'Budget category deleted successfully.');
         } catch (\Exception $e) {
-            return redirect()->route('admin.budget-category.index')
+            return redirect()->route('admin.budget-categories.index')
                            ->with('error', 'Failed to delete budget category: ' . $e->getMessage());
         }
     }
@@ -192,10 +194,10 @@ class BudgetCategoryController extends Controller
             $budgetCategory->save();
             
             $status = $budgetCategory->is_active ? 'activated' : 'deactivated';
-            return redirect()->route('admin.budget-category.show', $budgetCategory)
+            return redirect()->route('admin.budget-categories.show', $budgetCategory)
                            ->with('success', "Budget category {$status} successfully.");
         } catch (\Exception $e) {
-            return redirect()->route('admin.budget-category.show', $budgetCategory)
+            return redirect()->route('admin.budget-categories.show', $budgetCategory)
                            ->with('error', 'Failed to toggle category status: ' . $e->getMessage());
         }
     }

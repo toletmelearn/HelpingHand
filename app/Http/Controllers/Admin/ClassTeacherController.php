@@ -1,3 +1,17 @@
+<?php
+
+namespace App\Http\Controllers\Admin;
+
+use App\Http\Controllers\Controller;
+use App\Models\Student;
+use App\Models\Teacher;
+use App\Models\ClassManagement;
+use App\Models\FieldPermission;
+use App\Models\AuditLog;
+use Illuminate\Http\Request;
+
+class ClassTeacherController extends Controller
+{
     public function studentRecords(Request $request)
     {
         $this->authorize('viewStudentRecords');
@@ -130,3 +144,4 @@
         return redirect()->route('admin.class-teacher-control.student-records')
                          ->with('success', 'Student record updated successfully.');
     }
+}

@@ -15,6 +15,23 @@
             <a href="{{ route('admin.advanced-reports.create') }}" class="btn btn-primary">
                 <i class="bi bi-plus-circle"></i> Create Report
             </a>
+            <div class="btn-group" role="group">
+                <button type="button" class="btn btn-success dropdown-toggle" data-bs-toggle="dropdown">
+                    <i class="bi bi-download"></i> Export
+                </button>
+                <ul class="dropdown-menu">
+                    <li>
+                        <a class="dropdown-item" href="{{ route('admin.advanced-reports.export', ['advancedReport' => 0, 'format' => 'pdf']) }}?{{ http_build_query(request()->only(['academic_session_id', 'class_id', 'section_id', 'date_range'])) }}">
+                            <i class="bi bi-file-pdf"></i> Export as PDF
+                        </a>
+                    </li>
+                    <li>
+                        <a class="dropdown-item" href="{{ route('admin.advanced-reports.export', ['advancedReport' => 0, 'format' => 'excel']) }}?{{ http_build_query(request()->only(['academic_session_id', 'class_id', 'section_id', 'date_range'])) }}">
+                            <i class="bi bi-file-excel"></i> Export as Excel
+                        </a>
+                    </li>
+                </ul>
+            </div>
         </div>
     </div>
 

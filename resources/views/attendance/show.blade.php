@@ -33,7 +33,7 @@
                                 <p><strong>Date:</strong> {{ $attendance->date->format('d F Y') }}</p>
                                 <p><strong>Class:</strong> <span class="badge bg-info">{{ $attendance->class }}</span></p>
                                 <p><strong>Subject:</strong> {{ $attendance->subject ?? 'N/A' }}</p>
-                                <p><strong>Period:</strong> {{ $attendance->period ?? 'Full Day' }}</p>
+                                <p><strong>Period:</strong> {{ \App\Support\Attendance\AttendancePeriodPresenter::display($attendance->period) }}</p>
                             </div>
                             <div class="col-md-6">
                                 <p>
@@ -117,15 +117,12 @@
                                 <i class="bi bi-pencil"></i> Edit Record
                             </a>
                             
-                            <form action="{{ route('attendance.destroy', $attendance) }}" 
-                                  method="POST"
-                                  onsubmit="return confirm('Are you sure you want to delete this attendance record?');">
-                                @csrf
-                                @method('DELETE')
-                                <button type="submit" class="btn btn-danger w-100">
-                                    <i class="bi bi-trash"></i> Delete Record
-                                </button>
-                            </form>
+                            <button type="button" class="btn btn-outline-secondary w-100" disabled>
+                                <i class="bi bi-trash"></i> Delete disabled
+                            </button>
+                            <div class="small text-muted">
+                                Deletion is disabled until an audit-preserving correction workflow is enabled.
+                            </div>
                             
                             <a href="{{ route('attendance.student.report', $attendance->student_id ?? 0) }}" 
                                class="btn btn-info">

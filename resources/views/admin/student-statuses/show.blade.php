@@ -11,6 +11,17 @@
                     <h6 class="m-0 font-weight-bold text-primary">Student Status Record</h6>
                 </div>
                 <div class="card-body">
+                    @php
+                        $student = $studentStatus->student;
+                        $canonicalClass = $student?->resolveCanonicalSchoolClass();
+                        $classLabel = $canonicalClass?->name
+                            ?? $student?->schoolClass?->name
+                            ?? $student?->class
+                            ?? 'N/A';
+                        $sectionLabel = $student?->section?->name
+                            ?? $student?->section
+                            ?? 'N/A';
+                    @endphp
                     <div class="row">
                         <div class="col-md-6">
                             <h6>Student Information</h6>
@@ -25,11 +36,11 @@
                                 </tr>
                                 <tr>
                                     <td><strong>Class:</strong></td>
-                                    <td>{{ $studentStatus->student->currentClass->name ?? 'N/A' }}</td>
+                                    <td>{{ $classLabel }}</td>
                                 </tr>
                                 <tr>
                                     <td><strong>Section:</strong></td>
-                                    <td>{{ $studentStatus->student->section->name ?? 'N/A' }}</td>
+                                    <td>{{ $sectionLabel }}</td>
                                 </tr>
                             </table>
                         </div>
@@ -40,10 +51,10 @@
                                     <td><strong>Status:</strong></td>
                                     <td>
                                         <span class="badge bg-{{ 
-                                            $studentStatus->status == 'passed_out' ? 'success' :
-                                            $studentStatus->status == 'tc_issued' ? 'warning' :
-                                            $studentStatus->status == 'left_school' ? 'danger' :
-                                            $studentStatus->status == 'active' ? 'primary' : 'secondary'
+                                            $studentStatus->status == 'passed_out' ? 'success' : (
+                                            $studentStatus->status == 'tc_issued' ? 'warning' : (
+                                            $studentStatus->status == 'left_school' ? 'danger' : (
+                                            $studentStatus->status == 'active' ? 'primary' : 'secondary')))
                                         }}">
                                             {{ ucfirst(str_replace('_', ' ', $studentStatus->status)) }}
                                         </span>

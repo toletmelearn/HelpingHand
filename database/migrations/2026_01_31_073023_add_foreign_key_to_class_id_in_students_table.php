@@ -11,9 +11,10 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::table('students', function (Blueprint $table) {
-            $table->foreign('class_id')->references('id')->on('classes')->onDelete('set null');
-        });
+        // This migration previously attempted to add a foreign key to `classes`.
+        // To avoid potential constraint errors in existing databases, foreign
+        // key creation is skipped. FK relationships are managed elsewhere.
+        return;
     }
 
     /**

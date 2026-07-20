@@ -1,4 +1,4 @@
-﻿@extends('layouts.admin')
+@extends('layouts.admin')
 
 @section('title', 'Manage Roles for ' . $user->name)
 
@@ -17,7 +17,7 @@
                         </div>
                     @endif
 
-                    <form action="{{ route('admin.user-roles.update', $user->id) }}" method="POST">
+                    <form action="{{ route('admin.role-permissions.update-user', $user->id) }}" method="POST">
                         @csrf
                         @method('PUT')
 

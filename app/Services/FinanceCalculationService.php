@@ -118,7 +118,7 @@ class FinanceCalculationService
                         $freq = strtolower($structItem->billing_frequency ?? $feeStructure->frequency ?? 'monthly');
                         $isRecurring = ($freq === 'monthly');
                     } else {
-                        $isRecurring = (stripos($colItem->feeType->name, 'tuition') !== false || stripos($colItem->feeType->name, 'transport') !== false);
+                        $isRecurring = (stripos($colItem->feeType->name, 'tuition') !== false);
                     }
 
                     if ($isRecurring) {

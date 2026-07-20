@@ -1,4 +1,4 @@
-﻿@extends('layouts.admin')
+﻿@extends('layouts.teacher')
 
 @section('content')
 <div class="container">
@@ -39,16 +39,16 @@
                                 <tbody>
                                     @foreach($lessonPlans as $plan)
                                         <tr>
-                                            <td>{{ $plan->class->name }} - {{ $plan->section->name }}</td>
-                                            <td>{{ $plan->subject->name }}</td>
-                                            <td>{{ $plan->date->format('M d, Y') }}</td>
-                                            <td>{{ $plan->topic }}</td>
+                                            <td>{{ $plan->class?->name ?? 'N/A' }} - {{ $plan->section?->name ?? 'N/A' }}</td>
+                                            <td>{{ $plan->subject?->name ?? 'N/A' }}</td>
+                                            <td>{{ $plan->date?->format('M d, Y') ?? 'N/A' }}</td>
+                                            <td>{{ $plan->topic ?? 'N/A' }}</td>
                                             <td>
                                                 <span class="badge bg-{{ $plan->plan_type === 'daily' ? 'primary' : ($plan->plan_type === 'weekly' ? 'success' : 'warning') }}">
                                                     {{ ucfirst($plan->plan_type) }}
                                                 </span>
                                             </td>
-                                            <td>{{ Str::limit($plan->books_notebooks_required, 30) }}</td>
+                                            <td>{{ Str::limit($plan->books_notebooks_required ?? 'N/A', 30) }}</td>
                                             <td>
                                                 <div class="btn-group btn-group-sm" role="group">
                                                     <a href="{{ route('teacher.lesson-plans.show', $plan) }}" 

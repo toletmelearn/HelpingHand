@@ -8,8 +8,8 @@
         <div class="col-12">
             <div class="card">
                 <div class="card-header">
-                    <h3 class="card-title">Verify Student: {{ $student->name }}</h3>
-                    <div class="card-tools">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h3 class="card-title mb-0">Verify Student: {{ $student->name }}</h3>
                         <a href="{{ route('admin.students.verify.index') }}" class="btn btn-sm btn-secondary">Back to List</a>
                     </div>
                 </div>
@@ -21,6 +21,7 @@
                                 <img src="{{ $student->photo_url }}" alt="{{ $student->name }}"
                                      class="rounded-circle" width="100" height="100" style="object-fit: cover;">
                             </div>
+                            <div class="table-responsive">
                             <table class="table table-bordered">
                                 <tr>
                                     <td><strong>ID:</strong></td>
@@ -54,13 +55,14 @@
                                     <td><strong>Verification Status:</strong></td>
                                     <td>
                                         @if($student->is_verified)
-                                            <span class="badge badge-success">Verified</span>
+                                            <span class="badge bg-success">Verified</span>
                                         @else
-                                            <span class="badge badge-danger">Pending</span>
+                                            <span class="badge bg-danger">Pending</span>
                                         @endif
                                     </td>
                                 </tr>
                             </table>
+                            </div>
                         </div>
                         <div class="col-md-6">
                             <h5>Upload Documents</h5>
@@ -95,11 +97,11 @@
                                     <div class="card-header">
                                         <h5 class="card-title">
                                             {{ ucfirst(str_replace('_', ' ', $document->document_type)) }}
-                                            <span class="float-right">
+                                            <span class="float-end">
                                                 @if($document->is_verified)
-                                                    <span class="badge badge-success">Verified</span>
+                                                    <span class="badge bg-success">Verified</span>
                                                 @else
-                                                    <span class="badge badge-warning">Pending</span>
+                                                    <span class="badge bg-warning text-dark">Pending</span>
                                                 @endif
                                             </span>
                                         </h5>

@@ -1,0 +1,972 @@
+=== ARCHITECTURAL METADATA ===
+Models Scanned: 144
+Services Scanned: 79
+
+=== MODELS DETAIL ===
+Model: AcademicSession (table: Inferred (academicsessions))
+  SoftDeletes: True
+  Relation: classes -> hasMany -> SchoolClass
+---------------------------------------------
+Model: AdminConfiguration (table: Inferred (adminconfigurations))
+  SoftDeletes: False
+---------------------------------------------
+Model: AdmissionEnquiry (table: admission_enquiries)
+  SoftDeletes: False
+---------------------------------------------
+Model: AdmitCard (table: Inferred (admitcards))
+  SoftDeletes: False
+---------------------------------------------
+Model: AdmitCardFormat (table: Inferred (admitcardformats))
+  SoftDeletes: False
+---------------------------------------------
+Model: AdvancedReport (table: Inferred (advancedreports))
+  SoftDeletes: False
+  Relation: creator -> belongsTo -> User
+---------------------------------------------
+Model: Alumni (table: alumni)
+  SoftDeletes: False
+  Relation: student -> belongsTo -> Student
+---------------------------------------------
+Model: Asset (table: Inferred (assets))
+  SoftDeletes: False
+---------------------------------------------
+Model: AssetCategory (table: Inferred (assetcategorys))
+  SoftDeletes: False
+  Relation: assets -> hasMany -> Asset
+---------------------------------------------
+Model: Attendance (table: Inferred (attendances))
+  SoftDeletes: False
+  Relation: student -> belongsTo -> Student
+  Relation: teacher -> belongsTo -> Teacher
+  Relation: markedBy -> belongsTo -> User
+---------------------------------------------
+Model: AuditLog (table: Inferred (auditlogs))
+  SoftDeletes: False
+  Relation: user -> hasOne -> User
+---------------------------------------------
+Model: Backup (table: Inferred (backups))
+  SoftDeletes: False
+---------------------------------------------
+Model: BellSchedule (table: Inferred (bellschedules))
+  SoftDeletes: False
+---------------------------------------------
+Model: BellTiming (table: Inferred (belltimings))
+  SoftDeletes: False
+  Relation: createdBy -> belongsTo -> User
+---------------------------------------------
+Model: BiometricDevice (table: Inferred (biometricdevices))
+  SoftDeletes: True
+  Relation: syncLogs -> hasMany -> BiometricSyncLog
+  Relation: biometricRecords -> hasMany -> TeacherBiometricRecord
+---------------------------------------------
+Model: BiometricSetting (table: Inferred (biometricsettings))
+  SoftDeletes: False
+---------------------------------------------
+Model: BiometricSyncLog (table: Inferred (biometricsynclogs))
+  SoftDeletes: False
+  Relation: biometricDevice -> belongsTo -> BiometricDevice
+  Relation: biometricRecords -> hasMany -> TeacherBiometricRecord
+---------------------------------------------
+Model: Book (table: Inferred (books))
+  SoftDeletes: False
+---------------------------------------------
+Model: BookIssue (table: Inferred (bookissues))
+  SoftDeletes: False
+---------------------------------------------
+Model: Budget (table: Inferred (budgets))
+  SoftDeletes: False
+---------------------------------------------
+Model: BudgetCategory (table: Inferred (budgetcategorys))
+  SoftDeletes: False
+---------------------------------------------
+Model: CBSEResult (table: cbse_results)
+  SoftDeletes: False
+  Relation: student -> belongsTo -> Student
+  Relation: exam -> belongsTo -> Exam
+  Relation: subject -> belongsTo -> Subject
+  Relation: lockedBy -> belongsTo -> User
+  Relation: generatedBy -> belongsTo -> User
+  Relation: updatedBy -> belongsTo -> User
+---------------------------------------------
+Model: CashierClosing (table: Inferred (cashierclosings))
+  SoftDeletes: False
+  Relation: cashier -> belongsTo -> User
+---------------------------------------------
+Model: Certificate (table: Inferred (certificates))
+  SoftDeletes: False
+---------------------------------------------
+Model: CertificateTemplate (table: Inferred (certificatetemplates))
+  SoftDeletes: False
+---------------------------------------------
+Model: ClassManagement (table: class_management)
+  SoftDeletes: False
+---------------------------------------------
+Model: ClassTeacherAssignment (table: Inferred (classteacherassignments))
+  SoftDeletes: False
+---------------------------------------------
+Model: CustomField (table: Inferred (customfields))
+  SoftDeletes: False
+  Relation: values -> hasMany -> CustomFieldValue
+---------------------------------------------
+Model: CustomFieldValue (table: Inferred (customfieldvalues))
+  SoftDeletes: False
+  Relation: customField -> belongsTo -> CustomField
+---------------------------------------------
+Model: DailyTeachingWork (table: Inferred (dailyteachingworks))
+  SoftDeletes: False
+---------------------------------------------
+Model: DefaulterLog (table: defaulter_logs)
+  SoftDeletes: False
+  Relation: student -> belongsTo -> Student
+  Relation: performedBy -> belongsTo -> User
+---------------------------------------------
+Model: DefaulterStage (table: defaulter_stages)
+  SoftDeletes: False
+  Relation: student -> belongsTo -> Student
+---------------------------------------------
+Model: DisciplinaryAction (table: disciplinary_actions)
+  SoftDeletes: False
+  Relation: incident -> belongsTo -> DisciplinaryIncident
+---------------------------------------------
+Model: DisciplinaryIncident (table: disciplinary_incidents)
+  SoftDeletes: False
+  Relation: student -> belongsTo -> Student
+  Relation: reporter -> belongsTo -> User
+  Relation: actions -> hasMany -> DisciplinaryAction
+---------------------------------------------
+Model: DiscountApproval (table: discount_approvals)
+  SoftDeletes: False
+  Relation: student -> belongsTo -> Student
+  Relation: discountRule -> belongsTo -> DiscountRule
+  Relation: feeType -> belongsTo -> FeeType
+  Relation: creator -> belongsTo -> User
+  Relation: verifier -> belongsTo -> User
+---------------------------------------------
+Model: DiscountRule (table: discount_rules)
+  SoftDeletes: False
+  Relation: appliedDiscounts -> hasMany -> StudentDiscountApplied
+---------------------------------------------
+Model: DocumentFormat (table: Inferred (documentformats))
+  SoftDeletes: False
+---------------------------------------------
+Model: Driver (table: drivers)
+  SoftDeletes: False
+---------------------------------------------
+Model: Exam (table: Inferred (exams))
+  SoftDeletes: False
+  Relation: schoolClass -> belongsTo -> SchoolClass
+  Relation: subjectInfo -> belongsTo -> Subject
+  Relation: teacher -> belongsTo -> Teacher
+  Relation: examPapers -> hasMany -> ExamPaper
+---------------------------------------------
+Model: ExamBlueprint (table: Inferred (examblueprints))
+  SoftDeletes: False
+---------------------------------------------
+Model: ExamHead (table: Inferred (examheads))
+  SoftDeletes: False
+  Relation: teacher -> belongsTo -> Teacher
+  Relation: assignedBy -> belongsTo -> User
+---------------------------------------------
+Model: ExamInvigilatorDuty (table: Inferred (examinvigilatordutys))
+  SoftDeletes: False
+---------------------------------------------
+Model: ExamPaper (table: Inferred (exampapers))
+  SoftDeletes: False
+  Relation: uploadedBy -> belongsTo -> User
+  Relation: approvedBy -> belongsTo -> User
+  Relation: createdBy -> belongsTo -> User
+  Relation: approvedByAdmin -> belongsTo -> User
+  Relation: approvedByExamDept -> belongsTo -> User
+  Relation: class -> belongsTo -> SchoolClass
+  Relation: exam -> belongsTo -> Exam
+---------------------------------------------
+Model: ExamPaperTemplate (table: Inferred (exampapertemplates))
+  SoftDeletes: False
+---------------------------------------------
+Model: ExamRelievingDuty (table: Inferred (examrelievingdutys))
+  SoftDeletes: False
+---------------------------------------------
+Model: ExamSeatingArrangement (table: Inferred (examseatingarrangements))
+  SoftDeletes: False
+---------------------------------------------
+Model: ExaminationPattern (table: Inferred (examinationpatterns))
+  SoftDeletes: False
+---------------------------------------------
+Model: Expense (table: Inferred (expenses))
+  SoftDeletes: False
+---------------------------------------------
+Model: Fee (table: Inferred (fees))
+  SoftDeletes: False
+---------------------------------------------
+Model: FeeCollection (table: Inferred (feecollections))
+  SoftDeletes: True
+  Relation: feeCollectionItems -> hasMany -> FeeCollectionItem
+---------------------------------------------
+Model: FeeCollectionItem (table: Inferred (feecollectionitems))
+  SoftDeletes: False
+---------------------------------------------
+Model: FeeHead (table: Inferred (feeheads))
+  SoftDeletes: False
+---------------------------------------------
+Model: FeeRefund (table: fee_refunds)
+  SoftDeletes: False
+  Relation: student -> belongsTo -> Student
+  Relation: feeCollection -> belongsTo -> FeeCollection
+  Relation: processedBy -> belongsTo -> User
+---------------------------------------------
+Model: FeeReminder (table: Inferred (feereminders))
+  SoftDeletes: False
+---------------------------------------------
+Model: FeeReversalRequest (table: fee_reversal_requests)
+  SoftDeletes: False
+  Relation: feeCollection -> belongsTo -> FeeCollection
+  Relation: student -> belongsTo -> Student
+  Relation: requester -> belongsTo -> User
+  Relation: processor -> belongsTo -> User
+---------------------------------------------
+Model: FeeStructure (table: Inferred (feestructures))
+  SoftDeletes: True
+  Relation: feeStructureItems -> hasMany -> FeeStructureItem
+---------------------------------------------
+Model: FeeStructureDetail (table: Inferred (feestructuredetails))
+  SoftDeletes: False
+---------------------------------------------
+Model: FeeStructureItem (table: Inferred (feestructureitems))
+  SoftDeletes: False
+  Relation: installments -> hasMany -> FeeStructureItemInstallment
+---------------------------------------------
+Model: FeeStructureItemInstallment (table: Inferred (feestructureiteminstallments))
+  SoftDeletes: False
+---------------------------------------------
+Model: FeeType (table: Inferred (feetypes))
+  SoftDeletes: True
+  Relation: defaultLateFeeRule -> belongsTo -> LateFeeRule
+  Relation: feeStructureItems -> hasMany -> FeeStructureItem
+  Relation: feeCollectionItems -> hasMany -> FeeCollectionItem
+---------------------------------------------
+Model: FieldPermission (table: Inferred (fieldpermissions))
+  SoftDeletes: False
+---------------------------------------------
+Model: FinancialYearClosing (table: financial_year_closings)
+  SoftDeletes: False
+  Relation: processedBy -> belongsTo -> User
+---------------------------------------------
+Model: GateEntry (table: gate_entries)
+  SoftDeletes: False
+  Relation: host -> belongsTo -> User
+---------------------------------------------
+Model: GradingSystem (table: Inferred (gradingsystems))
+  SoftDeletes: False
+---------------------------------------------
+Model: Guardian (table: Inferred (guardians))
+  SoftDeletes: False
+---------------------------------------------
+Model: HomeworkNotice (table: Inferred (homeworknotices))
+  SoftDeletes: True
+  Relation: schoolClass -> belongsTo -> Unknown
+  Relation: subject -> belongsTo -> Unknown
+  Relation: teacherLogin -> belongsTo -> Unknown
+  Relation: section -> belongsTo -> Unknown
+---------------------------------------------
+Model: HomeworkSubmission (table: homework_submissions)
+  SoftDeletes: False
+  Relation: student -> belongsTo -> Student
+  Relation: homeworkNotice -> belongsTo -> HomeworkNotice
+  Relation: evaluator -> belongsTo -> User
+---------------------------------------------
+Model: Hostel (table: hostels)
+  SoftDeletes: False
+  Relation: rooms -> hasMany -> HostelRoom
+---------------------------------------------
+Model: HostelRoom (table: hostel_rooms)
+  SoftDeletes: False
+  Relation: hostel -> belongsTo -> Hostel
+  Relation: allocations -> hasMany -> StudentHostelAllocation
+---------------------------------------------
+Model: IdCard (table: Inferred (idcards))
+  SoftDeletes: True
+  Relation: student -> belongsTo -> Student
+  Relation: printedBy -> belongsTo -> User
+---------------------------------------------
+Model: ImportError (table: Inferred (importerrors))
+  SoftDeletes: False
+  Relation: session -> belongsTo -> ImportSession
+---------------------------------------------
+Model: ImportMappingProfile (table: Inferred (importmappingprofiles))
+  SoftDeletes: False
+  Relation: creator -> belongsTo -> User
+---------------------------------------------
+Model: ImportSession (table: Inferred (importsessions))
+  SoftDeletes: False
+  Relation: errors -> hasMany -> ImportError
+  Relation: creator -> belongsTo -> User
+---------------------------------------------
+Model: ImportTemplate (table: Inferred (importtemplates))
+  SoftDeletes: False
+---------------------------------------------
+Model: InventoryTransaction (table: Inferred (inventorytransactions))
+  SoftDeletes: False
+---------------------------------------------
+Model: Language (table: Inferred (languages))
+  SoftDeletes: False
+  Relation: translations -> hasMany -> Translation
+---------------------------------------------
+Model: LanguageSetting (table: Inferred (languagesettings))
+  SoftDeletes: False
+---------------------------------------------
+Model: LateFeeRule (table: Inferred (latefeerules))
+  SoftDeletes: False
+---------------------------------------------
+Model: LessonPlan (table: Inferred (lessonplans))
+  SoftDeletes: True
+---------------------------------------------
+Model: LibrarySetting (table: Inferred (librarysettings))
+  SoftDeletes: False
+---------------------------------------------
+Model: MedicalCheckup (table: medical_checkups)
+  SoftDeletes: False
+  Relation: student -> belongsTo -> Student
+---------------------------------------------
+Model: MedicalRecord (table: medical_records)
+  SoftDeletes: False
+  Relation: student -> belongsTo -> Student
+---------------------------------------------
+Model: NotebookCheck (table: notebook_checks)
+  SoftDeletes: False
+  Relation: student -> belongsTo -> Student
+  Relation: subject -> belongsTo -> Subject
+  Relation: checker -> belongsTo -> Teacher
+---------------------------------------------
+Model: NotificationLog (table: Inferred (notificationlogs))
+  SoftDeletes: False
+  Relation: notificationSetting -> belongsTo -> NotificationSetting
+---------------------------------------------
+Model: NotificationSetting (table: Inferred (notificationsettings))
+  SoftDeletes: False
+  Relation: creator -> belongsTo -> User
+  Relation: logs -> hasMany -> NotificationLog
+---------------------------------------------
+Model: NotificationTemplate (table: Inferred (notificationtemplates))
+  SoftDeletes: True
+---------------------------------------------
+Model: OnlineQuiz (table: online_quizzes)
+  SoftDeletes: False
+  Relation: exam -> belongsTo -> Exam
+  Relation: questions -> hasMany -> QuizQuestion
+---------------------------------------------
+Model: ParentModel (table: parents)
+  SoftDeletes: False
+  Relation: student -> belongsTo -> Student
+  Relation: students -> hasMany -> Student
+---------------------------------------------
+Model: PaymentAllocation (table: payment_allocations)
+  SoftDeletes: False
+  Relation: student -> belongsTo -> Student
+  Relation: creditLedger -> belongsTo -> StudentFeeLedger
+  Relation: debitLedger -> belongsTo -> StudentFeeLedger
+---------------------------------------------
+Model: PerformanceAnalytics (table: Inferred (performanceanalyticss))
+  SoftDeletes: False
+  Relation: user -> belongsTo -> User
+---------------------------------------------
+Model: PerformanceScore (table: Inferred (performancescores))
+  SoftDeletes: False
+  Relation: teacher -> belongsTo -> Teacher
+---------------------------------------------
+Model: Permission (table: Inferred (permissions))
+  SoftDeletes: False
+---------------------------------------------
+Model: ProcessedStripeEvent (table: processed_stripe_events)
+  SoftDeletes: False
+---------------------------------------------
+Model: PromotionRule (table: Inferred (promotionrules))
+  SoftDeletes: False
+---------------------------------------------
+Model: PtmMeeting (table: ptm_meetings)
+  SoftDeletes: False
+  Relation: teacher -> belongsTo -> Teacher
+  Relation: parent -> belongsTo -> ParentModel
+---------------------------------------------
+Model: PurchaseRequest (table: purchase_requests)
+  SoftDeletes: False
+  Relation: requester -> belongsTo -> User
+  Relation: approver -> belongsTo -> User
+---------------------------------------------
+Model: QuizQuestion (table: quiz_questions)
+  SoftDeletes: False
+  Relation: quiz -> belongsTo -> OnlineQuiz
+---------------------------------------------
+Model: QuizSubmission (table: quiz_submissions)
+  SoftDeletes: False
+  Relation: student -> belongsTo -> Student
+  Relation: quiz -> belongsTo -> OnlineQuiz
+---------------------------------------------
+Model: ReportCardTemplate (table: Inferred (reportcardtemplates))
+  SoftDeletes: False
+---------------------------------------------
+Model: Result (table: Inferred (results))
+  SoftDeletes: False
+---------------------------------------------
+Model: ResultFormat (table: Inferred (resultformats))
+  SoftDeletes: False
+---------------------------------------------
+Model: Role (table: Inferred (roles))
+  SoftDeletes: False
+---------------------------------------------
+Model: Route (table: routes)
+  SoftDeletes: False
+  Relation: stops -> hasMany -> RouteStop
+---------------------------------------------
+Model: RouteStop (table: route_stops)
+  SoftDeletes: False
+  Relation: route -> belongsTo -> Route
+---------------------------------------------
+Model: SchoolClass (table: Inferred (schoolclasss))
+  SoftDeletes: True
+  Relation: students -> hasMany -> Student
+---------------------------------------------
+Model: Section (table: Inferred (sections))
+  SoftDeletes: True
+  Relation: classes -> hasMany -> SchoolClass
+---------------------------------------------
+Model: SelfServiceToken (table: Inferred (selfservicetokens))
+  SoftDeletes: False
+  Relation: teacher -> belongsTo -> Teacher
+---------------------------------------------
+Model: SlowLearner (table: slow_learners)
+  SoftDeletes: False
+  Relation: student -> belongsTo -> Student
+  Relation: subject -> belongsTo -> Subject
+---------------------------------------------
+Model: SpecialDayOverride (table: Inferred (specialdayoverrides))
+  SoftDeletes: False
+---------------------------------------------
+Model: Student (table: Inferred (students))
+  SoftDeletes: True
+  Relation: user -> belongsTo -> User
+  Relation: staffParent -> belongsTo -> User
+  Relation: guardian -> belongsTo -> Unknown
+  Relation: attendances -> hasMany -> Attendance
+  Relation: fees -> hasMany -> Fee
+  Relation: results -> hasMany -> Result
+  Relation: documents -> hasMany -> StudentDocument
+  Relation: schoolClass -> belongsTo -> SchoolClass
+  Relation: class -> belongsTo -> SchoolClass
+  Relation: section -> belongsTo -> Section
+  Relation: schoolSection -> belongsTo -> Section
+  Relation: feeCollections -> hasMany -> FeeCollection
+  Relation: feeAssignments -> hasMany -> StudentFeeAssignment
+  Relation: parent -> belongsTo -> ParentModel
+  Relation: transportAssignment -> hasOne -> StudentTransport
+  Relation: transportDues -> hasMany -> StudentTransportDue
+  Relation: discountsApplied -> hasMany -> StudentDiscountApplied
+  Relation: ledgerRecords -> hasMany -> StudentFeeLedger
+  Relation: financialAccount -> hasOne -> StudentFinancialAccount
+---------------------------------------------
+Model: StudentDiscountApplied (table: student_discounts_applied)
+  SoftDeletes: False
+  Relation: student -> belongsTo -> Student
+  Relation: discountRule -> belongsTo -> DiscountRule
+  Relation: feeType -> belongsTo -> FeeType
+---------------------------------------------
+Model: StudentDocument (table: Inferred (studentdocuments))
+  SoftDeletes: False
+---------------------------------------------
+Model: StudentFeeAssignment (table: Inferred (studentfeeassignments))
+  SoftDeletes: False
+---------------------------------------------
+Model: StudentFeeLedger (table: student_fee_ledgers)
+  SoftDeletes: False
+  Relation: student -> belongsTo -> Student
+  Relation: schoolClass -> belongsTo -> SchoolClass
+  Relation: feeType -> belongsTo -> FeeType
+  Relation: auditLogs -> hasMany -> AuditLog
+---------------------------------------------
+Model: StudentFinancialAccount (table: student_financial_accounts)
+  SoftDeletes: True
+  Relation: student -> belongsTo -> Student
+  Relation: createdBy -> belongsTo -> User
+  Relation: updatedBy -> belongsTo -> User
+---------------------------------------------
+Model: StudentHostelAllocation (table: student_hostel_allocations)
+  SoftDeletes: False
+  Relation: student -> belongsTo -> Student
+  Relation: room -> belongsTo -> HostelRoom
+---------------------------------------------
+Model: StudentLeave (table: student_leaves)
+  SoftDeletes: False
+  Relation: student -> belongsTo -> Student
+  Relation: approver -> belongsTo -> Teacher
+---------------------------------------------
+Model: StudentPromotionLog (table: Inferred (studentpromotionlogs))
+  SoftDeletes: False
+  Relation: student -> belongsTo -> Student
+  Relation: academicSession -> belongsTo -> AcademicSession
+  Relation: promotedBy -> belongsTo -> User
+---------------------------------------------
+Model: StudentStatus (table: Inferred (studentstatuss))
+  SoftDeletes: False
+---------------------------------------------
+Model: StudentTransport (table: student_transport)
+  SoftDeletes: False
+  Relation: student -> belongsTo -> Student
+  Relation: route -> belongsTo -> Route
+  Relation: stop -> belongsTo -> RouteStop
+  Relation: vehicle -> belongsTo -> Vehicle
+---------------------------------------------
+Model: StudentTransportDue (table: transport_fees)
+  SoftDeletes: False
+  Relation: student -> belongsTo -> Student
+  Relation: route -> belongsTo -> Route
+  Relation: stop -> belongsTo -> RouteStop
+  Relation: vehicle -> belongsTo -> Vehicle
+  Relation: collector -> belongsTo -> User
+  Relation: adjustments -> hasMany -> TransportAdjustment
+---------------------------------------------
+Model: StudyMaterial (table: study_materials)
+  SoftDeletes: False
+  Relation: schoolClass -> belongsTo -> SchoolClass
+  Relation: subject -> belongsTo -> Subject
+  Relation: uploader -> belongsTo -> User
+---------------------------------------------
+Model: Subject (table: Inferred (subjects))
+  SoftDeletes: True
+  Relation: results -> hasMany -> CBSEResult
+---------------------------------------------
+Model: Syllabus (table: Inferred (syllabuss))
+  SoftDeletes: False
+---------------------------------------------
+Model: Teacher (table: Inferred (teachers))
+  SoftDeletes: True
+  Relation: user -> belongsTo -> User
+  Relation: attendances -> hasMany -> Attendance
+  Relation: examPapers -> hasMany -> ExamPaper
+  Relation: classes -> belongsTo -> Unknown
+  Relation: documents -> hasMany -> TeacherDocument
+  Relation: experiences -> hasMany -> TeacherExperience
+  Relation: leaves -> hasMany -> TeacherLeave
+  Relation: salaries -> hasMany -> TeacherSalary
+  Relation: absentSubstitutions -> hasMany -> Unknown
+  Relation: substituteSubstitutions -> hasMany -> Unknown
+  Relation: biometricRecords -> hasMany -> Unknown
+  Relation: teacherAttendances -> hasMany -> Unknown
+  Relation: teacherLogins -> hasMany -> Unknown
+  Relation: classSubjectAssignments -> hasMany -> Unknown
+  Relation: examHead -> hasOne -> Unknown
+  Relation: uploadedResults -> hasMany -> Unknown
+  Relation: assignedClasses -> belongsTo -> Unknown
+  Relation: assignedSubjects -> belongsTo -> Unknown
+---------------------------------------------
+Model: TeacherAttendance (table: Inferred (teacherattendances))
+  SoftDeletes: False
+---------------------------------------------
+Model: TeacherBiometricRecord (table: Inferred (teacherbiometricrecords))
+  SoftDeletes: True
+  Relation: teacher -> belongsTo -> Teacher
+  Relation: biometricDevice -> belongsTo -> BiometricDevice
+  Relation: syncLog -> belongsTo -> BiometricSyncLog
+---------------------------------------------
+Model: TeacherClassAssignment (table: Inferred (teacherclassassignments))
+  SoftDeletes: False
+  Relation: teacher -> belongsTo -> Teacher
+  Relation: class -> belongsTo -> ClassManagement
+---------------------------------------------
+Model: TeacherClassSubjectAssignment (table: Inferred (teacherclasssubjectassignments))
+  SoftDeletes: False
+  Relation: teacher -> belongsTo -> Teacher
+  Relation: schoolClass -> belongsTo -> SchoolClass
+  Relation: section -> belongsTo -> Section
+  Relation: subject -> belongsTo -> Subject
+---------------------------------------------
+Model: TeacherDocument (table: Inferred (teacherdocuments))
+  SoftDeletes: False
+---------------------------------------------
+Model: TeacherExperience (table: Inferred (teacherexperiences))
+  SoftDeletes: False
+---------------------------------------------
+Model: TeacherLeave (table: Inferred (teacherleaves))
+  SoftDeletes: False
+---------------------------------------------
+Model: TeacherLogin (table: Inferred (teacherlogins))
+  SoftDeletes: False
+  Relation: teacher -> belongsTo -> Teacher
+  Relation: school -> belongsTo -> School
+---------------------------------------------
+Model: TeacherSalary (table: Inferred (teachersalarys))
+  SoftDeletes: False
+---------------------------------------------
+Model: TeacherSubjectAssignment (table: Inferred (teachersubjectassignments))
+  SoftDeletes: False
+  Relation: teacher -> belongsTo -> Teacher
+  Relation: subject -> belongsTo -> Subject
+  Relation: class -> belongsTo -> SchoolClass
+---------------------------------------------
+Model: TeacherSubstitution (table: Inferred (teachersubstitutions))
+  SoftDeletes: False
+---------------------------------------------
+Model: TimetableSlot (table: Inferred (timetableslots))
+  SoftDeletes: False
+  Relation: schoolClass -> belongsTo -> SchoolClass
+  Relation: section -> belongsTo -> Section
+  Relation: bellTiming -> belongsTo -> BellTiming
+  Relation: subject -> belongsTo -> Subject
+  Relation: teacher -> belongsTo -> Teacher
+---------------------------------------------
+Model: Translation (table: Inferred (translations))
+  SoftDeletes: False
+  Relation: language -> belongsTo -> Language
+---------------------------------------------
+Model: TransportAdjustment (table: transport_adjustments)
+  SoftDeletes: False
+  Relation: student -> belongsTo -> Student
+  Relation: transportFee -> belongsTo -> TransportFee
+  Relation: creator -> belongsTo -> User
+---------------------------------------------
+Model: TransportFee (table: transport_fees)
+  SoftDeletes: False
+  Relation: student -> belongsTo -> Student
+  Relation: route -> belongsTo -> Route
+  Relation: stop -> belongsTo -> RouteStop
+  Relation: vehicle -> belongsTo -> Vehicle
+  Relation: collector -> belongsTo -> User
+  Relation: adjustments -> hasMany -> TransportAdjustment
+---------------------------------------------
+Model: UniformCheck (table: uniform_checks)
+  SoftDeletes: False
+  Relation: student -> belongsTo -> Student
+---------------------------------------------
+Model: User (table: Inferred (users))
+  SoftDeletes: False
+  Relation: student -> hasOne -> Student
+  Relation: teacher -> hasOne -> Teacher
+  Relation: lessonPlans -> hasMany -> LessonPlan
+  Relation: createdLessonPlans -> hasMany -> LessonPlan
+  Relation: modifiedLessonPlans -> hasMany -> LessonPlan
+  Relation: guardians -> hasMany -> Guardian
+  Relation: roles -> belongsTo -> Unknown
+  Relation: classTeacherAssignments -> hasMany -> Unknown
+---------------------------------------------
+Model: Vehicle (table: vehicles)
+  SoftDeletes: False
+---------------------------------------------
+Model: WorkingHoursConfiguration (table: Inferred (workinghoursconfigurations))
+  SoftDeletes: False
+---------------------------------------------
+
+=== SERVICES DETAIL ===
+Service: AcademicRankerService
+  Path: Academic\AcademicRankerService.php
+  Dependencies: []
+---------------------------------------------
+Service: AccessibilityService
+  Path: AccessibilityService.php
+  Dependencies: []
+---------------------------------------------
+Service: AnalyticsService
+  Path: AnalyticsService.php
+  Dependencies: []
+---------------------------------------------
+Service: AssessmentModeratorService
+  Path: Academic\AssessmentModeratorService.php
+  Dependencies: []
+---------------------------------------------
+Service: AttendanceBulkPreflightService
+  Path: Attendance\AttendanceBulkPreflightService.php
+  Dependencies: ['AttendanceClassResolver']
+---------------------------------------------
+Service: AttendanceClassResolver
+  Path: Attendance\AttendanceClassResolver.php
+  Dependencies: []
+---------------------------------------------
+Service: AttendanceNotificationService
+  Path: AttendanceNotificationService.php
+  Dependencies: []
+---------------------------------------------
+Service: AttendanceService
+  Path: AttendanceService.php
+  Dependencies: []
+---------------------------------------------
+Service: AuditLogService
+  Path: AuditLogService.php
+  Dependencies: []
+---------------------------------------------
+Service: BackupService
+  Path: Operations\BackupService.php
+  Dependencies: []
+---------------------------------------------
+Service: BalanceCarryForwardService
+  Path: YearClosing\BalanceCarryForwardService.php
+  Dependencies: []
+---------------------------------------------
+Service: BaseBiometricDevice
+  Path: BiometricDevices\BaseBiometricDevice.php
+  Dependencies: ['BiometricDevice']
+---------------------------------------------
+Service: BiometricCalculationService
+  Path: BiometricCalculationService.php
+  Dependencies: []
+---------------------------------------------
+Service: BiometricDeviceInterface
+  Path: BiometricDevices\BiometricDeviceInterface.php
+  Dependencies: []
+---------------------------------------------
+Service: BiometricSyncService
+  Path: BiometricSyncService.php
+  Dependencies: []
+---------------------------------------------
+Service: BulkFeeAssignmentService
+  Path: BulkFeeAssignmentService.php
+  Dependencies: []
+---------------------------------------------
+Service: BulkResultImportService
+  Path: BulkResultImportService.php
+  Dependencies: ['ProfessionalResultService']
+---------------------------------------------
+Service: CacheService
+  Path: CacheService.php
+  Dependencies: []
+---------------------------------------------
+Service: ClassImportDefinition
+  Path: Imports\ClassImportDefinition.php
+  Dependencies: ['ImportLookupCache', 'ImportConflictResolver']
+---------------------------------------------
+Service: ClosingEngine
+  Path: YearClosing\ClosingEngine.php
+  Dependencies: ['BalanceCarryForwardService', 'PromotionService', 'LedgerCarryForwardService', 'TransportCarryForwardService']
+---------------------------------------------
+Service: DatabaseOptimizationService
+  Path: DatabaseOptimizationService.php
+  Dependencies: []
+---------------------------------------------
+Service: DefaulterService
+  Path: DefaulterService.php
+  Dependencies: []
+---------------------------------------------
+Service: DiagnosticEngine
+  Path: Operations\DiagnosticEngine.php
+  Dependencies: []
+---------------------------------------------
+Service: DiscountEngineService
+  Path: DiscountEngineService.php
+  Dependencies: []
+---------------------------------------------
+Service: ESSLDevice
+  Path: BiometricDevices\ESSLDevice.php
+  Dependencies: []
+---------------------------------------------
+Service: ErpRegistry
+  Path: Registry\ErpRegistry.php
+  Dependencies: []
+---------------------------------------------
+Service: ExcelExportService
+  Path: ExcelExportService.php
+  Dependencies: []
+---------------------------------------------
+Service: FeePaymentLockService
+  Path: FeePaymentLockService.php
+  Dependencies: []
+---------------------------------------------
+Service: FeeReceiptNumberService
+  Path: FeeReceiptNumberService.php
+  Dependencies: []
+---------------------------------------------
+Service: FeeStructureImportDefinition
+  Path: Imports\FeeStructureImportDefinition.php
+  Dependencies: ['ImportLookupCache', 'ImportConflictResolver']
+---------------------------------------------
+Service: FinanceAccountService
+  Path: FinanceAccountService.php
+  Dependencies: []
+---------------------------------------------
+Service: FinanceCalculationService
+  Path: FinanceCalculationService.php
+  Dependencies: []
+---------------------------------------------
+Service: FinanceMetricsService
+  Path: FinanceMetricsService.php
+  Dependencies: []
+---------------------------------------------
+Service: FinancialYearClosingService
+  Path: FinancialYearClosingService.php
+  Dependencies: []
+---------------------------------------------
+Service: GenericRESTDevice
+  Path: BiometricDevices\GenericRESTDevice.php
+  Dependencies: []
+---------------------------------------------
+Service: ImportConflictResolver
+  Path: Imports\ImportConflictResolver.php
+  Dependencies: []
+---------------------------------------------
+Service: ImportEngine
+  Path: Imports\ImportEngine.php
+  Dependencies: ['ImportNormalizer', 'ImportLookupCache']
+---------------------------------------------
+Service: ImportLookupCache
+  Path: Imports\ImportLookupCache.php
+  Dependencies: []
+---------------------------------------------
+Service: ImportNormalizer
+  Path: Imports\ImportNormalizer.php
+  Dependencies: []
+---------------------------------------------
+Service: InstallationChecker
+  Path: Operations\InstallationChecker.php
+  Dependencies: []
+---------------------------------------------
+Service: LateFeeEngineService
+  Path: LateFeeEngineService.php
+  Dependencies: []
+---------------------------------------------
+Service: LedgerCarryForwardService
+  Path: YearClosing\LedgerCarryForwardService.php
+  Dependencies: ['LedgerService']
+---------------------------------------------
+Service: LedgerService
+  Path: LedgerService.php
+  Dependencies: []
+---------------------------------------------
+Service: LogService
+  Path: Operations\LogService.php
+  Dependencies: []
+---------------------------------------------
+Service: MantraDevice
+  Path: BiometricDevices\MantraDevice.php
+  Dependencies: []
+---------------------------------------------
+Service: NotificationService
+  Path: NotificationService.php
+  Dependencies: []
+---------------------------------------------
+Service: OptimizedResultService
+  Path: OptimizedResultService.php
+  Dependencies: []
+---------------------------------------------
+Service: PDFReportService
+  Path: PDFReportService.php
+  Dependencies: []
+---------------------------------------------
+Service: ParentImportDefinition
+  Path: Imports\ParentImportDefinition.php
+  Dependencies: ['ImportLookupCache', 'ImportConflictResolver']
+---------------------------------------------
+Service: PaymentAllocationEngine
+  Path: PaymentAllocationEngine.php
+  Dependencies: []
+---------------------------------------------
+Service: PaymentGatewayService
+  Path: PaymentGatewayService.php
+  Dependencies: []
+---------------------------------------------
+Service: PdfExportService
+  Path: PdfExportService.php
+  Dependencies: []
+---------------------------------------------
+Service: PerformanceScoringService
+  Path: PerformanceScoringService.php
+  Dependencies: []
+---------------------------------------------
+Service: PerformanceTracker
+  Path: Operations\PerformanceTracker.php
+  Dependencies: []
+---------------------------------------------
+Service: ProfessionalDashboardService
+  Path: ProfessionalDashboardService.php
+  Dependencies: []
+---------------------------------------------
+Service: ProfessionalFeeManagementService
+  Path: ProfessionalFeeManagementService.php
+  Dependencies: []
+---------------------------------------------
+Service: ProfessionalResultService
+  Path: ProfessionalResultService.php
+  Dependencies: []
+---------------------------------------------
+Service: PromotionService
+  Path: YearClosing\PromotionService.php
+  Dependencies: []
+---------------------------------------------
+Service: QueueMonitor
+  Path: Operations\QueueMonitor.php
+  Dependencies: []
+---------------------------------------------
+Service: RefundService
+  Path: RefundService.php
+  Dependencies: []
+---------------------------------------------
+Service: ReminderEngineService
+  Path: ReminderEngineService.php
+  Dependencies: ['NotificationService']
+---------------------------------------------
+Service: ReportGenerationService
+  Path: ReportGenerationService.php
+  Dependencies: []
+---------------------------------------------
+Service: SchedulerInspector
+  Path: Operations\SchedulerInspector.php
+  Dependencies: []
+---------------------------------------------
+Service: SectionImportDefinition
+  Path: Imports\SectionImportDefinition.php
+  Dependencies: ['ImportLookupCache', 'ImportConflictResolver']
+---------------------------------------------
+Service: SecurityAuditService
+  Path: SecurityAuditService.php
+  Dependencies: []
+---------------------------------------------
+Service: StripePaymentService
+  Path: Payment\StripePaymentService.php
+  Dependencies: []
+---------------------------------------------
+Service: StructureAdjustmentService
+  Path: StructureAdjustmentService.php
+  Dependencies: []
+---------------------------------------------
+Service: StudentImportDefinition
+  Path: Imports\StudentImportDefinition.php
+  Dependencies: ['ImportLookupCache', 'ImportConflictResolver']
+---------------------------------------------
+Service: StudentImportNormalizer
+  Path: Students\StudentImportNormalizer.php
+  Dependencies: []
+---------------------------------------------
+Service: SubjectImportDefinition
+  Path: Imports\SubjectImportDefinition.php
+  Dependencies: ['ImportLookupCache', 'ImportConflictResolver']
+---------------------------------------------
+Service: TeacherAcademicService
+  Path: TeacherAcademicService.php
+  Dependencies: []
+---------------------------------------------
+Service: TeacherBiometricService
+  Path: TeacherBiometricService.php
+  Dependencies: ['BiometricCalculationService']
+---------------------------------------------
+Service: TeacherImportDefinition
+  Path: Imports\TeacherImportDefinition.php
+  Dependencies: ['ImportLookupCache', 'ImportConflictResolver']
+---------------------------------------------
+Service: TerminalStatusReconciliationDetector
+  Path: StudentStatus\TerminalStatusReconciliationDetector.php
+  Dependencies: []
+---------------------------------------------
+Service: TransportAdjustmentService
+  Path: TransportAdjustmentService.php
+  Dependencies: ['LedgerService']
+---------------------------------------------
+Service: TransportCarryForwardService
+  Path: YearClosing\TransportCarryForwardService.php
+  Dependencies: []
+---------------------------------------------
+Service: TransportRouteImportDefinition
+  Path: Imports\TransportRouteImportDefinition.php
+  Dependencies: ['ImportLookupCache', 'ImportConflictResolver']
+---------------------------------------------
+Service: TwilioSmsService
+  Path: Sms\TwilioSmsService.php
+  Dependencies: []
+---------------------------------------------
+Service: ZKTecoDevice
+  Path: BiometricDevices\ZKTecoDevice.php
+  Dependencies: []
+---------------------------------------------

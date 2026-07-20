@@ -18,7 +18,9 @@ class FeeTypeController extends Controller
 {
     public function __construct()
     {
-        $this->middleware(['auth', 'role:accountant']);
+        $this->middleware('auth');
+        $this->middleware('permission:view-fee-types')->only(['index']);
+        $this->middleware('permission:manage-fee-types')->only(['create', 'store', 'edit', 'update', 'destroy', 'activate', 'deactivate']);
     }
 
     public function index()
@@ -82,6 +84,22 @@ class FeeTypeController extends Controller
 
     public function destroy(FeeType $feeType)
     {
+        // fee_collection_items.fee_type_id and fee_structure_items.fee_type_id
+        // both cascadeOnDelete() -- deleting a fee head that's ever been used
+        // would silently wipe out real payment line items and structure
+        // config, not just the head itself. Block it the same way
+        // FeeStructureController::destroy() blocks a structure that's already
+        // generated charges; deactivate is the safe alternative once in use.
+        if ($feeType->feeCollectionItems()->exists()) {
+            return redirect()->back()
+                ->with('error', 'Cannot delete this fee head because payments have already been collected against it. Please deactivate instead.');
+        }
+
+        if ($feeType->feeStructureItems()->exists()) {
+            return redirect()->back()
+                ->with('error', 'Cannot delete this fee head because it is used in one or more fee structures. Please deactivate instead.');
+        }
+
         $feeType->delete();
 
         return redirect()->route('admin.fee-types.index')->with('success', 'Fee head deleted.');

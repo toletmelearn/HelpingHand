@@ -25,7 +25,10 @@ class TeacherLeave extends Model
     protected $dates = ['start_date', 'end_date', 'approved_at'];
     
     protected $casts = [
-        'days' => 'integer'
+        'days' => 'integer',
+        'start_date' => 'date',
+        'end_date' => 'date',
+        'approved_at' => 'datetime'
     ];
     
     public function teacher(): BelongsTo

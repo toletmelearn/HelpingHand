@@ -152,24 +152,6 @@ class FeeCollection extends Model
             
             // Rebuild running balances
             \App\Services\LedgerService::rebuildRunningBalances($collection->student_id);
-
-            // Revert transport due status if transport fee was paid in this collection
-            $transportFeeType = \App\Models\FeeType::where('name', 'Transport Fee')->first();
-            if ($transportFeeType) {
-                $hasTransportPaid = $collection->feeCollectionItems()
-                    ->where('fee_type_id', $transportFeeType->id)
-                    ->exists();
-
-                if ($hasTransportPaid) {
-                    $due = \App\Models\StudentTransportDue::where('student_id', $collection->student_id)
-                        ->where('status', 'paid')
-                        ->orderBy('id', 'desc')
-                        ->first();
-                    if ($due) {
-                        $due->update(['status' => 'unpaid']);
-                    }
-                }
-            }
         });
 
         static::restored(function ($collection) {
@@ -205,31 +187,13 @@ class FeeCollection extends Model
                     $collection->discount
                 );
             }
-
-            // Sync transport due status
-            $transportFeeType = \App\Models\FeeType::where('name', 'Transport Fee')->first();
-            if ($transportFeeType) {
-                $hasTransportPaid = $collection->feeCollectionItems()
-                    ->where('fee_type_id', $transportFeeType->id)
-                    ->exists();
-
-                if ($hasTransportPaid) {
-                    $due = \App\Models\StudentTransportDue::where('student_id', $collection->student_id)
-                        ->where('status', 'unpaid')
-                        ->orderBy('id', 'asc')
-                        ->first();
-                    if ($due) {
-                        $due->update(['status' => 'paid']);
-                    }
-                }
-            }
         });
     }
 
 
     /**
      * Canonical set of payment_mode values, covering the union of what
-     * FeeCollectionController, TransportFeeController, InstallmentFeeController,
+     * FeeCollectionController, InstallmentFeeController,
      * and FinanceReconciliationController::issueRefund() each independently
      * validated before this -- 5 different lists that disagreed with each
      * other and, in InstallmentFeeController's case, didn't restrict the

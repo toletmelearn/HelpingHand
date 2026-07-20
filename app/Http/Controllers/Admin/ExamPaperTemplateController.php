@@ -12,27 +12,24 @@ class ExamPaperTemplateController extends Controller
     public function __construct()
     {
         $this->middleware('auth');
-        $this->middleware(function ($request, $next) {
-            if (!Auth::user()->hasRole('admin')) {
-                abort(403, 'Unauthorized access');
-            }
-            return $next($request);
-        });
     }
     
     public function index()
     {
+        $this->authorize('viewAny', ExamPaperTemplate::class);
         $templates = ExamPaperTemplate::orderBy('name')->paginate(15);
         return view('admin.exam-paper-templates.index', compact('templates'));
     }
     
     public function create()
     {
+        $this->authorize('create', ExamPaperTemplate::class);
         return view('admin.exam-paper-templates.create');
     }
     
     public function store(Request $request)
     {
+        $this->authorize('create', ExamPaperTemplate::class);
         $request->validate([
             'name' => 'required|string|max:255',
             'description' => 'nullable|string',
@@ -57,16 +54,19 @@ class ExamPaperTemplateController extends Controller
     
     public function show(ExamPaperTemplate $examPaperTemplate)
     {
+        $this->authorize('view', $examPaperTemplate);
         return view('admin.exam-paper-templates.show', compact('examPaperTemplate'));
     }
     
     public function edit(ExamPaperTemplate $examPaperTemplate)
     {
+        $this->authorize('update', $examPaperTemplate);
         return view('admin.exam-paper-templates.edit', compact('examPaperTemplate'));
     }
     
     public function update(Request $request, ExamPaperTemplate $examPaperTemplate)
     {
+        $this->authorize('update', $examPaperTemplate);
         $request->validate([
             'name' => 'required|string|max:255',
             'description' => 'nullable|string',
@@ -91,6 +91,7 @@ class ExamPaperTemplateController extends Controller
     
     public function destroy(ExamPaperTemplate $examPaperTemplate)
     {
+        $this->authorize('delete', $examPaperTemplate);
         $examPaperTemplate->delete();
         
         return redirect()->route('admin.exam-paper-templates.index')->with('success', 'Template deleted successfully.');
@@ -98,6 +99,7 @@ class ExamPaperTemplateController extends Controller
     
     public function toggleStatus(ExamPaperTemplate $examPaperTemplate)
     {
+        $this->authorize('toggleStatus', $examPaperTemplate);
         $examPaperTemplate->update(['is_active' => !$examPaperTemplate->is_active]);
         
         $status = $examPaperTemplate->is_active ? 'activated' : 'deactivated';
@@ -106,6 +108,7 @@ class ExamPaperTemplateController extends Controller
     
     public function preview(ExamPaperTemplate $examPaperTemplate)
     {
+        $this->authorize('preview', $examPaperTemplate);
         // Return a preview of the template
         return view('admin.exam-paper-templates.preview', compact('examPaperTemplate'));
     }

@@ -165,7 +165,12 @@ class StructureAdjustmentService
 
             // 5. Post future-dated debits for the new structure
             foreach ($newStructure->feeStructureItems as $item) {
-                if (strtolower($item->feeType->name) === 'transport fee') {
+                // Admission-only / one-time items (Admission Fee, Security
+                // Deposit) must not be re-billed just because the student
+                // is being moved onto a class that already has an active
+                // fee structure -- a structure change is never itself a
+                // new admission event.
+                if (!\App\Services\FeeItemEligibilityService::isBillable($item, $student, $newStructure->academic_year)) {
                     continue;
                 }
 
@@ -199,7 +204,7 @@ class StructureAdjustmentService
                         'July' => '07-01', 'August' => '08-01', 'September' => '09-01',
                         'October' => '10-01', 'November' => '11-01', 'December' => '12-01',
                         'Q1' => '04-01', 'Q2' => '07-01', 'Q3' => '10-01', 'Q4' => '01-01',
-                        'Annual' => '04-01'
+                        'Annual' => '04-01', 'OneTime' => '04-01'
                     ];
                     $datePart = $monthMap[$month] ?? '04-01';
                     if (in_array($month, ['January', 'February', 'March', 'Q4'])) {

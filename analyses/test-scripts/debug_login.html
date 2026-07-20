@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Debug Parent Login</title>
+</head>
+<body>
+    <h1>Debug Parent Login Form</h1>
+    
+    <form method="POST" action="http://127.0.0.1:8000/parent/login">
+        <input type="hidden" name="_token" value="{{ csrf_token() }}">
+        
+        <div>
+            <label>Mobile:</label>
+            <input type="text" name="mobile" value="9876543211" required>
+        </div>
+        
+        <div>
+            <label>Password:</label>
+            <input type="password" name="password" value="STU001" required>
+        </div>
+        
+        <div>
+            <button type="submit">Login</button>
+        </div>
+    </form>
+    
+    <p><strong>Debug Info:</strong></p>
+    <ul>
+        <li>Form action: http://127.0.0.1:8000/parent/login</li>
+        <li>Method: POST</li>
+        <li>CSRF Token: Present</li>
+        <li>Current URL: {{ url()->current() }}</li>
+    </ul>
+    
+    <p>After submitting, you should be redirected to: http://127.0.0.1:8000/parent/dashboard</p>
+</body>
+</html>

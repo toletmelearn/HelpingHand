@@ -15,7 +15,9 @@ class SecurityDepositController extends Controller
 {
     public function __construct()
     {
-        $this->middleware(['auth', 'role:accountant']);
+        $this->middleware('auth');
+        $this->middleware('permission:view-security-deposits')->only(['index']);
+        $this->middleware('permission:manage-security-deposits')->only(['resolve']);
     }
 
     /**

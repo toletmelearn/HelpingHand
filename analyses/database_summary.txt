@@ -1,0 +1,1040 @@
+DATABASE MIGRATIONS SUMMARY
+Total migration files: 224
+================================================================================
+
+--- CREATED TABLES ---
+Table: academic_sessions
+  Created in: 2026_01_23_092000_create_academic_sessions_table.php
+  Columns: ['name (string)', 'code (string)', 'start_date (date)', 'end_date (date)', 'is_current (boolean)', 'is_active (boolean)', 'description (text)']
+----------------------------------------
+Table: activity_log
+  Created in: 2026_01_23_073946_create_activity_log_table.php
+  Columns: ['id (bigIncrements)', 'log_name (string)', 'description (text)', 'subject (nullableMorphs)', 'causer (nullableMorphs)', 'event (uuid)', 'properties (text)', 'batch_uuid (uuid)', 'created_at (timestamp)', 'updated_at (timestamp)']
+  Indexes: ['index: log_name']
+----------------------------------------
+Table: admin_configurations
+  Created in: 2026_01_30_042554_create_admin_configurations_table.php
+  Columns: ['module (string)', 'key (string)', 'value (text)', 'type (string)', 'label (string)', 'description (text)', 'is_active (boolean)', 'updated_by (unsignedBigInteger)']
+  Indexes: ['unique: module, key', 'index: module', 'index: is_active']
+  Foreign Keys: ['updated_by']
+----------------------------------------
+Table: admission_enquiries
+  Created in: 2026_06_16_230000_create_admission_enquiries_table.php
+  Columns: ['candidate_name (string)', 'parent_name (string)', 'phone (string)', 'email (string)', 'status (string)', 'interview_date (date)', 'interview_score (decimal)', 'entrance_score (decimal)']
+----------------------------------------
+Table: admit_card_formats
+  Created in: 2026_01_23_092902_create_admit_card_formats_table.php
+  Columns: ['name (string)', 'header_html (text)', 'body_html (text)', 'footer_html (text)', 'background_image (string)', 'is_active (boolean)']
+  Foreign Keys: ['created_by']
+----------------------------------------
+Table: admit_cards
+  Created in: 2026_01_24_072859_create_admit_cards_table.php
+  Columns: ['academic_session (string)', 'status (string)', 'data (json)', 'published_at (timestamp)']
+  Foreign Keys: ['student_id', 'exam_id', 'admit_card_format_id', 'generated_by', 'published_by']
+----------------------------------------
+Table: advanced_reports
+  Created in: 2026_02_06_000000_create_missing_advanced_reports_table.php
+  Columns: ['name (string)', 'description (text)', 'type (string)', 'module (string)', 'filters (json)', 'columns (json)', 'chart_type (string)', 'is_active (boolean)', 'created_by (unsignedBigInteger)']
+  Indexes: ['index: module, type', 'index: is_active']
+  Foreign Keys: ['created_by']
+----------------------------------------
+Table: alumni
+  Created in: 2026_06_16_200000_create_alumni_table.php
+  Columns: ['graduation_year (integer)', 'current_occupation (string)', 'contact_email (string)', 'feedback (text)']
+  Foreign Keys: ['student_id']
+----------------------------------------
+Table: asset_categories
+  Created in: 2026_01_27_071402_create_asset_categories_table.php
+  Columns: ['name (string)', 'type (string)', 'description (text)', 'is_active (boolean)']
+----------------------------------------
+Table: assets
+  Created in: 2026_01_27_071413_create_assets_table.php
+  Columns: ['asset_code (string)', 'name (string)', 'category_id (unsignedBigInteger)', 'vendor (string)', 'cost (decimal)', 'purchase_date (date)', 'warranty_expiry_date (date)', 'warranty_details (text)', 'condition (enum)', 'status (enum)', 'description (text)', 'location (string)', 'serial_number (string)', 'quantity (integer)', 'available_quantity (integer)', 'is_active (boolean)']
+  Foreign Keys: ['category_id']
+----------------------------------------
+Table: attendances
+  Created in: 2026_01_21_083000_create_attendances_table.php
+  Columns: ['student_id (unsignedBigInteger)', 'teacher_id (unsignedBigInteger)', 'date (date)', 'status (enum)', 'remarks (text)', 'period (string)', 'subject (string)', 'class (string)', 'session (string)', 'marked_by (unsignedBigInteger)', 'ip_address (string)', 'device_info (string)']
+  Indexes: ['index: date, class', 'index: student_id, date', 'index: teacher_id, date', 'index: status', 'index: period', 'unique: student_id, date, period']
+  Foreign Keys: ['student_id', 'teacher_id', 'marked_by']
+----------------------------------------
+Table: attendances_temp
+  Created in: 2026_01_21_084000_create_attendances_temp_table.php
+  Columns: ['student_id (unsignedBigInteger)', 'teacher_id (unsignedBigInteger)', 'date (date)', 'status (enum)', 'remarks (text)', 'period (string)', 'subject (string)', 'class (string)', 'session (string)', 'marked_by (unsignedBigInteger)', 'ip_address (string)', 'device_info (string)']
+  Indexes: ['index: date, class', 'index: student_id, date', 'index: status', 'index: period']
+----------------------------------------
+Table: audit_logs
+  Created in: 2026_01_26_035245_create_audit_logs_table.php
+  Columns: ['user_type (string)', 'user_id (unsignedBigInteger)', 'model_type (string)', 'model_id (unsignedBigInteger)', 'field_name (string)', 'old_value (text)', 'new_value (text)', 'action (string)', 'ip_address (ipAddress)', 'user_agent (text)', 'performed_at (timestamp)']
+  Indexes: ['index: user_id, user_type', 'index: model_type, model_id', 'index: action', 'index: performed_at']
+----------------------------------------
+Table: backups
+  Created in: 2026_02_06_000001_create_missing_backups_table.php
+  Columns: ['filename (string)', 'path (string)', 'type (string)', 'location (string)', 'size (unsignedBigInteger)', 'status (string)', 'notes (text)', 'metadata (json)', 'created_by (unsignedBigInteger)', 'scheduled_at (timestamp)', 'completed_at (timestamp)']
+  Foreign Keys: ['created_by']
+----------------------------------------
+Table: bell_schedules
+  Created in: 2026_01_26_025542_create_bell_schedules_table.php
+  Columns: ['name (string)', 'season_type (enum)', 'start_date (date)', 'end_date (date)', 'status (enum)', 'periods (json)', 'target_group (string)', 'created_by (unsignedBigInteger)', 'updated_by (unsignedBigInteger)']
+  Foreign Keys: ['created_by', 'updated_by']
+----------------------------------------
+Table: bell_timings
+  Created in: 2026_01_21_090000_create_bell_timings_table.php
+  Columns: ['day_of_week (string)', 'period_name (string)', 'start_time (time)', 'end_time (time)', 'class_section (string)', 'is_active (boolean)', 'is_break (boolean)', 'order_index (integer)', 'academic_year (string)', 'semester (string)', 'custom_label (string)', 'color_code (string)', 'created_by (unsignedBigInteger)']
+  Indexes: ['index: day_of_week, is_active', 'index: class_section, is_active', 'index: academic_year, semester', 'index: order_index', 'index: day_of_week, class_section, order_index']
+  Foreign Keys: ['created_by']
+----------------------------------------
+Table: biometric_devices
+  Created in: 2026_01_27_044112_create_biometric_devices_table.php
+  Columns: ['name (string)', 'device_type (string)', 'connection_type (string)', 'ip_address (string)', 'port (integer)', 'api_url (string)', 'username (string)', 'password (string)', 'api_key (text)', 'device_config (text)', 'sync_frequency (integer)', 'real_time_sync (boolean)', 'is_active (boolean)', 'status (string)', 'last_sync_at (timestamp)', 'last_error (text)', 'retry_count (integer)', 'next_sync_at (timestamp)', 'description (text)']
+  Indexes: ['index: is_active, status', 'index: device_type', 'index: next_sync_at']
+----------------------------------------
+Table: biometric_settings
+  Created in: 2026_01_27_041903_create_biometric_settings_table.php
+  Columns: ['school_start_time (time)', 'school_end_time (time)', 'grace_period_minutes (integer)', 'lunch_break_duration (integer)', 'break_time_duration (integer)', 'half_day_minimum_hours (decimal)', 'late_tolerance_limit (integer)', 'early_departure_tolerance (integer)', 'exclude_lunch_from_working_hours (boolean)', 'exclude_breaks_from_working_hours (boolean)', 'is_active (boolean)', 'description (text)']
+  Indexes: ['unique: is_active], unique_active_setting']
+----------------------------------------
+Table: biometric_sync_logs
+  Created in: 2026_01_27_044151_create_biometric_sync_logs_table.php
+  Columns: ['biometric_device_id (unsignedBigInteger)', 'sync_type (string)', 'started_at (timestamp)', 'completed_at (timestamp)', 'status (string)', 'records_processed (integer)', 'records_created (integer)', 'records_updated (integer)', 'duplicates_skipped (integer)', 'errors_count (integer)', 'error_details (text)', 'sync_metadata (json)', 'log_message (text)']
+  Indexes: ['index: biometric_device_id, started_at', 'index: status', 'index: sync_type']
+  Foreign Keys: ['biometric_device_id']
+----------------------------------------
+Table: book_issues
+  Created in: 2026_01_28_074131_create_book_issues_table.php
+  Columns: ['issue_date (date)', 'due_date (date)', 'return_date (date)', 'delay_days (integer)', 'fine_amount (decimal)', 'status (string)']
+  Foreign Keys: ['book_id', 'student_id', 'issued_by']
+----------------------------------------
+Table: books
+  Created in: 2026_01_28_074125_create_books_table.php
+  Columns: ['book_name (string)', 'isbn (string)', 'author (string)', 'publisher (string)', 'subject (string)', 'class_grade (string)', 'total_quantity (integer)', 'rack_shelf_number (string)', 'cover_image (string)', 'is_active (boolean)']
+----------------------------------------
+Table: budget_allocations
+  Created in: 2026_01_27_083151_create_budget_allocations_table.php
+  Columns: ['budget_id (unsignedBigInteger)', 'budget_category_id (unsignedBigInteger)', 'allocated_amount (decimal)', 'spent_amount (decimal)']
+  Indexes: ['unique: budget_id, budget_category_id', 'index: budget_id, budget_category_id']
+  Foreign Keys: ['budget_id', 'budget_category_id']
+----------------------------------------
+Table: budget_categories
+  Created in: 2026_01_27_082337_create_budget_categories_table.php
+  Columns: ['name (string)', 'description (text)', 'type (string)', 'default_allocation_percentage (decimal)', 'is_active (boolean)', 'created_by (unsignedBigInteger)']
+  Indexes: ['index: type, is_active']
+  Foreign Keys: ['created_by']
+----------------------------------------
+Table: budgets
+  Created in: 2026_01_27_082346_create_budgets_table.php
+  Columns: ['name (string)', 'description (text)', 'fiscal_year (year)', 'total_amount (decimal)', 'allocated_amount (decimal)', 'spent_amount (decimal)', 'remaining_amount (decimal)', 'status (enum)', 'approval_date (date)', 'lock_date (date)', 'close_date (date)', 'approved_by (unsignedBigInteger)', 'created_by (unsignedBigInteger)']
+  Indexes: ['unique: fiscal_year, name', 'index: fiscal_year, status']
+  Foreign Keys: ['approved_by', 'created_by']
+----------------------------------------
+Table: cache
+  Created in: 0001_01_01_000001_create_cache_table.php
+  Columns: ['key (string)', 'value (mediumText)', 'expiration (integer)', 'key (string)', 'owner (string)', 'expiration (integer)']
+----------------------------------------
+Table: cache_locks
+  Created in: 0001_01_01_000001_create_cache_table.php
+  Columns: ['key (string)', 'value (mediumText)', 'expiration (integer)', 'key (string)', 'owner (string)', 'expiration (integer)']
+----------------------------------------
+Table: cashier_closings
+  Created in: 2026_07_01_190000_create_cashier_closings_table.php
+  Columns: ['cashier_id (unsignedBigInteger)', 'closing_date (date)', 'opening_balance (decimal)', 'expected_cash (decimal)', 'expected_upi (decimal)', 'expected_bank (decimal)', 'expected_cheque (decimal)', 'expected_online (decimal)', 'actual_cash (decimal)', 'actual_upi (decimal)', 'actual_bank (decimal)', 'actual_cheque (decimal)', 'actual_online (decimal)', 'discrepancy_reason (text)', 'status (string)', 'remarks (text)']
+  Foreign Keys: ['cashier_id']
+----------------------------------------
+Table: cbse_results
+  Created in: 2026_02_11_000000_create_cbse_results_table.php
+  Columns: ['name (string)', 'code (string)', 'subject_type (string)', 'is_active (boolean)', 'sort_order (integer)', 'student_id (unsignedBigInteger)', 'exam_id (unsignedBigInteger)', 'subject_id (unsignedBigInteger)', 'pt_marks (decimal)', 'notebook_marks (decimal)', 'sea_marks (decimal)', 'exam_marks (decimal)', 'total_marks (decimal)', 'percentage (decimal)', 'grade (string)', 'result_status (string)', 'academic_year (string)', 'term (string)', 'remarks (text)', 'class_rank (integer)', 'section_rank (integer)', 'is_locked (boolean)', 'locked_by (unsignedBigInteger)', 'locked_at (timestamp)', 'generated_by (unsignedBigInteger)', 'generated_at (timestamp)', 'updated_by (unsignedBigInteger)', 'exam_id (unsignedBigInteger)', 'academic_year (string)', 'term (string)', 'subject_id (unsignedBigInteger)', 'total_students (integer)', 'passed_students (integer)', 'failed_students (integer)', 'pass_percentage (decimal)', 'average_percentage (decimal)', 'highest_marks (decimal)', 'lowest_marks (decimal)']
+  Indexes: ['unique: student_id, exam_id, subject_id], unique_student_exam_subject', 'index: student_id, exam_id', 'index: academic_year, term', 'index: class_rank', 'index: is_locked']
+  Foreign Keys: ['student_id', 'exam_id', 'subject_id', 'locked_by', 'generated_by', 'updated_by', 'exam_id', 'subject_id']
+----------------------------------------
+Table: certificate_templates
+  Created in: 2026_01_27_090811_create_certificate_templates_table.php
+  Columns: ['name (string)', 'type (string)', 'template_content (text)', 'template_variables (json)', 'is_default (boolean)', 'is_active (boolean)', 'created_by (unsignedBigInteger)', 'updated_by (unsignedBigInteger)']
+  Foreign Keys: ['created_by', 'updated_by']
+----------------------------------------
+Table: certificates
+  Created in: 2026_01_27_090740_create_certificates_table.php
+  Columns: ['certificate_type (string)', 'serial_number (string)', 'recipient_id (unsignedBigInteger)', 'recipient_type (string)', 'content_data (text)', 'formatted_content (text)', 'status (string)', 'created_by (unsignedBigInteger)', 'approved_by (unsignedBigInteger)', 'approved_at (timestamp)', 'published_at (timestamp)', 'revoked_at (timestamp)', 'revocation_reason (text)', 'metadata (json)']
+  Foreign Keys: ['created_by', 'approved_by']
+----------------------------------------
+Table: class_management
+  Created in: 2026_01_22_045805_create_class_management_table.php
+  Columns: ['name (string)', 'section (string)', 'stream (string)', 'capacity (integer)', 'description (text)', 'is_active (boolean)']
+  Indexes: ['unique: name, section']
+----------------------------------------
+Table: class_sections
+  Created in: 2026_01_24_055848_create_class_sections_table.php
+  Columns: ['assigned_at (timestamp)']
+  Indexes: ['unique: class_management_id, section_id']
+  Foreign Keys: ['class_management_id', 'section_id']
+----------------------------------------
+Table: class_subject_assignments
+  Created in: 2026_01_24_052834_create_class_subject_assignments_table.php
+  Columns: ['class_id (unsignedBigInteger)', 'subject_id (unsignedBigInteger)', 'teacher_id (unsignedBigInteger)', 'assigned_at (timestamp)']
+  Foreign Keys: ['class_id', 'subject_id', 'teacher_id']
+----------------------------------------
+Table: class_teacher
+  Created in: 2026_01_22_045843_create_class_teacher_table.php
+  Columns: ['subject_assigned (string)', 'role (string)', 'is_primary (boolean)']
+  Indexes: ['unique: class_id, teacher_id']
+  Foreign Keys: ['class_id', 'teacher_id']
+----------------------------------------
+Table: class_teacher_assignments
+  Created in: 2026_01_26_035237_create_class_teacher_assignments_table.php
+  Columns: ['teacher_id (unsignedBigInteger)', 'assigned_class (string)', 'start_date (date)', 'end_date (date)', 'is_active (boolean)']
+  Indexes: ['index: teacher_id, assigned_class', 'index: is_active']
+  Foreign Keys: ['teacher_id']
+----------------------------------------
+Table: classes
+  Created in: 2026_01_31_072706_create_classes_table.php
+  Columns: ['name (string)', 'class_order (unsignedInteger)', 'description (text)', 'is_active (boolean)']
+----------------------------------------
+Table: custom_field_values
+  Created in: 2026_07_04_063000_create_import_system_tables.php
+  Columns: ['uuid (string)', 'module (string)', 'status (string)', 'column_mappings (json)', 'settings (json)', 'total_rows (integer)', 'processed_rows (integer)', 'success_rows (integer)', 'error_rows (integer)', 'resume_pointer (integer)', 'start_time (timestamp)', 'end_time (timestamp)', 'created_by (unsignedBigInteger)', 'profile_name (string)', 'module (string)', 'mappings (json)', 'created_by (unsignedBigInteger)', 'template_name (string)', 'version (string)', 'file_path (string)', 'schema_definition (json)', 'is_active (boolean)', 'import_session_id (unsignedBigInteger)', 'row_number (integer)', 'raw_row_data (json)', 'error_message (text)', 'module (string)', 'field_name (string)', 'field_type (string)', 'validation_rules (json)', 'is_required (boolean)', 'custom_field_id (unsignedBigInteger)', 'model_type (string)', 'model_id (unsignedBigInteger)', 'field_value (text)']
+  Indexes: ['index: module, status', 'index: module', 'index: module', 'index: model_type, model_id']
+  Foreign Keys: ['import_session_id', 'custom_field_id']
+----------------------------------------
+Table: custom_fields
+  Created in: 2026_07_04_063000_create_import_system_tables.php
+  Columns: ['uuid (string)', 'module (string)', 'status (string)', 'column_mappings (json)', 'settings (json)', 'total_rows (integer)', 'processed_rows (integer)', 'success_rows (integer)', 'error_rows (integer)', 'resume_pointer (integer)', 'start_time (timestamp)', 'end_time (timestamp)', 'created_by (unsignedBigInteger)', 'profile_name (string)', 'module (string)', 'mappings (json)', 'created_by (unsignedBigInteger)', 'template_name (string)', 'version (string)', 'file_path (string)', 'schema_definition (json)', 'is_active (boolean)', 'import_session_id (unsignedBigInteger)', 'row_number (integer)', 'raw_row_data (json)', 'error_message (text)', 'module (string)', 'field_name (string)', 'field_type (string)', 'validation_rules (json)', 'is_required (boolean)', 'custom_field_id (unsignedBigInteger)', 'model_type (string)', 'model_id (unsignedBigInteger)', 'field_value (text)']
+  Indexes: ['index: module, status', 'index: module', 'index: module', 'index: model_type, model_id']
+  Foreign Keys: ['import_session_id', 'custom_field_id']
+----------------------------------------
+Table: daily_teaching_works
+  Created in: 2026_01_24_085051_create_daily_teaching_works_table.php
+  Columns: ['date (date)', 'class_name (string)', 'section (string)', 'subject (string)', 'period_number (integer)', 'teacher_id (unsignedBigInteger)', 'topic_covered (string)', 'teaching_summary (text)', 'attachments (json)', 'homework (json)', 'status (string)', 'academic_session (string)', 'syllabus_mapping (json)', 'created_by (unsignedBigInteger)', 'updated_by (unsignedBigInteger)']
+  Indexes: ['unique: date, class_name, section, subject], unique_daily_teaching_per_day']
+  Foreign Keys: ['teacher_id', 'created_by', 'updated_by']
+----------------------------------------
+Table: defaulter_logs
+  Created in: 2026_07_01_201000_create_defaulter_logs_table.php
+  Columns: ['student_id (unsignedBigInteger)', 'stage (string)', 'action_type (string)', 'status (string)', 'details (text)', 'performed_by (unsignedBigInteger)']
+  Foreign Keys: ['student_id']
+----------------------------------------
+Table: defaulter_stages
+  Created in: 2026_07_01_200000_create_defaulter_stages_table.php
+  Columns: ['student_id (unsignedBigInteger)', 'stage (string)', 'outstanding_amount (decimal)', 'last_action_date (timestamp)', 'remarks (text)']
+  Foreign Keys: ['student_id']
+----------------------------------------
+Table: disciplinary_actions
+  Created in: 2026_06_16_150000_create_disciplinary_tables.php
+  Columns: ['incident_date (date)', 'title (string)', 'description (text)', 'demerit_points (integer)', 'status (string)', 'action_type (string)', 'action_details (text)', 'parent_notified_at (timestamp)']
+  Foreign Keys: ['student_id', 'reported_by', 'incident_id']
+----------------------------------------
+Table: disciplinary_incidents
+  Created in: 2026_06_16_150000_create_disciplinary_tables.php
+  Columns: ['incident_date (date)', 'title (string)', 'description (text)', 'demerit_points (integer)', 'status (string)', 'action_type (string)', 'action_details (text)', 'parent_notified_at (timestamp)']
+  Foreign Keys: ['student_id', 'reported_by', 'incident_id']
+----------------------------------------
+Table: discount_approvals
+  Created in: 2026_06_30_000000_refactor_fee_and_transport_modules.php
+  Columns: ['month (string)', 'academic_year (string)', 'amount (decimal)', 'status (string)', 'payment_date (date)', 'payment_mode (string)', 'transaction_id (string)', 'receipt_no (string)', 'remarks (text)', 'amount (decimal)', 'month (string)', 'academic_year (string)', 'status (string)', 'verification_slip (string)', 'reason (text)', 'status (string)', 'reversal_date (timestamp)', 'vehicle_id (dropColumn)', 'payment_date (dropColumn)', 'payment_mode (dropColumn)', 'transaction_id (dropColumn)', 'receipt_no (dropColumn)', 'collected_by (dropColumn)', 'remarks (dropColumn)']
+  Foreign Keys: ['student_id', 'route_id', 'stop_id', 'vehicle_id', 'collected_by', 'student_id', 'discount_rule_id', 'fee_type_id', 'created_by', 'verified_by', 'fee_collection_id', 'student_id', 'requested_by', 'processed_by']
+----------------------------------------
+Table: discount_rules
+  Created in: 2026_06_21_130200_create_discount_engine_tables.php
+  Columns: ['name (string)', 'type (string)', 'config (json)', 'priority (integer)', 'is_active (boolean)', 'amount (decimal)', 'month (string)', 'academic_year (string)']
+  Indexes: ['index: student_id, month, academic_year], student_discounts_applied_index']
+  Foreign Keys: ['student_id', 'discount_rule_id', 'fee_type_id']
+----------------------------------------
+Table: document_formats
+  Created in: 2026_01_29_100014_create_document_formats_table.php
+  Columns: ['name (string)', 'type (string)', 'description (text)', 'template_content (json)', 'css_styles (json)', 'header_content (text)', 'footer_content (text)', 'is_active (boolean)', 'is_default (boolean)', 'page_size (string)', 'orientation (enum)', 'margin_top (decimal)', 'margin_bottom (decimal)', 'margin_left (decimal)', 'margin_right (decimal)']
+  Indexes: ['index: type', 'index: is_active', 'index: is_default']
+----------------------------------------
+Table: drivers
+  Created in: 2026_06_16_130000_create_transport_tables.php
+  Columns: ['plate_no (string)', 'model (string)', 'capacity (integer)', 'status (string)', 'name (string)', 'start_point (string)', 'end_point (string)', 'monthly_fare (decimal)', 'name (string)', 'license_no (string)', 'phone_no (string)', 'status (string)', 'stop_name (string)', 'arrival_time (time)']
+  Foreign Keys: ['route_id', 'student_id', 'route_id', 'stop_id', 'vehicle_id']
+----------------------------------------
+Table: exam_blueprints
+  Created in: 2026_07_05_110000_create_exam_blueprints_table.php
+  Columns: ['topic_name (string)', 'weightage_percentage (decimal)', 'competency_level (string)']
+  Foreign Keys: ['exam_id']
+----------------------------------------
+Table: exam_heads
+  Created in: 2026_02_13_100002_create_exam_heads_table.php
+  Columns: ['school_id (unsignedBigInteger)', 'assigned_at (timestamp)', 'status (enum)']
+  Indexes: ['index: school_id']
+  Foreign Keys: ['teacher_id', 'assigned_by']
+----------------------------------------
+Table: exam_paper_templates
+  Created in: 2026_01_24_081508_create_exam_paper_templates_table.php
+  Columns: ['name (string)', 'description (text)', 'template_content (longText)', 'subject (string)', 'class_section (string)', 'academic_year (string)', 'is_active (boolean)', 'created_by (unsignedBigInteger)', 'updated_by (unsignedBigInteger)', 'header_content (text)', 'instruction_block (text)', 'footer_content (text)', 'section_config (json)', 'marks_distribution (json)', 'metadata (json)']
+  Indexes: ['index: subject, class_section', 'index: academic_year, is_active', 'index: created_by, is_active']
+  Foreign Keys: ['created_by', 'updated_by']
+----------------------------------------
+Table: exam_papers
+  Created in: 2026_02_19_080345_create_exam_papers_table.php
+  Columns: ['title (string)', 'exam_type (string)', 'academic_year (string)', 'semester (string)', 'paper_type (string)', 'exam_id (unsignedBigInteger)', 'class_id (unsignedBigInteger)', 'subject (string)', 'instructions (text)', 'paper_content (longText)', 'file_name (string)', 'file_path (string)', 'file_size (bigInteger)', 'file_extension (string)', 'uploaded_by (unsignedBigInteger)', 'is_answer_key (boolean)', 'duration_minutes (integer)', 'total_marks (integer)', 'exam_date (date)', 'access_level (string)', 'created_by (unsignedBigInteger)', 'is_approved (boolean)', 'approved_by (unsignedBigInteger)', 'created_by_teacher (unsignedBigInteger)', 'status (enum)', 'approved_by_admin (unsignedBigInteger)', 'approved_by_exam_dept (unsignedBigInteger)']
+  Indexes: ['index: exam_id, class_id, subject', 'index: status']
+  Foreign Keys: ['exam_id', 'class_id']
+----------------------------------------
+Table: examination_patterns
+  Created in: 2026_01_29_080432_create_examination_patterns_table.php
+  Columns: ['name (string)', 'code (string)', 'pattern_config (json)', 'is_default (boolean)', 'is_active (boolean)', 'sort_order (integer)', 'description (string)']
+----------------------------------------
+Table: exams
+  Created in: 2026_01_22_050319_create_exams_table.php
+  Columns: ['name (string)', 'exam_type (string)', 'class_name (string)', 'subject (string)', 'exam_date (date)', 'start_time (time)', 'end_time (time)', 'total_marks (decimal)', 'passing_marks (decimal)', 'description (text)', 'academic_year (string)', 'term (string)', 'status (enum)', 'created_by (unsignedBigInteger)']
+  Indexes: ['index: class_name, exam_date', 'index: status']
+----------------------------------------
+Table: expenses
+  Created in: 2026_01_27_082451_create_expenses_table.php
+  Columns: ['budget_id (unsignedBigInteger)', 'budget_category_id (unsignedBigInteger)', 'title (string)', 'description (text)', 'amount (decimal)', 'expense_date (date)', 'receipt_number (string)', 'vendor_name (string)', 'payment_method (enum)', 'status (enum)', 'approval_notes (text)', 'approved_by (unsignedBigInteger)', 'approved_at (timestamp)', 'created_by (unsignedBigInteger)']
+  Indexes: ['index: budget_id, expense_date', 'index: budget_category_id, status']
+  Foreign Keys: ['budget_id', 'budget_category_id', 'approved_by', 'created_by']
+----------------------------------------
+Table: failed_jobs
+  Created in: 0001_01_01_000002_create_jobs_table.php
+  Columns: ['queue (string)', 'payload (longText)', 'attempts (unsignedTinyInteger)', 'reserved_at (unsignedInteger)', 'available_at (unsignedInteger)', 'created_at (unsignedInteger)', 'id (string)', 'name (string)', 'total_jobs (integer)', 'pending_jobs (integer)', 'failed_jobs (integer)', 'failed_job_ids (longText)', 'options (mediumText)', 'cancelled_at (integer)', 'created_at (integer)', 'finished_at (integer)', 'uuid (string)', 'connection (text)', 'queue (text)', 'payload (longText)', 'exception (longText)', 'failed_at (timestamp)']
+----------------------------------------
+Table: fee_collection_items
+  Created in: 2026_02_12_100005_create_fee_collection_items_table.php
+  Columns: ['amount (decimal)']
+  Foreign Keys: ['fee_collection_id', 'fee_type_id']
+----------------------------------------
+Table: fee_collections
+  Created in: 2026_02_12_100004_create_fee_collections_table.php
+  Columns: ['receipt_no (string)', 'total_amount (decimal)', 'discount (decimal)', 'late_fine (decimal)', 'final_amount (decimal)', 'payment_date (date)', 'payment_mode (enum)', 'remarks (text)']
+  Indexes: ['index: receipt_no', 'index: payment_date', 'index: payment_mode']
+  Foreign Keys: ['student_id', 'fee_structure_id', 'collected_by']
+----------------------------------------
+Table: fee_discounts
+  Created in: 2026_02_12_000000_create_professional_fee_management_system.php
+  Columns: ['name (string)', 'code (string)', 'description (text)', 'type (enum)', 'is_active (boolean)', 'amount (decimal)', 'frequency (enum)', 'applicable_months (json)', 'is_late_fee_applicable (boolean)', 'late_fee_amount (decimal)', 'late_fee_days_after (integer)', 'is_mandatory (boolean)', 'academic_year (string)', 'assigned_date (date)', 'effective_from (date)', 'effective_until (date)', 'is_active (boolean)', 'notes (text)', 'academic_year (string)', 'month (string)', 'amount (decimal)', 'paid_amount (decimal)', 'due_amount (decimal)', 'late_fee (decimal)', 'discount (decimal)', 'fine (decimal)', 'status (enum)', 'due_date (date)', 'payment_date (date)', 'payment_mode (enum)', 'transaction_id (string)', 'cheque_number (string)', 'notes (text)', 'receipt_number (string)', 'total_amount (decimal)', 'paid_amount (decimal)', 'balance_amount (decimal)', 'fee_details (json)', 'generated_at (timestamp)', 'is_printed (boolean)', 'name (string)', 'description (text)', 'type (enum)', 'value (decimal)', 'is_active (boolean)', 'applicable_classes (json)', 'applicable_fee_heads (json)', 'valid_from (date)', 'valid_until (date)', 'applied_date (date)', 'valid_until (date)', 'is_active (boolean)', 'notes (text)']
+  Indexes: ['index: is_active', 'unique: fee_structure_id, fee_head_id], fee_structure_details_unique', 'index: fee_structure_id, frequency', 'unique: student_id, fee_structure_id, academic_year], student_fee_assignments_unique', 'index: student_id, is_active', 'index: academic_year', 'index: student_id, academic_year', 'index: student_id, month', 'index: status', 'index: payment_date', 'index: receipt_number', 'index: student_id, generated_at', 'unique: student_id, fee_discount_id], student_fee_discounts_unique']
+  Foreign Keys: ['fee_structure_id', 'fee_head_id', 'student_id', 'fee_structure_id', 'student_id', 'fee_structure_detail_id', 'collected_by', 'fee_collection_id', 'student_id', 'generated_by', 'student_id', 'fee_discount_id', 'applied_by']
+----------------------------------------
+Table: fee_heads
+  Created in: 2026_02_12_000000_create_professional_fee_management_system.php
+  Columns: ['name (string)', 'code (string)', 'description (text)', 'type (enum)', 'is_active (boolean)', 'amount (decimal)', 'frequency (enum)', 'applicable_months (json)', 'is_late_fee_applicable (boolean)', 'late_fee_amount (decimal)', 'late_fee_days_after (integer)', 'is_mandatory (boolean)', 'academic_year (string)', 'assigned_date (date)', 'effective_from (date)', 'effective_until (date)', 'is_active (boolean)', 'notes (text)', 'academic_year (string)', 'month (string)', 'amount (decimal)', 'paid_amount (decimal)', 'due_amount (decimal)', 'late_fee (decimal)', 'discount (decimal)', 'fine (decimal)', 'status (enum)', 'due_date (date)', 'payment_date (date)', 'payment_mode (enum)', 'transaction_id (string)', 'cheque_number (string)', 'notes (text)', 'receipt_number (string)', 'total_amount (decimal)', 'paid_amount (decimal)', 'balance_amount (decimal)', 'fee_details (json)', 'generated_at (timestamp)', 'is_printed (boolean)', 'name (string)', 'description (text)', 'type (enum)', 'value (decimal)', 'is_active (boolean)', 'applicable_classes (json)', 'applicable_fee_heads (json)', 'valid_from (date)', 'valid_until (date)', 'applied_date (date)', 'valid_until (date)', 'is_active (boolean)', 'notes (text)']
+  Indexes: ['index: is_active', 'unique: fee_structure_id, fee_head_id], fee_structure_details_unique', 'index: fee_structure_id, frequency', 'unique: student_id, fee_structure_id, academic_year], student_fee_assignments_unique', 'index: student_id, is_active', 'index: academic_year', 'index: student_id, academic_year', 'index: student_id, month', 'index: status', 'index: payment_date', 'index: receipt_number', 'index: student_id, generated_at', 'unique: student_id, fee_discount_id], student_fee_discounts_unique']
+  Foreign Keys: ['fee_structure_id', 'fee_head_id', 'student_id', 'fee_structure_id', 'student_id', 'fee_structure_detail_id', 'collected_by', 'fee_collection_id', 'student_id', 'generated_by', 'student_id', 'fee_discount_id', 'applied_by']
+----------------------------------------
+Table: fee_receipts
+  Created in: 2026_02_12_000000_create_professional_fee_management_system.php
+  Columns: ['name (string)', 'code (string)', 'description (text)', 'type (enum)', 'is_active (boolean)', 'amount (decimal)', 'frequency (enum)', 'applicable_months (json)', 'is_late_fee_applicable (boolean)', 'late_fee_amount (decimal)', 'late_fee_days_after (integer)', 'is_mandatory (boolean)', 'academic_year (string)', 'assigned_date (date)', 'effective_from (date)', 'effective_until (date)', 'is_active (boolean)', 'notes (text)', 'academic_year (string)', 'month (string)', 'amount (decimal)', 'paid_amount (decimal)', 'due_amount (decimal)', 'late_fee (decimal)', 'discount (decimal)', 'fine (decimal)', 'status (enum)', 'due_date (date)', 'payment_date (date)', 'payment_mode (enum)', 'transaction_id (string)', 'cheque_number (string)', 'notes (text)', 'receipt_number (string)', 'total_amount (decimal)', 'paid_amount (decimal)', 'balance_amount (decimal)', 'fee_details (json)', 'generated_at (timestamp)', 'is_printed (boolean)', 'name (string)', 'description (text)', 'type (enum)', 'value (decimal)', 'is_active (boolean)', 'applicable_classes (json)', 'applicable_fee_heads (json)', 'valid_from (date)', 'valid_until (date)', 'applied_date (date)', 'valid_until (date)', 'is_active (boolean)', 'notes (text)']
+  Indexes: ['index: is_active', 'unique: fee_structure_id, fee_head_id], fee_structure_details_unique', 'index: fee_structure_id, frequency', 'unique: student_id, fee_structure_id, academic_year], student_fee_assignments_unique', 'index: student_id, is_active', 'index: academic_year', 'index: student_id, academic_year', 'index: student_id, month', 'index: status', 'index: payment_date', 'index: receipt_number', 'index: student_id, generated_at', 'unique: student_id, fee_discount_id], student_fee_discounts_unique']
+  Foreign Keys: ['fee_structure_id', 'fee_head_id', 'student_id', 'fee_structure_id', 'student_id', 'fee_structure_detail_id', 'collected_by', 'fee_collection_id', 'student_id', 'generated_by', 'student_id', 'fee_discount_id', 'applied_by']
+----------------------------------------
+Table: fee_refunds
+  Created in: 2026_06_23_120000_upgrade_fee_finance_system_tables.php
+  Columns: ['billing_frequency (string)', 'charge_months (json)', 'amount (decimal)', 'type (enum)', 'reason (text)', 'payment_mode (string)', 'processed_at (timestamp)', 'academic_year (string)', 'unpaid_amount (decimal)']
+  Foreign Keys: ['student_id', 'fee_collection_id', 'processed_by', 'class_id', 'fee_type_id']
+----------------------------------------
+Table: fee_reminders
+  Created in: 2026_07_01_202000_create_fee_reminders_table.php
+  Columns: ['rule (string)', 'channel (string)', 'recipient (string)', 'message (text)', 'status (string)', 'retry_count (integer)', 'error_message (text)', 'sent_at (timestamp)']
+  Indexes: ['index: fee_id, rule, channel', 'index: status']
+  Foreign Keys: ['fee_id', 'student_id']
+----------------------------------------
+Table: fee_reversal_requests
+  Created in: 2026_06_30_000000_refactor_fee_and_transport_modules.php
+  Columns: ['month (string)', 'academic_year (string)', 'amount (decimal)', 'status (string)', 'payment_date (date)', 'payment_mode (string)', 'transaction_id (string)', 'receipt_no (string)', 'remarks (text)', 'amount (decimal)', 'month (string)', 'academic_year (string)', 'status (string)', 'verification_slip (string)', 'reason (text)', 'status (string)', 'reversal_date (timestamp)', 'vehicle_id (dropColumn)', 'payment_date (dropColumn)', 'payment_mode (dropColumn)', 'transaction_id (dropColumn)', 'receipt_no (dropColumn)', 'collected_by (dropColumn)', 'remarks (dropColumn)']
+  Foreign Keys: ['student_id', 'route_id', 'stop_id', 'vehicle_id', 'collected_by', 'student_id', 'discount_rule_id', 'fee_type_id', 'created_by', 'verified_by', 'fee_collection_id', 'student_id', 'requested_by', 'processed_by']
+----------------------------------------
+Table: fee_structure_details
+  Created in: 2026_02_12_000000_create_professional_fee_management_system.php
+  Columns: ['name (string)', 'code (string)', 'description (text)', 'type (enum)', 'is_active (boolean)', 'amount (decimal)', 'frequency (enum)', 'applicable_months (json)', 'is_late_fee_applicable (boolean)', 'late_fee_amount (decimal)', 'late_fee_days_after (integer)', 'is_mandatory (boolean)', 'academic_year (string)', 'assigned_date (date)', 'effective_from (date)', 'effective_until (date)', 'is_active (boolean)', 'notes (text)', 'academic_year (string)', 'month (string)', 'amount (decimal)', 'paid_amount (decimal)', 'due_amount (decimal)', 'late_fee (decimal)', 'discount (decimal)', 'fine (decimal)', 'status (enum)', 'due_date (date)', 'payment_date (date)', 'payment_mode (enum)', 'transaction_id (string)', 'cheque_number (string)', 'notes (text)', 'receipt_number (string)', 'total_amount (decimal)', 'paid_amount (decimal)', 'balance_amount (decimal)', 'fee_details (json)', 'generated_at (timestamp)', 'is_printed (boolean)', 'name (string)', 'description (text)', 'type (enum)', 'value (decimal)', 'is_active (boolean)', 'applicable_classes (json)', 'applicable_fee_heads (json)', 'valid_from (date)', 'valid_until (date)', 'applied_date (date)', 'valid_until (date)', 'is_active (boolean)', 'notes (text)']
+  Indexes: ['index: is_active', 'unique: fee_structure_id, fee_head_id], fee_structure_details_unique', 'index: fee_structure_id, frequency', 'unique: student_id, fee_structure_id, academic_year], student_fee_assignments_unique', 'index: student_id, is_active', 'index: academic_year', 'index: student_id, academic_year', 'index: student_id, month', 'index: status', 'index: payment_date', 'index: receipt_number', 'index: student_id, generated_at', 'unique: student_id, fee_discount_id], student_fee_discounts_unique']
+  Foreign Keys: ['fee_structure_id', 'fee_head_id', 'student_id', 'fee_structure_id', 'student_id', 'fee_structure_detail_id', 'collected_by', 'fee_collection_id', 'student_id', 'generated_by', 'student_id', 'fee_discount_id', 'applied_by']
+----------------------------------------
+Table: fee_structure_item_installments
+  Created in: 2026_06_25_200000_extend_fee_finance_schema_for_gaps.php
+  Columns: ['name (string)', 'type (string)', 'amount (decimal)', 'grace_days (integer)', 'slab_config (json)', 'max_limit (decimal)', 'category (string)', 'late_fee_rule_id (unsignedBigInteger)', 'exam_id (unsignedBigInteger)', 'fee_structure_item_id (unsignedBigInteger)', 'month (string)', 'amount (decimal)', 'route_name_snapshot (string)', 'stop_name_snapshot (string)', 'fare_snapshot (decimal)', 'category (dropColumn)']
+  Foreign Keys: ['late_fee_rule_id', 'fee_structure_item_id']
+----------------------------------------
+Table: fee_structure_items
+  Created in: 2026_02_12_100002_create_fee_structure_items_table.php
+  Columns: ['amount (decimal)', 'due_day (integer)']
+  Indexes: ['unique: fee_structure_id, fee_type_id']
+  Foreign Keys: ['fee_structure_id', 'fee_type_id']
+----------------------------------------
+Table: fee_structures
+  Created in: 2026_02_12_100001_create_fee_structures_table.php
+  Columns: ['class_name (string)', 'academic_year (string)', 'frequency (enum)', 'status (enum)']
+  Indexes: ['index: class_name, academic_year', 'index: status']
+  Foreign Keys: ['created_by']
+----------------------------------------
+Table: fee_types
+  Created in: 2026_02_12_100000_create_fee_types_table.php
+  Columns: ['name (string)', 'description (text)', 'is_optional (boolean)', 'status (enum)']
+  Indexes: ['index: status']
+----------------------------------------
+Table: fees
+  Created in: 2026_01_22_050134_create_fees_table.php
+  Columns: ['fee_structure_id (unsignedBigInteger)', 'academic_year (string)', 'term (string)', 'amount (decimal)', 'paid_amount (decimal)', 'due_amount (decimal)', 'status (enum)', 'due_date (date)', 'payment_date (date)', 'notes (text)']
+  Indexes: ['index: student_id, academic_year', 'index: status']
+  Foreign Keys: ['student_id']
+----------------------------------------
+Table: field_permissions
+  Created in: 2026_02_05_140010_recreate_field_permissions_table.php
+  Columns: ['model_type (string)', 'field_name (string)', 'role (string)', 'permission_level (enum)', 'is_active (boolean)']
+  Indexes: ['index: model_type, role', 'index: is_active']
+----------------------------------------
+Table: financial_year_closings
+  Created in: 2026_07_01_210000_create_financial_year_closings_table.php
+  Columns: ['from_session_code (string)', 'to_session_code (string)', 'status (string)', 'total_students_processed (integer)', 'total_balance_carried (decimal)', 'total_advance_carried (decimal)', 'confirmed_at (timestamp)', 'remarks (text)']
+  Foreign Keys: ['processed_by']
+----------------------------------------
+Table: gate_entries
+  Created in: 2026_06_16_220000_create_gate_entries_table.php
+  Columns: ['visitor_name (string)', 'purpose (string)', 'check_in (timestamp)', 'check_out (timestamp)', 'vehicle_no (string)']
+  Foreign Keys: ['host_user_id']
+----------------------------------------
+Table: grading_systems
+  Created in: 2026_01_29_074949_create_grading_systems_table.php
+  Columns: ['name (string)', 'grade (string)', 'min_percentage (decimal)', 'max_percentage (decimal)', 'grade_points (decimal)', 'description (string)', 'is_active (boolean)', 'order (integer)']
+----------------------------------------
+Table: guardians
+  Created in: 2026_01_22_045905_create_guardians_table.php
+  Columns: ['name (string)', 'relationship (string)', 'phone (string)', 'email (string)', 'occupation (string)', 'address (text)', 'aadhar_number (string)', 'is_primary (boolean)', 'is_active (boolean)']
+----------------------------------------
+Table: homework_notices
+  Created in: 2026_02_12_070044_create_homework_notices_table.php
+  Columns: ['title (string)', 'description (text)', 'type (enum)', 'due_date (date)', 'publish_date (timestamp)', 'status (enum)', 'priority (enum)']
+  Foreign Keys: ['class_id', 'subject_id', 'assigned_by']
+----------------------------------------
+Table: homework_submissions
+  Created in: 2026_06_16_120000_create_homework_submissions_table.php
+  Columns: ['submission_date (timestamp)', 'file_path (string)', 'student_notes (text)', 'marks_obtained (decimal)', 'grade (string)', 'remarks (text)', 'evaluated_at (timestamp)', 'status (string)']
+  Foreign Keys: ['homework_notice_id', 'student_id', 'evaluated_by']
+----------------------------------------
+Table: hostel_rooms
+  Created in: 2026_06_16_190000_create_hostel_tables.php
+  Columns: ['name (string)', 'type (string)', 'capacity (integer)', 'room_no (string)', 'capacity (integer)', 'cost_per_bed (decimal)', 'status (string)']
+  Foreign Keys: ['hostel_id', 'student_id', 'room_id']
+----------------------------------------
+Table: hostels
+  Created in: 2026_06_16_190000_create_hostel_tables.php
+  Columns: ['name (string)', 'type (string)', 'capacity (integer)', 'room_no (string)', 'capacity (integer)', 'cost_per_bed (decimal)', 'status (string)']
+  Foreign Keys: ['hostel_id', 'student_id', 'room_id']
+----------------------------------------
+Table: id_cards
+  Created in: 2026_02_12_070523_create_id_cards_table.php
+  Columns: ['card_number (string)', 'issue_date (date)', 'expiry_date (date)', 'status (enum)', 'printed_at (timestamp)']
+  Foreign Keys: ['student_id', 'template_id', 'printed_by']
+----------------------------------------
+Table: import_errors
+  Created in: 2026_07_04_063000_create_import_system_tables.php
+  Columns: ['uuid (string)', 'module (string)', 'status (string)', 'column_mappings (json)', 'settings (json)', 'total_rows (integer)', 'processed_rows (integer)', 'success_rows (integer)', 'error_rows (integer)', 'resume_pointer (integer)', 'start_time (timestamp)', 'end_time (timestamp)', 'created_by (unsignedBigInteger)', 'profile_name (string)', 'module (string)', 'mappings (json)', 'created_by (unsignedBigInteger)', 'template_name (string)', 'version (string)', 'file_path (string)', 'schema_definition (json)', 'is_active (boolean)', 'import_session_id (unsignedBigInteger)', 'row_number (integer)', 'raw_row_data (json)', 'error_message (text)', 'module (string)', 'field_name (string)', 'field_type (string)', 'validation_rules (json)', 'is_required (boolean)', 'custom_field_id (unsignedBigInteger)', 'model_type (string)', 'model_id (unsignedBigInteger)', 'field_value (text)']
+  Indexes: ['index: module, status', 'index: module', 'index: module', 'index: model_type, model_id']
+  Foreign Keys: ['import_session_id', 'custom_field_id']
+----------------------------------------
+Table: import_mapping_profiles
+  Created in: 2026_07_04_063000_create_import_system_tables.php
+  Columns: ['uuid (string)', 'module (string)', 'status (string)', 'column_mappings (json)', 'settings (json)', 'total_rows (integer)', 'processed_rows (integer)', 'success_rows (integer)', 'error_rows (integer)', 'resume_pointer (integer)', 'start_time (timestamp)', 'end_time (timestamp)', 'created_by (unsignedBigInteger)', 'profile_name (string)', 'module (string)', 'mappings (json)', 'created_by (unsignedBigInteger)', 'template_name (string)', 'version (string)', 'file_path (string)', 'schema_definition (json)', 'is_active (boolean)', 'import_session_id (unsignedBigInteger)', 'row_number (integer)', 'raw_row_data (json)', 'error_message (text)', 'module (string)', 'field_name (string)', 'field_type (string)', 'validation_rules (json)', 'is_required (boolean)', 'custom_field_id (unsignedBigInteger)', 'model_type (string)', 'model_id (unsignedBigInteger)', 'field_value (text)']
+  Indexes: ['index: module, status', 'index: module', 'index: module', 'index: model_type, model_id']
+  Foreign Keys: ['import_session_id', 'custom_field_id']
+----------------------------------------
+Table: import_sessions
+  Created in: 2026_07_04_063000_create_import_system_tables.php
+  Columns: ['uuid (string)', 'module (string)', 'status (string)', 'column_mappings (json)', 'settings (json)', 'total_rows (integer)', 'processed_rows (integer)', 'success_rows (integer)', 'error_rows (integer)', 'resume_pointer (integer)', 'start_time (timestamp)', 'end_time (timestamp)', 'created_by (unsignedBigInteger)', 'profile_name (string)', 'module (string)', 'mappings (json)', 'created_by (unsignedBigInteger)', 'template_name (string)', 'version (string)', 'file_path (string)', 'schema_definition (json)', 'is_active (boolean)', 'import_session_id (unsignedBigInteger)', 'row_number (integer)', 'raw_row_data (json)', 'error_message (text)', 'module (string)', 'field_name (string)', 'field_type (string)', 'validation_rules (json)', 'is_required (boolean)', 'custom_field_id (unsignedBigInteger)', 'model_type (string)', 'model_id (unsignedBigInteger)', 'field_value (text)']
+  Indexes: ['index: module, status', 'index: module', 'index: module', 'index: model_type, model_id']
+  Foreign Keys: ['import_session_id', 'custom_field_id']
+----------------------------------------
+Table: import_templates
+  Created in: 2026_07_04_063000_create_import_system_tables.php
+  Columns: ['uuid (string)', 'module (string)', 'status (string)', 'column_mappings (json)', 'settings (json)', 'total_rows (integer)', 'processed_rows (integer)', 'success_rows (integer)', 'error_rows (integer)', 'resume_pointer (integer)', 'start_time (timestamp)', 'end_time (timestamp)', 'created_by (unsignedBigInteger)', 'profile_name (string)', 'module (string)', 'mappings (json)', 'created_by (unsignedBigInteger)', 'template_name (string)', 'version (string)', 'file_path (string)', 'schema_definition (json)', 'is_active (boolean)', 'import_session_id (unsignedBigInteger)', 'row_number (integer)', 'raw_row_data (json)', 'error_message (text)', 'module (string)', 'field_name (string)', 'field_type (string)', 'validation_rules (json)', 'is_required (boolean)', 'custom_field_id (unsignedBigInteger)', 'model_type (string)', 'model_id (unsignedBigInteger)', 'field_value (text)']
+  Indexes: ['index: module, status', 'index: module', 'index: module', 'index: model_type, model_id']
+  Foreign Keys: ['import_session_id', 'custom_field_id']
+----------------------------------------
+Table: inventory_transactions
+  Created in: 2026_01_27_071426_create_inventory_transactions_table.php
+  Columns: ['asset_id (unsignedBigInteger)', 'user_id (unsignedBigInteger)', 'transaction_type (enum)', 'quantity (integer)', 'from_location (string)', 'to_location (string)', 'assigned_to (unsignedBigInteger)', 'reason (text)', 'notes (text)']
+  Foreign Keys: ['asset_id', 'user_id', 'assigned_to']
+----------------------------------------
+Table: job_batches
+  Created in: 0001_01_01_000002_create_jobs_table.php
+  Columns: ['queue (string)', 'payload (longText)', 'attempts (unsignedTinyInteger)', 'reserved_at (unsignedInteger)', 'available_at (unsignedInteger)', 'created_at (unsignedInteger)', 'id (string)', 'name (string)', 'total_jobs (integer)', 'pending_jobs (integer)', 'failed_jobs (integer)', 'failed_job_ids (longText)', 'options (mediumText)', 'cancelled_at (integer)', 'created_at (integer)', 'finished_at (integer)', 'uuid (string)', 'connection (text)', 'queue (text)', 'payload (longText)', 'exception (longText)', 'failed_at (timestamp)']
+----------------------------------------
+Table: jobs
+  Created in: 0001_01_01_000002_create_jobs_table.php
+  Columns: ['queue (string)', 'payload (longText)', 'attempts (unsignedTinyInteger)', 'reserved_at (unsignedInteger)', 'available_at (unsignedInteger)', 'created_at (unsignedInteger)', 'id (string)', 'name (string)', 'total_jobs (integer)', 'pending_jobs (integer)', 'failed_jobs (integer)', 'failed_job_ids (longText)', 'options (mediumText)', 'cancelled_at (integer)', 'created_at (integer)', 'finished_at (integer)', 'uuid (string)', 'connection (text)', 'queue (text)', 'payload (longText)', 'exception (longText)', 'failed_at (timestamp)']
+----------------------------------------
+Table: language_settings
+  Created in: 2026_02_05_130048_recreate_language_settings_table.php
+  Columns: ['locale (string)', 'name (string)', 'flag (string)', 'is_default (boolean)', 'is_active (boolean)', 'created_by (unsignedBigInteger)', 'updated_by (unsignedBigInteger)']
+  Foreign Keys: ['created_by', 'updated_by']
+----------------------------------------
+Table: languages
+  Created in: 2026_01_30_055748_create_languages_table.php
+  Columns: ['name (string)', 'code (string)', 'flag_icon (string)', 'is_active (boolean)', 'is_default (boolean)', 'sort_order (integer)']
+  Indexes: ['index: is_active, is_default', 'index: code']
+----------------------------------------
+Table: late_fee_rules
+  Created in: 2026_06_25_200000_extend_fee_finance_schema_for_gaps.php
+  Columns: ['name (string)', 'type (string)', 'amount (decimal)', 'grace_days (integer)', 'slab_config (json)', 'max_limit (decimal)', 'category (string)', 'late_fee_rule_id (unsignedBigInteger)', 'exam_id (unsignedBigInteger)', 'fee_structure_item_id (unsignedBigInteger)', 'month (string)', 'amount (decimal)', 'route_name_snapshot (string)', 'stop_name_snapshot (string)', 'fare_snapshot (decimal)', 'category (dropColumn)']
+  Foreign Keys: ['late_fee_rule_id', 'fee_structure_item_id']
+----------------------------------------
+Table: lesson_plans
+  Created in: 2026_02_15_100247_create_lesson_plans_table.php
+  Columns: ['teacher_id (unsignedBigInteger)', 'class_id (unsignedBigInteger)', 'section_id (unsignedBigInteger)', 'subject_id (unsignedBigInteger)', 'title (string)', 'plan_type (enum)', 'start_date (date)', 'end_date (date)', 'full_content (text)', 'parent_visible_content (text)', 'show_to_parents (boolean)', 'topic (string)', 'learning_objectives (text)', 'teaching_method (text)', 'homework_classwork (text)', 'books_notebooks_required (text)', 'submission_assessment_notes (text)']
+  Foreign Keys: ['teacher_id', 'class_id', 'section_id', 'subject_id']
+----------------------------------------
+Table: library_settings
+  Created in: 2026_01_28_074138_create_library_settings_table.php
+  Columns: ['default_issue_days (integer)', 'fine_per_day (decimal)', 'low_stock_threshold (integer)', 'auto_reminder_enabled (boolean)']
+----------------------------------------
+Table: medical_checkups
+  Created in: 2026_06_16_140000_create_medical_tables.php
+  Columns: ['blood_group (string)', 'height_cm (decimal)', 'weight_kg (decimal)', 'allergies (text)', 'medical_conditions (text)', 'emergency_contact_name (string)', 'emergency_contact_phone (string)', 'checkup_date (date)', 'doctor_name (string)', 'diagnosis (text)', 'treatment (text)', 'vaccination_logs (text)']
+  Foreign Keys: ['student_id', 'student_id']
+----------------------------------------
+Table: medical_records
+  Created in: 2026_06_16_140000_create_medical_tables.php
+  Columns: ['blood_group (string)', 'height_cm (decimal)', 'weight_kg (decimal)', 'allergies (text)', 'medical_conditions (text)', 'emergency_contact_name (string)', 'emergency_contact_phone (string)', 'checkup_date (date)', 'doctor_name (string)', 'diagnosis (text)', 'treatment (text)', 'vaccination_logs (text)']
+  Foreign Keys: ['student_id', 'student_id']
+----------------------------------------
+Table: notebook_checks
+  Created in: 2026_06_16_160000_create_notebook_checks_table.php
+  Columns: ['check_date (date)', 'deficiencies (string)', 'recheck_date (date)', 'remarks (text)', 'is_signed (boolean)']
+  Foreign Keys: ['student_id', 'subject_id', 'checked_by']
+----------------------------------------
+Table: notification_logs
+  Created in: 2026_02_05_132402_recreate_notification_logs_table.php
+  Columns: ['recipient_type (string)', 'recipient_id (unsignedBigInteger)', 'notification_type (string)', 'subject (string)', 'message (text)', 'status (string)', 'sent_at (timestamp)', 'failed_reason (text)', 'retry_count (integer)']
+  Indexes: ['index: status, sent_at', 'index: notification_type', 'index: recipient_type, recipient_id']
+  Foreign Keys: ['notification_setting_id']
+----------------------------------------
+Table: notification_settings
+  Created in: 2026_02_05_130448_recreate_notification_settings_table.php
+  Columns: ['event_type (string)', 'notification_type (string)', 'is_enabled (boolean)', 'template_subject (string)', 'template_body (text)', 'recipients (json)', 'conditions (json)', 'schedule_type (string)']
+  Indexes: ['index: event_type, is_enabled', 'index: notification_type', 'index: schedule_type']
+  Foreign Keys: ['created_by']
+----------------------------------------
+Table: notification_templates
+  Created in: 2026_01_27_044231_create_notification_templates_table.php
+  Columns: ['name (string)', 'event_type (string)', 'channel (string)', 'subject (string)', 'template_content (text)', 'variables (json)', 'is_active (boolean)', 'delay_minutes (integer)', 'recipient_roles (text)', 'conditions (text)', 'description (text)']
+  Indexes: ['index: event_type, channel', 'index: is_active']
+----------------------------------------
+Table: notifications
+  Created in: 2026_01_23_072523_create_notifications_table.php
+  Columns: ['id (uuid)', 'type (string)', 'notifiable (morphs)', 'data (text)', 'read_at (timestamp)']
+----------------------------------------
+Table: online_quizzes
+  Created in: 2026_06_16_170000_create_quizzes_and_materials_tables.php
+  Columns: ['title (string)', 'description (text)', 'file_path (string)', 'title (string)', 'duration_minutes (integer)', 'total_questions (integer)', 'question_text (text)', 'option_a (string)', 'option_b (string)', 'option_c (string)', 'option_d (string)', 'correct_option (string)']
+  Foreign Keys: ['class_id', 'subject_id', 'uploaded_by', 'exam_id', 'quiz_id']
+----------------------------------------
+Table: parents
+  Created in: 2026_02_13_100001_create_parents_table.php
+  Columns: ['name (string)', 'email (string)', 'phone (string)', 'password (string)', 'student_id (unsignedBigInteger)']
+  Foreign Keys: ['student_id']
+----------------------------------------
+Table: password_reset_tokens
+  Created in: 0001_01_01_000000_create_users_table.php
+  Columns: ['name (string)', 'email (string)', 'email_verified_at (timestamp)', 'password (string)', 'email (string)', 'token (string)', 'created_at (timestamp)', 'id (string)', 'ip_address (string)', 'user_agent (text)', 'payload (longText)', 'last_activity (integer)']
+  Foreign Keys: ['user_id']
+----------------------------------------
+Table: payment_allocations
+  Created in: 2026_07_01_180000_create_payment_allocations_table.php
+  Columns: ['amount (decimal)', 'allocation_type (string)']
+  Indexes: ['unique: credit_ledger_id, debit_ledger_id], pay_alloc_unique_credit_debit', 'index: student_id, pay_alloc_student_index']
+  Foreign Keys: ['student_id', 'credit_ledger_id', 'debit_ledger_id']
+----------------------------------------
+Table: performance_analytics
+  Created in: 2026_01_30_064634_create_performance_analytics_table.php
+  Columns: ['metric_type (string)', 'metric_value (decimal)', 'date_recorded (date)', 'module_accessed (string)', 'duration (integer)', 'ip_address (string)', 'user_agent (text)', 'additional_data (json)']
+  Indexes: ['index: metric_type, date_recorded', 'index: module_accessed, date_recorded', 'index: user_id, date_recorded', 'index: date_recorded']
+  Foreign Keys: ['user_id']
+----------------------------------------
+Table: performance_scores
+  Created in: 2026_01_27_044308_create_performance_scores_table.php
+  Columns: ['teacher_id (unsignedBigInteger)', 'period_start (date)', 'period_end (date)', 'period_type (string)', 'punctuality_score (decimal)', 'discipline_rating (decimal)', 'consistency_index (decimal)', 'performance_grade (string)', 'total_days (integer)', 'present_days (integer)', 'late_arrivals (integer)', 'early_departures (integer)', 'absent_days (integer)', 'avg_working_hours (decimal)', 'detailed_metrics (json)', 'comments (text)']
+  Indexes: ['index: teacher_id, period_start', 'index: period_type', 'index: performance_grade']
+  Foreign Keys: ['teacher_id']
+----------------------------------------
+Table: permissions
+  Created in: 2026_01_24_071727_create_permissions_table.php
+  Columns: ['name (string)', 'guard_name (string)']
+----------------------------------------
+Table: personal_access_tokens
+  Created in: 2026_01_30_070159_create_personal_access_tokens_table.php
+  Columns: []
+----------------------------------------
+Table: processed_stripe_events
+  Created in: 2026_07_02_000000_create_processed_stripe_events_table.php
+  Columns: ['event_id (string)', 'event_type (string)', 'payment_intent (string)', 'status (string)', 'error_message (text)', 'payload_hash (text)', 'attempts (integer)', 'processed_at (timestamp)']
+----------------------------------------
+Table: promotion_rules
+  Created in: 2026_07_05_130000_create_report_and_promotion_tables.php
+  Columns: ['name (string)', 'layout_config (json)', 'scholastic_sections (json)', 'is_active (boolean)', 'class_name (string)', 'min_overall_percentage (decimal)', 'max_failed_subjects (integer)', 'min_attendance_percentage (decimal)', 'academic_year (string)']
+----------------------------------------
+Table: ptm_meetings
+  Created in: 2026_06_16_180000_create_ptm_meetings_table.php
+  Columns: ['meeting_date (date)', 'time_slot (string)', 'status (string)', 'notes (text)']
+  Foreign Keys: ['teacher_id', 'parent_id']
+----------------------------------------
+Table: purchase_requests
+  Created in: 2026_06_16_260000_create_purchase_requests_table.php
+  Columns: ['item_name (string)', 'quantity (integer)', 'estimated_cost (decimal)', 'status (string)']
+  Foreign Keys: ['requested_by', 'approved_by']
+----------------------------------------
+Table: quiz_questions
+  Created in: 2026_06_16_170000_create_quizzes_and_materials_tables.php
+  Columns: ['title (string)', 'description (text)', 'file_path (string)', 'title (string)', 'duration_minutes (integer)', 'total_questions (integer)', 'question_text (text)', 'option_a (string)', 'option_b (string)', 'option_c (string)', 'option_d (string)', 'correct_option (string)']
+  Foreign Keys: ['class_id', 'subject_id', 'uploaded_by', 'exam_id', 'quiz_id']
+----------------------------------------
+Table: quiz_submissions
+  Created in: 2026_06_16_250000_create_quiz_submissions_table.php
+  Columns: ['score (integer)', 'answers_json (text)']
+  Foreign Keys: ['student_id', 'quiz_id']
+----------------------------------------
+Table: report_card_templates
+  Created in: 2026_07_05_130000_create_report_and_promotion_tables.php
+  Columns: ['name (string)', 'layout_config (json)', 'scholastic_sections (json)', 'is_active (boolean)', 'class_name (string)', 'min_overall_percentage (decimal)', 'max_failed_subjects (integer)', 'min_attendance_percentage (decimal)', 'academic_year (string)']
+----------------------------------------
+Table: result_formats
+  Created in: 2026_01_29_075518_create_result_formats_table.php
+  Columns: ['name (string)', 'code (string)', 'template_html (text)', 'fields (json)', 'is_default (boolean)', 'is_active (boolean)', 'sort_order (integer)', 'description (string)']
+----------------------------------------
+Table: result_statistics
+  Created in: 2026_02_11_000000_create_cbse_results_table.php
+  Columns: ['name (string)', 'code (string)', 'subject_type (string)', 'is_active (boolean)', 'sort_order (integer)', 'student_id (unsignedBigInteger)', 'exam_id (unsignedBigInteger)', 'subject_id (unsignedBigInteger)', 'pt_marks (decimal)', 'notebook_marks (decimal)', 'sea_marks (decimal)', 'exam_marks (decimal)', 'total_marks (decimal)', 'percentage (decimal)', 'grade (string)', 'result_status (string)', 'academic_year (string)', 'term (string)', 'remarks (text)', 'class_rank (integer)', 'section_rank (integer)', 'is_locked (boolean)', 'locked_by (unsignedBigInteger)', 'locked_at (timestamp)', 'generated_by (unsignedBigInteger)', 'generated_at (timestamp)', 'updated_by (unsignedBigInteger)', 'exam_id (unsignedBigInteger)', 'academic_year (string)', 'term (string)', 'subject_id (unsignedBigInteger)', 'total_students (integer)', 'passed_students (integer)', 'failed_students (integer)', 'pass_percentage (decimal)', 'average_percentage (decimal)', 'highest_marks (decimal)', 'lowest_marks (decimal)']
+  Indexes: ['unique: student_id, exam_id, subject_id], unique_student_exam_subject', 'index: student_id, exam_id', 'index: academic_year, term', 'index: class_rank', 'index: is_locked']
+  Foreign Keys: ['student_id', 'exam_id', 'subject_id', 'locked_by', 'generated_by', 'updated_by', 'exam_id', 'subject_id']
+----------------------------------------
+Table: results
+  Created in: 2026_01_22_050255_create_results_table.php
+  Columns: ['exam_id (unsignedBigInteger)', 'subject (string)', 'marks_obtained (decimal)', 'total_marks (decimal)', 'percentage (decimal)', 'grade (string)', 'academic_year (string)', 'term (string)', 'comments (text)', 'result_status (string)']
+  Indexes: ['index: student_id, exam_id', 'unique: student_id, exam_id, subject']
+  Foreign Keys: ['student_id']
+----------------------------------------
+Table: role_permissions
+  Created in: 2026_01_24_071803_create_role_permissions_table.php
+  Columns: ['role_id (unsignedBigInteger)', 'permission_id (unsignedBigInteger)']
+  Indexes: ['unique: role_id, permission_id']
+  Foreign Keys: ['role_id', 'permission_id']
+----------------------------------------
+Table: role_user
+  Created in: 2026_01_22_045721_create_role_user_table.php
+  Columns: []
+  Indexes: ['unique: user_id, role_id']
+  Foreign Keys: ['user_id', 'role_id']
+----------------------------------------
+Table: roles
+  Created in: 2026_01_22_045619_create_roles_table.php
+  Columns: ['name (string)', 'display_name (string)', 'description (text)']
+----------------------------------------
+Table: route_stops
+  Created in: 2026_06_16_130000_create_transport_tables.php
+  Columns: ['plate_no (string)', 'model (string)', 'capacity (integer)', 'status (string)', 'name (string)', 'start_point (string)', 'end_point (string)', 'monthly_fare (decimal)', 'name (string)', 'license_no (string)', 'phone_no (string)', 'status (string)', 'stop_name (string)', 'arrival_time (time)']
+  Foreign Keys: ['route_id', 'student_id', 'route_id', 'stop_id', 'vehicle_id']
+----------------------------------------
+Table: routes
+  Created in: 2026_06_16_130000_create_transport_tables.php
+  Columns: ['plate_no (string)', 'model (string)', 'capacity (integer)', 'status (string)', 'name (string)', 'start_point (string)', 'end_point (string)', 'monthly_fare (decimal)', 'name (string)', 'license_no (string)', 'phone_no (string)', 'status (string)', 'stop_name (string)', 'arrival_time (time)']
+  Foreign Keys: ['route_id', 'student_id', 'route_id', 'stop_id', 'vehicle_id']
+----------------------------------------
+Table: school_classes
+  Created in: 2026_01_24_052805_create_school_classes_table.php
+  Columns: ['name (string)', 'section_id (unsignedBigInteger)', 'academic_session_id (unsignedBigInteger)', 'teacher_id (unsignedBigInteger)', 'description (text)']
+  Foreign Keys: ['section_id', 'academic_session_id', 'teacher_id']
+----------------------------------------
+Table: sections
+  Created in: 2026_01_23_090000_create_sections_table.php
+  Columns: ['name (string)', 'description (text)', 'capacity (integer)', 'is_active (boolean)']
+  Indexes: ['unique: name, class_id']
+  Foreign Keys: ['class_id']
+----------------------------------------
+Table: sessions
+  Created in: 0001_01_01_000000_create_users_table.php
+  Columns: ['name (string)', 'email (string)', 'email_verified_at (timestamp)', 'password (string)', 'email (string)', 'token (string)', 'created_at (timestamp)', 'id (string)', 'ip_address (string)', 'user_agent (text)', 'payload (longText)', 'last_activity (integer)']
+  Foreign Keys: ['user_id']
+----------------------------------------
+Table: slow_learners
+  Created in: 2026_06_16_240000_create_class_teacher_checklists_table.php
+  Columns: ['check_date (date)', 'is_compliant (boolean)', 'remarks (string)', 'diagnostic_date (date)', 'remedial_notes (text)', 'progress_status (string)']
+  Foreign Keys: ['student_id', 'student_id', 'subject_id']
+----------------------------------------
+Table: special_day_overrides
+  Created in: 2026_01_26_025557_create_special_day_overrides_table.php
+  Columns: ['override_date (date)', 'type (string)', 'bell_schedule_id (unsignedBigInteger)', 'custom_periods (json)', 'remarks (text)', 'created_by (unsignedBigInteger)', 'updated_by (unsignedBigInteger)']
+  Indexes: ['unique: override_date], unique_override_date']
+  Foreign Keys: ['bell_schedule_id', 'created_by', 'updated_by']
+----------------------------------------
+Table: student_attendance
+  Created in: 2026_02_18_120158_create_student_attendance_system.php
+  Columns: ['date (date)', 'status (enum)', 'check_in_time (time)', 'check_out_time (time)', 'remarks (text)']
+  Indexes: ['unique: student_id, date, subject_id', 'index: class_id, date']
+  Foreign Keys: ['student_id', 'class_id', 'subject_id', 'marked_by']
+----------------------------------------
+Table: student_discounts_applied
+  Created in: 2026_06_21_130200_create_discount_engine_tables.php
+  Columns: ['name (string)', 'type (string)', 'config (json)', 'priority (integer)', 'is_active (boolean)', 'amount (decimal)', 'month (string)', 'academic_year (string)']
+  Indexes: ['index: student_id, month, academic_year], student_discounts_applied_index']
+  Foreign Keys: ['student_id', 'discount_rule_id', 'fee_type_id']
+----------------------------------------
+Table: student_documents
+  Created in: 2026_01_23_091851_create_student_documents_table.php
+  Columns: ['document_type (string)', 'document_path (string)', 'original_filename (string)', 'is_verified (boolean)', 'verified_at (timestamp)', 'verification_notes (text)', 'file_size (string)', 'file_mime_type (string)']
+  Foreign Keys: ['student_id', 'verified_by']
+----------------------------------------
+Table: student_fee_assignments
+  Created in: 2026_02_12_100003_create_student_fee_assignments_table.php
+  Columns: ['academic_year (string)']
+  Indexes: ['unique: student_id, fee_structure_id, academic_year], stud_fee_assign_unique']
+  Foreign Keys: ['student_id', 'fee_structure_id']
+----------------------------------------
+Table: student_fee_discounts
+  Created in: 2026_02_12_000000_create_professional_fee_management_system.php
+  Columns: ['name (string)', 'code (string)', 'description (text)', 'type (enum)', 'is_active (boolean)', 'amount (decimal)', 'frequency (enum)', 'applicable_months (json)', 'is_late_fee_applicable (boolean)', 'late_fee_amount (decimal)', 'late_fee_days_after (integer)', 'is_mandatory (boolean)', 'academic_year (string)', 'assigned_date (date)', 'effective_from (date)', 'effective_until (date)', 'is_active (boolean)', 'notes (text)', 'academic_year (string)', 'month (string)', 'amount (decimal)', 'paid_amount (decimal)', 'due_amount (decimal)', 'late_fee (decimal)', 'discount (decimal)', 'fine (decimal)', 'status (enum)', 'due_date (date)', 'payment_date (date)', 'payment_mode (enum)', 'transaction_id (string)', 'cheque_number (string)', 'notes (text)', 'receipt_number (string)', 'total_amount (decimal)', 'paid_amount (decimal)', 'balance_amount (decimal)', 'fee_details (json)', 'generated_at (timestamp)', 'is_printed (boolean)', 'name (string)', 'description (text)', 'type (enum)', 'value (decimal)', 'is_active (boolean)', 'applicable_classes (json)', 'applicable_fee_heads (json)', 'valid_from (date)', 'valid_until (date)', 'applied_date (date)', 'valid_until (date)', 'is_active (boolean)', 'notes (text)']
+  Indexes: ['index: is_active', 'unique: fee_structure_id, fee_head_id], fee_structure_details_unique', 'index: fee_structure_id, frequency', 'unique: student_id, fee_structure_id, academic_year], student_fee_assignments_unique', 'index: student_id, is_active', 'index: academic_year', 'index: student_id, academic_year', 'index: student_id, month', 'index: status', 'index: payment_date', 'index: receipt_number', 'index: student_id, generated_at', 'unique: student_id, fee_discount_id], student_fee_discounts_unique']
+  Foreign Keys: ['fee_structure_id', 'fee_head_id', 'student_id', 'fee_structure_id', 'student_id', 'fee_structure_detail_id', 'collected_by', 'fee_collection_id', 'student_id', 'generated_by', 'student_id', 'fee_discount_id', 'applied_by']
+----------------------------------------
+Table: student_fee_ledgers
+  Created in: 2026_06_21_130300_create_student_fee_ledgers_table.php
+  Columns: ['date (date)', 'description (string)', 'reference_type (string)', 'reference_id (unsignedBigInteger)', 'debit (decimal)', 'credit (decimal)', 'running_balance (decimal)']
+  Indexes: ['index: student_id, date], student_ledger_student_date_index', 'index: reference_type, reference_id], student_ledger_reference_index']
+  Foreign Keys: ['student_id']
+----------------------------------------
+Table: student_financial_accounts
+  Created in: 2026_06_30_080000_create_student_financial_accounts_table.php
+  Columns: ['account_no (string)', 'status (enum)', 'ip_address (string)']
+  Foreign Keys: ['student_id', 'created_by', 'updated_by']
+----------------------------------------
+Table: student_guardian
+  Created in: 2026_01_22_045951_create_student_guardian_table.php
+  Columns: ['is_emergency_contact (boolean)', 'can_pickup (boolean)']
+  Indexes: ['unique: student_id, guardian_id']
+  Foreign Keys: ['student_id', 'guardian_id']
+----------------------------------------
+Table: student_hostel_allocations
+  Created in: 2026_06_16_190000_create_hostel_tables.php
+  Columns: ['name (string)', 'type (string)', 'capacity (integer)', 'room_no (string)', 'capacity (integer)', 'cost_per_bed (decimal)', 'status (string)']
+  Foreign Keys: ['hostel_id', 'student_id', 'room_id']
+----------------------------------------
+Table: student_leaves
+  Created in: 2026_06_16_210000_create_student_leaves_table.php
+  Columns: ['start_date (date)', 'end_date (date)', 'reason (text)', 'status (string)']
+  Foreign Keys: ['student_id', 'approved_by']
+----------------------------------------
+Table: student_promotion_logs
+  Created in: 2026_01_30_041845_create_student_promotion_logs_table.php
+  Columns: ['student_id (unsignedBigInteger)', 'academic_session_id (unsignedBigInteger)', 'from_class (string)', 'to_class (string)', 'promoted_by (unsignedBigInteger)', 'promoted_at (timestamp)', 'remarks (text)']
+  Indexes: ['index: student_id, academic_session_id', 'index: promoted_at']
+  Foreign Keys: ['student_id', 'academic_session_id', 'promoted_by']
+----------------------------------------
+Table: student_statuses
+  Created in: 2026_01_29_090059_create_student_statuses_table.php
+  Columns: ['student_id (unsignedBigInteger)', 'status (string)', 'status_date (date)', 'reason (string)', 'remarks (string)', 'document_number (string)', 'document_issue_date (date)', 'issued_by (string)']
+  Indexes: ['index: student_id, status']
+  Foreign Keys: ['student_id']
+----------------------------------------
+Table: student_transport
+  Created in: 2026_06_16_130000_create_transport_tables.php
+  Columns: ['plate_no (string)', 'model (string)', 'capacity (integer)', 'status (string)', 'name (string)', 'start_point (string)', 'end_point (string)', 'monthly_fare (decimal)', 'name (string)', 'license_no (string)', 'phone_no (string)', 'status (string)', 'stop_name (string)', 'arrival_time (time)']
+  Foreign Keys: ['route_id', 'student_id', 'route_id', 'stop_id', 'vehicle_id']
+----------------------------------------
+Table: student_transport_dues
+  Created in: 2026_06_21_130100_create_student_transport_dues_table.php
+  Columns: ['month (string)', 'academic_year (string)', 'amount (decimal)', 'status (string)']
+  Indexes: ['index: student_id, month, academic_year], student_transport_dues_index']
+  Foreign Keys: ['student_id', 'route_id', 'stop_id']
+----------------------------------------
+Table: students
+  Created in: 2026_01_17_070802_create_students_table.php
+  Columns: ['name (string)', 'father_name (string)', 'mother_name (string)', 'date_of_birth (date)', 'aadhar_number (string)', 'address (string)', 'phone (string)', 'gender (enum)', 'category (string)', 'class (string)', 'section (string)', 'roll_number (integer)', 'religion (string)', 'caste (string)', 'blood_group (enum)', 'nationality (string)', 'medical_history (text)', 'previous_school (string)']
+----------------------------------------
+Table: study_materials
+  Created in: 2026_06_16_170000_create_quizzes_and_materials_tables.php
+  Columns: ['title (string)', 'description (text)', 'file_path (string)', 'title (string)', 'duration_minutes (integer)', 'total_questions (integer)', 'question_text (text)', 'option_a (string)', 'option_b (string)', 'option_c (string)', 'option_d (string)', 'correct_option (string)']
+  Foreign Keys: ['class_id', 'subject_id', 'uploaded_by', 'exam_id', 'quiz_id']
+----------------------------------------
+Table: subjects
+  Created in: 2026_02_11_000000_create_cbse_results_table.php
+  Columns: ['name (string)', 'code (string)', 'subject_type (string)', 'is_active (boolean)', 'sort_order (integer)', 'student_id (unsignedBigInteger)', 'exam_id (unsignedBigInteger)', 'subject_id (unsignedBigInteger)', 'pt_marks (decimal)', 'notebook_marks (decimal)', 'sea_marks (decimal)', 'exam_marks (decimal)', 'total_marks (decimal)', 'percentage (decimal)', 'grade (string)', 'result_status (string)', 'academic_year (string)', 'term (string)', 'remarks (text)', 'class_rank (integer)', 'section_rank (integer)', 'is_locked (boolean)', 'locked_by (unsignedBigInteger)', 'locked_at (timestamp)', 'generated_by (unsignedBigInteger)', 'generated_at (timestamp)', 'updated_by (unsignedBigInteger)', 'exam_id (unsignedBigInteger)', 'academic_year (string)', 'term (string)', 'subject_id (unsignedBigInteger)', 'total_students (integer)', 'passed_students (integer)', 'failed_students (integer)', 'pass_percentage (decimal)', 'average_percentage (decimal)', 'highest_marks (decimal)', 'lowest_marks (decimal)']
+  Indexes: ['unique: student_id, exam_id, subject_id], unique_student_exam_subject', 'index: student_id, exam_id', 'index: academic_year, term', 'index: class_rank', 'index: is_locked']
+  Foreign Keys: ['student_id', 'exam_id', 'subject_id', 'locked_by', 'generated_by', 'updated_by', 'exam_id', 'subject_id']
+----------------------------------------
+Table: syllabi
+  Created in: 2026_01_24_085058_create_syllabi_table.php
+  Columns: ['subject (string)', 'class_name (string)', 'section (string)', 'title (string)', 'description (text)', 'chapters (json)', 'start_date (date)', 'end_date (date)', 'academic_session (string)', 'total_duration_hours (decimal)', 'learning_objectives (json)', 'assessment_criteria (json)', 'status (string)', 'created_by (unsignedBigInteger)', 'updated_by (unsignedBigInteger)']
+  Foreign Keys: ['created_by', 'updated_by']
+----------------------------------------
+Table: teacher_attendances
+  Created in: 2026_02_08_083517_create_teacher_attendances_table.php
+  Columns: ['teacher_id (unsignedBigInteger)', 'date (date)', 'status (enum)', 'remarks (text)', 'marked_by (unsignedBigInteger)', 'updated_by (unsignedBigInteger)']
+  Indexes: ['index: teacher_id, date', 'index: date', 'index: status']
+  Foreign Keys: ['teacher_id', 'marked_by', 'updated_by']
+----------------------------------------
+Table: teacher_biometric_records
+  Created in: 2026_01_27_041856_create_teacher_biometric_records_table.php
+  Columns: ['teacher_id (unsignedBigInteger)', 'date (date)', 'first_in_time (time)', 'last_out_time (time)', 'multiple_punches (json)', 'calculated_duration (decimal)', 'arrival_status (string)', 'departure_status (string)', 'grace_minutes_used (integer)', 'late_minutes (integer)', 'early_departure_minutes (integer)', 'remarks (text)', 'import_source (string)']
+  Indexes: ['index: teacher_id, date', 'index: date', 'index: arrival_status', 'index: departure_status']
+  Foreign Keys: ['teacher_id']
+----------------------------------------
+Table: teacher_class_assignments
+  Created in: 2026_02_05_151215_create_teacher_class_assignments_table.php
+  Columns: ['teacher_id (unsignedBigInteger)', 'class_id (unsignedBigInteger)', 'subject_assigned (string)', 'role (string)', 'is_primary (boolean)', 'assigned_at (timestamp)']
+  Foreign Keys: ['teacher_id', 'class_id']
+----------------------------------------
+Table: teacher_class_subject_assignments
+  Created in: 2026_02_13_100001_create_teacher_class_subject_assignments_table.php
+  Columns: ['school_id (unsignedBigInteger)', 'is_class_teacher (boolean)', 'academic_year (string)']
+  Indexes: ['unique: teacher_id, class_id, section_id, subject_id, academic_year], teacher_class_subject_unique', 'index: school_id']
+  Foreign Keys: ['teacher_id', 'class_id', 'section_id', 'subject_id']
+----------------------------------------
+Table: teacher_documents
+  Created in: 2026_01_23_092301_create_teacher_documents_table.php
+  Columns: ['document_type (string)', 'document_path (string)', 'original_filename (string)', 'is_verified (boolean)', 'verified_at (timestamp)', 'verification_notes (text)', 'file_size (string)', 'file_mime_type (string)']
+  Foreign Keys: ['teacher_id', 'verified_by']
+----------------------------------------
+Table: teacher_experiences
+  Created in: 2026_01_23_092405_create_teacher_experiences_table.php
+  Columns: ['organization_name (string)', 'position (string)', 'employment_type (string)', 'start_date (date)', 'end_date (date)', 'currently_working (boolean)', 'responsibilities (text)', 'salary (decimal)', 'reason_for_leaving (text)', 'certificate_path (string)']
+  Foreign Keys: ['teacher_id']
+----------------------------------------
+Table: teacher_leaves
+  Created in: 2026_01_23_092503_create_teacher_leaves_table.php
+  Columns: ['leave_type (string)', 'start_date (date)', 'end_date (date)', 'days (integer)', 'reason (text)', 'status (string)', 'approved_at (timestamp)', 'approval_notes (text)']
+  Foreign Keys: ['teacher_id', 'approved_by']
+----------------------------------------
+Table: teacher_logins
+  Created in: 2026_02_13_110000_create_teacher_logins_table.php
+  Columns: ['school_id (unsignedBigInteger)', 'username (string)', 'password (string)', 'status (enum)', 'force_password_change (boolean)', 'last_login (timestamp)']
+  Indexes: ['index: username, status', 'index: teacher_id', 'index: school_id']
+  Foreign Keys: ['teacher_id']
+----------------------------------------
+Table: teacher_salaries
+  Created in: 2026_01_23_092546_create_teacher_salaries_table.php
+  Columns: ['pay_scale (string)', 'basic_salary (decimal)', 'hra (decimal)', 'da (decimal)', 'ta (decimal)', 'medical_allowance (decimal)', 'special_allowance (decimal)', 'gross_salary (decimal)', 'pf_amount (decimal)', 'esi_amount (decimal)', 'tax_deduction (decimal)', 'other_deductions (decimal)', 'net_salary (decimal)', 'payment_status (string)', 'payment_date (date)', 'payment_method (string)', 'reference_number (string)', 'remarks (text)']
+  Foreign Keys: ['teacher_id', 'paid_by']
+----------------------------------------
+Table: teacher_self_service_tokens
+  Created in: 2026_01_27_044327_create_teacher_self_service_tokens_table.php
+  Columns: ['teacher_id (unsignedBigInteger)', 'token (string)', 'device_name (string)', 'ip_address (string)', 'expires_at (timestamp)', 'last_used_at (timestamp)', 'is_active (boolean)', 'permissions (text)']
+  Indexes: ['index: teacher_id, is_active', 'index: expires_at']
+  Foreign Keys: ['teacher_id']
+----------------------------------------
+Table: teacher_subject_assignments
+  Created in: 2026_01_24_052824_create_teacher_subject_assignments_table.php
+  Columns: ['teacher_id (unsignedBigInteger)', 'subject_id (unsignedBigInteger)', 'class_id (unsignedBigInteger)', 'is_primary (boolean)', 'assigned_at (timestamp)']
+  Foreign Keys: ['teacher_id', 'subject_id', 'class_id']
+----------------------------------------
+Table: teacher_substitutions
+  Created in: 2026_01_26_030000_create_teacher_substitutions_table.php
+  Columns: ['substitution_date (date)', 'absent_teacher_id (unsignedBigInteger)', 'substitute_teacher_id (unsignedBigInteger)', 'class_id (unsignedBigInteger)', 'section_id (unsignedBigInteger)', 'subject_id (unsignedBigInteger)', 'period_number (integer)', 'period_name (string)', 'status (string)', 'reason (text)', 'created_by (unsignedBigInteger)', 'updated_by (unsignedBigInteger)', 'assigned_at (timestamp)']
+  Indexes: ['index: substitution_date, absent_teacher_id], ts_date_absent_idx', 'index: substitution_date, substitute_teacher_id], ts_date_sub_idx', 'index: substitution_date, class_id, section_id], ts_date_cls_sec_idx', 'index: status, ts_status_idx']
+----------------------------------------
+Table: teachers
+  Created in: 2026_01_17_072249_create_teachers_table.php
+  Columns: ['name (string)', 'email (string)', 'phone (string)', 'designation (string)', 'qualification (string)', 'subject_specialization (string)', 'date_of_joining (date)', 'salary (decimal)', 'address (text)', 'aadhar_number (string)', 'bank_account_number (string)', 'ifsc_code (string)', 'experience_details (string)', 'profile_image (string)', 'gender (string)', 'wing (string)', 'teacher_type (string)', 'subjects (json)', 'employee_id (string)', 'uan_number (string)', 'pan_number (string)', 'employment_type (string)', 'date_of_birth (date)', 'emergency_contact (string)', 'educational_qualification (string)', 'training_certificates (string)', 'status (string)']
+----------------------------------------
+Table: timetable_slots
+  Created in: 2026_07_04_195200_create_timetable_slots_table.php
+  Columns: ['room_number (string)', 'academic_year (string)']
+  Indexes: ['index: school_class_id, section_id, bell_timing_id], timetable_class_section_timing_idx', 'index: teacher_id, bell_timing_id], timetable_teacher_timing_idx']
+  Foreign Keys: ['school_class_id', 'section_id', 'bell_timing_id', 'subject_id', 'teacher_id']
+----------------------------------------
+Table: translations
+  Created in: 2026_01_30_055756_create_translations_table.php
+  Columns: ['key (string)', 'value (text)', 'module (string)', 'is_published (boolean)']
+  Indexes: ['index: language_id, key', 'index: module, is_published', 'unique: language_id, key']
+  Foreign Keys: ['language_id']
+----------------------------------------
+Table: transport_adjustments
+  Created in: 2026_07_03_000000_create_transport_adjustments_table.php
+  Columns: ['student_id (unsignedBigInteger)', 'transport_fee_id (unsignedBigInteger)', 'amount (decimal)', 'remarks (string)', 'created_by (unsignedBigInteger)']
+  Foreign Keys: ['student_id', 'transport_fee_id', 'created_by']
+----------------------------------------
+Table: transport_fees
+  Created in: 2026_06_30_000000_refactor_fee_and_transport_modules.php
+  Columns: ['month (string)', 'academic_year (string)', 'amount (decimal)', 'status (string)', 'payment_date (date)', 'payment_mode (string)', 'transaction_id (string)', 'receipt_no (string)', 'remarks (text)', 'amount (decimal)', 'month (string)', 'academic_year (string)', 'status (string)', 'verification_slip (string)', 'reason (text)', 'status (string)', 'reversal_date (timestamp)', 'vehicle_id (dropColumn)', 'payment_date (dropColumn)', 'payment_mode (dropColumn)', 'transaction_id (dropColumn)', 'receipt_no (dropColumn)', 'collected_by (dropColumn)', 'remarks (dropColumn)']
+  Foreign Keys: ['student_id', 'route_id', 'stop_id', 'vehicle_id', 'collected_by', 'student_id', 'discount_rule_id', 'fee_type_id', 'created_by', 'verified_by', 'fee_collection_id', 'student_id', 'requested_by', 'processed_by']
+----------------------------------------
+Table: uniform_checks
+  Created in: 2026_06_16_240000_create_class_teacher_checklists_table.php
+  Columns: ['check_date (date)', 'is_compliant (boolean)', 'remarks (string)', 'diagnostic_date (date)', 'remedial_notes (text)', 'progress_status (string)']
+  Foreign Keys: ['student_id', 'student_id', 'subject_id']
+----------------------------------------
+Table: users
+  Created in: 0001_01_01_000000_create_users_table.php
+  Columns: ['name (string)', 'email (string)', 'email_verified_at (timestamp)', 'password (string)', 'email (string)', 'token (string)', 'created_at (timestamp)', 'id (string)', 'ip_address (string)', 'user_agent (text)', 'payload (longText)', 'last_activity (integer)']
+  Foreign Keys: ['user_id']
+----------------------------------------
+Table: vehicles
+  Created in: 2026_06_16_130000_create_transport_tables.php
+  Columns: ['plate_no (string)', 'model (string)', 'capacity (integer)', 'status (string)', 'name (string)', 'start_point (string)', 'end_point (string)', 'monthly_fare (decimal)', 'name (string)', 'license_no (string)', 'phone_no (string)', 'status (string)', 'stop_name (string)', 'arrival_time (time)']
+  Foreign Keys: ['route_id', 'student_id', 'route_id', 'stop_id', 'vehicle_id']
+----------------------------------------
+Table: working_hours_configurations
+  Created in: 2026_01_27_041909_create_working_hours_configurations_table.php
+  Columns: ['name (string)', 'description (text)', 'exclude_lunch_break (boolean)', 'exclude_other_breaks (boolean)', 'calculation_method (string)', 'is_default (boolean)', 'custom_breaks (json)']
+  Indexes: ['index: is_default', 'index: calculation_method']
+----------------------------------------
+
+
+--- TABLE MODIFICATIONS ---
+Table 'students' modified in 2026_01_21_120000_add_user_id_to_students_table.php
+Table 'students' modified in 2026_01_21_120000_add_user_id_to_students_table.php
+Table 'exam_papers' modified in 2026_01_21_120001_add_relationships_to_existing_tables.php
+Table 'bell_timings' modified in 2026_01_21_120001_add_relationships_to_existing_tables.php
+Table 'attendances' modified in 2026_01_21_120001_add_relationships_to_existing_tables.php
+Table 'exam_papers' modified in 2026_01_21_120001_add_relationships_to_existing_tables.php
+Table 'bell_timings' modified in 2026_01_21_120001_add_relationships_to_existing_tables.php
+Table 'attendances' modified in 2026_01_21_120001_add_relationships_to_existing_tables.php
+Table 'fees' modified in 2026_01_22_060505_add_fee_structure_foreign_key_to_fees_table.php
+Table 'fees' modified in 2026_01_22_060505_add_fee_structure_foreign_key_to_fees_table.php
+Table 'results' modified in 2026_01_22_060642_add_exam_foreign_key_to_results_table.php
+Table 'results' modified in 2026_01_22_060642_add_exam_foreign_key_to_results_table.php
+Table 'students' modified in 2026_01_22_072546_add_foreign_keys_to_students_table.php
+Table 'students' modified in 2026_01_22_072546_add_foreign_keys_to_students_table.php
+Table 'teachers' modified in 2026_01_22_072847_add_password_to_teachers_table.php
+Table 'teachers' modified in 2026_01_22_072847_add_password_to_teachers_table.php
+Table 'students' modified in 2026_01_22_074235_add_deleted_at_to_students_table.php
+Table 'students' modified in 2026_01_22_074235_add_deleted_at_to_students_table.php
+Table 'users' modified in 2026_01_23_075109_add_two_factor_columns_to_users_table.php
+Table 'users' modified in 2026_01_23_075109_add_two_factor_columns_to_users_table.php
+Table 'students' modified in 2026_01_23_092105_add_is_verified_to_students_table.php
+Table 'students' modified in 2026_01_23_092105_add_is_verified_to_students_table.php
+Table 'users' modified in 2026_01_24_065952_add_phone_address_to_users_table.php
+Table 'users' modified in 2026_01_24_065952_add_phone_address_to_users_table.php
+Table 'exam_papers' modified in 2026_01_24_081559_add_fields_to_exam_papers_table.php
+Table 'exam_papers' modified in 2026_01_24_081559_add_fields_to_exam_papers_table.php
+Table 'biometric_settings' modified in 2026_01_29_062016_add_notification_settings_to_biometric_settings_table.php
+Table 'biometric_settings' modified in 2026_01_29_062016_add_notification_settings_to_biometric_settings_table.php
+Table 'document_formats' modified in 2026_01_29_100014_create_document_formats_table.php
+Table 'academic_sessions' modified in 2026_01_31_064033_add_deleted_at_to_academic_sessions_table.php
+Table 'academic_sessions' modified in 2026_01_31_064033_add_deleted_at_to_academic_sessions_table.php
+Table 'students' modified in 2026_01_31_072740_add_class_id_to_students_table.php
+Table 'students' modified in 2026_01_31_072740_add_class_id_to_students_table.php
+Table 'students' modified in 2026_01_31_073023_add_foreign_key_to_class_id_in_students_table.php
+Table 'school_classes' modified in 2026_01_31_073229_add_class_order_to_school_classes_table.php
+Table 'school_classes' modified in 2026_01_31_073229_add_class_order_to_school_classes_table.php
+Table 'school_classes' modified in 2026_01_31_073229_add_class_order_to_school_classes_table.php
+Table 'school_classes' modified in 2026_01_31_073229_add_class_order_to_school_classes_table.php
+Table 'students' modified in 2026_01_31_080000_add_school_class_id_to_students_table.php
+Table 'students' modified in 2026_01_31_080000_add_school_class_id_to_students_table.php
+Table 'school_classes' modified in 2026_01_31_090821_add_class_order_to_school_classes_table.php
+Table 'school_classes' modified in 2026_01_31_090821_add_class_order_to_school_classes_table.php
+Table 'school_classes' modified in 2026_01_31_090821_add_class_order_to_school_classes_table.php
+Table 'teachers' modified in 2026_02_03_072950_add_user_id_to_teachers_table.php
+Table 'teachers' modified in 2026_02_03_072950_add_user_id_to_teachers_table.php
+Table 'users' modified in 2026_02_04_125018_add_two_factor_columns_to_users_table.php
+Table 'users' modified in 2026_02_04_125018_add_two_factor_columns_to_users_table.php
+Table 'users' modified in 2026_02_04_125018_add_two_factor_columns_to_users_table.php
+Table 'users' modified in 2026_02_04_125018_add_two_factor_columns_to_users_table.php
+Table 'users' modified in 2026_02_04_125018_add_two_factor_columns_to_users_table.php
+Table 'results' modified in 2026_02_07_000000_enhance_results_table_for_professional_system.php
+Table 'results' modified in 2026_02_07_000000_enhance_results_table_for_professional_system.php
+Table 'subjects' modified in 2026_02_07_000001_add_soft_deletes_to_subjects_table.php
+Table 'subjects' modified in 2026_02_07_000001_add_soft_deletes_to_subjects_table.php
+Table 'class_management' modified in 2026_02_09_120619_add_order_column_to_class_management_table.php
+Table 'class_management' modified in 2026_02_09_120619_add_order_column_to_class_management_table.php
+Table 'sections' modified in 2026_02_09_123709_fix_sections_table_remove_class_id.php
+Table 'sections' modified in 2026_02_09_123709_fix_sections_table_remove_class_id.php
+Table 'sections' modified in 2026_02_09_123709_fix_sections_table_remove_class_id.php
+Table 'sections' modified in 2026_02_09_130259_fix_sections_table_make_class_id_nullable.php
+Table 'sections' modified in 2026_02_09_130259_fix_sections_table_make_class_id_nullable.php
+Table 'sections' modified in 2026_02_09_130917_add_soft_deletes_to_sections_table.php
+Table 'sections' modified in 2026_02_09_130917_add_soft_deletes_to_sections_table.php
+Table 'subjects' modified in 2026_02_09_131919_add_soft_deletes_to_subjects_table.php
+Table 'lesson_plans' modified in 2026_02_10_094249_update_lesson_plans_teacher_id_foreign_key.php
+Table 'lesson_plans' modified in 2026_02_10_094249_update_lesson_plans_teacher_id_foreign_key.php
+Table 'lesson_plans' modified in 2026_02_10_094249_update_lesson_plans_teacher_id_foreign_key.php
+Table 'lesson_plans' modified in 2026_02_10_094249_update_lesson_plans_teacher_id_foreign_key.php
+Table 'lesson_plans' modified in 2026_02_10_094532_fix_lesson_plans_teacher_id_constraint.php
+Table 'lesson_plans' modified in 2026_02_10_094532_fix_lesson_plans_teacher_id_constraint.php
+Table 'lesson_plans' modified in 2026_02_10_094532_fix_lesson_plans_teacher_id_constraint.php
+Table 'lesson_plans' modified in 2026_02_10_094532_fix_lesson_plans_teacher_id_constraint.php
+Table 'subjects' modified in 2026_02_11_000001_update_subjects_table.php
+Table 'subjects' modified in 2026_02_11_000001_update_subjects_table.php
+Table 'results' modified in 2026_02_11_000002_add_verification_fields_to_results_table.php
+Table 'results' modified in 2026_02_11_000002_add_verification_fields_to_results_table.php
+Table 'fee_structures' modified in 2026_02_12_075922_add_deleted_at_to_fee_structures_table.php
+Table 'fee_structures' modified in 2026_02_12_075922_add_deleted_at_to_fee_structures_table.php
+Table 'fee_structures' modified in 2026_02_12_080221_add_missing_columns_to_fee_structures_table.php
+Table 'fee_structures' modified in 2026_02_12_080221_add_missing_columns_to_fee_structures_table.php
+Table 'students' modified in 2026_02_12_081244_add_indexes_to_students_table_for_fee_search.php
+Table 'students' modified in 2026_02_12_081244_add_indexes_to_students_table_for_fee_search.php
+Table 'students' modified in 2026_02_12_081458_add_missing_columns_to_students_table_for_fee_search.php
+Table 'students' modified in 2026_02_12_081458_add_missing_columns_to_students_table_for_fee_search.php
+Table 'fee_collections' modified in 2026_02_12_100006_add_fee_month_to_fee_collections_table.php
+Table 'fee_collections' modified in 2026_02_12_100006_add_fee_month_to_fee_collections_table.php
+Table 'parents' modified in 2026_02_13_100000_add_student_id_to_parents_table.php
+Table 'parents' modified in 2026_02_13_100000_add_student_id_to_parents_table.php
+Table 'results' modified in 2026_02_13_100003_add_teacher_fields_to_results_table.php
+Table 'results' modified in 2026_02_13_100003_add_teacher_fields_to_results_table.php
+Table 'results' modified in 2026_02_13_143838_add_teacher_upload_fields_to_results_table.php
+Table 'results' modified in 2026_02_13_143838_add_teacher_upload_fields_to_results_table.php
+Table 'teachers' modified in 2026_02_14_035845_add_photo_to_teachers_table.php
+Table 'teachers' modified in 2026_02_14_035845_add_photo_to_teachers_table.php
+Table 'homework_notices' modified in 2026_02_14_073947_add_section_id_to_homework_notices_table.php
+Table 'homework_notices' modified in 2026_02_14_073947_add_section_id_to_homework_notices_table.php
+Table 'teacher_class_subject_assignments' modified in 2026_02_14_100000_add_is_primary_subject_teacher_to_assignments.php
+Table 'teacher_class_subject_assignments' modified in 2026_02_14_100000_add_is_primary_subject_teacher_to_assignments.php
+Table 'teachers' modified in 2026_02_14_130135_add_is_exam_head_to_teachers_table.php
+Table 'teachers' modified in 2026_02_14_130135_add_is_exam_head_to_teachers_table.php
+Table 'results' modified in 2026_02_14_150152_add_class_id_and_subject_id_to_results_table.php
+Table 'results' modified in 2026_02_14_150152_add_class_id_and_subject_id_to_results_table.php
+Table 'exams' modified in 2026_02_15_081807_add_class_id_and_subject_id_to_exams_table.php
+Table 'exams' modified in 2026_02_15_081807_add_class_id_and_subject_id_to_exams_table.php
+Table 'students' modified in 2026_02_15_082013_add_photo_to_students_table.php
+Table 'students' modified in 2026_02_15_082013_add_photo_to_students_table.php
+Table 'lesson_plans' modified in 2026_02_15_100536_add_missing_columns_to_lesson_plans_table.php
+Table 'lesson_plans' modified in 2026_02_15_100536_add_missing_columns_to_lesson_plans_table.php
+Table 'lesson_plans' modified in 2026_02_15_121637_make_section_id_nullable_in_lesson_plans_table.php
+Table 'lesson_plans' modified in 2026_02_15_121637_make_section_id_nullable_in_lesson_plans_table.php
+Table 'lesson_plans' modified in 2026_02_16_093000_add_date_column_to_lesson_plans_table.php
+Table 'lesson_plans' modified in 2026_02_16_093000_add_date_column_to_lesson_plans_table.php
+Table 'lesson_plans' modified in 2026_02_16_094500_add_audit_columns_to_lesson_plans_table.php
+Table 'lesson_plans' modified in 2026_02_16_094500_add_audit_columns_to_lesson_plans_table.php
+Table 'lesson_plans' modified in 2026_02_16_155000_remove_created_by_foreign_key_from_lesson_plans_table.php
+Table 'lesson_plans' modified in 2026_02_16_155000_remove_created_by_foreign_key_from_lesson_plans_table.php
+Table 'homework_notices' modified in 2026_02_18_120128_enhance_homework_system.php
+Table 'homework_notices' modified in 2026_02_18_120128_enhance_homework_system.php
+Table 'parents' modified in 2026_02_18_134758_add_mobile_admission_to_parents_table.php
+Table 'parents' modified in 2026_02_18_134758_add_mobile_admission_to_parents_table.php
+Table 'exam_papers' modified in 2026_02_19_092822_update_exam_papers_table_add_missing_columns.php
+Table 'exam_papers' modified in 2026_02_19_093906_update_exam_papers_table_for_professional_workflow.php
+Table 'exam_papers' modified in 2026_02_19_093906_update_exam_papers_table_for_professional_workflow.php
+Table 'exam_papers' modified in 2026_02_19_093906_update_exam_papers_table_for_professional_workflow.php
+Table 'exam_papers' modified in 2026_02_19_141250_fix_exam_papers_nullable_fields.php
+Table 'exam_papers' modified in 2026_02_19_141250_fix_exam_papers_nullable_fields.php
+Table 'exam_papers' modified in 2026_02_19_143540_fix_exam_papers_nullable_columns_v2.php
+Table 'exam_papers' modified in 2026_02_19_143540_fix_exam_papers_nullable_columns_v2.php
+Table 'exam_papers' modified in 2026_02_19_145419_fix_exam_papers_complete_structure.php
+Table 'exam_papers' modified in 2026_02_19_151317_fix_exam_papers_final_erp_structure.php
+Table 'fee_collections' modified in 2026_06_19_160000_change_payment_mode_in_fee_collections_table.php
+Table 'fee_collections' modified in 2026_06_19_160000_change_payment_mode_in_fee_collections_table.php
+Table 'route_stops' modified in 2026_06_21_130000_add_fare_to_route_stops_table.php
+Table 'route_stops' modified in 2026_06_21_130000_add_fare_to_route_stops_table.php
+Table 'student_transport_dues' modified in 2026_06_21_132000_add_unique_constraints_to_fee_system.php
+Table 'student_fee_ledgers' modified in 2026_06_21_132000_add_unique_constraints_to_fee_system.php
+Table 'student_transport_dues' modified in 2026_06_21_132000_add_unique_constraints_to_fee_system.php
+Table 'student_fee_ledgers' modified in 2026_06_21_132000_add_unique_constraints_to_fee_system.php
+Table 'students' modified in 2026_06_21_132100_add_staff_user_id_to_students_table.php
+Table 'students' modified in 2026_06_21_132100_add_staff_user_id_to_students_table.php
+Table 'fee_structure_items' modified in 2026_06_23_120000_upgrade_fee_finance_system_tables.php
+Table 'student_fee_ledgers' modified in 2026_06_23_120000_upgrade_fee_finance_system_tables.php
+Table 'fee_structure_items' modified in 2026_06_23_120000_upgrade_fee_finance_system_tables.php
+Table 'student_fee_ledgers' modified in 2026_06_23_120000_upgrade_fee_finance_system_tables.php
+Table 'parents' modified in 2026_06_25_073417_add_status_to_parents_table.php
+Table 'parents' modified in 2026_06_25_073417_add_status_to_parents_table.php
+Table 'fee_types' modified in 2026_06_25_200000_extend_fee_finance_schema_for_gaps.php
+Table 'fee_structure_items' modified in 2026_06_25_200000_extend_fee_finance_schema_for_gaps.php
+Table 'student_transport_dues' modified in 2026_06_25_200000_extend_fee_finance_schema_for_gaps.php
+Table 'student_transport_dues' modified in 2026_06_25_200000_extend_fee_finance_schema_for_gaps.php
+Table 'fee_structure_items' modified in 2026_06_25_200000_extend_fee_finance_schema_for_gaps.php
+Table 'fee_types' modified in 2026_06_25_200000_extend_fee_finance_schema_for_gaps.php
+Table 'fee_types' modified in 2026_06_25_300000_add_defaults_to_fee_types.php
+Table 'fee_types' modified in 2026_06_25_300000_add_defaults_to_fee_types.php
+Table 'transport_fees' modified in 2026_06_30_000000_refactor_fee_and_transport_modules.php
+Table 'transport_fees' modified in 2026_06_30_000000_refactor_fee_and_transport_modules.php
+Table 'student_fee_ledgers' modified in 2026_07_01_220000_extend_financial_year_closing_schema.php
+Table 'financial_year_closings' modified in 2026_07_01_220000_extend_financial_year_closing_schema.php
+Table 'student_fee_ledgers' modified in 2026_07_01_220000_extend_financial_year_closing_schema.php
+Table 'financial_year_closings' modified in 2026_07_01_220000_extend_financial_year_closing_schema.php
+Table 'financial_year_closings' modified in 2026_07_02_000001_add_progress_to_financial_year_closings_table.php
+Table 'financial_year_closings' modified in 2026_07_02_000001_add_progress_to_financial_year_closings_table.php
+Table 'student_transport' modified in 2026_07_02_000002_add_effective_dates_to_student_transport_table.php
+Table 'student_transport' modified in 2026_07_02_000002_add_effective_dates_to_student_transport_table.php
+Table 'teachers' modified in 2026_07_03_230000_add_indexes_to_teachers_table.php
+Table 'teachers' modified in 2026_07_03_230000_add_indexes_to_teachers_table.php
+Table 'students' modified in 2026_07_04_000000_normalize_parent_student_relationship.php
+Table 'students' modified in 2026_07_04_000000_normalize_parent_student_relationship.php
+Table 'results' modified in 2026_07_05_120000_add_moderation_to_results.php
+Table 'results' modified in 2026_07_05_120000_add_moderation_to_results.php

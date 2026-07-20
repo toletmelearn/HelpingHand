@@ -13,7 +13,7 @@ class SyllabusPolicy
      */
     public function viewAny(User $user): bool
     {
-        return $user->hasRole('admin') || $user->hasRole('teacher') || $user->hasRole('class-teacher') || $user->hasRole('student');
+        return $user->hasRole('admin') || $user->hasRole('teacher') || $user->hasRole('class-teacher') || $user->hasRole('student') || $user->hasPermission('view-syllabi');
     }
 
     /**
@@ -21,7 +21,7 @@ class SyllabusPolicy
      */
     public function view(User $user, Syllabus $syllabus): bool
     {
-        if ($user->hasRole('admin')) {
+        if ($user->hasRole('admin') || $user->hasPermission('view-syllabi')) {
             return true;
         }
         
@@ -48,7 +48,7 @@ class SyllabusPolicy
      */
     public function create(User $user): bool
     {
-        return $user->hasRole('admin');
+        return $user->hasRole('admin') || $user->hasPermission('create-syllabi');
     }
 
     /**
@@ -56,7 +56,7 @@ class SyllabusPolicy
      */
     public function update(User $user, Syllabus $syllabus): bool
     {
-        return $user->hasRole('admin');
+        return $user->hasRole('admin') || $user->hasPermission('edit-syllabi');
     }
 
     /**
@@ -64,7 +64,7 @@ class SyllabusPolicy
      */
     public function delete(User $user, Syllabus $syllabus): bool
     {
-        return $user->hasRole('admin');
+        return $user->hasRole('admin') || $user->hasPermission('delete-syllabi');
     }
 
     /**
@@ -85,6 +85,6 @@ class SyllabusPolicy
     
     public function viewProgressReport(User $user): bool
     {
-        return $user->hasRole('admin') || $user->hasRole('class-teacher');
+        return $user->hasRole('admin') || $user->hasRole('class-teacher') || $user->hasPermission('view-syllabus-progress-report');
     }
 }

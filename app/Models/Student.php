@@ -180,7 +180,7 @@ class Student extends Authenticatable
 
     protected $fillable = [
         'name', 'father_name', 'mother_name', 'date_of_birth', 'aadhar_number',
-        'admission_no', 'admission_session_id', 'phone', 'mobile', 'gender', 'category', 'class', 'section', 'roll_number',
+        'admission_no', 'admission_session_id', 'phone', 'mobile', 'gender', 'category', 'is_rte', 'is_special_needs', 'referred_by_admission_no', 'class', 'section', 'roll_number',
         'religion', 'caste', 'blood_group', 'address', 'user_id', 'is_verified',
         'guardian_name', 'class_id', 'section_id', 'photo', 'family_id'
     ];
@@ -190,7 +190,9 @@ class Student extends Authenticatable
         'admission_no' => 'string',
         'mobile' => 'string',
         'class_id' => 'integer',
-        'guardian_name' => 'string'
+        'guardian_name' => 'string',
+        'is_rte' => 'boolean',
+        'is_special_needs' => 'boolean'
     ];
     
     protected $dates = ['date_of_birth'];
@@ -351,19 +353,9 @@ class Student extends Authenticatable
         return $this->belongsTo(Family::class, 'family_id');
     }
 
-    public function transportAssignment()
-    {
-        return $this->hasOne(StudentTransport::class, 'student_id');
-    }
-
     public function gatePasses()
     {
         return $this->hasMany(GatePass::class, 'student_id');
-    }
-
-    public function transportDues()
-    {
-        return $this->hasMany(StudentTransportDue::class, 'student_id');
     }
 
     public function discountsApplied()

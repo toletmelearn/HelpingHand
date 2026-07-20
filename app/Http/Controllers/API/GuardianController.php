@@ -6,6 +6,7 @@ use App\Models\Guardian;
 use App\Models\Student;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
+use App\Support\Attendance\AttendanceCreditCalculator;
 
 class GuardianController extends BaseApiController
 {
@@ -134,6 +135,7 @@ class GuardianController extends BaseApiController
 
             $childrenData = [];
             foreach ($guardian->students as $student) {
+                $summary = AttendanceCreditCalculator::summarizeRecords($student->attendances, 'status');
                 $childrenData[] = [
                     'id' => $student->id,
                     'name' => $student->name,
@@ -141,11 +143,17 @@ class GuardianController extends BaseApiController
                     'class' => $student->class,
                     'section' => $student->section,
                     'roll_number' => $student->roll_number,
-                    'attendance_percentage' => $this->calculateAttendancePercentage($student->attendances),
+                    'attendance_percentage' => $summary['attendance_rate'],
                     'latest_results' => $student->results->take(5), // Latest 5 results
                     'outstanding_fees' => $this->calculateOutstandingFees($student->fees),
                     'total_fees' => $this->calculateTotalFees($student->fees),
                     'paid_fees' => $this->calculatePaidFees($student->fees),
+                    // Non-breaking additions:
+                    'attendance_rate' => $summary['attendance_rate'],
+                    'attendance_credit' => $summary['attendance_credit'],
+                    'late_days' => $summary['late_days'],
+                    'half_days' => $summary['half_days'],
+                    'leave_days' => $summary['leave_days'],
                 ];
             }
 
@@ -187,15 +195,8 @@ class GuardianController extends BaseApiController
      */
     private function calculateAttendancePercentage($attendances)
     {
-        if ($attendances->count() === 0) {
-            return 0;
-        }
-
-        $presentCount = $attendances->filter(function ($attendance) {
-            return $attendance->status === 'Present';
-        })->count();
-
-        return round(($presentCount / $attendances->count()) * 100, 2);
+        $summary = AttendanceCreditCalculator::summarizeRecords($attendances, 'status');
+        return $summary['attendance_rate'];
     }
 
     /**

@@ -21,13 +21,8 @@ class BiometricController extends Controller
      */
     public function dashboard()
     {
-        $user = Auth::user();
-        $teacher = $user->teacher;
-        
-        if (!$teacher) {
-            // Try to find teacher by email if not directly linked
-            $teacher = Teacher::where('email', $user->email)->first();
-        }
+        $teacherLogin = Auth::guard('teacher')->user();
+        $teacher = $teacherLogin ? $teacherLogin->teacher : null;
         
         if (!$teacher) {
             abort(404, 'Teacher profile not found');
@@ -56,7 +51,8 @@ class BiometricController extends Controller
      */
     public function getRecords(Request $request)
     {
-        $teacher = Auth::user()->teacher;
+        $teacherLogin = Auth::guard('teacher')->user();
+        $teacher = $teacherLogin ? $teacherLogin->teacher : null;
         
         if (!$teacher) {
             return response()->json(['error' => 'Teacher profile not found'], 404);
@@ -101,7 +97,8 @@ class BiometricController extends Controller
      */
     public function monthlySummary(Request $request)
     {
-        $teacher = Auth::user()->teacher;
+        $teacherLogin = Auth::guard('teacher')->user();
+        $teacher = $teacherLogin ? $teacherLogin->teacher : null;
         
         if (!$teacher) {
             return response()->json(['error' => 'Teacher profile not found'], 404);
@@ -150,7 +147,8 @@ class BiometricController extends Controller
      */
     public function downloadReport(Request $request)
     {
-        $teacher = Auth::user()->teacher;
+        $teacherLogin = Auth::guard('teacher')->user();
+        $teacher = $teacherLogin ? $teacherLogin->teacher : null;
         
         if (!$teacher) {
             abort(404, 'Teacher profile not found');
@@ -203,13 +201,8 @@ class BiometricController extends Controller
      */
     public function notificationPreferences()
     {
-        $user = Auth::user();
-        $teacher = $user->teacher;
-        
-        if (!$teacher) {
-            // Try to find teacher by email if not directly linked
-            $teacher = Teacher::where('email', $user->email)->first();
-        }
+        $teacherLogin = Auth::guard('teacher')->user();
+        $teacher = $teacherLogin ? $teacherLogin->teacher : null;
         
         if (!$teacher) {
             abort(404, 'Teacher profile not found');
@@ -229,13 +222,8 @@ class BiometricController extends Controller
      */
     public function updateNotificationPreferences(Request $request)
     {
-        $user = Auth::user();
-        $teacher = $user->teacher;
-        
-        if (!$teacher) {
-            // Try to find teacher by email if not directly linked
-            $teacher = Teacher::where('email', $user->email)->first();
-        }
+        $teacherLogin = Auth::guard('teacher')->user();
+        $teacher = $teacherLogin ? $teacherLogin->teacher : null;
         
         if (!$teacher) {
             abort(404, 'Teacher profile not found');

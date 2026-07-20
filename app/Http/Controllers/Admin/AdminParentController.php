@@ -18,7 +18,7 @@ class AdminParentController extends Controller
 
     public function index(Request $request)
     {
-        $query = ParentModel::with('students');
+        $query = ParentModel::with('students.schoolClass', 'students.section');
 
         if ($request->filled('search')) {
             $search = $request->search;
@@ -37,9 +37,29 @@ class AdminParentController extends Controller
             $query->where('status', $request->status);
         }
 
+        if ($request->filled('class_id')) {
+            $classId = $request->class_id;
+            $query->whereHas('students', function ($sq) use ($classId) {
+                $sq->where(function ($q) use ($classId) {
+                    $q->where('class_id', $classId)
+                      ->orWhere('school_class_id', $classId);
+                });
+            });
+        }
+
+        if ($request->filled('section_id')) {
+            $sectionId = $request->section_id;
+            $query->whereHas('students', function ($sq) use ($sectionId) {
+                $sq->where('section_id', $sectionId);
+            });
+        }
+
         $parents = $query->orderBy('created_at', 'desc')->paginate(15);
 
-        return view('admin.parents.index', compact('parents'));
+        $classes = \App\Models\SchoolClass::active()->orderByOrder()->get();
+        $sections = \App\Models\Section::orderBy('name')->get();
+
+        return view('admin.parents.index', compact('parents', 'classes', 'sections'));
     }
 
     public function show($id)

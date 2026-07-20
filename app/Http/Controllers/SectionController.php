@@ -8,6 +8,11 @@ use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
+/**
+ * @deprecated
+ * Will be removed after Architecture v1.1.
+ * Active section operations map to App\Http\Controllers\Admin\SectionController.
+ */
 class SectionController extends Controller
 {
     /**

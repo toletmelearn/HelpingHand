@@ -9,7 +9,13 @@ use App\Models\Attendance;
 use App\Models\Result;
 use App\Models\Fee;
 use App\Models\User;
+use App\Support\Attendance\AttendanceCreditCalculator;
 
+/**
+ * @deprecated
+ * Will be removed after Architecture v1.1.
+ * Active parent dashboard and child details mapping is handled by App\Http\Controllers\Parent\ParentDashboardController.
+ */
 class ParentController extends Controller
 {
     /**
@@ -51,16 +57,18 @@ class ParentController extends Controller
         }
         
         // Calculate attendance stats
-        $totalDays = $child->attendances->count();
-        $presentDays = $child->attendances->where('status', 'present')->count();
-        $absentDays = $totalDays - $presentDays;
-        $attendancePercentage = $totalDays > 0 ? round(($presentDays / $totalDays) * 100, 2) : 0;
+        $summary = AttendanceCreditCalculator::summarizeRecords($child->attendances, 'status');
         
         $attendanceStats = [
-            'total_days' => $totalDays,
-            'present_days' => $presentDays,
-            'absent_days' => $absentDays,
-            'percentage' => $attendancePercentage
+            'total_days' => $summary['total_days'],
+            'present_days' => $summary['present_days'],
+            'absent_days' => $summary['absent_days'],
+            'late_days' => $summary['late_days'],
+            'percentage' => $summary['attendance_rate'],
+            'attendance_rate' => $summary['attendance_rate'],
+            'attendance_credit' => $summary['attendance_credit'],
+            'half_days' => $summary['half_days'],
+            'leave_days' => $summary['leave_days'],
         ];
         
         // Get recent attendances
@@ -152,11 +160,9 @@ class ParentController extends Controller
      */
     private function getChildAttendancePercentage($child)
     {
-        $totalDays = $child->attendances->count();
-        if ($totalDays == 0) return 0;
+        $summary = AttendanceCreditCalculator::summarizeRecords($child->attendances, 'status');
         
-        $presentDays = $child->attendances->where('status', 'present')->count();
-        return round(($presentDays / $totalDays) * 100, 2);
+        return $summary['attendance_rate'];
     }
     
     /**

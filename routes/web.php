@@ -1064,7 +1064,9 @@ Route::middleware(['auth'])->group(function () {
         
         // School Classes Routes
         Route::resource('school-classes', App\Http\Controllers\Admin\SchoolClassController::class);
-        
+        Route::delete('school-classes/{schoolClass}/with-students', [App\Http\Controllers\Admin\SchoolClassController::class, 'destroyWithStudents'])->name('school-classes.destroy-with-students');
+        Route::post('school-classes/{id}/restore', [App\Http\Controllers\Admin\SchoolClassController::class, 'restore'])->name('school-classes.restore');
+
         // Lesson Plan Management Routes (admin prefixed)
         Route::resource('lesson-plans', App\Http\Controllers\Admin\LessonPlanController::class);
         Route::get('lesson-plans/compliance', [App\Http\Controllers\Admin\LessonPlanController::class, 'compliance'])->name('lesson-plans.compliance');

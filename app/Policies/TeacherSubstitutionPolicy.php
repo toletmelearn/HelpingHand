@@ -13,7 +13,7 @@ class TeacherSubstitutionPolicy
      */
     public function viewAny(User $user): bool
     {
-        return $user->hasRole('admin');
+        return $user->hasRole('admin') || $user->hasPermission('view-teachers');
     }
 
     /**
@@ -21,7 +21,7 @@ class TeacherSubstitutionPolicy
      */
     public function view(User $user, TeacherSubstitution $teacherSubstitution): bool
     {
-        return $user->hasRole('admin');
+        return $user->hasRole('admin') || $user->hasPermission('view-teachers');
     }
 
     /**
@@ -77,7 +77,7 @@ class TeacherSubstitutionPolicy
      */
     public function viewTodaySubstitutions(User $user): bool
     {
-        return $user->hasRole('admin');
+        return $user->hasRole('admin') || $user->hasPermission('view-teachers');
     }
 
     /**
@@ -85,7 +85,7 @@ class TeacherSubstitutionPolicy
      */
     public function viewAbsenceOverview(User $user): bool
     {
-        return $user->hasRole('admin');
+        return $user->hasRole('admin') || $user->hasPermission('view-teachers');
     }
 
     /**

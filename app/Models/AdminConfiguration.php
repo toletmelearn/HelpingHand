@@ -56,7 +56,7 @@ class AdminConfiguration extends Model
         } elseif ($this->type === 'integer') {
             return (int) $this->value;
         } elseif ($this->type === 'json') {
-            return json_decode($this->value, true);
+            return is_array($this->value) ? $this->value : json_decode($this->value, true);
         }
         
         return $this->value;
@@ -76,15 +76,19 @@ class AdminConfiguration extends Model
 
     public static function get($module, $key, $default = null)
     {
-        $config = self::where('module', $module)
-                    ->where('key', $key)
-                    ->active()
-                    ->first();
-        
-        return $config ? $config->getValue() : $default;
+        try {
+            $config = self::where('module', $module)
+                        ->where('key', $key)
+                        ->active()
+                        ->first();
+            
+            return $config ? $config->getValue() : $default;
+        } catch (\Exception $e) {
+            return $default;
+        }
     }
 
-    public static function set($module, $key, $value, $type = 'boolean')
+    public static function set($module, $key, $value, $type = 'boolean', $label = null)
     {
         $config = self::updateOrCreate(
             ['module' => $module, 'key' => $key],
@@ -92,6 +96,7 @@ class AdminConfiguration extends Model
                 'value' => is_bool($value) ? ($value ? '1' : '0') : $value,
                 'type' => $type,
                 'is_active' => true,
+                'label' => $label ?? ucwords(str_replace('_', ' ', $key)),
             ]
         );
         

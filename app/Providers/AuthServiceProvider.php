@@ -4,6 +4,7 @@ namespace App\Providers;
 
 use Illuminate\Foundation\Support\Providers\AuthServiceProvider as ServiceProvider;
 use Illuminate\Support\Facades\Gate;
+use App\Policies\ClassTeacherPolicy;
 
 class AuthServiceProvider extends ServiceProvider
 {
@@ -44,6 +45,9 @@ class AuthServiceProvider extends ServiceProvider
         'App\Models\Syllabus' => 'App\Policies\SyllabusPolicy',
         'App\Models\DailyTeachingWork' => 'App\Policies\DailyTeachingWorkPolicy',
         'App\Models\BellTiming' => 'App\Policies\BellTimingPolicy',
+        
+        // Class Teacher Policy
+        'App\Http\Controllers\ClassTeacherAssignmentController' => 'App\Policies\ClassTeacherPolicy',
     ];
 
     /**
@@ -53,6 +57,14 @@ class AuthServiceProvider extends ServiceProvider
     {
         $this->registerPolicies();
 
-        //
+        // Grant all permissions to admin users
+        Gate::before(function ($user) {
+            return $user->hasRole('admin') ? true : null;
+        });
+
+        // Define gate for viewing student records (uses ClassTeacherPolicy)
+        Gate::define('viewStudentRecords', function ($user) {
+            return (new ClassTeacherPolicy)->viewStudentRecords($user);
+        });
     }
 }

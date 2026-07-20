@@ -44,7 +44,7 @@ class ParentPaymentController extends Controller
             $pendingFees[] = [
                 'assignment_id' => $firstAssign ? $firstAssign->id : 1,
                 'fee_structure_id' => $feeStructureId,
-                'name' => 'Outstanding Fees (Tuition, Transport, etc.)',
+                'name' => 'Outstanding Fees (Tuition, etc.)',
                 'total_amount' => $balance,
                 'paid_amount' => 0.00,
                 'balance' => $balance,

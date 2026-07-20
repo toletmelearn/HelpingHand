@@ -13,7 +13,7 @@ class ExamPaperPolicy
      */
     public function viewAny(User $user): bool
     {
-        return $user->hasRole('admin') || $user->hasRole('teacher') || $user->hasRole('student');
+        return $user->hasRole('admin') || $user->hasRole('teacher') || $user->hasRole('student') || $user->hasPermission('view-exam-papers');
     }
 
     /**
@@ -21,7 +21,7 @@ class ExamPaperPolicy
      */
     public function view(User $user, ExamPaper $examPaper): bool
     {
-        if ($user->hasRole('admin')) {
+        if ($user->hasRole('admin') || $user->hasPermission('view-exam-papers')) {
             return true;
         }
         
@@ -44,7 +44,7 @@ class ExamPaperPolicy
      */
     public function create(User $user): bool
     {
-        return $user->hasRole('admin') || $user->hasRole('teacher');
+        return $user->hasRole('admin') || $user->hasRole('teacher') || $user->hasPermission('create-exam-papers');
     }
 
     /**
@@ -52,7 +52,7 @@ class ExamPaperPolicy
      */
     public function update(User $user, ExamPaper $examPaper): bool
     {
-        if ($user->hasRole('admin')) {
+        if ($user->hasRole('admin') || $user->hasPermission('edit-exam-papers')) {
             return true;
         }
         
@@ -68,7 +68,7 @@ class ExamPaperPolicy
      */
     public function delete(User $user, ExamPaper $examPaper): bool
     {
-        if ($user->hasRole('admin')) {
+        if ($user->hasRole('admin') || $user->hasPermission('delete-exam-papers')) {
             return true;
         }
         

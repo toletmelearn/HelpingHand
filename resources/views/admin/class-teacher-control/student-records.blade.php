@@ -12,7 +12,7 @@
                         <i class="fas fa-user-graduate"></i> Student Records
                     </h4>
                     @can('updateClassStudent', new \App\Models\Student())
-                    <a href="{{ route('students.create') }}" class="btn btn-light">
+                    <a href="{{ route('admin.students.create') }}" class="btn btn-light">
                         <i class="fas fa-plus"></i> Add Student
                     </a>
                     @endcan
@@ -69,19 +69,30 @@
                                     <td>{{ $student->class->name ?? 'N/A' }}</td>
                                     <td>{{ $student->section->name ?? 'N/A' }}</td>
                                     <td>{{ $student->phone ?? 'N/A' }}</td>
-                                    <td>
-                                        <div class="btn-group btn-group-sm">
-                                            <a href="{{ route('students.show', $student) }}" class="btn btn-outline-primary" title="View">
-                                                <i class="fas fa-eye"></i>
-                                            </a>
-                                            @can('updateClassStudent', $student)
-                                            <a href="{{ route('admin.class-teacher-control.edit-student', $student->id) }}" class="btn btn-outline-success" title="Edit">
-                                                <i class="fas fa-edit"></i>
-                                            </a>
-                                            @endcan
-                                            <a href="{{ route('admin.audit-logs.student-history', $student->id) }}" class="btn btn-outline-info" title="View History">
-                                                <i class="fas fa-history"></i>
-                                            </a>
+                                    <td class="text-nowrap">
+                                        <div class="dropdown">
+                                            <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" id="studentActions{{ $student->id }}" data-bs-toggle="dropdown" aria-expanded="false">
+                                                Actions
+                                            </button>
+                                            <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="studentActions{{ $student->id }}">
+                                                <li>
+                                                    <a class="dropdown-item" href="{{ route('admin.students.show', $student) }}">
+                                                        <i class="fas fa-eye me-2"></i> View
+                                                    </a>
+                                                </li>
+                                                @can('updateClassStudent', $student)
+                                                <li>
+                                                    <a class="dropdown-item" href="{{ route('admin.class-teacher-control.edit-student', $student->id) }}">
+                                                        <i class="fas fa-edit me-2"></i> Edit
+                                                    </a>
+                                                </li>
+                                                @endcan
+                                                <li>
+                                                    <a class="dropdown-item" href="{{ route('admin.audit-logs.student-history', $student->id) }}">
+                                                        <i class="fas fa-history me-2"></i> View History
+                                                    </a>
+                                                </li>
+                                            </ul>
                                         </div>
                                     </td>
                                 </tr>

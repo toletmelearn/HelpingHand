@@ -1,0 +1,77 @@
+Programmatic Policy & Gate Verification
+=======================================
+
+### Testing policies for Clerk (Yadav@school.com) ###
+Roles: clerk
+Model: Student
+  - viewAny: ALLOWED
+  - create: ALLOWED
+  - view: ALLOWED
+  - update: ALLOWED
+  - delete: ALLOWED
+
+Model: Teacher
+  - viewAny: ALLOWED
+  - create: ALLOWED
+  - view: ALLOWED
+  - update: DENIED
+  - delete: DENIED
+
+Model: Attendance
+  - viewAny: ALLOWED
+  - create: ALLOWED
+  - view: ALLOWED
+  - update: DENIED
+  - delete: DENIED
+
+Model: Exam
+  - viewAny: DENIED
+  - create: DENIED
+  - view: DENIED
+  - update: DENIED
+  - delete: DENIED
+
+Model: ExamPaper
+  - viewAny: DENIED
+  - create: DENIED
+  - view: DENIED
+  - update: DENIED
+  - delete: DENIED
+
+Model: Result
+  - viewAny: DENIED
+  - create: DENIED
+  - view: No model instance available for testing
+  - update: No model instance available for testing
+  - delete: No model instance available for testing
+
+Model: Book
+  - viewAny: DENIED
+  - create: DENIED
+  - view: No model instance available for testing
+  - update: No model instance available for testing
+  - delete: No model instance available for testing
+
+Model: BookIssue
+  - viewAny: DENIED
+  - create: DENIED
+  - view: No model instance available for testing
+  - update: No model instance available for testing
+  - delete: No model instance available for testing
+
+Model: Budget
+  - viewAny: DENIED
+  - create: DENIED
+  - view: No model instance available for testing
+  - update: No model instance available for testing
+  - delete: No model instance available for testing
+
+Model: Expense
+  - viewAny: DENIED
+  - create: DENIED
+  - view: No model instance available for testing
+  - update: No model instance available for testing
+  - delete: No model instance available for testing
+
+---------------------------------------------
+

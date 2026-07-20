@@ -1,4 +1,4 @@
-﻿@extends('layouts.public')
+@extends('layouts.public')
 
 @section('title', 'Dashboard')
 
@@ -91,6 +91,7 @@
                 <div class="card-body">
                     <div class="row">
                         <!-- Student Management -->
+                        @if(Auth::user()->hasRole('admin') || Auth::user()->hasPermission('view-students'))
                         <div class="col-md-3 mb-3">
                             <div class="card h-100">
                                 <div class="card-body text-center">
@@ -103,22 +104,26 @@
                                 </div>
                             </div>
                         </div>
+                        @endif
                         
                         <!-- Teacher Management -->
+                        @if(Auth::user()->hasRole('admin') || Auth::user()->hasPermission('view-teachers'))
                         <div class="col-md-3 mb-3">
                             <div class="card h-100">
                                 <div class="card-body text-center">
                                     <h6 class="card-title"><i class="bi bi-person-badge text-info"></i> Teacher Management</h6>
                                     <div class="mt-3">
-                                        <a href="{{ route('teachers.index') }}" class="btn btn-sm btn-outline-info mb-2 d-block">All Teachers</a>
-                                        <a href="{{ route('teachers.create') }}" class="btn btn-sm btn-outline-info d-block">Add Teacher</a>
+                                        <a href="{{ route('admin.teachers.index') }}" class="btn btn-sm btn-outline-info mb-2 d-block">All Teachers</a>
+                                        <a href="{{ route('admin.teachers.create') }}" class="btn btn-sm btn-outline-info d-block">Add Teacher</a>
                                         <a href="{{ url('/teachers-dashboard') }}" class="btn btn-sm btn-outline-info d-block">Teacher Dashboard</a>
                                     </div>
                                 </div>
                             </div>
                         </div>
+                        @endif
                         
                         <!-- User & Access Management -->
+                        @if(Auth::user()->hasRole('admin'))
                         <div class="col-md-3 mb-3">
                             <div class="card h-100">
                                 <div class="card-body text-center">
@@ -130,8 +135,10 @@
                                 </div>
                             </div>
                         </div>
+                        @endif
                         
                         <!-- Attendance Management -->
+                        @if(Auth::user()->hasRole('admin') || Auth::user()->hasPermission('view-attendance'))
                         <div class="col-md-3 mb-3">
                             <div class="card h-100">
                                 <div class="card-body text-center">
@@ -144,6 +151,7 @@
                                 </div>
                             </div>
                         </div>
+                        @endif
                     </div>
                 </div>
             </div>
@@ -160,6 +168,7 @@
                 <div class="card-body">
                     <div class="row">
                         <!-- Academic Management -->
+                        @if(Auth::user()->hasRole('admin') || Auth::user()->hasPermission('view-syllabi') || Auth::user()->hasPermission('view-daily-teaching-work'))
                         <div class="col-md-3 mb-3">
                             <div class="card h-100">
                                 <div class="card-body text-center">
@@ -172,8 +181,10 @@
                                 </div>
                             </div>
                         </div>
+                        @endif
                         
                         <!-- Exam Management -->
+                        @if(Auth::user()->hasRole('admin') || Auth::user()->hasPermission('view-exams'))
                         <div class="col-md-3 mb-3">
                             <div class="card h-100">
                                 <div class="card-body text-center">
@@ -186,8 +197,10 @@
                                 </div>
                             </div>
                         </div>
+                        @endif
                         
                         <!-- Admit Card Management -->
+                        @if(Auth::user()->hasRole('admin') || Auth::user()->hasPermission('view-admit-cards'))
                         <div class="col-md-3 mb-3">
                             <div class="card h-100">
                                 <div class="card-body text-center">
@@ -199,8 +212,10 @@
                                 </div>
                             </div>
                         </div>
+                        @endif
                         
                         <!-- Exam Templates -->
+                        @if(Auth::user()->hasRole('admin') || Auth::user()->hasPermission('view-exam-paper-templates'))
                         <div class="col-md-3 mb-3">
                             <div class="card h-100">
                                 <div class="card-body text-center">
@@ -211,6 +226,7 @@
                                 </div>
                             </div>
                         </div>
+                        @endif
                     </div>
                 </div>
             </div>
@@ -227,6 +243,7 @@
                 <div class="card-body">
                     <div class="row">
                         <!-- Classes & Subjects -->
+                        @if(Auth::user()->hasRole('admin') || Auth::user()->hasPermission('view-classes') || Auth::user()->hasPermission('view-subjects'))
                         <div class="col-md-3 mb-3">
                             <div class="card h-100">
                                 <div class="card-body text-center">
@@ -239,8 +256,10 @@
                                 </div>
                             </div>
                         </div>
+                        @endif
                         
                         <!-- Time Management -->
+                        @if(Auth::user()->hasRole('admin'))
                         <div class="col-md-3 mb-3">
                             <div class="card h-100">
                                 <div class="card-body text-center">
@@ -253,8 +272,10 @@
                                 </div>
                             </div>
                         </div>
+                        @endif
                         
                         <!-- Staff Management -->
+                        @if(Auth::user()->hasRole('admin') || Auth::user()->hasPermission('view-teachers'))
                         <div class="col-md-3 mb-3">
                             <div class="card h-100">
                                 <div class="card-body text-center">
@@ -267,8 +288,10 @@
                                 </div>
                             </div>
                         </div>
+                        @endif
                         
                         <!-- Class Teacher Control -->
+                        @if(Auth::user()->hasRole('admin'))
                         <div class="col-md-3 mb-3">
                             <div class="card h-100">
                                 <div class="card-body text-center">
@@ -279,6 +302,7 @@
                                 </div>
                             </div>
                         </div>
+                        @endif
                     </div>
                 </div>
             </div>
@@ -286,6 +310,7 @@
     </div>
     
     <!-- Audit & Compliance Dashboard -->
+    @if(Auth::user()->hasRole('admin'))
     <div class="row">
         <!-- Most Edited Records -->
         <div class="col-lg-4 mb-4">
@@ -381,8 +406,10 @@
             </div>
         </div>
     </div>
+    @endif
     
     <!-- Quick Actions -->
+    @if(Auth::user()->hasRole('admin'))
     <div class="row mt-4">
         <div class="col-12">
             <div class="card shadow">
@@ -420,5 +447,68 @@
             </div>
         </div>
     </div>
+    @endif
+
+    <!-- Assigned Admission Enquiries for Counsellor -->
+    @if(isset($assignedEnquiries) && $assignedEnquiries->count() > 0)
+    <div class="row mt-4 mb-4">
+        <div class="col-12">
+            <div class="card shadow">
+                <div class="card-header py-3 bg-info text-white d-flex align-items-center justify-content-between">
+                    <h6 class="m-0 font-weight-bold"><i class="fas fa-comments me-2"></i> My Assigned Admission Enquiries</h6>
+                    <span class="badge bg-light text-dark fw-bold">{{ $assignedEnquiries->count() }} active</span>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle mb-0" style="font-size: 0.9rem;">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Candidate Name</th>
+                                    <th>Parent Contact</th>
+                                    <th>Status</th>
+                                    <th>Follow-Up Date</th>
+                                    <th>Last Remarks</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach($assignedEnquiries as $enquiry)
+                                    <tr>
+                                        <td class="fw-bold">{{ $enquiry->candidate_name }}</td>
+                                        <td>{{ $enquiry->parent_name }} ({{ $enquiry->phone }})</td>
+                                        <td>
+                                            @if($enquiry->status === 'new')
+                                                <span class="badge bg-info">New</span>
+                                            @elseif($enquiry->status === 'interested')
+                                                <span class="badge bg-success">Interested</span>
+                                            @elseif($enquiry->status === 'follow_up')
+                                                <span class="badge bg-warning text-dark">Follow-Up</span>
+                                            @elseif($enquiry->status === 'admitted')
+                                                <span class="badge bg-primary">Admitted</span>
+                                            @elseif($enquiry->status === 'closed')
+                                                <span class="badge bg-secondary">Closed</span>
+                                            @else
+                                                <span class="badge bg-secondary text-capitalize">{{ $enquiry->status }}</span>
+                                            @endif
+                                        </td>
+                                        <td>
+                                            @if($enquiry->follow_up_date)
+                                                <i class="far fa-calendar-alt text-muted me-1"></i> {{ $enquiry->follow_up_date->format('Y-m-d') }}
+                                            @else
+                                                <span class="text-muted small">Not Scheduled</span>
+                                            @endif
+                                        </td>
+                                        <td>
+                                            <span class="text-muted small">{{ Str::limit($enquiry->remarks ?: ($enquiry->follow_up_notes ?: 'N/A'), 80) }}</span>
+                                        </td>
+                                    </tr>
+                                @endforeach
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    @endif
 </div>
 @endsection

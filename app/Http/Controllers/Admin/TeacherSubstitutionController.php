@@ -50,7 +50,7 @@ class TeacherSubstitutionController extends Controller
 
         // Get filters for the view
         $classes = SchoolClass::orderBy('name')->get();
-        $teachers = Teacher::with('user')->orderBy('teacher_id')->get();
+        $teachers = Teacher::with('user')->orderBy('id')->get();
         $statuses = ['pending' => 'Pending', 'assigned' => 'Assigned', 'approved' => 'Approved', 'cancelled' => 'Cancelled'];
 
         return view('admin.teacher-substitutions.index', compact('substitutions', 'classes', 'teachers', 'statuses'));
@@ -58,7 +58,7 @@ class TeacherSubstitutionController extends Controller
 
     public function create()
     {
-        $teachers = Teacher::with('user')->orderBy('teacher_id')->get();
+        $teachers = Teacher::with('user')->orderBy('id')->get();
         $classes = SchoolClass::orderBy('name')->get();
         $sections = Section::orderBy('name')->get();
         $subjects = Subject::orderBy('name')->get();
@@ -111,7 +111,7 @@ class TeacherSubstitutionController extends Controller
     {
         $teacherSubstitution->load(['absentTeacher', 'substituteTeacher', 'class', 'section', 'subject']);
         
-        $teachers = Teacher::with('user')->orderBy('teacher_id')->get();
+        $teachers = Teacher::with('user')->orderBy('id')->get();
         $classes = SchoolClass::orderBy('name')->get();
         $sections = Section::orderBy('name')->get();
         $subjects = Subject::orderBy('name')->get();
@@ -180,7 +180,8 @@ class TeacherSubstitutionController extends Controller
             $substitution->substitution_date,
             $substitution->period_number,
             $substitution->class_id,
-            $substitution->subject_id
+            $substitution->subject_id,
+            $substitution->absent_teacher_id
         );
 
         // Update substitution with first available teacher as suggestion
@@ -194,7 +195,7 @@ class TeacherSubstitutionController extends Controller
         return $availableTeachers;
     }
 
-    public function findAvailableTeachers($date, $periodNumber, $classId, $subjectId)
+    public function findAvailableTeachers($date, $periodNumber, $classId, $subjectId, $absentTeacherId = null)
     {
         $date = Carbon::parse($date);
         
@@ -204,7 +205,7 @@ class TeacherSubstitutionController extends Controller
 
         foreach ($allTeachers as $teacher) {
             // Skip the absent teacher
-            if ($teacher->id == $classId) { // This is incorrect, should be absent_teacher_id
+            if ($teacher->id == $absentTeacherId) {
                 continue;
             }
 
@@ -329,7 +330,7 @@ class TeacherSubstitutionController extends Controller
         return redirect()->back()->with('success', 'Substitute assignment cancelled successfully.');
     }
 
-    public function todaySubstitutions()
+    public function today()
     {
         $substitutions = TeacherSubstitution::with(['absentTeacher', 'substituteTeacher', 'class', 'section', 'subject'])
             ->forDate(now())

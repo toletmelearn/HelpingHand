@@ -1,0 +1,345 @@
+Total routes loaded: 1203
+
+Unique Route Names: 1145
+Duplicate Names count: 27
+
+Name Collisions detail (same name, multiple routes):
+Route Name: 'admin.' occurs 7 times:
+  - URI: GET|HEAD admin/get-subject-by-exam/{examId} | Action: App\Http\Controllers\Admin\ResultController@getSubjectByExam
+  - URI: POST admin/students-crud | Action: App\Http\Controllers\Admin\AdminStudentController@store
+  - URI: GET|HEAD admin/students-crud/create | Action: App\Http\Controllers\Admin\AdminStudentController@create
+  - URI: GET|HEAD admin/students-crud/{student} | Action: App\Http\Controllers\Admin\AdminStudentController@show
+  - URI: PUT admin/students-crud/{student} | Action: App\Http\Controllers\Admin\AdminStudentController@update
+  - URI: DELETE admin/students-crud/{student} | Action: App\Http\Controllers\Admin\AdminStudentController@destroy
+  - URI: GET|HEAD admin/students-crud/{student}/edit | Action: App\Http\Controllers\Admin\AdminStudentController@edit
+Route Name: 'attendance.index' occurs 2 times:
+  - URI: GET|HEAD api/v1/attendance | Action: App\Http\Controllers\API\AttendanceController@index
+  - URI: GET|HEAD attendance | Action: App\Http\Controllers\AttendanceController@index
+Route Name: 'attendance.store' occurs 2 times:
+  - URI: POST api/v1/attendance | Action: App\Http\Controllers\API\AttendanceController@store
+  - URI: POST attendance | Action: App\Http\Controllers\AttendanceController@store
+Route Name: 'attendance.show' occurs 2 times:
+  - URI: GET|HEAD api/v1/attendance/{attendance} | Action: App\Http\Controllers\API\AttendanceController@show
+  - URI: GET|HEAD attendance/{attendance} | Action: App\Http\Controllers\AttendanceController@show
+Route Name: 'attendance.update' occurs 2 times:
+  - URI: PUT|PATCH api/v1/attendance/{attendance} | Action: App\Http\Controllers\API\AttendanceController@update
+  - URI: PUT|PATCH attendance/{attendance} | Action: App\Http\Controllers\AttendanceController@update
+Route Name: 'attendance.destroy' occurs 2 times:
+  - URI: DELETE api/v1/attendance/{attendance} | Action: App\Http\Controllers\API\AttendanceController@destroy
+  - URI: DELETE attendance/{attendance} | Action: App\Http\Controllers\AttendanceController@destroy
+Route Name: 'bell-timing.index' occurs 2 times:
+  - URI: GET|HEAD api/v1/bell-timing | Action: App\Http\Controllers\API\BellTimingController@index
+  - URI: GET|HEAD bell-timing | Action: App\Http\Controllers\BellTimingController@index
+Route Name: 'bell-timing.store' occurs 2 times:
+  - URI: POST api/v1/bell-timing | Action: App\Http\Controllers\API\BellTimingController@store
+  - URI: POST bell-timing | Action: App\Http\Controllers\BellTimingController@store
+Route Name: 'bell-timing.show' occurs 2 times:
+  - URI: GET|HEAD api/v1/bell-timing/{bell_timing} | Action: App\Http\Controllers\API\BellTimingController@show
+  - URI: GET|HEAD bell-timing/{bell_timing} | Action: App\Http\Controllers\BellTimingController@show
+Route Name: 'bell-timing.update' occurs 2 times:
+  - URI: PUT|PATCH api/v1/bell-timing/{bell_timing} | Action: App\Http\Controllers\API\BellTimingController@update
+  - URI: PUT|PATCH bell-timing/{bell_timing} | Action: App\Http\Controllers\BellTimingController@update
+Route Name: 'bell-timing.destroy' occurs 2 times:
+  - URI: DELETE api/v1/bell-timing/{bell_timing} | Action: App\Http\Controllers\API\BellTimingController@destroy
+  - URI: DELETE bell-timing/{bell_timing} | Action: App\Http\Controllers\BellTimingController@destroy
+Route Name: 'exam-papers.index' occurs 2 times:
+  - URI: GET|HEAD api/v1/exam-papers | Action: App\Http\Controllers\API\ExamPaperController@index
+  - URI: GET|HEAD exam-papers | Action: App\Http\Controllers\ExamPaperController@index
+Route Name: 'exam-papers.store' occurs 2 times:
+  - URI: POST api/v1/exam-papers | Action: App\Http\Controllers\API\ExamPaperController@store
+  - URI: POST exam-papers | Action: App\Http\Controllers\ExamPaperController@store
+Route Name: 'exam-papers.show' occurs 2 times:
+  - URI: GET|HEAD api/v1/exam-papers/{exam_paper} | Action: App\Http\Controllers\API\ExamPaperController@show
+  - URI: GET|HEAD exam-papers/{exam_paper} | Action: App\Http\Controllers\ExamPaperController@show
+Route Name: 'exam-papers.update' occurs 2 times:
+  - URI: PUT|PATCH api/v1/exam-papers/{exam_paper} | Action: App\Http\Controllers\API\ExamPaperController@update
+  - URI: PUT|PATCH exam-papers/{exam_paper} | Action: App\Http\Controllers\ExamPaperController@update
+Route Name: 'exam-papers.destroy' occurs 2 times:
+  - URI: DELETE api/v1/exam-papers/{exam_paper} | Action: App\Http\Controllers\API\ExamPaperController@destroy
+  - URI: DELETE exam-papers/{exam_paper} | Action: App\Http\Controllers\ExamPaperController@destroy
+Route Name: 'students.index' occurs 2 times:
+  - URI: GET|HEAD api/v1/students | Action: App\Http\Controllers\API\StudentController@index
+  - URI: GET|HEAD students | Action: App\Http\Controllers\Admin\AdminStudentController@index
+Route Name: 'teachers.index' occurs 2 times:
+  - URI: GET|HEAD api/v1/teachers | Action: App\Http\Controllers\API\TeacherController@index
+  - URI: GET|HEAD teachers | Action: App\Http\Controllers\TeacherController@index
+Route Name: 'teachers.store' occurs 2 times:
+  - URI: POST api/v1/teachers | Action: App\Http\Controllers\API\TeacherController@store
+  - URI: POST teachers | Action: App\Http\Controllers\TeacherController@store
+Route Name: 'teachers.show' occurs 2 times:
+  - URI: GET|HEAD api/v1/teachers/{teacher} | Action: App\Http\Controllers\API\TeacherController@show
+  - URI: GET|HEAD teachers/{teacher} | Action: App\Http\Controllers\TeacherController@show
+Route Name: 'teachers.update' occurs 2 times:
+  - URI: PUT|PATCH api/v1/teachers/{teacher} | Action: App\Http\Controllers\API\TeacherController@update
+  - URI: PUT|PATCH teachers/{teacher} | Action: App\Http\Controllers\TeacherController@update
+Route Name: 'teachers.destroy' occurs 2 times:
+  - URI: DELETE api/v1/teachers/{teacher} | Action: App\Http\Controllers\API\TeacherController@destroy
+  - URI: DELETE teachers/{teacher} | Action: App\Http\Controllers\TeacherController@destroy
+
+Duplicate URIs count: 0
+
+Test/Debug Routes count: 15
+  - GET|HEAD _auth-test | Name: None | Action: Closure
+  - GET|HEAD _parent-login-test | Name: None | Action: Closure
+  - GET|HEAD _parent-test | Name: None | Action: Closure
+  - GET|HEAD _route-test | Name: None | Action: Closure
+  - POST admin/biometric-devices/{device}/test-connection | Name: admin.biometric-devices.test-connection | Action: App\Http\Controllers\Admin\BiometricDeviceController@testConnection
+  - POST admin/notification-settings/{notificationSetting}/test | Name: admin.admin.notification-settings.test | Action: App\Http\Controllers\Admin\NotificationSettingController@sendTest
+  - POST admin/notifications/test | Name: admin.notifications.test | Action: App\Http\Controllers\Admin\NotificationTemplateController@test
+  - GET|HEAD admin/security/test | Name: admin.security.test | Action: App\Http\Controllers\Admin\SecurityController@testSecurity
+  - GET|HEAD admin/test-reports | Name: None | Action: Closure
+  - POST api/biometric/devices/{deviceId}/test-connection | Name: None | Action: App\Http\Controllers\Api\BiometricController@testConnection
+  - GET|HEAD test-exam-details/{id} | Name: None | Action: Closure
+  - GET|HEAD test-final-result/{studentId}/{examId} | Name: None | Action: Closure
+  - GET|HEAD test-generate-form | Name: test.generate-form | Action: App\Http\Controllers\Admin\ResultController@showGenerateReportCardForm
+  - GET|HEAD test-subject-ajax/{examId} | Name: None | Action: Closure
+  - GET|HEAD test-subject-fix | Name: None | Action: Closure
+
+Controllers referenced by multiple actions/routes:
+  - App\Http\Controllers\Admin\AdminStudentController@index: 3 references
+  - App\Http\Controllers\Admin\AssetController@index: 2 references
+  - App\Http\Controllers\Admin\AssetController@store: 2 references
+  - App\Http\Controllers\Admin\AssetController@create: 2 references
+  - App\Http\Controllers\Admin\AssetController@show: 2 references
+  - App\Http\Controllers\Admin\AssetController@update: 2 references
+  - App\Http\Controllers\Admin\AssetController@destroy: 2 references
+  - App\Http\Controllers\Admin\AssetController@edit: 2 references
+  - App\Http\Controllers\AttendanceController@index: 2 references
+  - App\Http\Controllers\AttendanceController@store: 2 references
+  - App\Http\Controllers\AttendanceController@create: 2 references
+  - App\Http\Controllers\AttendanceController@show: 2 references
+  - App\Http\Controllers\AttendanceController@update: 2 references
+  - App\Http\Controllers\AttendanceController@destroy: 2 references
+  - App\Http\Controllers\AttendanceController@edit: 2 references
+  - App\Http\Controllers\Admin\BookIssueController@index: 2 references
+  - App\Http\Controllers\Admin\BookIssueController@store: 2 references
+  - App\Http\Controllers\Admin\BookIssueController@create: 2 references
+  - App\Http\Controllers\Admin\BookIssueController@show: 2 references
+  - App\Http\Controllers\Admin\BookIssueController@update: 2 references
+  - App\Http\Controllers\Admin\BookIssueController@destroy: 2 references
+  - App\Http\Controllers\Admin\BookIssueController@edit: 2 references
+  - App\Http\Controllers\Admin\BookController@index: 2 references
+  - App\Http\Controllers\Admin\BookController@store: 2 references
+  - App\Http\Controllers\Admin\BookController@create: 2 references
+  - App\Http\Controllers\Admin\BookController@show: 2 references
+  - App\Http\Controllers\Admin\BookController@update: 2 references
+  - App\Http\Controllers\Admin\BookController@destroy: 2 references
+  - App\Http\Controllers\Admin\BookController@edit: 2 references
+  - App\Http\Controllers\ExamHead\ExamHeadDashboardController@index: 2 references
+  - App\Http\Controllers\Admin\ResultController@showGenerateReportCardForm: 2 references
+  - App\Http\Controllers\Admin\HomeworkController@show: 2 references
+  - App\Http\Controllers\Admin\InventoryController@index: 2 references
+  - App\Http\Controllers\Admin\LessonPlanController@show: 2 references
+  - App\Http\Controllers\Admin\LibrarySettingController@index: 2 references
+  - App\Http\Controllers\Admin\LibrarySettingController@store: 2 references
+  - App\Http\Controllers\Admin\LibrarySettingController@create: 2 references
+  - App\Http\Controllers\Admin\LibrarySettingController@show: 2 references
+  - App\Http\Controllers\Admin\LibrarySettingController@update: 2 references
+  - App\Http\Controllers\Admin\LibrarySettingController@destroy: 2 references
+  - App\Http\Controllers\Admin\LibrarySettingController@edit: 2 references
+  - App\Http\Controllers\Admin\BookController@dashboard: 2 references
+  - App\Http\Controllers\Admin\BookIssueController@exportReport: 2 references
+  - App\Http\Controllers\Admin\BookIssueController@reports: 2 references
+  - App\Http\Controllers\Admin\BookIssueController@returnBook: 2 references
+  - App\Http\Controllers\Admin\ResultController@generateReportCard: 2 references
+  - App\Http\Controllers\RolePermissionController@update: 2 references
+  - App\Http\Controllers\Admin\AdminStudentController@store: 2 references
+  - App\Http\Controllers\Admin\AdminStudentController@create: 2 references
+  - App\Http\Controllers\Admin\AdminStudentController@show: 2 references
+  - App\Http\Controllers\Admin\AdminStudentController@update: 2 references
+  - App\Http\Controllers\Admin\AdminStudentController@destroy: 2 references
+  - App\Http\Controllers\Admin\AdminStudentController@edit: 2 references
+  - App\Http\Controllers\TeacherController@index: 2 references
+  - App\Http\Controllers\TeacherController@store: 2 references
+  - App\Http\Controllers\TeacherController@create: 2 references
+  - App\Http\Controllers\TeacherController@show: 2 references
+  - App\Http\Controllers\TeacherController@update: 2 references
+  - App\Http\Controllers\TeacherController@destroy: 2 references
+  - App\Http\Controllers\TeacherController@edit: 2 references
+  - App\Http\Controllers\Teacher\BiometricController@dashboard: 2 references
+
+Route distribution by prefix:
+  - api/v1: 73
+  - admin/fees: 38
+  - admin/inventory: 33
+  - admin/exams: 31
+  - results: 29
+  - operations: 25
+  - admin/results: 23
+  - student: 23
+  - admin/admit-cards: 18
+  - admin/exam-papers: 15
+  - admin/languages: 14
+  - admin/teacher-substitutions: 14
+  - admin/lesson-plans: 13
+  - exam-papers: 13
+  - user: 13
+  - admin/certificates: 12
+  - admin/teacher-biometrics: 12
+  - bell-timing: 12
+  - admin/classes: 11
+  - admin/teacher-attendance: 11
+  - admin/teachers: 11
+  - attendance: 11
+  - imports: 11
+  - admin/attendance: 10
+  - admin/biometric-devices: 10
+  - admin/budgets: 10
+  - admin/exam-paper-templates: 10
+  - admin/expenses: 10
+  - admin/fee-structures: 10
+  - admin/notification-settings: 10
+  - teacher/homework: 10
+  - admin/academic-sessions: 9
+  - admin/admit-card-formats: 9
+  - admin/advanced-reports: 9
+  - admin/assets: 9
+  - admin/backups: 9
+  - admin/class-teacher-assignments: 9
+  - admin/fee-management: 9
+  - admin/id-cards: 9
+  - admin/language-settings: 9
+  - admin/library: 9
+  - admin/role-permissions: 9
+  - admin/security: 9
+  - admin/audit-logs: 8
+  - admin/bell-schedules: 8
+  - admin/budget-categories: 8
+  - admin/certificate-templates: 8
+  - admin/class-teacher-control: 8
+  - admin/daily-teaching-work: 8
+  - admin/dashboards: 8
+  - admin/document-formats: 8
+  - admin/enhanced-results: 8
+  - admin/homework: 8
+  - admin/homework-notices: 8
+  - admin/notifications: 8
+  - admin/sections: 8
+  - admin/subjects: 8
+  - admin/syllabi: 8
+  - teacher/attendance: 8
+  - teacher/lesson-plans: 8
+  - teachers: 8
+  - admin/book-issues: 7
+  - admin/books: 7
+  - admin/examination-patterns: 7
+  - admin/field-permissions: 7
+  - admin/grading-systems: 7
+  - admin/hostels: 7
+  - admin/library-settings: 7
+  - admin/permissions: 7
+  - admin/reconciliation: 7
+  - admin/result-formats: 7
+  - admin/school-classes: 7
+  - admin/special-day-overrides: 7
+  - admin/student-promotions: 7
+  - admin/student-statuses: 7
+  - admin/students: 7
+  - admin/students-crud: 7
+  - admin/teacher-class-assignments: 7
+  - admin/teacher-subject-assignments: 7
+  - api/biometric: 7
+  - book-issues: 7
+  - books: 7
+  - library-settings: 7
+  - teacher/exam-papers: 7
+  - teacher/exams: 7
+  - teacher/professional-lesson-plans: 7
+  - users: 7
+  - admin/admissions: 6
+  - admin/hr: 6
+  - admin/setup-wizard: 6
+  - students: 6
+  - teacher/biometric: 6
+  - admin/analytics: 5
+  - admin/financial-accounts: 5
+  - api/self-service: 5
+  - admin/accounts: 4
+  - admin/configurations: 4
+  - admin/discount-approvals: 4
+  - admin/parents: 4
+  - admin/reports: 4
+  - admin/timetable: 4
+  - admin/transport: 4
+  - admin/transport-fees: 4
+  - admin/uploaded-marks: 4
+  - library: 4
+  - parent/lesson-plans: 4
+  - teacher/marks: 4
+  - teacher/quizzes: 4
+  - admin/budget: 3
+  - admin/gate-entries: 3
+  - admin/performance: 3
+  - admin/performance-analytics: 3
+  - admin/professional-homework: 3
+  - admin/professional-lesson-plans: 3
+  - admin/sync-monitor: 3
+  - admin/visitor: 3
+  - api/webhooks: 3
+  - parent/exam-papers: 3
+  - parent/payments: 3
+  - teacher/exam-head: 3
+  - teacher/leaves: 3
+  - admin/alumni: 2
+  - admin/assign-teacher-class-subject: 2
+  - admin/fee-types: 2
+  - admin/generate-report-card: 2
+  - admin/settings: 2
+  - forgot-password: 2
+  - login: 2
+  - notifications: 2
+  - parent/homework: 2
+  - parent/login: 2
+  - parent/professional-lesson-plans: 2
+  - parent/ptm: 2
+  - register: 2
+  - reset-password: 2
+  - teacher/change-password: 2
+  - teacher/login: 2
+  - teacher/my-classes: 2
+  - teacher/notebooks: 2
+  - teacher/profile: 2
+  - teacher/remedial: 2
+  - teacher/salaries: 2
+  - teacher/student-leaves: 2
+  - teacher/uniform: 2
+  - two-factor-challenge: 2
+  - : 1
+  - _auth-test: 1
+  - _parent-login-test: 1
+  - _parent-test: 1
+  - _route-test: 1
+  - accountant: 1
+  - admin/dashboard: 1
+  - admin/exam-head: 1
+  - admin/fee-dashboard: 1
+  - admin/get-subject-by-exam: 1
+  - admin/students-class-wise: 1
+  - admin/test-reports: 1
+  - admin/user-roles: 1
+  - exam-head: 1
+  - home: 1
+  - list-all-exams: 1
+  - logout: 1
+  - parent/dashboard: 1
+  - parent/fee-structure: 1
+  - parent/hostels: 1
+  - parent/logout: 1
+  - parent/payment-history: 1
+  - parent/receipt: 1
+  - parent/switch-student: 1
+  - parent/transport: 1
+  - sanctum: 1
+  - storage: 1
+  - stripe: 1
+  - teacher: 1
+  - teacher/dashboard: 1
+  - teacher/get-sections-by-class: 1
+  - teacher/logout: 1
+  - teacher/notices: 1
+  - test-exam-details: 1
+  - test-final-result: 1
+  - test-generate-form: 1
+  - test-subject-ajax: 1
+  - test-subject-fix: 1
+  - up: 1

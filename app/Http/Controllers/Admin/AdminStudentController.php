@@ -19,23 +19,26 @@ class AdminStudentController extends Controller
      */
     public function index(Request $request)
     {
+        $this->authorize('viewAny', Student::class);
+
         // Check if class and section filters are applied
         $classId = $request->get('class_id');
         $sectionId = $request->get('section_id');
         $section = $request->get('section');
         $search = $request->get('search');
+        $createdDate = $request->get('created_date');
 
-        if ($classId || $sectionId || $section || $search) {
+        if ($classId || $sectionId || $section || $search || $createdDate) {
             // If filters are applied, show students list
             $query = Student::query();
-            
+
             if ($classId) {
                 $query->where(function($q) use ($classId) {
                     $q->where('class_id', $classId)
                       ->orWhere('school_class_id', $classId);
                 });
             }
-            
+
             if ($sectionId) {
                 $query->where(function($q) use ($sectionId) {
                     $q->where('section_id', $sectionId)
@@ -44,7 +47,7 @@ class AdminStudentController extends Controller
             } elseif ($section) {
                 $this->applySectionFilter($query, $section);
             }
-            
+
             if ($search) {
                 $query->where(function($q) use ($search) {
                     $q->where('name', 'LIKE', "%{$search}%")
@@ -52,7 +55,14 @@ class AdminStudentController extends Controller
                       ->orWhere('mobile', 'LIKE', "%{$search}%");
                 });
             }
-            
+
+            if ($createdDate) {
+                // Matches AccountantDashboardController's own definition of
+                // "Today's Admissions" -- new student rows created that day,
+                // not a separate admission-date field (this table has none).
+                $query->whereDate('created_at', $createdDate);
+            }
+
             $students = $query->with('schoolClass')
                 ->orderBy(DB::raw('COALESCE(school_class_id, class_id)'))
                 ->orderBy('section')
@@ -72,32 +82,77 @@ class AdminStudentController extends Controller
                 'showingStudents' => true
             ]);
         } else {
-            // Show class-section grouped list
+            // Show class-section grouped list.
+            //
+            // section_id is the reliable, always-populated FK (verified: 0 of
+            // 980 students have a null section_id) -- the legacy `section`
+            // string column is just a denormalized copy that's gone stale
+            // for some students (25 currently blank/null despite a valid
+            // section_id). Grouping by that legacy string too, as this used
+            // to, split a single real class+section into multiple phantom
+            // cards whenever a student's copy didn't match everyone else's
+            // (e.g. 4 Nursery-A students with section=null showing as a
+            // separate "N/A" card from the other 33 Nursery-A students).
+            // Group by (class_id, section_id) only and resolve the display
+            // name from the Section relation, never the stale string.
             $classSections = Student::select(
                                       DB::raw('COALESCE(school_class_id, class_id) as class_id'),
                                       'section_id',
-                                      'section',
                                       DB::raw('COUNT(*) as total')
                                   )
-                                  ->groupBy(DB::raw('COALESCE(school_class_id, class_id)'), 'section_id', 'section')
+                                  ->groupBy(DB::raw('COALESCE(school_class_id, class_id)'), 'section_id')
                                   ->orderBy(DB::raw('COALESCE(school_class_id, class_id)'))
-                                  ->orderBy('section')
                                   ->get();
-            
+
             // Map the coalesced class_id value to school_class_id to allow eager loading to match
             $classSections->each(function($item) {
                 $item->school_class_id = $item->class_id;
             });
 
-            // Load the schoolClass relation on the collection
+            // Load the schoolClass and section relations on the collection.
+            // schoolClass must include class_order -- it's used to sort this
+            // list into the real Nursery/LKG/UKG/Class 1.../Class 12
+            // sequence below; leaving it out of the restricted select left
+            // every row's class_order silently null, so the sort fell back
+            // to its default for every item and grouped by section letter
+            // instead of by class.
             $classSections->load(['schoolClass' => function($query) {
+                $query->select('id', 'name', 'class_order');
+            }, 'section' => function($query) {
                 $query->select('id', 'name');
             }]);
-            
+
+            // Sort by class order, then section name, now that the section
+            // name comes from the relation instead of the raw column.
+            // Collection::sortBy() with an array of criteria (multi-column
+            // sort) does not reliably order by the first criterion when
+            // given plain closures -- sorting by a single zero-padded
+            // composite string is the robust way to do this.
+            $classSections = $classSections->sortBy(function ($item) {
+                return sprintf('%05d-%s', $item->schoolClass->class_order ?? PHP_INT_MAX, $item->section->name ?? '');
+            })->values();
+
             [$classList, $sections] = $this->getClassAndSectionList();
-            
+
+            // One row per class (not per class+section) with its total
+            // student count across every section, for the "Delete Class &
+            // Students" action -- that's a class-level operation, not a
+            // per-section one.
+            $classTotals = $classSections->groupBy('class_id')->map(function ($group) {
+                $first = $group->first();
+                return (object) [
+                    'class_id' => $first->class_id,
+                    'schoolClass' => $first->schoolClass,
+                    'total' => $group->sum('total'),
+                ];
+            })->sortBy(fn($item) => $item->schoolClass->class_order ?? PHP_INT_MAX)->values();
+
+            $academicSessions = \App\Models\AcademicSession::orderByDesc('id')->get();
+
             return view('admin.students.index', [
                 'classSections' => $classSections,
+                'classTotals' => $classTotals,
+                'academicSessions' => $academicSessions,
                 'classList' => $classList,
                 'sections' => $sections,
                 'showingStudents' => false
@@ -110,6 +165,8 @@ class AdminStudentController extends Controller
      */
     public function showClassStudents($classId, $section = null)
     {
+        $this->authorize('viewAny', Student::class);
+
         $query = Student::where(function($q) use ($classId) {
             $q->where('class_id', $classId)
               ->orWhere('school_class_id', $classId);
@@ -134,6 +191,8 @@ class AdminStudentController extends Controller
 
     public function list(Request $request)
     {
+        $this->authorize('viewAny', Student::class);
+
         $query = Student::query();
         
         // Apply any filters if provided
@@ -377,7 +436,7 @@ class AdminStudentController extends Controller
 
         if ($section) {
             $validated['section_id'] = $section->id;
-            $validated['section'] = (string) $section->id;
+            $validated['section'] = $section->name;
         }
 
         return $validated;

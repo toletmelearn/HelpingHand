@@ -1,4 +1,4 @@
-﻿@extends('layouts.admin')
+@extends('layouts.admin')
 
 @section('title', 'Assigned Classes - Class Teacher Control')
 
@@ -66,10 +66,10 @@
                                     </td>
                                     <td>
                                         <div class="btn-group btn-group-sm">
-                                            <a href="{{ route('teachers.show', $teacher) }}" class="btn btn-outline-primary" title="View">
+                                            <a href="{{ route('admin.teachers.show', $teacher) }}" class="btn btn-outline-primary" title="View">
                                                 <i class="fas fa-eye"></i>
                                             </a>
-                                            <a href="{{ route('teachers.edit', $teacher) }}" class="btn btn-outline-secondary" title="Edit">
+                                            <a href="{{ route('admin.teachers.edit', $teacher) }}" class="btn btn-outline-secondary" title="Edit">
                                                 <i class="fas fa-edit"></i>
                                             </a>
                                         </div>

@@ -17,7 +17,9 @@ class PaymentClaimMatchingController extends Controller
 {
     public function __construct()
     {
-        $this->middleware(['auth', 'role:accountant']);
+        $this->middleware('auth');
+        $this->middleware('permission:view-upi-matching')->only(['queue']);
+        $this->middleware('permission:manage-upi-matching')->only(['runMatching', 'approve', 'reject']);
     }
 
     /**

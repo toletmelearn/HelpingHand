@@ -115,4 +115,34 @@ class ClassTeacherAssignmentController extends Controller
         return redirect()->route('admin.class-teacher-assignments.index')
                          ->with('success', 'Class teacher assignment deleted successfully.');
     }
+
+    public function studentRecords(Request $request)
+    {
+        $this->authorize('viewStudentRecords');
+
+        $query = \App\Models\Student::with(['user', 'class', 'section']);
+
+        // Filter by class if user is a class teacher
+        if (auth()->user() && auth()->user()->roles->pluck('name')->contains('class-teacher')) {
+            $classTeacher = \App\Models\Teacher::where('user_id', auth()->user()->id)->first();
+            if ($classTeacher) {
+                $classIds = $classTeacher->classes()->pluck('class_management.id')->toArray();
+                $query->whereIn('class_id', $classIds);
+            }
+        }
+
+        if ($request->filled('class_id')) {
+            $query->where('class_id', $request->class_id);
+        }
+
+        if ($request->filled('section_id')) {
+            $query->where('section_id', $request->section_id);
+        }
+
+        $students = $query->paginate(20);
+        $classes = \App\Models\ClassManagement::all();
+        $sections = \App\Models\Section::all();
+
+        return view('admin.class-teacher-control.student-records', compact('students', 'classes', 'sections'));
+    }
 }

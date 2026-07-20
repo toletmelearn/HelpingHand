@@ -41,11 +41,11 @@
                                 </tr>
                                 <tr>
                                     <td><strong>Academic Year:</strong></td>
-                                    <td>{{ $exam->academic_year }}</td>
+                                    <td>{{ $exam->academic_year ?: 'Not Set' }}</td>
                                 </tr>
                                 <tr>
                                     <td><strong>Term:</strong></td>
-                                    <td>{{ $exam->term }}</td>
+                                    <td>{{ $exam->term ?: 'Not Set' }}</td>
                                 </tr>
                             </table>
                         </div>
@@ -54,15 +54,15 @@
                             <table class="table table-borderless">
                                 <tr>
                                     <td><strong>Exam Date:</strong></td>
-                                    <td>{{ $exam->exam_date->format('d M Y') }}</td>
+                                    <td>{{ $exam->exam_date ? $exam->exam_date->format('d M Y') : 'N/A' }}</td>
                                 </tr>
                                 <tr>
                                     <td><strong>Start Time:</strong></td>
-                                    <td>{{ $exam->start_time->format('H:i') }}</td>
+                                    <td>{{ $exam->start_time ? $exam->start_time->format('H:i') : 'N/A' }}</td>
                                 </tr>
                                 <tr>
                                     <td><strong>End Time:</strong></td>
-                                    <td>{{ $exam->end_time->format('H:i') }}</td>
+                                    <td>{{ $exam->end_time ? $exam->end_time->format('H:i') : 'N/A' }}</td>
                                 </tr>
                                 <tr>
                                     <td><strong>Total Marks:</strong></td>

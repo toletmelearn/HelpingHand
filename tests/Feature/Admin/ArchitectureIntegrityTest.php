@@ -307,12 +307,6 @@ class ArchitectureIntegrityTest extends TestCase
                 'route_prefix' => 'admin/fees',
                 'test_file' => base_path('tests/Feature/Admin/FeeCollectionRegisterTest.php'),
             ],
-            'Transport' => [
-                'controller' => \App\Http\Controllers\Admin\AdminTransportController::class,
-                'view_dir' => resource_path('views/admin/transport'),
-                'route_prefix' => 'admin/transport',
-                'test_file' => base_path('tests/Feature/Admin/ErpGapsFeatureTest.php'),
-            ],
             'Operations' => [
                 'controller' => \App\Http\Controllers\Admin\OperationsController::class,
                 'view_dir' => resource_path('views/admin/operations'),

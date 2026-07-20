@@ -46,7 +46,10 @@ class FinanceReportController extends Controller
         // Load filter metadata
         $classes = SchoolClass::orderBy('class_order', 'asc')->get();
         $sections = \App\Models\Section::orderBy('name')->get();
-        $students = Student::orderBy('name', 'asc')->take(100)->get(); // basic list for selects
+        // Every student needs to be selectable for per-student drill-down
+        // reports (Ledger Book, Outstanding Register, etc.) -- an earlier
+        // take(100) silently made ~88% of the school's students unselectable.
+        $students = Student::orderBy('name', 'asc')->get(['id', 'name', 'admission_no']);
 
         // Build filtered query
         $query = $this->buildReportQuery($activeReport, $request);
@@ -454,6 +457,12 @@ class FinanceReportController extends Controller
                 }
                 $query->orderBy('fee_collections.payment_date', 'desc');
                 break;
+
+            default:
+                // Unrecognized $type (stale bookmark, renamed report key, hand-
+                // edited URL) -- 404 instead of leaving $query undefined and
+                // crashing on ->paginate()/->cursor() below.
+                abort(404, "Unknown report type '{$type}'.");
         }
 
         return $query;

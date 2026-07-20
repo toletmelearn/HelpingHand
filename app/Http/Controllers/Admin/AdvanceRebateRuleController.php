@@ -13,15 +13,21 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
 /**
- * role:admin exclusive -- rule creation and manual overrides are a
- * financial-policy decision, per the "admin/principal role" requirement
- * (no separate principal role exists; admin satisfies it alone).
+ * Rule creation and manual overrides are a financial-policy decision, per
+ * the "admin/principal role" requirement (no separate principal role
+ * exists; admin satisfies it alone). Gated by permission rather than a
+ * hardcoded role: only admin holds view-advance-rebate-rules/
+ * manage-advance-rebate-rules by default (identical behavior to the old
+ * role:admin-only check), but the admin can now delegate this duty to
+ * another role via Manage Permissions if they choose to.
  */
 class AdvanceRebateRuleController extends Controller
 {
     public function __construct()
     {
-        $this->middleware(['auth', 'role:admin']);
+        $this->middleware('auth');
+        $this->middleware('permission:view-advance-rebate-rules')->only(['index']);
+        $this->middleware('permission:manage-advance-rebate-rules')->only(['create', 'store', 'edit', 'update', 'destroy', 'manualOverride']);
     }
 
     public function index()

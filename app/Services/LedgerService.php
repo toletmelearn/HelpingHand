@@ -134,21 +134,6 @@ class LedgerService
                 } catch (\Exception $e) {
                     // Ignore missing tables
                 }
-            } elseif ($referenceType === 'student_transport_due') {
-                try {
-                    $due = \App\Models\StudentTransportDue::find($referenceId);
-                    if ($due) {
-                        try {
-                            $transportFeeType = \App\Models\FeeType::where('name', 'Transport Fee')->first();
-                            $feeTypeId = $transportFeeType ? $transportFeeType->id : null;
-                        } catch (\Exception $e) {
-                            // Ignore missing fee_types table
-                        }
-                        $academicYear = $due->academic_year;
-                    }
-                } catch (\Exception $e) {
-                    // Ignore missing student_transport_dues
-                }
             } elseif ($referenceType === 'fee_collection') {
                 try {
                     $collection = \App\Models\FeeCollection::with('feeStructure')->find($referenceId);

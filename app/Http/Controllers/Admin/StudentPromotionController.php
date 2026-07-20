@@ -21,22 +21,43 @@ class StudentPromotionController extends Controller
     public function index()
     {
         $currentSession = AcademicSession::current()->first();
-        
-        $studentsByClass = Student::select('class_id', 'class', DB::raw('COUNT(*) as total'))
+
+        // Grouping by the legacy raw `students.class` text column (in
+        // addition to class_id) used to fragment a single real class into
+        // several rows -- e.g. class_id=22 is one class ("Class 11" in
+        // school_classes) but showed as three separate rows ("Class 11",
+        // "XI", "XI-") because those are three different strings that ended
+        // up in that free-text column over time. Group by the canonical FK
+        // only (COALESCE'd the same way every other class listing in this
+        // app handles the class_id/school_class_id split) and resolve the
+        // display name from school_classes, never the stale string.
+        $studentsByClass = Student::select(
+                DB::raw('COALESCE(school_class_id, class_id) as class_id'),
+                DB::raw('COUNT(*) as total')
+            )
             ->whereNull('deleted_at')
-            ->whereNotNull('class_id')
-            ->groupBy('class_id', 'class')
-            ->orderBy('class_id')
+            ->where(function ($q) {
+                $q->whereNotNull('class_id')->orWhereNotNull('school_class_id');
+            })
+            ->groupBy(DB::raw('COALESCE(school_class_id, class_id)'))
             ->get();
-        
-        $classes = ClassManagement::orderBy('name')->get();
-        
+
+        $studentsByClass->each(function ($item) {
+            $item->school_class_id = $item->class_id;
+        });
+        $studentsByClass->load(['schoolClass' => function ($query) {
+            $query->select('id', 'name', 'class_order');
+        }]);
+        $studentsByClass = $studentsByClass->sortBy(
+            fn($item) => $item->schoolClass->class_order ?? PHP_INT_MAX
+        )->values();
+
         $recentPromotions = StudentPromotionLog::with(['student', 'promotedBy', 'academicSession'])
             ->orderBy('created_at', 'desc')
             ->limit(10)
             ->get();
-        
-        return view('admin.student-promotion.index', compact('studentsByClass', 'classes', 'currentSession', 'recentPromotions'));
+
+        return view('admin.student-promotion.index', compact('studentsByClass', 'currentSession', 'recentPromotions'));
     }
 
     /*

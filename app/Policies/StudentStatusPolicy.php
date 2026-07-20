@@ -13,7 +13,7 @@ class StudentStatusPolicy
      */
     public function viewAny(User $user): bool
     {
-        return false;
+        return $user->hasRole('admin') || $user->hasPermission('view-students');
     }
 
     /**
@@ -21,7 +21,7 @@ class StudentStatusPolicy
      */
     public function view(User $user, StudentStatus $studentStatus): bool
     {
-        return false;
+        return $user->hasRole('admin') || $user->hasPermission('view-students');
     }
 
     /**
@@ -29,7 +29,7 @@ class StudentStatusPolicy
      */
     public function create(User $user): bool
     {
-        return false;
+        return $user->hasRole('admin') || $user->hasPermission('create-students');
     }
 
     /**
@@ -37,7 +37,7 @@ class StudentStatusPolicy
      */
     public function update(User $user, StudentStatus $studentStatus): bool
     {
-        return false;
+        return $user->hasRole('admin') || $user->hasPermission('edit-students');
     }
 
     /**
@@ -45,7 +45,7 @@ class StudentStatusPolicy
      */
     public function delete(User $user, StudentStatus $studentStatus): bool
     {
-        return false;
+        return $user->hasRole('admin') || $user->hasPermission('delete-students');
     }
 
     /**

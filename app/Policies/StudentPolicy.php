@@ -13,8 +13,8 @@ class StudentPolicy
      */
     public function viewAny(User $user): bool
     {
-        // Admins and teachers can view all students
-        return $user->hasRole('admin') || $user->hasRole('teacher');
+        // Admins, teachers, accountants, clerks, and users with view-students permission can view all students
+        return $user->hasRole('admin') || $user->hasRole('teacher') || $user->hasAnyRole(['clerk', 'accountant']) || $user->hasPermission('view-students');
     }
 
     /**
@@ -22,8 +22,8 @@ class StudentPolicy
      */
     public function view(User $user, Student $student): bool
     {
-        // Admins and teachers can view any student
-        if ($user->hasRole('admin') || $user->hasRole('teacher')) {
+        // Admins, teachers, accountants, clerks, and authorized users can view any student
+        if ($user->hasRole('admin') || $user->hasRole('teacher') || $user->hasAnyRole(['clerk', 'accountant']) || $user->hasPermission('view-students')) {
             return true;
         }
         
@@ -47,8 +47,8 @@ class StudentPolicy
      */
     public function create(User $user): bool
     {
-        // Only admins and teachers can create students
-        return $user->hasRole('admin') || $user->hasRole('teacher');
+        // Admins, teachers, and authorized users can create students
+        return $user->hasRole('admin') || $user->hasRole('teacher') || $user->hasPermission('create-students');
     }
 
     /**
@@ -56,8 +56,8 @@ class StudentPolicy
      */
     public function update(User $user, Student $student): bool
     {
-        // Admins can update any student
-        if ($user->hasRole('admin')) {
+        // Admins, accountants, and authorized users can update any student
+        if ($user->hasRole('admin') || $user->hasRole('accountant') || $user->hasPermission('edit-students')) {
             return true;
         }
         
@@ -76,8 +76,8 @@ class StudentPolicy
      */
     public function delete(User $user, Student $student): bool
     {
-        // Only admins can delete students
-        return $user->hasRole('admin');
+        // Admins and authorized users can delete students
+        return $user->hasRole('admin') || $user->hasPermission('delete-students');
     }
 
     /**

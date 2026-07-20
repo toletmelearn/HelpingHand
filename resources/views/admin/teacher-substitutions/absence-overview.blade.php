@@ -19,7 +19,7 @@
                                 <div class="list-group-item">
                                     <div class="d-flex w-100 justify-content-between">
                                         <h5 class="mb-1">{{ $teacher->user->name ?? 'N/A' }}</h5>
-                                        <small>Teacher ID: {{ $teacher->teacher_id }}</small>
+                                        <small>Teacher ID: {{ $teacher->employee_id ?? $teacher->id }}</small>
                                     </div>
                                     <p class="mb-1">
                                         <i class="fas fa-chalkboard-teacher"></i> 
@@ -58,7 +58,7 @@
                                 <div class="list-group-item">
                                     <div class="d-flex w-100 justify-content-between">
                                         <h5 class="mb-1">{{ $teacher->user->name ?? 'N/A' }}</h5>
-                                        <small>Teacher ID: {{ $teacher->teacher_id }}</small>
+                                        <small>Teacher ID: {{ $teacher->employee_id ?? $teacher->id }}</small>
                                     </div>
                                     <p class="mb-1">
                                         <i class="fas fa-chalkboard-teacher"></i> 

@@ -186,6 +186,12 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        // App layouts only load Bootstrap 5 (no Tailwind), but Laravel's default
+        // pagination view is Tailwind-based. Without Tailwind's CSS, the raw
+        // `<svg class="w-5 h-5">` prev/next arrows render at their unstyled
+        // native size, producing oversized icons in every paginated list.
+        \Illuminate\Pagination\Paginator::useBootstrapFive();
+
         // Add custom blade directive for academic year
         Blade::directive('academicYear', function () {
             return "<?php echo app(App\\Providers\\AppServiceProvider::class)->getCurrentAcademicYear(); ?>";

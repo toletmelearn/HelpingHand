@@ -45,7 +45,7 @@
                                         <td>{{ $examinationPattern->code }}</td>
                                         <td>
                                             <span class="badge bg-{{ $examinationPattern->is_active ? 'success' : 'secondary' }}">
-                                                {{ $examinationPattern->is_active ? 'Active' : 'Inactive' }
+                                                {{ $examinationPattern->is_active ? 'Active' : 'Inactive' }}
                                             </span>
                                         </td>
                                         <td>

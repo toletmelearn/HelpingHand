@@ -327,7 +327,6 @@ class FunctionalAuditTest extends TestCase
             'Students' => 'App\Http\Controllers\Admin\AdminStudentController',
             'Teachers' => 'App\Http\Controllers\Admin\TeacherClassAssignmentController',
             'Finance' => 'App\Http\Controllers\Admin\FeeCollectionController',
-            'Transport' => 'App\Http\Controllers\Admin\AdminTransportController',
             'Operations' => 'App\Http\Controllers\Admin\OperationsController',
             'Timetable' => 'App\Http\Controllers\Admin\TimetableController',
             'Library' => 'App\Http\Controllers\Admin\LibraryController',

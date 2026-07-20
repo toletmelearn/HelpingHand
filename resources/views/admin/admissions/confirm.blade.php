@@ -41,7 +41,7 @@
                             <!-- Class Selection -->
                             <div class="col-md-6 form-group mb-3">
                                 <label class="fw-bold">Assign Class <span class="text-danger">*</span></label>
-                                <select name="class_id" id="class_select" class="form-control" required>
+                                <select name="class_id" id="class_select" class="form-select" required>
                                     <option value="">-- Select Class --</option>
                                     @foreach($classes as $class)
                                         <option value="{{ $class->id }}" data-name="{{ $class->name }}">{{ $class->name }}</option>
@@ -52,7 +52,7 @@
                             <!-- Section Selection -->
                             <div class="col-md-6 form-group mb-3">
                                 <label class="fw-bold">Assign Section <span class="text-danger">*</span></label>
-                                <select name="section_id" id="section_select" class="form-control" required>
+                                <select name="section_id" id="section_select" class="form-select" required>
                                     <option value="">-- Select Class First --</option>
                                 </select>
                                 <div id="seat-info" class="form-text"></div>
@@ -83,7 +83,7 @@
                             <!-- Gender -->
                             <div class="col-md-6 form-group mb-3">
                                 <label class="fw-bold">Gender <span class="text-danger">*</span></label>
-                                <select name="gender" class="form-control" required>
+                                <select name="gender" class="form-select" required>
                                     <option value="male" {{ old('gender') === 'male' ? 'selected' : '' }}>Male</option>
                                     <option value="female" {{ old('gender') === 'female' ? 'selected' : '' }}>Female</option>
                                     <option value="other" {{ old('gender') === 'other' ? 'selected' : '' }}>Other</option>
@@ -95,7 +95,7 @@
                             <!-- Category -->
                             <div class="col-md-6 form-group mb-3">
                                 <label class="fw-bold">Category <span class="text-danger">*</span></label>
-                                <select name="category" class="form-control" required>
+                                <select name="category" class="form-select" required>
                                     <option value="General" {{ old('category') === 'General' ? 'selected' : '' }}>General</option>
                                     <option value="OBC" {{ old('category') === 'OBC' ? 'selected' : '' }}>OBC</option>
                                     <option value="SC" {{ old('category') === 'SC' ? 'selected' : '' }}>SC</option>

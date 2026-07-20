@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use App\Support\Attendance\AttendanceCreditCalculator;
 
 class Attendance extends Model
 {
@@ -82,27 +83,54 @@ class Attendance extends Model
     // Helper methods
     public static function getAttendanceStats($date = null, $class = null)
     {
-        $query = self::query();
-        
-        if ($date) {
-            $query->where('date', $date);
-        }
-        
-        if ($class) {
-            $query->where('class', $class);
-        }
+        // Build queries with same filters for each metric to avoid scope accumulation
+        $total = self::when($date, function ($q) use ($date) { $q->whereDate('date', $date); })
+            ->when($class, function ($q) use ($class) { $q->where('class', $class); })
+            ->count();
 
-        $total = $query->count();
-        $present = $query->present()->count();
-        $absent = $query->absent()->count();
-        $late = $query->late()->count();
+        $present = self::when($date, function ($q) use ($date) { $q->whereDate('date', $date); })
+            ->when($class, function ($q) use ($class) { $q->where('class', $class); })
+            ->where('status', 'present')
+            ->count();
 
+        $absent = self::when($date, function ($q) use ($date) { $q->whereDate('date', $date); })
+            ->when($class, function ($q) use ($class) { $q->where('class', $class); })
+            ->where('status', 'absent')
+            ->count();
+
+        $late = self::when($date, function ($q) use ($date) { $q->whereDate('date', $date); })
+            ->when($class, function ($q) use ($class) { $q->where('class', $class); })
+            ->where('status', 'late')
+            ->count();
+
+        $halfDay = self::when($date, function ($q) use ($date) { $q->whereDate('date', $date); })
+            ->when($class, function ($q) use ($class) { $q->where('class', $class); })
+            ->where('status', 'half_day')
+            ->count();
+
+        $leave = self::when($date, function ($q) use ($date) { $q->whereDate('date', $date); })
+            ->when($class, function ($q) use ($class) { $q->where('class', $class); })
+            ->where('status', 'leave')
+            ->count();
+
+        // Retrieve status records for calculator summarization
+        $records = self::when($date, function ($q) use ($date) { $q->whereDate('date', $date); })
+            ->when($class, function ($q) use ($class) { $q->where('class', $class); })
+            ->get(['status']);
+
+        $summary = AttendanceCreditCalculator::summarizeRecords($records, 'status');
+
+        // Map calculator keys while preserving legacy keys
         return [
-            'total' => $total,
-            'present' => $present,
-            'absent' => $absent,
-            'late' => $late,
-            'percentage' => $total > 0 ? round(($present / $total) * 100, 2) : 0
+            'total' => $summary['total_days'],
+            'present' => $summary['present_days'],
+            'absent' => $summary['absent_days'],
+            'late' => $summary['late_days'],
+            'half_day' => $summary['half_days'],
+            'leave' => $summary['leave_days'],
+            'attendance_credit' => $summary['attendance_credit'],
+            'attendance_rate' => $summary['attendance_rate'],
+            'percentage' => $summary['attendance_rate']
         ];
     }
 
@@ -118,32 +146,16 @@ class Attendance extends Model
             ->get();
 
         $report = [];
-        $present = 0;
-        $absent = 0;
-        $late = 0;
-
         foreach ($attendances as $attendance) {
             $report[] = [
                 'date' => $attendance->date->format('Y-m-d'),
                 'status' => $attendance->status,
                 'remarks' => $attendance->remarks
             ];
-
-            switch ($attendance->status) {
-                case 'present':
-                    $present++;
-                    break;
-                case 'absent':
-                    $absent++;
-                    break;
-                case 'late':
-                    $late++;
-                    break;
-            }
         }
 
-        $total = $present + $absent + $late;
-        $percentage = $total > 0 ? round(($present / $total) * 100, 2) : 0;
+        // Use calculator to summarize statuses (preserves credit policy)
+        $summary = AttendanceCreditCalculator::summarizeRecords($attendances, 'status');
 
         return [
             'student_id' => $studentId,
@@ -151,11 +163,15 @@ class Attendance extends Model
             'year' => $year,
             'details' => $report,
             'summary' => [
-                'total_days' => $total,
-                'present' => $present,
-                'absent' => $absent,
-                'late' => $late,
-                'percentage' => $percentage
+                'total_days' => $summary['total_days'],
+                'present' => $summary['present_days'],
+                'absent' => $summary['absent_days'],
+                'late' => $summary['late_days'],
+                'half_day' => $summary['half_days'],
+                'leave' => $summary['leave_days'],
+                'attendance_credit' => $summary['attendance_credit'],
+                'attendance_rate' => $summary['attendance_rate'],
+                'percentage' => $summary['attendance_rate']
             ]
         ];
     }

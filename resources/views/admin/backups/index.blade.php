@@ -83,8 +83,10 @@
                                                 Actions
                                             </button>
                                             <ul class="dropdown-menu">
-                                                @if($backup->isCompleted())
+                                                @if($backup->isCompleted() && file_exists(storage_path('app/' . $backup->path . $backup->filename)))
                                                     <li><a class="dropdown-item" href="{{ route('admin.backups.download', $backup->id) }}"><i class="fas fa-download text-primary"></i> Download</a></li>
+                                                @elseif($backup->isCompleted())
+                                                    <li><a class="dropdown-item disabled text-muted" href="#" tabindex="-1" aria-disabled="true"><i class="fas fa-exclamation-triangle text-warning"></i> File missing</a></li>
                                                 @endif
                                                 <li><a class="dropdown-item" href="{{ route('admin.backups.show', $backup->id) }}"><i class="fas fa-eye text-info"></i> View Details</a></li>
                                                 <li><hr class="dropdown-divider"></li>

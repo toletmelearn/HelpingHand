@@ -1,4 +1,4 @@
-﻿@extends('layouts.admin')
+@extends('layouts.admin')
 
 @section('title', 'My Results')
 
@@ -14,6 +14,13 @@
                     @if(session('success'))
                         <div class="alert alert-success">
                             {{ session('success') }}
+                        </div>
+                    @endif
+
+                    @if(isset($holdMessage))
+                        <div class="alert alert-danger p-4">
+                            <h5 class="alert-heading fw-bold"><i class="bi bi-shield-lock-fill me-2"></i>Results Placed on Hold</h5>
+                            <p class="mb-0">{{ $holdMessage }}</p>
                         </div>
                     @endif
 

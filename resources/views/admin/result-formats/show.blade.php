@@ -64,9 +64,11 @@
                                 </tr>
                             </table>
                             
-                            <h6 class="mt-3">HTML Template</h6>
-                            <div class="border p-3 bg-light">
-                                <pre class="text-wrap"><code>{{ htmlspecialchars($resultFormat->template_html) }}</code></pre>
+                            <h6 class="mt-3">HTML Template Preview</h6>
+                            <div class="border p-3 bg-white">
+                                <div class="template-preview">
+                                    {!! $resultFormat->template_html !!}
+                                </div>
                             </div>
                         </div>
                     </div>

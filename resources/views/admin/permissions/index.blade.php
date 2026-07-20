@@ -24,14 +24,35 @@
                         </div>
                     @endif
 
+                    <form method="GET" class="row g-2 mb-3">
+                        <div class="col-md-4">
+                            <input type="text" name="search" value="{{ request('search') }}" class="form-control" placeholder="Search name or label...">
+                        </div>
+                        <div class="col-md-4">
+                            <select name="module" class="form-select">
+                                <option value="">All modules</option>
+                                @foreach($modules as $module)
+                                    <option value="{{ $module }}" {{ request('module') == $module ? 'selected' : '' }}>{{ ucwords(str_replace('-', ' ', $module)) }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <button type="submit" class="btn btn-outline-primary w-100">Filter</button>
+                        </div>
+                        <div class="col-md-2">
+                            <a href="{{ route('admin.permissions.index') }}" class="btn btn-outline-secondary w-100">Reset</a>
+                        </div>
+                    </form>
+
                     <div class="table-responsive">
                         <table class="table table-bordered table-striped">
                             <thead>
                                 <tr>
                                     <th>ID</th>
                                     <th>Name</th>
+                                    <th>Label</th>
+                                    <th>Module</th>
                                     <th>Guard Name</th>
-                                    <th>Created At</th>
                                     <th>Actions</th>
                                 </tr>
                             </thead>
@@ -40,8 +61,15 @@
                                     <tr>
                                         <td>{{ $permission->id }}</td>
                                         <td>{{ $permission->name }}</td>
+                                        <td>{{ $permission->label ?? '—' }}</td>
+                                        <td>
+                                            @if($permission->module)
+                                                <span class="badge bg-secondary">{{ ucwords(str_replace('-', ' ', $permission->module)) }}</span>
+                                            @else
+                                                —
+                                            @endif
+                                        </td>
                                         <td>{{ $permission->guard_name }}</td>
-                                        <td>{{ $permission->created_at->format('Y-m-d H:i') }}</td>
                                         <td>
                                             <a href="{{ route('admin.permissions.show', $permission) }}" class="btn btn-sm btn-info">View</a>
                                             <a href="{{ route('admin.permissions.edit', $permission) }}" class="btn btn-sm btn-warning">Edit</a>
@@ -54,7 +82,7 @@
                                     </tr>
                                 @empty
                                     <tr>
-                                        <td colspan="5" class="text-center">No permissions found</td>
+                                        <td colspan="6" class="text-center">No permissions found</td>
                                     </tr>
                                 @endforelse
                             </tbody>

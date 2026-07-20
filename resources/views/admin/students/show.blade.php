@@ -31,7 +31,8 @@
                                   enctype="multipart/form-data" class="mt-2">
                                 @csrf
                                 <input type="file" name="photo" class="form-control form-control-sm mb-2"
-                                       accept="image/jpeg,image/png,image/gif" required>
+                                       accept="image/jpeg,image/png,image/gif,image/webp,image/bmp" required>
+                                <small class="text-muted d-block mb-2">JPEG, PNG, GIF, WEBP or BMP, up to 8MB.</small>
                                 <button type="submit" class="btn btn-sm btn-primary">
                                     <i class="fas fa-camera"></i> Change Photo
                                 </button>
@@ -41,6 +42,7 @@
                     </div>
                     <div class="row">
                         <div class="col-md-6">
+                            <div class="table-responsive">
                             <table class="table table-borderless">
                                 <tr>
                                     <th width="30%">Full Name:</th>
@@ -71,9 +73,11 @@
                                     <td>{{ ucfirst($student->gender) }}</td>
                                 </tr>
                             </table>
+                            </div>
                         </div>
-                        
+
                         <div class="col-md-6">
+                            <div class="table-responsive">
                             <table class="table table-borderless">
                                 <tr>
                                     <th width="30%">Category:</th>
@@ -108,6 +112,7 @@
                                     <td>{{ $student->blood_group ?: 'N/A' }}</td>
                                 </tr>
                             </table>
+                            </div>
                         </div>
                     </div>
                     

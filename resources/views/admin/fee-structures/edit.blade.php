@@ -160,6 +160,7 @@
                                                                 <option value="quarterly" {{ $hasItem && ($item->billing_frequency ?? '') == 'quarterly' ? 'selected' : '' }}>Quarterly</option>
                                                                 <option value="yearly" {{ $hasItem && in_array($item->billing_frequency ?? '', ['yearly', 'annual']) ? 'selected' : '' }}>Yearly / Annual</option>
                                                                 <option value="session_wise_admission" {{ $hasItem && ($item->billing_frequency ?? '') == 'session_wise_admission' ? 'selected' : '' }}>Session Admission (New Students Only)</option>
+                                                                <option value="one_time" {{ $hasItem && ($item->billing_frequency ?? '') == 'one_time' ? 'selected' : '' }}>One-Time (Charged Once, Entire Enrollment)</option>
                                                                 <option value="session_wise_continuing" {{ $hasItem && ($item->billing_frequency ?? '') == 'session_wise_continuing' ? 'selected' : '' }}>Continuing Students Only (Old)</option>
                                                                 <option value="exam_wise" {{ $hasItem && ($item->billing_frequency ?? '') == 'exam_wise' ? 'selected' : '' }}>Exam Wise</option>
                                                                 <option value="custom" {{ $hasItem && ($item->billing_frequency ?? '') == 'custom' ? 'selected' : '' }}>Custom Months</option>
@@ -321,6 +322,9 @@ $(document).ready(function() {
         } else if (frequency === 'session_wise_admission') {
             pillsHtml = `<button type="button" class="btn btn-sm btn-primary month-pill active" data-value="April" disabled>Admission (April)</button>`;
             activeMonths = ['April'];
+        } else if (frequency === 'one_time') {
+            pillsHtml = `<button type="button" class="btn btn-sm btn-primary month-pill active" data-value="OneTime" disabled>Charged Once</button>`;
+            activeMonths = ['OneTime'];
         } else if (frequency === 'session_wise_continuing') {
             pillsHtml = `<button type="button" class="btn btn-sm btn-primary month-pill active" data-value="Annual" disabled>Annual (April)</button>`;
             activeMonths = ['Annual'];
@@ -421,7 +425,7 @@ $(document).ready(function() {
         const $customRow = $pill.closest('.customization-row');
         const freq = $customRow.find('.billing-frequency-select').val();
         
-        if (freq === 'yearly' || freq === 'session_wise_admission' || freq === 'session_wise_continuing' || freq === 'exam_wise') return;
+        if (freq === 'yearly' || freq === 'session_wise_admission' || freq === 'one_time' || freq === 'session_wise_continuing' || freq === 'exam_wise') return;
         
         $pill.toggleClass('btn-primary btn-outline-secondary');
         
@@ -550,7 +554,7 @@ $(document).ready(function() {
                 yearlyTotal += amount * count;
             } else if (freq === 'quarterly') {
                 yearlyTotal += amount * count;
-            } else if (freq === 'yearly' || freq === 'session_wise_admission' || freq === 'session_wise_continuing') {
+            } else if (freq === 'yearly' || freq === 'session_wise_admission' || freq === 'one_time' || freq === 'session_wise_continuing') {
                 yearlyTotal += amount;
             } else if (freq === 'custom') {
                 yearlyTotal += amount;

@@ -1,0 +1,201 @@
+Static Controller Middleware Analysis
+=====================================
+
+Controller: AuditLogController
+  - Middleware: 'auth'
+
+Controller: BellScheduleController
+  - Middleware: 'auth'
+
+Controller: ClassTeacherAssignmentController
+  - Middleware: 'auth'
+
+Controller: FieldPermissionController
+  - Middleware: ['auth', 'role:admin']
+
+Controller: HomeController
+  - Middleware: 'auth'
+
+Controller: RolePermissionController
+  - Middleware: ['auth', 'role:admin']
+
+Controller: SpecialDayOverrideController
+  - Middleware: 'auth'
+
+Controller: StudentAdmitCardController
+  - Middleware: 'auth'
+
+Controller: StudentDailyTeachingWorkController
+  - Middleware: 'auth'
+
+Controller: StudentResultController
+  - Middleware: 'auth'
+
+Controller: StudentVerificationController
+  - Middleware: 'auth'
+
+Controller: TeacherResultController
+  - Middleware: 'auth'
+
+Controller: UserController
+  - Middleware: ['auth', 'role:admin']
+
+Controller: AISmartFeaturesController
+  - Middleware: 'auth'
+
+Controller: AcademicSessionController
+  - Middleware: 'auth'
+
+Controller: AdminAdmissionController
+  - Middleware: 'auth'
+
+Controller: AdminAlumniController
+  - Middleware: 'auth'
+
+Controller: AdminGateEntryController
+  - Middleware: 'auth'
+
+Controller: AdminHostelController
+  - Middleware: 'auth'
+
+Controller: AdminInventoryPurchaseController
+  - Middleware: 'auth'
+
+Controller: AdminPayrollController
+  - Middleware: 'auth'
+
+Controller: AdminTeacherLeaveController
+  - Middleware: 'auth'
+
+Controller: AdminTransportController
+  - Middleware: 'auth'
+
+Controller: AdmitCardController
+  - Middleware: 'auth'
+
+Controller: AdmitCardFormatController
+  - Middleware: 'auth'
+
+Controller: AssetCategoryController
+  - Middleware: 'auth'
+
+Controller: AssetController
+  - Middleware: 'auth'
+
+Controller: BackupController
+  - Middleware: 'auth'
+
+Controller: BudgetCategoryController
+  - Middleware: 'auth'
+
+Controller: BudgetController
+  - Middleware: 'auth'
+
+Controller: BudgetDashboardController
+  - Middleware: 'auth'
+
+Controller: CBSEReportCardController
+  - Middleware: 'auth'
+
+Controller: CertificateController
+  - Middleware: 'auth'
+
+Controller: CertificateTemplateController
+  - Middleware: 'auth'
+
+Controller: ClassAssignmentController
+  - Middleware: 'auth'
+
+Controller: DailyTeachingWorkController
+  - Middleware: 'auth'
+
+Controller: DatabaseOptimizationController
+  - Middleware: 'auth'
+
+Controller: DocumentFormatController
+  - Middleware: 'auth'
+
+Controller: ExamController
+  - Middleware: 'auth'
+
+Controller: ExamPaperController
+  - Middleware: 'auth'
+
+Controller: ExamPaperTemplateController
+  - Middleware: 'auth'
+
+Controller: ExaminationPatternController
+  - Middleware: 'auth'
+
+Controller: ExpenseController
+  - Middleware: 'auth'
+
+Controller: FeeAutomationController
+  - Middleware: 'auth'
+
+Controller: FeeCollectionController
+  - Middleware: 'auth'
+
+Controller: FeeController
+  - Middleware: 'auth'
+
+Controller: FeeStructureController
+  - Middleware: 'auth'
+
+Controller: GradingSystemController
+  - Middleware: 'auth'
+
+Controller: HomeworkNoticeController
+  - Middleware: 'auth'
+
+Controller: IdCardController
+  - Middleware: 'auth'
+
+Controller: InstallmentFeeController
+  - Middleware: 'auth'
+
+Controller: InventoryController
+  - Middleware: 'auth'
+
+Controller: LanguageSettingController
+  - Middleware: 'auth'
+
+Controller: PaymentSettingsController
+  - Middleware: 'auth'
+
+Controller: PermissionController
+  - Middleware: 'auth'
+
+Controller: ResultController
+  - Middleware: 'auth'
+
+Controller: ResultFormatController
+  - Middleware: 'auth'
+
+Controller: RoleDashboardController
+  - Middleware: 'auth'
+
+Controller: SchoolClassController
+  - Middleware: 'auth'
+
+Controller: SectionController
+  - Middleware: 'auth'
+
+Controller: SmartAttendanceController
+  - Middleware: 'auth'
+
+Controller: StudentStatusController
+  - Middleware: 'auth'
+
+Controller: SubjectController
+  - Middleware: 'auth'
+
+Controller: SyllabusController
+  - Middleware: 'auth'
+
+Controller: TeacherAttendanceController
+  - Middleware: 'auth'
+
+Controller: TeacherSubstitutionController
+  - Middleware: 'auth'
+

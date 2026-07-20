@@ -37,10 +37,8 @@
                                         <option value="">Select Status</option>
                                         <option value="active" {{ old('status') == 'active' ? 'selected' : '' }}>Active</option>
                                         <option value="inactive" {{ old('status') == 'inactive' ? 'selected' : '' }}>Inactive</option>
-                                        <option value="passed_out" {{ old('status') == 'passed_out' ? 'selected' : '' }}>Passed Out</option>
-                                        <option value="tc_issued" {{ old('status') == 'tc_issued' ? 'selected' : '' }}>TC Issued</option>
-                                        <option value="left_school" {{ old('status') == 'left_school' ? 'selected' : '' }}>Left School</option>
                                     </select>
+                                    <small class="form-text text-muted">Passed Out, TC Issued, and Left School require dedicated workflows and are not available from this generic status form.</small>
                                     @error('status')
                                         <div class="invalid-feedback">{{ $message }}</div>
                                     @enderror

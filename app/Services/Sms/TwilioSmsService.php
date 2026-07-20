@@ -4,98 +4,175 @@ namespace App\Services\Sms;
 
 use Twilio\Rest\Client;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Config;
 
 class TwilioSmsService
 {
     protected $client;
     protected $fromNumber;
+    protected $enabled;
 
     public function __construct()
     {
-        $sid = env('TWILIO_SID');
-        $token = env('TWILIO_TOKEN');
-        $this->fromNumber = env('TWILIO_FROM');
-
-        if ($sid && $token) {
-            $this->client = new Client($sid, $token);
+        $sid = config('services.twilio.sid');
+        $token = config('services.twilio.token');
+        $this->fromNumber = config('services.twilio.from');
+        
+        // Check if Twilio is configured
+        $this->enabled = !empty($sid) && !empty($token) && !empty($this->fromNumber);
+        
+        if ($this->enabled) {
+            try {
+                $this->client = new Client($sid, $token);
+            } catch (\Exception $e) {
+                Log::error('Failed to initialize Twilio client: ' . $e->getMessage());
+                $this->enabled = false;
+            }
         }
     }
 
     /**
-     * Send SMS using Twilio
+     * Send SMS via Twilio
      */
-    public function sendSms($to, $message)
+    public function send($to, $message, $options = [])
     {
-        if (!$this->client) {
-            // If Twilio is not configured, log the message or use alternative method
-            \Log::warning('Twilio not configured. SMS not sent.', [
+        if (!$this->enabled) {
+            Log::warning('Twilio SMS not configured. SMS not sent.', [
                 'to' => $to,
-                'message' => $message
+                'message' => substr($message, 0, 50)
             ]);
-            return false;
+            return [
+                'success' => false,
+                'error' => 'Twilio not configured',
+                'simulated' => true
+            ];
         }
 
         try {
-            $response = $this->client->messages->create(
-                $to,
-                [
-                    'from' => $this->fromNumber,
-                    'body' => $message
-                ]
-            );
+            // Validate phone number format
+            $to = $this->formatPhoneNumber($to);
+            
+            if (!$to) {
+                throw new \Exception('Invalid phone number format');
+            }
+
+            // Send SMS via Twilio
+            $messageResult = $this->client->messages->create($to, [
+                'from' => $this->fromNumber,
+                'body' => $message
+            ]);
+
+            Log::info('SMS sent successfully via Twilio', [
+                'to' => $to,
+                'sid' => $messageResult->sid,
+                'status' => $messageResult->status
+            ]);
 
             return [
                 'success' => true,
-                'sid' => $response->sid,
-                'status' => $response->status
+                'sid' => $messageResult->sid,
+                'status' => $messageResult->status,
+                'to' => $to
             ];
+
         } catch (\Exception $e) {
-            \Log::error('Failed to send SMS via Twilio: ' . $e->getMessage());
+            Log::error('Failed to send SMS via Twilio: ' . $e->getMessage(), [
+                'to' => $to,
+                'message' => substr($message, 0, 50)
+            ]);
 
             return [
                 'success' => false,
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
+                'to' => $to
             ];
         }
     }
 
     /**
-     * Send low attendance alert SMS
+     * Send bulk SMS
      */
-    public function sendLowAttendanceAlert($phoneNumber, $studentName, $attendancePercentage)
+    public function sendBulk(array $recipients, $message, $options = [])
     {
-        $message = "ALERT: Your child {$studentName} has low attendance of {$attendancePercentage}%. Please ensure regular attendance.";
+        $results = [
+            'sent' => 0,
+            'failed' => 0,
+            'total' => count($recipients),
+            'details' => []
+        ];
 
-        return $this->sendSms($phoneNumber, $message);
+        foreach ($recipients as $recipient) {
+            $result = $this->send($recipient, $message, $options);
+            
+            if ($result['success']) {
+                $results['sent']++;
+            } else {
+                $results['failed']++;
+            }
+            
+            $results['details'][] = $result;
+        }
+
+        Log::info('Bulk SMS completed', $results);
+
+        return $results;
     }
 
     /**
-     * Send fee payment reminder SMS
+     * Format phone number to E.164 format
      */
-    public function sendFeePaymentReminder($phoneNumber, $studentName, $amountDue, $dueDate)
+    protected function formatPhoneNumber($number)
     {
-        $message = "REMINDER: Fee payment of Rs.{$amountDue} for {$studentName} is due on {$dueDate}. Please pay on time.";
-
-        return $this->sendSms($phoneNumber, $message);
+        // Remove all non-numeric characters
+        $number = preg_replace('/[^0-9]/', '', $number);
+        
+        // If number doesn't start with country code, add India's code (+91)
+        if (strlen($number) == 10) {
+            $number = '91' . $number;
+        }
+        
+        // Add + prefix for E.164 format
+        if (!str_starts_with($number, '+')) {
+            $number = '+' . $number;
+        }
+        
+        // Validate length (should be between 10-15 digits for E.164)
+        if (strlen($number) < 10 || strlen($number) > 16) {
+            return false;
+        }
+        
+        return $number;
     }
 
     /**
-     * Send exam schedule SMS
+     * Check if Twilio is enabled and configured
      */
-    public function sendExamSchedule($phoneNumber, $studentName, $examTitle, $examDate, $examTime)
+    public function isEnabled()
     {
-        $message = "NOTICE: {$studentName}, {$examTitle} exam is scheduled on {$examDate} at {$examTime}.";
-
-        return $this->sendSms($phoneNumber, $message);
+        return $this->enabled;
     }
 
     /**
-     * Send result publication SMS
+     * Get account information
      */
-    public function sendResultPublished($phoneNumber, $studentName, $examName, $percentage)
+    public function getAccountInfo()
     {
-        $message = "RESULT: {$studentName}, your {$examName} result is published. Percentage: {$percentage}%.";
+        if (!$this->enabled) {
+            return null;
+        }
 
-        return $this->sendSms($phoneNumber, $message);
+        try {
+            $account = $this->client->api->v2010->accounts(config('services.twilio.sid'))->fetch();
+            
+            return [
+                'status' => $account->status,
+                'friendly_name' => $account->friendlyName,
+                'type' => $account->type,
+                'from_number' => $this->fromNumber
+            ];
+        } catch (\Exception $e) {
+            Log::error('Failed to fetch Twilio account info: ' . $e->getMessage());
+            return null;
+        }
     }
 }

@@ -73,8 +73,8 @@
                                 <div class="card-body text-center">
                                     <h6 class="card-title"><i class="bi bi-tags text-success"></i> Categories</h6>
                                     <div class="mt-3">
-                                        <a href="{{ route('admin.inventory.categories.index') }}" class="btn btn-sm btn-outline-success mb-2 d-block">View Categories</a>
-                                        <a href="{{ route('admin.inventory.categories.create') }}" class="btn btn-sm btn-outline-success d-block">Add Category</a>
+                                        <a href="{{ url('admin/inventory/categories') }}" class="btn btn-sm btn-outline-success mb-2 d-block">View Categories</a>
+                                        <a href="{{ url('admin/inventory/categories/create') }}" class="btn btn-sm btn-outline-success d-block">Add Category</a>
                                     </div>
                                 </div>
                             </div>

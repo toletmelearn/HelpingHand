@@ -14,6 +14,8 @@ class ExpenseController extends Controller
     public function __construct()
     {
         $this->middleware('auth');
+        $this->middleware('permission:view-expenses')->only(['index', 'show']);
+        $this->middleware('permission:manage-expenses')->only(['create', 'store', 'edit', 'update', 'destroy', 'approve', 'reject']);
     }
     
     /**
@@ -134,7 +136,7 @@ class ExpenseController extends Controller
             $expense->created_by = Auth::id();
             $expense->save();
             
-            return redirect()->route('admin.expense.index')
+            return redirect()->route('admin.expenses.index')
                            ->with('success', 'Expense recorded successfully.');
         } catch (\Exception $e) {
             return back()->withErrors(['error' => 'Failed to record expense: ' . $e->getMessage()])->withInput();
@@ -156,7 +158,7 @@ class ExpenseController extends Controller
     public function edit(Expense $expense)
     {
         if (!$expense->canBeModified()) {
-            return redirect()->route('admin.expense.show', $expense)
+            return redirect()->route('admin.expenses.show', $expense)
                            ->with('error', 'This expense cannot be modified as it has been approved.');
         }
         
@@ -172,7 +174,7 @@ class ExpenseController extends Controller
     public function update(Request $request, Expense $expense)
     {
         if (!$expense->canBeModified()) {
-            return redirect()->route('admin.expense.show', $expense)
+            return redirect()->route('admin.expenses.show', $expense)
                            ->with('error', 'This expense cannot be modified as it has been approved.');
         }
         
@@ -200,7 +202,7 @@ class ExpenseController extends Controller
             $expense->payment_method = $request->payment_method;
             $expense->save();
             
-            return redirect()->route('admin.expense.show', $expense)
+            return redirect()->route('admin.expenses.show', $expense)
                            ->with('success', 'Expense updated successfully.');
         } catch (\Exception $e) {
             return back()->withErrors(['error' => 'Failed to update expense: ' . $e->getMessage()])->withInput();
@@ -213,16 +215,16 @@ class ExpenseController extends Controller
     public function destroy(Expense $expense)
     {
         if (!$expense->canBeModified()) {
-            return redirect()->route('admin.expense.index')
+            return redirect()->route('admin.expenses.index')
                            ->with('error', 'This expense cannot be deleted as it has been approved.');
         }
         
         try {
             $expense->delete();
-            return redirect()->route('admin.expense.index')
+            return redirect()->route('admin.expenses.index')
                            ->with('success', 'Expense deleted successfully.');
         } catch (\Exception $e) {
-            return redirect()->route('admin.expense.index')
+            return redirect()->route('admin.expenses.index')
                            ->with('error', 'Failed to delete expense: ' . $e->getMessage());
         }
     }
@@ -233,17 +235,17 @@ class ExpenseController extends Controller
     public function approve(Expense $expense, Request $request)
     {
         if ($expense->status !== 'pending') {
-            return redirect()->route('admin.expense.show', $expense)
+            return redirect()->route('admin.expenses.show', $expense)
                            ->with('error', 'Only pending expenses can be approved.');
         }
         
         try {
             $expense->approve(Auth::id(), $request->approval_notes);
             
-            return redirect()->route('admin.expense.show', $expense)
+            return redirect()->route('admin.expenses.show', $expense)
                            ->with('success', 'Expense approved successfully.');
         } catch (\Exception $e) {
-            return redirect()->route('admin.expense.show', $expense)
+            return redirect()->route('admin.expenses.show', $expense)
                            ->with('error', 'Failed to approve expense: ' . $e->getMessage());
         }
     }
@@ -254,7 +256,7 @@ class ExpenseController extends Controller
     public function reject(Expense $expense, Request $request)
     {
         if ($expense->status !== 'pending') {
-            return redirect()->route('admin.expense.show', $expense)
+            return redirect()->route('admin.expenses.show', $expense)
                            ->with('error', 'Only pending expenses can be rejected.');
         }
         
@@ -265,10 +267,10 @@ class ExpenseController extends Controller
         try {
             $expense->reject(Auth::id(), $request->rejection_notes);
             
-            return redirect()->route('admin.expense.show', $expense)
+            return redirect()->route('admin.expenses.show', $expense)
                            ->with('success', 'Expense rejected successfully.');
         } catch (\Exception $e) {
-            return redirect()->route('admin.expense.show', $expense)
+            return redirect()->route('admin.expenses.show', $expense)
                            ->with('error', 'Failed to reject expense: ' . $e->getMessage());
         }
     }

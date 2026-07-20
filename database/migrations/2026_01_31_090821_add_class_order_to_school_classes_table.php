@@ -11,10 +11,17 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::table('school_classes', function (Blueprint $table) {
-            $table->integer('class_order')->default(0)->after('name');
-            $table->boolean('is_active')->default(true)->after('class_order');
-        });
+        if (!Schema::hasColumn('school_classes', 'class_order')) {
+            Schema::table('school_classes', function (Blueprint $table) {
+                $table->integer('class_order')->default(0)->after('name');
+            });
+        }
+
+        if (!Schema::hasColumn('school_classes', 'is_active')) {
+            Schema::table('school_classes', function (Blueprint $table) {
+                $table->boolean('is_active')->default(true)->after('class_order');
+            });
+        }
     }
 
     /**

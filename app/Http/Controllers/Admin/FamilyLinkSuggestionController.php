@@ -17,12 +17,26 @@ class FamilyLinkSuggestionController extends Controller
 {
     public function __construct()
     {
-        $this->middleware(['auth', 'role:accountant']);
+        $this->middleware('auth');
+        $this->middleware('permission:view-families')->only(['index']);
+        $this->middleware('permission:manage-families')->only(['confirm', 'dismiss']);
     }
 
     public function index()
     {
-        $suggestions = FamilyLinkSuggestion::with(['student', 'matchedFamily', 'candidateStudent'])
+        // Eager-load class/section for the student and every possible
+        // sibling-side entity (a single existing candidate, or every member
+        // of an already-confirmed family) so the queue can show "who this
+        // student would be linked to, and what class/section they're in"
+        // without an N+1 per row.
+        $suggestions = FamilyLinkSuggestion::with([
+                'student.schoolClass',
+                'student.section',
+                'candidateStudent.schoolClass',
+                'candidateStudent.section',
+                'matchedFamily.students.schoolClass',
+                'matchedFamily.students.section',
+            ])
             ->where('status', 'pending')
             ->latest()
             ->paginate(20);

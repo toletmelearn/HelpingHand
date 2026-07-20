@@ -24,20 +24,41 @@
     <div class="card shadow mb-4">
         <div class="card-body">
             <form action="{{ route('admin.parents.index') }}" method="GET" class="row g-3 align-items-center">
-                <div class="col-md-6">
+                <div class="col-md-4">
                     <input type="text" name="search" class="form-control" placeholder="Search by name, email, phone, or child's name..." value="{{ request('search') }}">
                 </div>
-                <div class="col-md-3">
+                <div class="col-md-2">
                     <select name="status" class="form-control">
                         <option value="">-- All Statuses --</option>
                         <option value="active" {{ request('status') === 'active' ? 'selected' : '' }}>Active</option>
                         <option value="inactive" {{ request('status') === 'inactive' ? 'selected' : '' }}>Inactive</option>
                     </select>
                 </div>
-                <div class="col-md-3 d-grid">
-                    <button type="submit" class="btn btn-primary"><i class="fas fa-search me-1"></i> Filter Directory</button>
+                <div class="col-md-2">
+                    <select name="class_id" class="form-control">
+                        <option value="">-- All Classes --</option>
+                        @foreach($classes as $class)
+                            <option value="{{ $class->id }}" {{ (string) request('class_id') === (string) $class->id ? 'selected' : '' }}>{{ $class->name }}</option>
+                        @endforeach
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <select name="section_id" class="form-control">
+                        <option value="">-- All Sections --</option>
+                        @foreach($sections as $section)
+                            <option value="{{ $section->id }}" {{ (string) request('section_id') === (string) $section->id ? 'selected' : '' }}>{{ $section->name }}</option>
+                        @endforeach
+                    </select>
+                </div>
+                <div class="col-md-2 d-grid">
+                    <button type="submit" class="btn btn-primary"><i class="fas fa-search me-1"></i> Filter</button>
                 </div>
             </form>
+            @if(request('class_id') || request('section_id') || request('search') || request('status'))
+                <div class="mt-2">
+                    <a href="{{ route('admin.parents.index') }}" class="small text-muted"><i class="fas fa-times-circle me-1"></i>Clear all filters</a>
+                </div>
+            @endif
         </div>
     </div>
 
@@ -67,8 +88,19 @@
                                 <td>{{ $parent->email }}</td>
                                 <td>
                                     @forelse($parent->students as $child)
-                                        <a href="{{ route('admin.students.show', $child->id) }}" class="badge bg-info text-decoration-none me-1 p-2">
+                                        @php
+                                            // Student has a raw `section` string column as well as a
+                                            // section() relationship of the same name -- Eloquent's
+                                            // magic accessor always returns the raw column value, never
+                                            // the relation, when both exist. getRelation() bypasses that
+                                            // and returns the eager-loaded Section model instead.
+                                            $childSection = $child->relationLoaded('section') ? $child->getRelation('section') : $child->section;
+                                        @endphp
+                                        <a href="{{ route('admin.students.show', $child->id) }}" class="badge bg-info text-decoration-none me-1 mb-1 p-2">
                                             <i class="fas fa-child me-1"></i> {{ $child->name }}
+                                            @if($child->schoolClass || $childSection)
+                                                ({{ $child->schoolClass->name ?? 'N/A' }}@if($childSection) - {{ is_object($childSection) ? $childSection->name : $childSection }}@endif)
+                                            @endif
                                         </a>
                                     @empty
                                         <span class="text-muted" style="font-size: 0.85rem;">No linked students</span>

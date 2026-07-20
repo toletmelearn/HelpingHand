@@ -16,7 +16,7 @@ class ClassController extends Controller
      */
     public function index()
     {
-        $classes = ClassManagement::orderBy('name')->paginate(10);
+        $classes = ClassManagement::ordered()->get();
         return view('admin.classes.index', compact('classes'));
     }
 
@@ -39,7 +39,7 @@ class ClassController extends Controller
     public function store(Request $request)
     {
         $validator = Validator::make($request->all(), [
-            'name' => 'required|string|max:255|unique:class_managements,name',
+            'name' => 'required|string|max:255|unique:class_management,name',
             'capacity' => 'nullable|integer|min:0',
             'description' => 'nullable|string|max:1000',
         ]);
@@ -96,7 +96,7 @@ class ClassController extends Controller
         $class = ClassManagement::findOrFail($id);
 
         $validator = Validator::make($request->all(), [
-            'name' => 'required|string|max:255|unique:class_managements,name,' . $id,
+            'name' => 'required|string|max:255|unique:class_management,name,' . $id,
             'capacity' => 'nullable|integer|min:0',
             'description' => 'nullable|string|max:1000',
         ]);

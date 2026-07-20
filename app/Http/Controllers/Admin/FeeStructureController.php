@@ -20,6 +20,12 @@ class FeeStructureController extends Controller
     public function __construct()
     {
         $this->middleware('auth');
+        $this->middleware('permission:view-fee-types')->only(['feeTypeMaster']);
+        $this->middleware('permission:manage-fee-types')->only(['updateFeeTypeMaster']);
+        $this->middleware('permission:view-fee-structures')->only(['index', 'show']);
+        $this->middleware('permission:create-fee-structures')->only(['create', 'store', 'copyStructure']);
+        $this->middleware('permission:edit-fee-structures')->only(['edit', 'update', 'activate', 'deactivate', 'updateDisplaySettings']);
+        $this->middleware('permission:delete-fee-structures')->only(['destroy']);
     }
 
     public function index()
@@ -29,8 +35,33 @@ class FeeStructureController extends Controller
             ->orderBy('academic_year')
             ->get();
         $classes = SchoolClass::active()->orderByOrder()->get();
+        $parentDisplayFrequency = \App\Models\AdminConfiguration::get('fees', 'parent_display_frequency', 'monthly');
 
-        return view('admin.fee-structures.index', compact('feeStructures', 'classes'));
+        return view('admin.fee-structures.index', compact('feeStructures', 'classes', 'parentDisplayFrequency'));
+    }
+
+    /**
+     * Admin-configurable: whether parents see recurring fee items broken
+     * out Monthly or grouped Quarterly. Display-only -- never changes
+     * actual billing granularity, due dates, or late-fee triggers, which
+     * always stay exactly as configured in the fee structure itself.
+     */
+    public function updateDisplaySettings(Request $request)
+    {
+        $request->validate([
+            'parent_display_frequency' => 'required|in:monthly,quarterly',
+        ]);
+
+        \App\Models\AdminConfiguration::set(
+            'fees',
+            'parent_display_frequency',
+            $request->parent_display_frequency,
+            'string',
+            'Parent Fee Display Frequency'
+        );
+
+        return redirect()->route('admin.fee-structures.index')
+            ->with('success', 'Fee display setting updated successfully!');
     }
 
     public function create()
@@ -52,6 +83,13 @@ class FeeStructureController extends Controller
                 'class_name' => 'required|string',
                 'academic_year' => $this->academicYearRule(),
                 'frequency' => 'required|in:monthly,quarterly,yearly,custom',
+                // The `.*` rule below only validates elements of an array that's
+                // already present -- it's a silent no-op if fee_type_id is
+                // missing entirely, which previously let a structure be
+                // created with zero fee items whenever the client-side JS
+                // guard didn't run. This top-level rule makes the field itself
+                // required so that case is rejected before FeeStructure::create() runs.
+                'fee_type_id' => 'required|array|min:1',
                 'fee_type_id.*' => 'required|exists:fee_types,id',
                 'amount.*' => 'required|numeric|min:0',
                 'due_day.*' => 'nullable|integer|min:1|max:31',
@@ -92,6 +130,8 @@ class FeeStructureController extends Controller
                         $months = ['Q1', 'Q2', 'Q3', 'Q4'];
                     } elseif ($billingFreq === 'yearly' || $billingFreq === 'annual' || $billingFreq === 'session_wise_continuing') {
                         $months = ['Annual'];
+                    } elseif ($billingFreq === 'one_time') {
+                        $months = ['OneTime'];
                     } else {
                         $months = ['Annual'];
                     }
@@ -196,6 +236,8 @@ class FeeStructureController extends Controller
                         $months = ['Q1', 'Q2', 'Q3', 'Q4'];
                     } elseif ($billingFreq === 'yearly' || $billingFreq === 'annual' || $billingFreq === 'session_wise_continuing') {
                         $months = ['Annual'];
+                    } elseif ($billingFreq === 'one_time') {
+                        $months = ['OneTime'];
                     } else {
                         $months = ['Annual'];
                     }
@@ -229,8 +271,20 @@ class FeeStructureController extends Controller
 
             DB::commit();
 
+            // Students already assigned to this structure before the edit
+            // never get billed automatically -- this only rewrote the fee
+            // heads. Backfill any item they're eligible for and haven't
+            // been charged yet (e.g. a newly-added Admission Fee/Security
+            // Deposit, or a brand-new fee head added to an existing class).
+            $billedCount = \App\Services\BulkFeeAssignmentService::backfillForAssignedStudents($feeStructure->fresh());
+
+            $message = 'Fee structure updated successfully!';
+            if ($billedCount > 0) {
+                $message .= " {$billedCount} new charge(s) generated for already-assigned students.";
+            }
+
             return redirect()->route('admin.fee-structures.index')
-                ->with('success', 'Fee structure updated successfully!');
+                ->with('success', $message);
         } catch (\Exception $e) {
             DB::rollback();
             return redirect()->back()
@@ -245,10 +299,25 @@ class FeeStructureController extends Controller
 
         // Check if any fee has been collected for this structure
         $hasCollections = $feeStructure->feeCollections()->exists();
-        
+
         if ($hasCollections) {
             return redirect()->back()
                 ->with('error', 'Cannot delete fee structure as fee collections exist for it. Please deactivate instead.');
+        }
+
+        // Deleting the structure never removes the ledger charges it already
+        // generated -- those stay on students' ledgers permanently, orphaned
+        // and invisible in the UI. Block deletion once real charges exist so
+        // "delete" can never silently leave phantom dues behind; deactivate
+        // is always the right tool once billing has actually happened.
+        $itemIds = $feeStructure->feeStructureItems()->pluck('id');
+        $hasCharges = $itemIds->isNotEmpty() && \App\Models\StudentFeeLedger::where('reference_type', 'fee_structure_item')
+            ->whereIn('reference_id', $itemIds)
+            ->exists();
+
+        if ($hasCharges) {
+            return redirect()->back()
+                ->with('error', 'Cannot delete fee structure as it has already generated fee charges for students. Please deactivate instead.');
         }
 
         $feeStructure->delete();
@@ -339,7 +408,7 @@ class FeeStructureController extends Controller
                 $feeType->update([
                     'default_frequency' => $frequency,
                     'default_charge_months' => $months,
-                    'default_late_fee_rule_id' => $request->default_late_fee_rule_id[$id] ?: null
+                    'default_late_fee_rule_id' => ($request->default_late_fee_rule_id[$id] ?? null) ?: null
                 ]);
             }
 
@@ -452,7 +521,7 @@ class FeeStructureController extends Controller
     {
         // Get class ID from class name
         $schoolClass = SchoolClass::where('name', $feeStructure->class_name)->first();
-        
+
         if (!$schoolClass) {
             return; // Class not found, skip assignment
         }
@@ -465,8 +534,46 @@ class FeeStructureController extends Controller
         ->pluck('id')
         ->toArray();
 
-        if (!empty($studentIds)) {
-            \App\Services\BulkFeeAssignmentService::bulkAssign($feeStructure, $studentIds);
+        if (empty($studentIds)) {
+            return;
+        }
+
+        // A student may already have billing for this exact class+year under
+        // a DIFFERENT (possibly since-deleted) structure -- e.g. an admin
+        // deleted the old structure and created this one to replace it.
+        // Blindly bulk-assigning them here would layer a second full charge
+        // on top of what they already have (nothing dedupes recurring items
+        // like Tuition across different structure IDs the way one-time
+        // items are). Route those students through the same
+        // StructureAdjustmentService::changeFeeStructure() the Student
+        // Promotion flow already uses -- it correctly drops old future-dated
+        // unpaid debits and bills the new structure instead of duplicating.
+        $priorStructureIds = FeeStructure::withTrashed()
+            ->where('class_name', $feeStructure->class_name)
+            ->where('academic_year', $feeStructure->academic_year)
+            ->where('id', '!=', $feeStructure->id)
+            ->pluck('id');
+
+        $alreadyBilledStudentIds = $priorStructureIds->isEmpty()
+            ? collect()
+            : StudentFeeAssignment::whereIn('fee_structure_id', $priorStructureIds)
+                ->whereIn('student_id', $studentIds)
+                ->pluck('student_id')
+                ->unique();
+
+        $newStudentIds = array_values(array_diff($studentIds, $alreadyBilledStudentIds->all()));
+
+        if (!empty($newStudentIds)) {
+            \App\Services\BulkFeeAssignmentService::bulkAssign($feeStructure, $newStudentIds);
+        }
+
+        if ($alreadyBilledStudentIds->isNotEmpty()) {
+            $structureAdjustment = new \App\Services\StructureAdjustmentService();
+            $today = now()->toDateString();
+            $students = Student::whereIn('id', $alreadyBilledStudentIds)->get();
+            foreach ($students as $student) {
+                $structureAdjustment->changeFeeStructure($student, $feeStructure, $today);
+            }
         }
     }
 }

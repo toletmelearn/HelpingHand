@@ -5,6 +5,7 @@ namespace Tests\Feature\Admin;
 use App\Models\User;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Schema;
 use Tests\TestCase;
@@ -18,6 +19,16 @@ class AdminStudentIndexFilterTest extends TestCase
         $this->withoutMiddleware();
         $this->resetMinimalSchema();
         $this->withViewErrors([]);
+
+        // This test's hand-built minimal schema has no roles/permissions
+        // tables, so it can't satisfy StudentPolicy::viewAny() the way a
+        // real user would -- this test is about the class/section filter
+        // logic, not authorization, so bypass the Gate the same way the
+        // sibling AdminStudentClassNormalizationTest already does.
+        Gate::before(function () {
+            return true;
+        });
+
         $this->actingAs($this->createUser());
         $this->seedClassesSectionsAndStudents();
     }

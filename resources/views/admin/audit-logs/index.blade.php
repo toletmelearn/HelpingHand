@@ -108,11 +108,19 @@
                                         <td>{{ Str::limit($log->old_value, 50) }}</td>
                                         <td>{{ Str::limit($log->new_value, 50) }}</td>
                                         <td>{{ $log->performed_at->format('Y-m-d H:i:s') }}</td>
-                                        <td>
-                                            <a href="{{ route('admin.audit-logs.show', $log) }}" 
-                                               class="btn btn-sm btn-info" title="View">
-                                                <i class="fas fa-eye"></i>
-                                            </a>
+                                        <td class="text-nowrap">
+                                            <div class="dropdown">
+                                                <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" id="auditActions{{ $log->id }}" data-bs-toggle="dropdown" aria-expanded="false">
+                                                    Actions
+                                                </button>
+                                                <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="auditActions{{ $log->id }}">
+                                                    <li>
+                                                        <a class="dropdown-item" href="{{ route('admin.audit-logs.show', $log) }}">
+                                                            <i class="fas fa-eye me-2"></i> View
+                                                        </a>
+                                                    </li>
+                                                </ul>
+                                            </div>
                                         </td>
                                     </tr>
                                 @empty

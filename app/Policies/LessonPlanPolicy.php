@@ -2,94 +2,74 @@
 
 namespace App\Policies;
 
-use App\Models\User;
 use App\Models\LessonPlan;
-use Illuminate\Auth\Access\Response;
+use App\Models\User;
+use App\Models\Student;
+use Illuminate\Auth\Access\HandlesAuthorization;
 
 class LessonPlanPolicy
 {
-    /**
-     * Determine whether the user can view any models.
-     */
-    public function viewAny(User $user): bool
-    {
-        return $user->hasRole(['admin', 'teacher', 'parent']);
-    }
+    use HandlesAuthorization;
 
     /**
-     * Determine whether the user can view the model.
+     * Determine if a parent can view this lesson plan.
      */
-    public function view(User $user, LessonPlan $lessonPlan): bool
+    public function viewAsParent($user, LessonPlan $lessonPlan): bool
     {
-        if ($user->hasRole('admin')) {
-            return true;
+        // When using authorize() method, the first parameter is the authenticated user
+        // In parent guard context, this is the Student model
+        if ($user instanceof Student) {
+            return $lessonPlan->show_to_parents === 1 
+                && $lessonPlan->class_id === $user->school_class_id;
         }
         
-        if ($user->hasRole('teacher')) {
-            return $user->id == $lessonPlan->teacher_id;
-        }
-        
-        if ($user->hasRole('parent')) {
-            // Allow parents to view lesson plans for their children's class/section
-            return true; // This will be controlled in the controller based on student relationships
+        // Check if authenticated via parent guard (fallback)
+        if (auth()->guard('parent')->check()) {
+            $student = auth()->guard('parent')->user();
+            
+            return $lessonPlan->show_to_parents === 1 
+                && $lessonPlan->class_id === $student->school_class_id;
         }
         
         return false;
     }
-
+    
     /**
-     * Determine whether the user can create models.
+     * Determine if a user can view any lesson plans.
      */
-    public function create(User $user): bool
+    public function viewAny($user): bool
     {
-        return $user->hasRole(['admin', 'teacher']);
+        return true; // Parents can view index
     }
-
+    
     /**
-     * Determine whether the user can update the model.
+     * Determine if a user can view the lesson plan.
      */
-    public function update(User $user, LessonPlan $lessonPlan): bool
+    public function view($user, LessonPlan $lessonPlan): bool
     {
-        if ($user->hasRole('admin')) {
-            return true;
+        // For parent guard - the user here is actually the Student model
+        if (auth()->guard('parent')->check()) {
+            return $this->viewAsParent($user, $lessonPlan);
         }
         
-        if ($user->hasRole('teacher')) {
-            return $user->id == $lessonPlan->teacher_id;
-        }
-        
-        return false;
-    }
-
-    /**
-     * Determine whether the user can delete the model.
-     */
-    public function delete(User $user, LessonPlan $lessonPlan): bool
-    {
-        if ($user->hasRole('admin')) {
-            return true;
-        }
-        
-        if ($user->hasRole('teacher')) {
-            return $user->id == $lessonPlan->teacher_id;
+        // Admin and teachers can view everything (if we get a regular user)
+        if ($user instanceof \App\Models\User) {
+            // Check if user has admin or teacher roles
+            if ($user->hasRole('admin') || $user->hasRole('teacher')) {
+                return true;
+            }
         }
         
         return false;
     }
-
+    
     /**
-     * Determine whether the user can restore the model.
+     * Additional method to check if lesson plan has parent-visible content.
      */
-    public function restore(User $user, LessonPlan $lessonPlan): bool
+    public function hasParentVisibleContent(LessonPlan $lessonPlan): bool
     {
-        return $user->hasRole(['admin']);
-    }
-
-    /**
-     * Determine whether the user can permanently delete the model.
-     */
-    public function forceDelete(User $user, LessonPlan $lessonPlan): bool
-    {
-        return $user->hasRole(['admin']);
+        return !empty($lessonPlan->parent_visible_content) 
+            || !empty($lessonPlan->learning_objectives)
+            || !empty($lessonPlan->activities);
     }
 }

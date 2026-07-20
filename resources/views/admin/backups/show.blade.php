@@ -26,10 +26,14 @@
                 <div class="card-header d-flex justify-content-between align-items-center">
                     <h4 class="card-title mb-0">Backup: {{ $backup->filename }}</h4>
                     <div>
-                        @if($backup->isCompleted())
+                        @if($backup->isCompleted() && file_exists(storage_path('app/' . $backup->path . $backup->filename)))
                             <a href="{{ route('admin.backups.download', $backup->id) }}" class="btn btn-primary btn-sm me-2">
                                 <i class="fas fa-download"></i> Download
                             </a>
+                        @elseif($backup->isCompleted())
+                            <button class="btn btn-secondary btn-sm me-2" disabled>
+                                <i class="fas fa-exclamation-triangle"></i> File missing
+                            </button>
                         @endif
                         <a href="{{ route('admin.backups.index') }}" class="btn btn-secondary btn-sm">
                             <i class="fas fa-list"></i> All Backups

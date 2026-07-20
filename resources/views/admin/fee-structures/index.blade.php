@@ -50,6 +50,31 @@
                         </div>
                     @endif
 
+                    <div class="card bg-light border mb-3">
+                        <div class="card-body py-2">
+                            <form action="{{ route('admin.fee-structures.display-settings.update') }}" method="POST" class="row g-2 align-items-center">
+                                @csrf
+                                <div class="col-auto">
+                                    <label for="parent_display_frequency" class="col-form-label fw-bold">
+                                        <i class="fas fa-eye me-1"></i> Show Fees to Parents As:
+                                    </label>
+                                </div>
+                                <div class="col-auto">
+                                    <select name="parent_display_frequency" id="parent_display_frequency" class="form-select form-select-sm">
+                                        <option value="monthly" {{ $parentDisplayFrequency == 'monthly' ? 'selected' : '' }}>Monthly</option>
+                                        <option value="quarterly" {{ $parentDisplayFrequency == 'quarterly' ? 'selected' : '' }}>Quarterly</option>
+                                    </select>
+                                </div>
+                                <div class="col-auto">
+                                    <button type="submit" class="btn btn-sm btn-outline-primary">Save</button>
+                                </div>
+                                <div class="col-auto text-muted small">
+                                    Controls how recurring fees are grouped on the parent's Fee Structure page only. Actual billing and due dates are unaffected.
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+
                     <div class="table-responsive">
                         <table class="table table-centered table-nowrap mb-0">
                             <thead class="table-light">

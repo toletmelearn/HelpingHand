@@ -1,4 +1,4 @@
-﻿@extends('layouts.admin')
+@extends('layouts.admin')
 
 @section('title', 'Admin Configuration Panel')
 
@@ -7,11 +7,18 @@
     <div class="row">
         <div class="col-12">
             <div class="card shadow mb-4">
-                <div class="card-header py-3">
-                    <h6 class="m-0 font-weight-bold text-primary">
-                        <i class="bi bi-gear"></i> Admin Configuration Panel
-                    </h6>
-                    <p class="text-muted mb-0">Configure all system modules and features from this centralized panel</p>
+                <div class="card-header py-3 d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="m-0 font-weight-bold text-primary">
+                            <i class="bi bi-gear"></i> Admin Configuration Panel
+                        </h6>
+                        <p class="text-muted mb-0">Configure all system modules and features from this centralized panel</p>
+                    </div>
+                    <div>
+                        <button type="submit" form="configForm" class="btn btn-primary shadow-sm">
+                            <i class="bi bi-save"></i> Save Configurations
+                        </button>
+                    </div>
                 </div>
                 <div class="card-body">
                     @if(session('success'))
@@ -28,12 +35,13 @@
                         </div>
                     @endif
                     
-                    <form action="{{ route('admin.configurations.update') }}" method="POST">
+                    <form id="configForm" action="{{ route('admin.configurations.update') }}" method="POST" enctype="multipart/form-data">
                         @csrf
                         
+                        @php $globalIndex = 0; @endphp
                         <div class="row">
                             @foreach($modules as $moduleKey => $module)
-                                <div class="col-md-6 col-lg-4 mb-4">
+                                <div class="col-md-6 col-lg-4 mb-4" id="config-card-{{ $moduleKey }}">
                                     <div class="card h-100">
                                         <div class="card-header bg-light">
                                             <h6 class="card-title mb-0">
@@ -53,12 +61,11 @@
                                                         <div class="form-check form-switch">
                                                             <input class="form-check-input" 
                                                                    type="checkbox" 
-                                                                   name="configurations[{{ $loop->index }}][value]" 
+                                                                   name="configurations[{{ $globalIndex }}][value]" 
                                                                    id="{{ $moduleKey }}_{{ $configKey }}"
-                                                                   {{ $config->getValue() ? 'checked' : '' }}
-                                                                   onchange="this.form.submit()">
-                                                            <input type="hidden" name="configurations[{{ $loop->index }}][module]" value="{{ $moduleKey }}">
-                                                            <input type="hidden" name="configurations[{{ $loop->index }}][key]" value="{{ $configKey }}">
+                                                                   {{ $config->getValue() ? 'checked' : '' }}>
+                                                            <input type="hidden" name="configurations[{{ $globalIndex }}][module]" value="{{ $moduleKey }}">
+                                                            <input type="hidden" name="configurations[{{ $globalIndex }}][key]" value="{{ $configKey }}">
                                                             <label class="form-check-label" for="{{ $moduleKey }}_{{ $configKey }}">
                                                                 {{ $config->label }}
                                                             </label>
@@ -70,34 +77,66 @@
                                                         <input type="number" 
                                                                class="form-control" 
                                                                id="{{ $moduleKey }}_{{ $configKey }}"
-                                                               name="configurations[{{ $loop->index }}][value]" 
-                                                               value="{{ $config->getValue() }}"
-                                                               onchange="this.form.submit()">
-                                                        <input type="hidden" name="configurations[{{ $loop->index }}][module]" value="{{ $moduleKey }}">
-                                                        <input type="hidden" name="configurations[{{ $loop->index }}][key]" value="{{ $configKey }}">
-                                                    @else
+                                                               name="configurations[{{ $globalIndex }}][value]" 
+                                                               value="{{ $config->getValue() }}">
+                                                        <input type="hidden" name="configurations[{{ $globalIndex }}][module]" value="{{ $moduleKey }}">
+                                                        <input type="hidden" name="configurations[{{ $globalIndex }}][key]" value="{{ $configKey }}">
+                                                    @elseif($config->type === 'file')
                                                         <label for="{{ $moduleKey }}_{{ $configKey }}" class="form-label">
                                                             {{ $config->label }}
                                                         </label>
-                                                        <input type="text" 
+                                                        <input type="file" 
                                                                class="form-control" 
                                                                id="{{ $moduleKey }}_{{ $configKey }}"
-                                                               name="configurations[{{ $loop->index }}][value]" 
-                                                               value="{{ $config->getValue() }}"
-                                                               onchange="this.form.submit()">
-                                                        <input type="hidden" name="configurations[{{ $loop->index }}][module]" value="{{ $moduleKey }}">
-                                                        <input type="hidden" name="configurations[{{ $loop->index }}][key]" value="{{ $configKey }}">
-                                                    @endif
+                                                               name="configurations[{{ $globalIndex }}][file]" 
+                                                               accept="image/*">
+                                                        <input type="hidden" name="configurations[{{ $globalIndex }}][module]" value="{{ $moduleKey }}">
+                                                        <input type="hidden" name="configurations[{{ $globalIndex }}][key]" value="{{ $configKey }}">
+                                                        @if($config->getValue())
+                                                            <div class="mt-2 text-center p-2 bg-light border rounded">
+                                                                 <img src="{{ asset('storage/' . $config->getValue()) }}" 
+                                                                      alt="{{ $config->label }}" 
+                                                                      style="max-height: 60px; max-width: 100%; object-fit: contain;">
+                                                            </div>
+                                                        @endif
+                                                     @elseif($config->type === 'json')
+                                                         <label for="{{ $moduleKey }}_{{ $configKey }}" class="form-label fw-bold">
+                                                             {{ $config->label }}
+                                                         </label>
+                                                         <textarea class="form-control font-monospace" 
+                                                                   id="{{ $moduleKey }}_{{ $configKey }}"
+                                                                   name="configurations[{{ $globalIndex }}][value]" 
+                                                                   rows="10">{{ is_string($config->value) ? $config->value : json_encode($config->getValue(), JSON_PRETTY_PRINT) }}</textarea>
+                                                         <input type="hidden" name="configurations[{{ $globalIndex }}][module]" value="{{ $moduleKey }}">
+                                                         <input type="hidden" name="configurations[{{ $globalIndex }}][key]" value="{{ $configKey }}">
+                                                     @else
+                                                         <label for="{{ $moduleKey }}_{{ $configKey }}" class="form-label">
+                                                             {{ $config->label }}
+                                                         </label>
+                                                         <input type="text" 
+                                                                class="form-control" 
+                                                                id="{{ $moduleKey }}_{{ $configKey }}"
+                                                                name="configurations[{{ $globalIndex }}][value]" 
+                                                                value="{{ $config->getValue() }}">
+                                                         <input type="hidden" name="configurations[{{ $globalIndex }}][module]" value="{{ $moduleKey }}">
+                                                         <input type="hidden" name="configurations[{{ $globalIndex }}][key]" value="{{ $configKey }}">
+                                                     @endif
                                                     
                                                     @if($config->description)
                                                         <small class="form-text text-muted">{{ $config->description }}</small>
                                                     @endif
                                                 </div>
+                                                @php $globalIndex++; @endphp
                                             @endforeach
                                         </div>
                                     </div>
                                 </div>
                             @endforeach
+                        </div>
+                        <div class="text-end mt-4 pt-3 border-top">
+                            <button type="submit" class="btn btn-primary btn-lg px-5 shadow-sm">
+                                <i class="bi bi-save"></i> Save Configurations
+                            </button>
                         </div>
                     </form>
                 </div>
@@ -136,19 +175,31 @@ function resetModuleDefaults(module) {
     resetModal.show();
 }
 
-// Auto-save functionality for better UX
 document.addEventListener('DOMContentLoaded', function() {
-    // Add a small delay to prevent too many requests
-    let saveTimeout;
-    
-    document.querySelectorAll('input[type="checkbox"], input[type="number"], input[type="text"]').forEach(input => {
-        input.addEventListener('change', function() {
-            clearTimeout(saveTimeout);
-            saveTimeout = setTimeout(() => {
-                this.form.submit();
-            }, 1000);
-        });
-    });
+    // Hash tracking and highlight logic
+    function handleHashChange() {
+        if (window.location.hash) {
+            const targetCard = document.querySelector(window.location.hash);
+            if (targetCard) {
+                setTimeout(() => {
+                    targetCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    const cardInner = targetCard.querySelector('.card');
+                    if (cardInner) {
+                        cardInner.style.border = '2px solid #fd7e14';
+                        cardInner.style.boxShadow = '0 0 20px rgba(253, 126, 20, 0.4)';
+                        setTimeout(() => {
+                            cardInner.style.transition = 'all 1s ease-out';
+                            cardInner.style.border = '';
+                            cardInner.style.boxShadow = '';
+                        }, 3000);
+                    }
+                }, 300);
+            }
+        }
+    }
+
+    handleHashChange();
+    window.addEventListener('hashchange', handleHashChange);
 });
 </script>
 @endsection

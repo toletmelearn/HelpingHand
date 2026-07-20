@@ -36,6 +36,8 @@
                         <tr>
                             <th>Name</th>
                             <th>Type</th>
+                            <th>Discount</th>
+                            <th>Validity</th>
                             <th>Priority</th>
                             <th>Status</th>
                             <th class="text-center">Actions</th>
@@ -46,6 +48,25 @@
                             <tr>
                                 <td>{{ $rule->name }}</td>
                                 <td><span class="badge bg-secondary">{{ $rule->type }}</span></td>
+                                <td>
+                                    @if($rule->discount_mode === 'flat_amount')
+                                        <span class="badge bg-info text-dark">Rs. {{ number_format($rule->flat_amount ?? 0, 2) }} flat</span>
+                                    @else
+                                        <span class="badge bg-info text-dark">{{ $rule->config['percentage'] ?? '—' }}%</span>
+                                    @endif
+                                    @if($rule->max_cap_amount)
+                                        <span class="badge bg-light text-dark border">capped Rs. {{ number_format($rule->max_cap_amount, 2) }}</span>
+                                    @endif
+                                </td>
+                                <td class="small">
+                                    @if($rule->valid_from || $rule->valid_until)
+                                        {{ optional($rule->valid_from)->format('d-M-Y') ?? 'any time' }}
+                                        &rarr;
+                                        {{ optional($rule->valid_until)->format('d-M-Y') ?? 'no expiry' }}
+                                    @else
+                                        <span class="text-muted">Always</span>
+                                    @endif
+                                </td>
                                 <td>{{ $rule->priority }}</td>
                                 <td>
                                     <span class="badge bg-{{ $rule->is_active ? 'success' : 'secondary' }}">
@@ -63,7 +84,7 @@
                                 </td>
                             </tr>
                         @empty
-                            <tr><td colspan="5" class="text-center py-4 text-muted">No discount rules yet.</td></tr>
+                            <tr><td colspan="7" class="text-center py-4 text-muted">No discount rules yet.</td></tr>
                         @endforelse
                     </tbody>
                 </table>

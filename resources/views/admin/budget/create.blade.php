@@ -24,7 +24,7 @@
                     <h5 class="card-title mb-0">Budget Details</h5>
                 </div>
                 <div class="card-body">
-                    <form method="POST" action="{{ route('budgets.store') }}">
+                    <form method="POST" action="{{ route('admin.budgets.store') }}">
                         @csrf
                         
                         <div class="row">

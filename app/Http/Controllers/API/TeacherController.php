@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\API;
 
+use App\Models\LessonPlan;
 use App\Models\Teacher;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
@@ -35,11 +36,11 @@ class TeacherController extends BaseApiController
                 'date_of_birth' => 'required|date|before:today',
                 'gender' => 'required|in:male,female,other',
                 'qualification' => 'required|string|max:100',
-                'experience_years' => 'required|integer|min:0',
+                'experience_details' => 'required|string|max:500',
                 'subject_specialization' => 'required|string|max:100',
                 'designation' => 'required|string|max:100',
                 'salary' => 'required|numeric|min:0',
-                'joining_date' => 'required|date',
+                'date_of_joining' => 'required|date',
                 'status' => 'required|in:active,inactive,resigned',
                 'department' => 'nullable|string|max:100',
                 'employee_id' => 'nullable|string|max:50|unique:teachers,employee_id',
@@ -84,11 +85,11 @@ class TeacherController extends BaseApiController
                 'date_of_birth' => 'required|date|before:today',
                 'gender' => 'required|in:male,female,other',
                 'qualification' => 'required|string|max:100',
-                'experience_years' => 'required|integer|min:0',
+                'experience_details' => 'required|string|max:500',
                 'subject_specialization' => 'required|string|max:100',
                 'designation' => 'required|string|max:100',
                 'salary' => 'required|numeric|min:0',
-                'joining_date' => 'required|date',
+                'date_of_joining' => 'required|date',
                 'status' => 'required|in:active,inactive,resigned',
                 'department' => 'nullable|string|max:100',
                 'employee_id' => 'nullable|string|max:50|unique:teachers,employee_id,' . $id,
@@ -151,32 +152,34 @@ class TeacherController extends BaseApiController
     {
         try {
             $teacher = Teacher::with([
-                'subjectAssignments.subject',
-                'classAssignments.schoolClass',
-                'lessonPlans'
+                'classSubjectAssignments.schoolClass',
+                'classSubjectAssignments.section',
+                'classSubjectAssignments.subject',
             ])->findOrFail($id);
+
+            $assignments = $teacher->classSubjectAssignments;
             
             $result = [
-                'subjects' => $teacher->subjectAssignments->map(function($assignment) {
+                'subjects' => $assignments->map(function($assignment) {
                     return [
                         'id' => $assignment->id,
                         'subject' => $assignment->subject,
-                        'class' => $assignment->assigned_class,
-                        'section' => $assignment->assigned_section,
-                        'academic_session' => $assignment->academic_session,
+                        'class' => $assignment->schoolClass,
+                        'section' => $assignment->section,
+                        'academic_session' => $assignment->academic_year,
                     ];
                 }),
-                'classes' => $teacher->classAssignments->map(function($assignment) {
+                'classes' => $assignments->map(function($assignment) {
                     return [
                         'id' => $assignment->id,
-                        'class' => $assignment->assigned_class,
-                        'section' => $assignment->assigned_section,
-                        'academic_session' => $assignment->academic_session,
+                        'class' => $assignment->schoolClass,
+                        'section' => $assignment->section,
+                        'academic_session' => $assignment->academic_year,
                         'is_class_teacher' => $assignment->is_class_teacher,
-                        'students_count' => $assignment->schoolClass ? $assignment->schoolClass->students_count : 0,
+                        'students_count' => $assignment->schoolClass ? $assignment->schoolClass->students()->count() : 0,
                     ];
                 }),
-                'lesson_plans' => $teacher->lessonPlans,
+                'lesson_plans' => LessonPlan::where('teacher_id', $teacher->id)->get(),
             ];
             
             return $this->success($result, 'Subject and class assignments retrieved successfully');
@@ -192,8 +195,9 @@ class TeacherController extends BaseApiController
     {
         try {
             $teacher = Teacher::with([
-                'classAssignments.schoolClass.students.attendances',
-                'subjectAssignments.attendances'
+                'classSubjectAssignments.schoolClass.students.attendances',
+                'classSubjectAssignments.section',
+                'classSubjectAssignments.subject',
             ])->findOrFail($id);
             
             $attendanceData = [
@@ -201,12 +205,12 @@ class TeacherController extends BaseApiController
                 'attendance_records' => []
             ];
             
-            foreach ($teacher->classAssignments as $classAssignment) {
+            foreach ($teacher->classSubjectAssignments as $classAssignment) {
                 if ($classAssignment->schoolClass) {
                     $classAttendance = [
                         'class_id' => $classAssignment->schoolClass->id,
-                        'class_name' => $classAssignment->schoolClass->class_name,
-                        'section' => $classAssignment->schoolClass->section,
+                        'class_name' => $classAssignment->schoolClass->name,
+                        'section' => $classAssignment->section?->name,
                         'total_students' => $classAssignment->schoolClass->students->count(),
                         'attendance_summary' => []
                     ];
@@ -243,9 +247,11 @@ class TeacherController extends BaseApiController
     {
         try {
             $teacher = Teacher::with([
-                'subjectAssignments.examPapers',
-                'subjectAssignments.results',
-                'lessonPlans'
+                'classSubjectAssignments.schoolClass',
+                'classSubjectAssignments.section',
+                'classSubjectAssignments.subject',
+                'examPapers',
+                'uploadedResults.student',
             ])->findOrFail($id);
             
             $gradingData = [
@@ -254,40 +260,40 @@ class TeacherController extends BaseApiController
                 'results' => []
             ];
             
-            foreach ($teacher->subjectAssignments as $subjectAssignment) {
+            foreach ($teacher->classSubjectAssignments as $subjectAssignment) {
                 $gradingData['subjects'][] = [
                     'id' => $subjectAssignment->id,
                     'subject' => $subjectAssignment->subject,
-                    'class' => $subjectAssignment->assigned_class,
-                    'section' => $subjectAssignment->assigned_section,
-                    'exam_papers_count' => $subjectAssignment->examPapers->count(),
-                    'results_count' => $subjectAssignment->results->count(),
+                    'class' => $subjectAssignment->schoolClass,
+                    'section' => $subjectAssignment->section,
+                    'exam_papers_count' => $teacher->examPapers->count(),
+                    'results_count' => $teacher->uploadedResults->count(),
                 ];
-                
-                foreach ($subjectAssignment->examPapers as $paper) {
-                    $gradingData['exam_papers'][] = [
-                        'id' => $paper->id,
-                        'title' => $paper->title,
-                        'subject' => $paper->subject,
-                        'class' => $paper->class,
-                        'marks' => $paper->total_marks,
-                        'exam_date' => $paper->exam_date,
-                        'graded_count' => $paper->results->count(),
-                        'total_students' => $paper->enrolledStudents->count(),
-                    ];
-                }
-                
-                foreach ($subjectAssignment->results as $result) {
-                    $gradingData['results'][] = [
-                        'id' => $result->id,
-                        'student_name' => $result->student->name,
-                        'subject' => $result->exam_paper->subject,
-                        'marks_obtained' => $result->marks_obtained,
-                        'total_marks' => $result->exam_paper->total_marks,
-                        'grade' => $result->grade,
-                        'exam_date' => $result->exam_paper->exam_date,
-                    ];
-                }
+            }
+
+            foreach ($teacher->examPapers as $paper) {
+                $gradingData['exam_papers'][] = [
+                    'id' => $paper->id,
+                    'title' => $paper->title,
+                    'subject' => $paper->subject,
+                    'class' => $paper->class_section,
+                    'marks' => $paper->total_marks,
+                    'exam_date' => $paper->exam_date,
+                    'graded_count' => 0,
+                    'total_students' => 0,
+                ];
+            }
+
+            foreach ($teacher->uploadedResults as $result) {
+                $gradingData['results'][] = [
+                    'id' => $result->id,
+                    'student_name' => $result->student?->name,
+                    'subject' => $result->subject_id,
+                    'marks_obtained' => $result->marks_obtained,
+                    'total_marks' => $result->total_marks,
+                    'grade' => $result->grade,
+                    'exam_date' => $result->uploaded_at,
+                ];
             }
             
             return $this->success($gradingData, 'Grading data retrieved successfully');

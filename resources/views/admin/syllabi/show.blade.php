@@ -113,7 +113,7 @@
                         <div class="col-md-12">
                             <h5>Learning Objectives</h5>
                             <ul class="list-group">
-                                @foreach(json_decode($syllabus->learning_objectives, true) as $objective)
+                                @foreach($syllabus->learning_objectives as $objective)
                                     <li class="list-group-item">{{ $objective }}</li>
                                 @endforeach
                             </ul>
@@ -126,8 +126,8 @@
                         <div class="col-md-12">
                             <h5>Assessment Criteria</h5>
                             <ul class="list-group">
-                                @foreach(json_decode($syllabus->assessment_criteria, true) as $criteria)
-                                    <li class="list-group-item">{{ $criteria }}</li>
+                                @foreach($syllabus->assessment_criteria as $key => $value)
+                                    <li class="list-group-item">{{ $key }}: {{ $value }}</li>
                                 @endforeach
                             </ul>
                         </div>

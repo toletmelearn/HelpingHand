@@ -41,23 +41,56 @@
                     <thead class="table-light">
                         <tr>
                             <th>Student</th>
-                            <th>Matched Against</th>
+                            <th>Class / Section</th>
+                            <th>Sibling(s)</th>
                             <th>Matched Value</th>
                             <th class="text-center">Actions</th>
                         </tr>
                     </thead>
                     <tbody>
                         @forelse($suggestions as $suggestion)
+                            @php
+                                $student = $suggestion->student;
+                                // "Sibling(s)" is every student this confirm action would
+                                // group with $student: the whole existing family if matched
+                                // against one already-confirmed group, or just the single
+                                // candidate if this would create a brand new family.
+                                $siblings = $suggestion->matchedFamily
+                                    ? $suggestion->matchedFamily->students
+                                    : ($suggestion->candidateStudent ? collect([$suggestion->candidateStudent]) : collect());
+
+                                // Student has a raw `section` string column as well as a
+                                // section() relationship of the same name -- Eloquent's magic
+                                // accessor always returns the raw column value, never the
+                                // relation, when both exist on a fully-selected model.
+                                // getRelation() bypasses that and returns the eager-loaded
+                                // Section model instead.
+                                $sectionOf = fn($s) => $s && $s->relationLoaded('section') ? $s->getRelation('section') : null;
+                                $studentSection = $sectionOf($student);
+                            @endphp
                             <tr>
-                                <td>{{ $suggestion->student->name ?? 'N/A' }} ({{ $suggestion->student->admission_no ?? '—' }})</td>
+                                <td>{{ $student->name ?? 'N/A' }} ({{ $student->admission_no ?? '—' }})</td>
                                 <td>
-                                    @if($suggestion->matchedFamily)
-                                        Existing family: {{ $suggestion->matchedFamily->guardian_name }}
-                                    @elseif($suggestion->candidateStudent)
-                                        {{ $suggestion->candidateStudent->name }} ({{ $suggestion->candidateStudent->admission_no ?? '—' }})
+                                    @if($student)
+                                        {{ $student->schoolClass->name ?? 'N/A' }}
+                                        @if($studentSection) - {{ $studentSection->name }} @endif
                                     @else
                                         —
                                     @endif
+                                </td>
+                                <td>
+                                    @if($suggestion->matchedFamily)
+                                        <div class="small text-muted mb-1">Existing family: {{ $suggestion->matchedFamily->guardian_name }}</div>
+                                    @endif
+                                    @forelse($siblings as $sibling)
+                                        @php $siblingSection = $sectionOf($sibling); @endphp
+                                        <span class="badge bg-info text-dark me-1 mb-1 p-2">
+                                            {{ $sibling->name }} ({{ $sibling->admission_no ?? '—' }}) --
+                                            {{ $sibling->schoolClass->name ?? 'N/A' }}@if($siblingSection) - {{ $siblingSection->name }}@endif
+                                        </span>
+                                    @empty
+                                        —
+                                    @endforelse
                                 </td>
                                 <td>{{ $suggestion->matched_value }}</td>
                                 <td class="text-center">
@@ -74,7 +107,7 @@
                                 </td>
                             </tr>
                         @empty
-                            <tr><td colspan="4" class="text-center py-4 text-muted">No pending suggestions.</td></tr>
+                            <tr><td colspan="5" class="text-center py-4 text-muted">No pending suggestions.</td></tr>
                         @endforelse
                     </tbody>
                 </table>

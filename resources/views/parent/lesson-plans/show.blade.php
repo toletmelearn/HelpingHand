@@ -1,74 +1,142 @@
-﻿@extends('layouts.admin')
+﻿@extends('layouts.parent')
+
+@section('title', 'Lesson Plan Details')
 
 @section('content')
-<div class="container">
+<div class="container-fluid">
     <div class="row">
         <div class="col-12">
-            <h1>Lesson Plan Details</h1>
-            <p class="mb-4">View detailed information about the lesson plan</p>
-            
             <div class="card">
-                <div class="card-header">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <h5 class="mb-0">Lesson Plan Information</h5>
-                        <a href="{{ route('parent.lesson-plans.index') }}" class="btn btn-secondary">
-                            <i class="bi bi-arrow-left"></i> Back
-                        </a>
-                    </div>
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h4 class="card-title">
+                        <i class="fas fa-book-open mr-2"></i>
+                        Lesson Plan: {{ $lessonPlan->title }}
+                    </h4>
+                    <a href="{{ route('parent.lesson-plans.index') }}" class="btn btn-secondary">
+                        <i class="fas fa-arrow-left"></i> Back to Plans
+                    </a>
                 </div>
+                
                 <div class="card-body">
+                    <!-- Basic Information Section (Always Visible to Parents) -->
                     <div class="row">
                         <div class="col-md-6">
-                            <h6>Teacher</h6>
-                            <p class="text-muted">{{ $lessonPlan->teacher->name }}</p>
-                            
-                            <h6>Class</h6>
-                            <p class="text-muted">{{ $lessonPlan->class->name }} - {{ $lessonPlan->section->name }}</p>
-                            
-                            <h6>Subject</h6>
-                            <p class="text-muted">{{ $lessonPlan->subject->name }}</p>
-                            
-                            <h6>Date</h6>
-                            <p class="text-muted">{{ $lessonPlan->date->format('M d, Y') }}</p>
-                            
-                            <h6>Plan Type</h6>
-                            <p class="text-muted">
-                                <span class="badge bg-{{ $lessonPlan->plan_type === 'daily' ? 'primary' : ($lessonPlan->plan_type === 'weekly' ? 'success' : 'warning') }}">
-                                    {{ ucfirst($lessonPlan->plan_type) }}
-                                </span>
-                            </p>
+                            <div class="info-group">
+                                <label class="font-weight-bold text-primary">
+                                    <i class="fas fa-chalkboard-teacher"></i> Teacher:
+                                </label>
+                                <p class="mb-3">{{ $lessonPlan->teacher->name ?? 'Not Assigned' }}</p>
+                            </div>
                         </div>
-                        
                         <div class="col-md-6">
-                            <h6>Created By</h6>
-                            <p class="text-muted">{{ $lessonPlan->createdBy->name ?? 'N/A' }}</p>
-                            
-                            <h6>Created At</h6>
-                            <p class="text-muted">{{ $lessonPlan->created_at->format('M d, Y g:i A') }}</p>
+                            <div class="info-group">
+                                <label class="font-weight-bold text-primary">
+                                    <i class="fas fa-book"></i> Subject:
+                                </label>
+                                <p class="mb-3">{{ $lessonPlan->subject->name ?? 'N/A' }}</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Core Lesson Information -->
+                    <div class="row">
+                        <div class="col-md-4">
+                            <div class="info-group">
+                                <label class="font-weight-bold text-primary">
+                                    <i class="fas fa-calendar"></i> Date:
+                                </label>
+                                <p>{{ $lessonPlan->date->format('F d, Y') }}</p>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="info-group">
+                                <label class="font-weight-bold text-primary">
+                                    <i class="fas fa-clock"></i> Duration:
+                                </label>
+                                <p>{{ $lessonPlan->duration }}</p>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="info-group">
+                                <label class="font-weight-bold text-primary">
+                                    <i class="fas fa-tag"></i> Type:
+                                </label>
+                                <p>{{ ucfirst($lessonPlan->plan_type) }}</p>
+                            </div>
                         </div>
                     </div>
                     
-                    <div class="row mt-4">
-                        <div class="col-12">
-                            <h6>Topic / Chapter Name</h6>
-                            <p class="text-muted">{{ $lessonPlan->topic }}</p>
-                            
-                            <h6>Learning Objectives</h6>
-                            <p class="text-muted">{{ $lessonPlan->learning_objectives }}</p>
-                            
-                            <h6>Teaching Method</h6>
-                            <p class="text-muted">{{ $lessonPlan->teaching_method ?: 'Not specified' }}</p>
-                            
-                            <h6>Homework / Classwork</h6>
-                            <p class="text-muted">{{ $lessonPlan->homework_classwork }}</p>
-                            
-                            <h6>Books / Notebooks Required</h6>
-                            <p class="text-muted">{{ $lessonPlan->books_notebooks_required }}</p>
-                            
-                            <h6>Submission / Assessment Notes</h6>
-                            <p class="text-muted">{{ $lessonPlan->submission_assessment_notes ?: 'None' }}</p>
+                    <!-- Class Information -->
+                    <div class="row">
+                        <div class="col-md-4">
+                            <div class="info-group">
+                                <label class="font-weight-bold text-primary">
+                                    <i class="fas fa-school"></i> Class:
+                                </label>
+                                <p>{{ $lessonPlan->class->name ?? 'N/A' }}</p>
+                            </div>
                         </div>
                     </div>
+
+                    <!-- Parent-Visible Content Sections -->
+                    <div class="mt-4">
+                        <h5 class="border-bottom pb-2 text-success">
+                            <i class="fas fa-graduation-cap"></i> What Your Child Will Learn
+                        </h5>
+                        <div class="p-3 bg-light rounded">
+                            {!! nl2br(e($lessonPlan->learning_objectives ?? 'No learning objectives specified')) !!}
+                        </div>
+                    </div>
+
+                    <div class="mt-4">
+                        <h5 class="border-bottom pb-2 text-success">
+                            <i class="fas fa-pencil-alt"></i> Homework/Classwork
+                        </h5>
+                        <div class="p-3 bg-light rounded">
+                            {!! nl2br(e($lessonPlan->homework_classwork ?? 'No homework assigned')) !!}
+                        </div>
+                    </div>
+
+                    <div class="mt-4">
+                        <h5 class="border-bottom pb-2 text-success">
+                            <i class="fas fa-cubes"></i> Materials Needed
+                        </h5>
+                        <div class="p-3 bg-light rounded">
+                            {!! nl2br(e($lessonPlan->materials ?? 'No special materials required')) !!}
+                        </div>
+                    </div>
+
+                    <div class="mt-4">
+                        <h5 class="border-bottom pb-2 text-success">
+                            <i class="fas fa-hands-helping"></i> How You Can Support at Home
+                        </h5>
+                        <div class="p-3 bg-light rounded">
+                            {!! nl2br(e($lessonPlan->activities ?? 'No specific activities provided')) !!}
+                        </div>
+                    </div>
+
+                    <!-- Main Parent Content - Highlight this as the main section -->
+                    @if($lessonPlan->parent_visible_content)
+                    <div class="mt-4">
+                        <h5 class="border-bottom pb-2 text-info">
+                            <i class="fas fa-star"></i> Information for Parents
+                        </h5>
+                        <div class="p-4 bg-info text-white rounded">
+                            <strong>Main Content:</strong><br>
+                            {!! nl2br(e($lessonPlan->parent_visible_content)) !!}
+                        </div>
+                    </div>
+                    @else
+                    <!-- Fallback content if parent_visible_content is not available -->
+                    <div class="mt-4">
+                        <h5 class="border-bottom pb-2 text-success">
+                            <i class="fas fa-graduation-cap"></i> What Your Child Will Learn
+                        </h5>
+                        <div class="p-3 bg-light rounded">
+                            {!! nl2br(e($lessonPlan->learning_objectives ?? 'No learning objectives specified')) !!}
+                        </div>
+                    </div>
+                    @endif
                 </div>
             </div>
         </div>

@@ -130,23 +130,31 @@
                         </a>
                         <div>
                             @if($teacherSubstitution->isPending() && $teacherSubstitution->substituteTeacher)
-                                <a href="{{ route('admin.teacher-substitutions.assign', $teacherSubstitution) }}" class="btn btn-success">
-                                    <i class="fas fa-user-check"></i> Assign Substitute
-                                </a>
+                                <form action="{{ route('admin.teacher-substitutions.assign', $teacherSubstitution) }}" method="POST" style="display:inline;">
+                                    @csrf
+                                    <input type="hidden" name="substitute_teacher_id" value="{{ $teacherSubstitution->substitute_teacher_id }}">
+                                    <button type="submit" class="btn btn-success">
+                                        <i class="fas fa-user-check"></i> Assign Substitute
+                                    </button>
+                                </form>
                             @endif
                             
                             @if($teacherSubstitution->isAssigned())
-                                <a href="{{ route('admin.teacher-substitutions.approve', $teacherSubstitution) }}" class="btn btn-success">
-                                    <i class="fas fa-check"></i> Approve Assignment
-                                </a>
+                                <form action="{{ route('admin.teacher-substitutions.approve', $teacherSubstitution) }}" method="POST" style="display:inline;">
+                                    @csrf
+                                    <button type="submit" class="btn btn-success">
+                                        <i class="fas fa-check"></i> Approve Assignment
+                                    </button>
+                                </form>
                             @endif
                             
                             @if(!$teacherSubstitution->isCancelled())
-                                <a href="{{ route('admin.teacher-substitutions.cancel', $teacherSubstitution) }}" 
-                                   class="btn btn-danger" 
-                                   onclick="return confirm('Are you sure you want to cancel this substitution?')">
-                                    <i class="fas fa-times"></i> Cancel Assignment
-                                </a>
+                                <form action="{{ route('admin.teacher-substitutions.cancel', $teacherSubstitution) }}" method="POST" style="display:inline;" onsubmit="return confirm('Are you sure you want to cancel this substitution?')">
+                                    @csrf
+                                    <button type="submit" class="btn btn-danger">
+                                        <i class="fas fa-times"></i> Cancel Assignment
+                                    </button>
+                                </form>
                             @endif
                             
                             <a href="{{ route('admin.teacher-substitutions.edit', $teacherSubstitution) }}" class="btn btn-primary">
