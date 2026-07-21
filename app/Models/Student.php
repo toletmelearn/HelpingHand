@@ -197,7 +197,7 @@ class Student extends Authenticatable
         'name', 'father_name', 'mother_name', 'date_of_birth', 'aadhar_number',
         'admission_no', 'admission_session_id', 'phone', 'mobile', 'gender', 'category', 'is_rte', 'is_special_needs', 'referred_by_admission_no', 'class', 'section', 'roll_number',
         'religion', 'caste', 'blood_group', 'address', 'user_id', 'is_verified',
-        'guardian_name', 'class_id', 'section_id', 'photo', 'family_id'
+        'guardian_name', 'class_id', 'school_class_id', 'section_id', 'photo', 'family_id'
     ];
     
     protected $casts = [
@@ -205,6 +205,7 @@ class Student extends Authenticatable
         'admission_no' => 'string',
         'mobile' => 'string',
         'class_id' => 'integer',
+        'school_class_id' => 'integer',
         'guardian_name' => 'string',
         'is_rte' => 'boolean',
         'is_special_needs' => 'boolean'
