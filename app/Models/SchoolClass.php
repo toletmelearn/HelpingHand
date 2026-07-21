@@ -17,11 +17,14 @@ class SchoolClass extends Model
         'academic_session_id',
         'teacher_id',
         'description',
+        'capacity',
+        'stream',
         'is_active'
     ];
 
     protected $casts = [
         'class_order' => 'integer',
+        'capacity' => 'integer',
         'is_active' => 'boolean',
     ];
 
