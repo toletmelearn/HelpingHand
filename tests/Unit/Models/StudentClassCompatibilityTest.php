@@ -25,14 +25,14 @@ class StudentClassCompatibilityTest extends TestCase
         parent::tearDown();
     }
 
-    public function test_canonical_class_id_prefers_class_id_when_both_exist(): void
+    public function test_canonical_class_id_prefers_school_class_id_when_both_exist(): void
     {
         $student = $this->student([
             'class_id' => 11,
             'school_class_id' => 8,
         ]);
 
-        $this->assertSame(11, $student->canonicalClassId());
+        $this->assertSame(8, $student->canonicalClassId());
     }
 
     public function test_canonical_class_id_falls_back_to_school_class_id_when_class_id_missing(): void
@@ -43,6 +43,16 @@ class StudentClassCompatibilityTest extends TestCase
         ]);
 
         $this->assertSame(8, $student->canonicalClassId());
+    }
+
+    public function test_canonical_class_id_falls_back_to_class_id_when_school_class_id_missing(): void
+    {
+        $student = $this->student([
+            'class_id' => 11,
+            'school_class_id' => null,
+        ]);
+
+        $this->assertSame(11, $student->canonicalClassId());
     }
 
     public function test_class_id_conflict_is_detected_when_ids_differ(): void
@@ -74,16 +84,16 @@ class StudentClassCompatibilityTest extends TestCase
         ]);
 
         $this->assertSame([
-            'canonical_class_id' => 11,
+            'canonical_class_id' => 8,
             'class_id' => 11,
             'school_class_id' => 8,
             'string_class' => 'Class 8',
             'has_conflict' => true,
-            'source' => 'class_id',
+            'source' => 'school_class_id',
         ], $student->classCompatibilityStatus());
     }
 
-    public function test_canonical_school_class_resolves_using_preferred_class_id(): void
+    public function test_canonical_school_class_resolves_using_preferred_school_class_id(): void
     {
         DB::table('school_classes')->insert([
             ['id' => 8, 'name' => 'Class 5', 'created_at' => now(), 'updated_at' => now()],
@@ -99,8 +109,8 @@ class StudentClassCompatibilityTest extends TestCase
         $schoolClass = $student->resolveCanonicalSchoolClass();
 
         $this->assertInstanceOf(SchoolClass::class, $schoolClass);
-        $this->assertSame(11, $schoolClass->id);
-        $this->assertSame('Class 8', $schoolClass->name);
+        $this->assertSame(8, $schoolClass->id);
+        $this->assertSame('Class 5', $schoolClass->name);
     }
 
     private function student(array $attributes): Student

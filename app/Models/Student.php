@@ -47,17 +47,24 @@ class Student extends Authenticatable
                 return;
             }
 
-            if ($student->class_id !== null && $student->school_class_id === null) {
-                // Unlike school_class_id, class_id has no foreign key
-                // constraint -- some legacy/loosely-normalized rows carry a
-                // class_id that isn't a real school_classes row. Only copy
-                // it across when it actually resolves, so this sync can
-                // never itself cause a constraint-violation write failure.
+            if ($student->school_class_id !== null) {
+                // school_class_id is master (see Phase A closure): class_id
+                // always derives from it, even overriding a stale or
+                // conflicting value a caller also set explicitly.
+                if ((int) $student->class_id !== (int) $student->school_class_id) {
+                    $student->class_id = (int) $student->school_class_id;
+                }
+            } elseif ($student->class_id !== null) {
+                // Legacy write path: caller only set class_id (no
+                // school_class_id at all). Unlike school_class_id, class_id
+                // has no foreign key constraint -- some legacy/loosely-
+                // normalized rows carry a class_id that isn't a real
+                // school_classes row. Only copy it across when it actually
+                // resolves, so this fallback can never itself cause a
+                // constraint-violation write failure.
                 if (\App\Models\SchoolClass::whereKey($student->class_id)->exists()) {
                     $student->school_class_id = $student->class_id;
                 }
-            } elseif ($student->school_class_id !== null && $student->class_id === null) {
-                $student->class_id = $student->school_class_id;
             }
         });
 
@@ -178,6 +185,14 @@ class Student extends Authenticatable
         });
     }
 
+    /**
+     * @deprecated 'class' (free-text label) and 'class_id' (legacy FK) are
+     * both derived/legacy as of Phase A closure. school_class_id is the
+     * authoritative class reference -- read/write through it (or the
+     * schoolClass() relation), not these two. Kept fillable for one release
+     * as read-only-in-practice legacy columns; not yet dropped from the
+     * schema.
+     */
     protected $fillable = [
         'name', 'father_name', 'mother_name', 'date_of_birth', 'aadhar_number',
         'admission_no', 'admission_session_id', 'phone', 'mobile', 'gender', 'category', 'is_rte', 'is_special_needs', 'referred_by_admission_no', 'class', 'section', 'roll_number',
@@ -282,12 +297,14 @@ class Student extends Authenticatable
 
     public function canonicalClassId(): ?int
     {
-        if ($this->class_id !== null) {
-            return (int) $this->class_id;
-        }
-
+        // school_class_id is master (see Phase A closure); class_id is
+        // legacy/derived and only consulted if school_class_id is unset.
         if ($this->school_class_id !== null) {
             return (int) $this->school_class_id;
+        }
+
+        if ($this->class_id !== null) {
+            return (int) $this->class_id;
         }
 
         return null;
@@ -321,12 +338,12 @@ class Student extends Authenticatable
 
     private function classCompatibilitySource(): string
     {
-        if ($this->class_id !== null) {
-            return 'class_id';
+        if ($this->school_class_id !== null) {
+            return 'school_class_id';
         }
 
-        if ($this->school_class_id !== null) {
-            return 'school_class_id_fallback';
+        if ($this->class_id !== null) {
+            return 'class_id_fallback';
         }
 
         return 'none';
