@@ -822,7 +822,10 @@ Route::middleware(['auth'])->group(function () {
         
         // Section Management Routes
         Route::resource('sections', App\Http\Controllers\Admin\SectionController::class);
-        
+
+        // Academic Calendar / Events / Holidays Routes
+        Route::resource('academic-events', App\Http\Controllers\Admin\AcademicEventController::class);
+
         // Class Management Routes -- ClassController retired in favor of
         // SchoolClassController (see A3 of the Academic module rebuild);
         // canonical registration is the 'school-classes' resource below.

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\AcademicEvent;
 use App\Models\Attendance;
 use App\Models\Student;
 use App\Models\Teacher;
@@ -250,6 +251,10 @@ class AttendanceController extends Controller
         // Check if already marked
         if (Attendance::isMarked($request->class, $request->date, $request->period)) {
             return back()->with('error', 'Attendance for this class, date, and period is already marked!');
+        }
+
+        if ($holiday = AcademicEvent::isHoliday($request->date)) {
+            return back()->with('error', "Attendance cannot be marked on a holiday: {$holiday->title}.");
         }
         
         $attendances = [];
