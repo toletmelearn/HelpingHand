@@ -181,7 +181,8 @@ class StudentPromotionController extends Controller
 
         DB::transaction(function () use ($students, $destinationClass, $sourceClass, $sessionId, $promotedBy, $remarks, $newFeeStructure, $structureAdjustment, $today) {
             foreach ($students as $student) {
-                $student->class_id = $destinationClass->id;
+                // school_class_id is master (see Phase A closure); class_id
+                // derives from it automatically via the saving() hook.
                 $student->school_class_id = $destinationClass->id;
                 $student->class = $destinationClass->name;
                 $student->save();
