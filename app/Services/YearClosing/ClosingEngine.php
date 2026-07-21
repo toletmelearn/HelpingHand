@@ -10,7 +10,6 @@ class ClosingEngine
 {
     public function __construct(
         private BalanceCarryForwardService $balanceService,
-        private PromotionService $promotionService,
         private LedgerCarryForwardService $ledgerCarryService
     ) {}
 
