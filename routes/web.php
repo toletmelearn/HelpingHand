@@ -883,9 +883,10 @@ Route::middleware(['auth'])->group(function () {
         // Teacher Class Assignment Management Routes
         Route::resource('teacher-class-assignments', App\Http\Controllers\Admin\TeacherClassAssignmentController::class);
         
-        // Teacher Class Subject Assignment Management Routes
-        Route::get('assign-teacher-class-subject', [App\Http\Controllers\Admin\TeacherClassSubjectAssignmentController::class, 'index'])->name('assign-teacher-class-subject.index');
-        Route::post('assign-teacher-class-subject', [App\Http\Controllers\Admin\TeacherClassSubjectAssignmentController::class, 'store'])->name('assign-teacher-class-subject.store');
+        // Teacher Class Subject Assignment Management Routes removed (see
+        // A4): TeacherClassSubjectAssignmentController was a raw-DB::table()
+        // duplicate of Admin\TeacherSubjectAssignmentController, which
+        // manages the same table via Eloquent with a max-2-classes rule.
         
         // Admin Configuration Routes
         Route::get('configurations', [App\Http\Controllers\Admin\AdminConfigurationController::class, 'index'])->name('configurations.index');
