@@ -126,7 +126,14 @@ class ClassTeacherAssignmentController extends Controller
         if (auth()->user() && auth()->user()->roles->pluck('name')->contains('class-teacher')) {
             $classTeacher = \App\Models\Teacher::where('user_id', auth()->user()->id)->first();
             if ($classTeacher) {
-                $classIds = $classTeacher->classes()->pluck('class_management.id')->toArray();
+                // Teacher::classes() is keyed to class_management, but
+                // Student::class_id is a school_classes id -- translate
+                // through legacy_class_map so this actually scopes to the
+                // teacher's real classes.
+                $classManagementIds = $classTeacher->classes()->pluck('class_management.id')->toArray();
+                $classIds = \App\Models\LegacyClassMap::whereIn('class_management_id', $classManagementIds)
+                    ->pluck('school_class_id')
+                    ->toArray();
                 $query->whereIn('class_id', $classIds);
             }
         }

@@ -323,7 +323,7 @@
                             <div class="row mt-3">
                                 @if(Auth::user()->hasRole(['admin', 'staff']) || Auth::user()->hasPermission('view-classes'))
                                 <div class="col-md-2 mb-3">
-                                    <a href="{{ route('admin.classes.index') }}" class="btn btn-outline-primary w-100">
+                                    <a href="{{ route('admin.school-classes.index') }}" class="btn btn-outline-primary w-100">
                                         <i class="fas fa-school"></i><br>
                                         Classes
                                     </a>

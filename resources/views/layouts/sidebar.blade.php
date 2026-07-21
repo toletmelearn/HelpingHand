@@ -439,10 +439,10 @@
                 </div>
                 <div class="nav-collapse">
                     <ul class="nav flex-column">
-                        @if(Route::has('admin.classes.index') && (Auth::user()->hasRole(['admin', 'staff']) || Auth::user()->hasPermission('view-classes')))
+                        @if(Route::has('admin.school-classes.index') && (Auth::user()->hasRole(['admin', 'staff']) || Auth::user()->hasPermission('view-classes')))
                         <li class="nav-item">
-                            <a class="nav-link text-white {{ request()->routeIs('admin.classes.*') ? 'active' : '' }}" 
-                               href="{{ route('admin.classes.index') }}">
+                            <a class="nav-link text-white {{ request()->routeIs('admin.school-classes.*') ? 'active' : '' }}"
+                               href="{{ route('admin.school-classes.index') }}">
                                 <i class="bi bi-building me-2"></i>
                                 <span>Classes</span>
                             </a>

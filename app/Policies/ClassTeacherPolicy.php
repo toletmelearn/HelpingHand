@@ -5,6 +5,7 @@ namespace App\Policies;
 use App\Models\User;
 use App\Models\Teacher;
 use App\Models\Student;
+use App\Models\LegacyClassMap;
 use Illuminate\Auth\Access\Response;
 
 class ClassTeacherPolicy
@@ -33,8 +34,14 @@ class ClassTeacherPolicy
                 return false;
             }
             
-            // Check if student's class is assigned to this teacher as class teacher
-            $classIds = $classTeacher->classes()->pluck('class_management.id')->toArray();
+            // Check if student's class is assigned to this teacher as class
+            // teacher. Teacher::classes() is keyed to class_management, but
+            // Student::class_id is a school_classes id -- translate through
+            // legacy_class_map so this comparison is actually meaningful.
+            $classManagementIds = $classTeacher->classes()->pluck('class_management.id')->toArray();
+            $classIds = LegacyClassMap::whereIn('class_management_id', $classManagementIds)
+                ->pluck('school_class_id')
+                ->toArray();
             return in_array($student->class_id, $classIds);
         }
         
@@ -57,8 +64,14 @@ class ClassTeacherPolicy
                 return false;
             }
             
-            // Check if student's class is assigned to this teacher as class teacher
-            $classIds = $classTeacher->classes()->pluck('class_management.id')->toArray();
+            // Check if student's class is assigned to this teacher as class
+            // teacher. Teacher::classes() is keyed to class_management, but
+            // Student::class_id is a school_classes id -- translate through
+            // legacy_class_map so this comparison is actually meaningful.
+            $classManagementIds = $classTeacher->classes()->pluck('class_management.id')->toArray();
+            $classIds = LegacyClassMap::whereIn('class_management_id', $classManagementIds)
+                ->pluck('school_class_id')
+                ->toArray();
             return in_array($student->class_id, $classIds);
         }
         

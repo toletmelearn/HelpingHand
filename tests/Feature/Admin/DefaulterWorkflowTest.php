@@ -372,6 +372,14 @@ class DefaulterWorkflowTest extends TestCase
         ]);
         $classManagement = ClassManagement::create(['name' => 'Class 10', 'is_active' => true]);
         $teacherRecord->classes()->attach($classManagement->id);
+        // scopedClassIds() translates class_management assignments to
+        // school_classes ids via legacy_class_map (see A3) -- a real
+        // migration/admin action would link these two "Class 10" rows the
+        // same way the fixture does here.
+        \App\Models\LegacyClassMap::create([
+            'class_management_id' => $classManagement->id,
+            'school_class_id' => $this->schoolClass->id,
+        ]);
 
         // Index only shows their own class's defaulter, not the other class's.
         $mockNotificationService = $this->createMock(\App\Services\NotificationService::class);

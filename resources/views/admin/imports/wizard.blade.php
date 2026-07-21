@@ -9,7 +9,7 @@
         'students' => ['route' => 'admin.students.index', 'label' => 'Students'],
         'teachers' => ['route' => 'admin.teachers.index', 'label' => 'Teachers'],
         'parents' => ['route' => 'admin.parents.index', 'label' => 'Parents'],
-        'classes' => ['route' => 'admin.classes.index', 'label' => 'Classes'],
+        'classes' => ['route' => 'admin.school-classes.index', 'label' => 'Classes'],
         'sections' => ['route' => 'admin.sections.index', 'label' => 'Sections'],
         'subjects' => ['route' => 'admin.subjects.index', 'label' => 'Subjects'],
         'fee-structures' => ['route' => 'admin.fee-structures.index', 'label' => 'Fee Structures'],

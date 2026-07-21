@@ -40,14 +40,10 @@ class ClassManagement extends Model
                     ->withTimestamps();
     }
     
-    // Define relationship with subjects assigned to this class
-    public function subjects(): BelongsToMany
-    {
-        return $this->belongsToMany(Subject::class, 'class_subject_assignments', 'class_id', 'subject_id')
-                    ->withPivot('teacher_id', 'assigned_at')
-                    ->withTimestamps();
-    }
-    
+    // subjects() moved to SchoolClass (see A3) -- class_subject_assignments.class_id
+    // has always had a real DB foreign key to school_classes, not class_management,
+    // so this relationship was silently matching against the wrong id space.
+
     // Scope for ordering classes properly
     public function scopeOrdered($query)
     {

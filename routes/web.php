@@ -823,9 +823,10 @@ Route::middleware(['auth'])->group(function () {
         // Section Management Routes
         Route::resource('sections', App\Http\Controllers\Admin\SectionController::class);
         
-        // Class Management Routes
-        Route::resource('classes', App\Http\Controllers\Admin\ClassController::class);
-        
+        // Class Management Routes -- ClassController retired in favor of
+        // SchoolClassController (see A3 of the Academic module rebuild);
+        // canonical registration is the 'school-classes' resource below.
+
         // Grading System Management Routes
         Route::resource('grading-systems', App\Http\Controllers\Admin\GradingSystemController::class);
         
@@ -1198,12 +1199,10 @@ Route::middleware(['auth'])->group(function () {
         Route::get('expenses/create/{budgetId}', [App\Http\Controllers\Admin\ExpenseController::class, 'createWithBudget'])->name('expenses.create-with-budget');
         Route::get('expenses/{expense}', [App\Http\Controllers\Admin\ExpenseController::class, 'show'])->name('expenses.show');
         
-        // Class Management Additional Routes
-        Route::post('classes/save-class-teacher-assignment', [App\Http\Controllers\Admin\ClassController::class, 'saveClassTeacherAssignment'])->name('admin.classes.save-class-teacher-assignment');
-        Route::post('classes/save-section-assignment', [App\Http\Controllers\Admin\ClassController::class, 'saveSectionAssignment'])->name('admin.classes.save-section-assignment');
-        Route::post('classes/save-subject-teacher-assignment', [App\Http\Controllers\Admin\ClassController::class, 'saveSubjectTeacherAssignment'])->name('admin.classes.save-subject-teacher-assignment');
-        Route::post('classes/save-subject-assignment', [App\Http\Controllers\Admin\ClassController::class, 'saveSubjectAssignment'])->name('admin.classes.save-subject-assignment');
-        
+        // Class Management Additional Routes -- removed (see A3): all 4
+        // pointed to ClassController methods that never existed, and no
+        // view renders a GET route for the forms that posted to them.
+
         // Class Teacher Control Routes
         Route::get('class-teacher-control/assigned-classes', [App\Http\Controllers\ClassTeacherAssignmentController::class, 'assignedClasses'])->name('admin.class-teacher-control.assigned-classes');
         Route::get('class-teacher-control/unassigned-classes', [App\Http\Controllers\ClassTeacherAssignmentController::class, 'unassignedClasses'])->name('admin.class-teacher-control.unassigned-classes');
@@ -1248,9 +1247,9 @@ Route::middleware(['auth'])->group(function () {
         Route::get('inventory/audit-logs', [App\Http\Controllers\Admin\InventoryController::class, 'auditLogs'])->name('inventory.audit-logs');
         Route::get('inventory/audit-logs/export', [App\Http\Controllers\Admin\InventoryController::class, 'exportAuditLogs'])->name('inventory.audit-logs.export');
         
-        // Class Management Routes
-        Route::resource('classes', App\Http\Controllers\Admin\ClassController::class);
-        
+        // Class Management Routes -- ClassController retired (see A3), was
+        // a duplicate registration of the block above.
+
         // Class Teacher Control Routes
         Route::get('class-teacher-control/assigned-classes', [App\Http\Controllers\ClassTeacherAssignmentController::class, 'assignedClasses'])->name('admin.class-teacher-control.assigned-classes');
         Route::get('class-teacher-control/unassigned-classes', [App\Http\Controllers\ClassTeacherAssignmentController::class, 'unassignedClasses'])->name('admin.class-teacher-control.unassigned-classes');

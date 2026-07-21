@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 
 class SchoolClass extends Model
 {
@@ -56,6 +57,13 @@ class SchoolClass extends Model
     public function teacher()
     {
         return $this->belongsTo(Teacher::class, 'teacher_id');
+    }
+
+    public function subjects(): BelongsToMany
+    {
+        return $this->belongsToMany(Subject::class, 'class_subject_assignments', 'class_id', 'subject_id')
+                    ->withPivot('teacher_id', 'assigned_at')
+                    ->withTimestamps();
     }
 
     public function getNextClasses()

@@ -91,7 +91,7 @@ class AdminSidebarAudit extends Command
             'Students' => ['admin.students.index', 'admin.student-promotions.index', 'admin.student-statuses.index'],
             'Teachers' => ['admin.teachers.index', 'admin.teacher-substitutions.index', 'admin.teacher-biometrics.index'],
             'Academic' => [
-                'admin.classes.index', 'admin.sections.index', 'admin.subjects.index',
+                'admin.school-classes.index', 'admin.sections.index', 'admin.subjects.index',
                 'admin.academic-sessions.index', 'admin.syllabi.index',
                 'admin.daily-teaching-work.index', 'admin.lesson-plans.index'
             ],

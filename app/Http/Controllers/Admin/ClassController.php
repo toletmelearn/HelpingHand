@@ -7,6 +7,12 @@ use Illuminate\Http\Request;
 use App\Models\ClassManagement;
 use Illuminate\Support\Facades\Validator;
 
+/**
+ * @deprecated Retired in favor of SchoolClassController (see A3 of the
+ * Academic module rebuild). No routes point here anymore -- class_management
+ * is now a frozen, historical table (see legacy_class_map). Kept in place
+ * rather than deleted so its CRUD logic remains available for reference.
+ */
 class ClassController extends Controller
 {
     /**

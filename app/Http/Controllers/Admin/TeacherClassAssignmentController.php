@@ -6,7 +6,7 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use App\Models\Teacher;
-use App\Models\ClassManagement;
+use App\Models\SchoolClass;
 use App\Models\TeacherClassAssignment;
 
 class TeacherClassAssignmentController extends Controller
@@ -34,7 +34,7 @@ class TeacherClassAssignmentController extends Controller
     public function create()
     {
         $teachers = Teacher::orderBy('name')->get();
-        $classes = ClassManagement::orderBy('name')->get();
+        $classes = SchoolClass::orderBy('class_order')->get();
         
         return view('admin.assignments.teacher-class.create', compact('teachers', 'classes'));
     }
@@ -49,7 +49,7 @@ class TeacherClassAssignmentController extends Controller
     {
         $request->validate([
             'teacher_id' => 'required|exists:teachers,id',
-            'class_id' => 'required|exists:class_managements,id',
+            'class_id' => 'required|exists:school_classes,id',
             'role' => 'required|in:class_teacher,subject_teacher,assistant_teacher',
         ]);
 
@@ -95,7 +95,7 @@ class TeacherClassAssignmentController extends Controller
     {
         $assignment = TeacherClassAssignment::with(['teacher', 'class'])->findOrFail($id);
         $teachers = Teacher::orderBy('name')->get();
-        $classes = ClassManagement::orderBy('name')->get();
+        $classes = SchoolClass::orderBy('class_order')->get();
         
         return view('admin.assignments.teacher-class.edit', compact('assignment', 'teachers', 'classes'));
     }
@@ -111,7 +111,7 @@ class TeacherClassAssignmentController extends Controller
     {
         $request->validate([
             'teacher_id' => 'required|exists:teachers,id',
-            'class_id' => 'required|exists:class_managements,id',
+            'class_id' => 'required|exists:school_classes,id',
             'role' => 'required|in:class_teacher,subject_teacher,assistant_teacher',
             'subject_assigned' => 'nullable|string|max:255',
             'is_primary' => 'boolean',
