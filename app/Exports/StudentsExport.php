@@ -54,7 +54,7 @@ class StudentsExport implements FromCollection, WithHeadings, WithMapping
             $student->mobile,
             $student->gender,
             $student->category,
-            $student->class_id,
+            $student->school_class_id,
             $student->schoolClass?->name ?? $student->class,
             $student->section_id,
             $this->sectionName($student),

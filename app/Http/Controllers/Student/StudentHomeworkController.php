@@ -33,7 +33,7 @@ class StudentHomeworkController extends Controller
         // Fetch homework for student's class/section
         $homeworks = HomeworkNotice::where('type', 'homework')
             ->where(function($query) use ($student) {
-                $query->where('class_id', $student->class_id);
+                $query->where('class_id', $student->school_class_id);
             })
             ->with(['submissions' => function($q) use ($student) {
                 $q->where('student_id', $student->id);
@@ -52,7 +52,7 @@ class StudentHomeworkController extends Controller
         }
 
         $homework = HomeworkNotice::where('type', 'homework')
-            ->where('class_id', $student->class_id)
+            ->where('class_id', $student->school_class_id)
             ->findOrFail($homeworkId);
 
         $submission = HomeworkSubmission::where('homework_notice_id', $homeworkId)
@@ -75,7 +75,7 @@ class StudentHomeworkController extends Controller
         }
 
         $homework = HomeworkNotice::where('type', 'homework')
-            ->where('class_id', $student->class_id)
+            ->where('class_id', $student->school_class_id)
             ->findOrFail($homeworkId);
 
         // Upload attachment

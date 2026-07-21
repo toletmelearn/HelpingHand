@@ -35,7 +35,7 @@
                                         <td>{{ $student->schoolClass->name ?? 'N/A' }}</td>
                                         <td>{{ $student->total }}</td>
                                         <td>
-                                            <a href="{{ route('admin.student-promotions.create') }}?from_class={{ $student->class_id }}"
+                                            <a href="{{ route('admin.student-promotions.create') }}?from_class={{ $student->school_class_id }}"
                                                class="btn btn-sm btn-primary">
                                                 Promote Class
                                             </a>

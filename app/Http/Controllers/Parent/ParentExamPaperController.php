@@ -20,7 +20,7 @@ class ParentExamPaperController extends Controller
         $student = $parent->student;
         
         $examPapers = ExamPaper::where('is_published', true)
-            ->where('class_id', $student->class_id)
+            ->where('class_id', $student->school_class_id)
             ->orderBy('created_at', 'desc')
             ->paginate(15);
         
@@ -42,7 +42,7 @@ class ParentExamPaperController extends Controller
             ->firstOrFail();
         
         // SECURITY CHECK: Verify exam paper belongs to student's class
-        if ($examPaper->class_id != $student->class_id) {
+        if ($examPaper->class_id != $student->school_class_id) {
             abort(403, 'Unauthorized access to this exam paper.');
         }
         
@@ -64,7 +64,7 @@ class ParentExamPaperController extends Controller
             ->firstOrFail();
         
         // SECURITY CHECK: Verify exam paper belongs to student's class
-        if ($examPaper->class_id != $student->class_id) {
+        if ($examPaper->class_id != $student->school_class_id) {
             abort(403, 'Unauthorized access to this exam paper.');
         }
         

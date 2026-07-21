@@ -447,7 +447,7 @@ class ResultController extends Controller
     {
         // Get student's class and section
         $student = Student::find($studentId);
-        $classId = $student->class_id;
+        $classId = $student->school_class_id;
         $sectionId = $student->section_id;
 
         // Update class rankings

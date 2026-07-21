@@ -35,13 +35,13 @@ class DashboardController extends BaseApiController
         $feeStatus = $this->getStudentFeeStatus($student->id);
         
         // Get upcoming exams
-        $upcomingExams = $this->getUpcomingExams($student->class_id, $student->section_id);
+        $upcomingExams = $this->getUpcomingExams($student->school_class_id, $student->section_id);
         
         // Get recent results
         $recentResults = $this->getRecentResults($student->id);
         
         // Get today's lesson plans
-        $todayLessonPlans = $this->getTodayLessonPlans($student->class_id, $student->section_id);
+        $todayLessonPlans = $this->getTodayLessonPlans($student->school_class_id, $student->section_id);
         
         // Get unread notifications
         $unreadNotifications = $user->unreadNotifications()->count();
