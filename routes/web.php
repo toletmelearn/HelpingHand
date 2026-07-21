@@ -874,8 +874,8 @@ Route::middleware(['auth'])->group(function () {
         Route::resource('teacher-attendance', App\Http\Controllers\Admin\TeacherAttendanceController::class);
         // Class Teacher Assignment Management Routes
         Route::resource('class-teacher-assignments', App\Http\Controllers\ClassTeacherAssignmentController::class);
-        Route::get('class-teacher-assignments/teacher/{teacherId}/classes', [App\Http\Controllers\ClassTeacherAssignmentController::class, 'getTeacherClasses'])->name('class-teacher-assignments.teacher-classes');
-        Route::get('class-teacher-assignments/student/{studentId}/class-teacher', [App\Http\Controllers\ClassTeacherAssignmentController::class, 'getStudentClassTeacher'])->name('class-teacher-assignments.student-class-teacher');
+        // getTeacherClasses/getStudentClassTeacher routes removed (see A4):
+        // neither method ever existed on the controller.
         
         // Teacher Subject Assignment Management Routes
         Route::resource('teacher-subject-assignments', App\Http\Controllers\Admin\TeacherSubjectAssignmentController::class);
@@ -1203,13 +1203,10 @@ Route::middleware(['auth'])->group(function () {
         // pointed to ClassController methods that never existed, and no
         // view renders a GET route for the forms that posted to them.
 
-        // Class Teacher Control Routes
-        Route::get('class-teacher-control/assigned-classes', [App\Http\Controllers\ClassTeacherAssignmentController::class, 'assignedClasses'])->name('admin.class-teacher-control.assigned-classes');
-        Route::get('class-teacher-control/unassigned-classes', [App\Http\Controllers\ClassTeacherAssignmentController::class, 'unassignedClasses'])->name('admin.class-teacher-control.unassigned-classes');
-        Route::get('class-teacher-control/teacher-assignments', [App\Http\Controllers\ClassTeacherAssignmentController::class, 'teacherAssignments'])->name('admin.class-teacher-control.teacher-assignments');
-        Route::post('class-teacher-control/assign-teacher', [App\Http\Controllers\ClassTeacherAssignmentController::class, 'assignTeacher'])->name('admin.class-teacher-control.assign-teacher');
-        Route::post('class-teacher-control/remove-assignment', [App\Http\Controllers\ClassTeacherAssignmentController::class, 'removeAssignment'])->name('admin.class-teacher-control.remove-assignment');
-        
+        // Class Teacher Control Routes removed (see A4): assignedClasses/
+        // unassignedClasses/teacherAssignments/assignTeacher/removeAssignment
+        // never existed on ClassTeacherAssignmentController.
+
         // Additional Inventory Routes
         Route::get('inventory/audit-logs', [App\Http\Controllers\Admin\InventoryController::class, 'auditLogs'])->name('admin.inventory.audit-logs');
         Route::get('inventory/electronics', [App\Http\Controllers\Admin\InventoryController::class, 'electronicsManagement'])->name('inventory.electronics');
@@ -1250,13 +1247,9 @@ Route::middleware(['auth'])->group(function () {
         // Class Management Routes -- ClassController retired (see A3), was
         // a duplicate registration of the block above.
 
-        // Class Teacher Control Routes
-        Route::get('class-teacher-control/assigned-classes', [App\Http\Controllers\ClassTeacherAssignmentController::class, 'assignedClasses'])->name('admin.class-teacher-control.assigned-classes');
-        Route::get('class-teacher-control/unassigned-classes', [App\Http\Controllers\ClassTeacherAssignmentController::class, 'unassignedClasses'])->name('admin.class-teacher-control.unassigned-classes');
-        Route::get('class-teacher-control/teacher-assignments', [App\Http\Controllers\ClassTeacherAssignmentController::class, 'teacherAssignments'])->name('admin.class-teacher-control.teacher-assignments');
-        Route::post('class-teacher-control/assign-teacher', [App\Http\Controllers\ClassTeacherAssignmentController::class, 'assignTeacher'])->name('admin.class-teacher-control.assign-teacher');
-        Route::post('class-teacher-control/remove-assignment', [App\Http\Controllers\ClassTeacherAssignmentController::class, 'removeAssignment'])->name('admin.class-teacher-control.remove-assignment');
-        
+        // Class Teacher Control Routes -- removed (see A4), duplicate of the
+        // block above (also dead: none of these methods ever existed).
+
         // Additional Expenses Routes (already defined earlier)
         
         // Academic Sessions Additional Routes (already handled by resource)
