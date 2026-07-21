@@ -13,7 +13,9 @@ class SchoolClass extends Model
     protected $fillable = [
         'name',
         'class_order',
+        'section_id',
         'academic_session_id',
+        'teacher_id',
         'description',
         'is_active'
     ];
@@ -36,6 +38,21 @@ class SchoolClass extends Model
     public function students()
     {
         return $this->hasMany(Student::class, 'class_id');
+    }
+
+    public function section()
+    {
+        return $this->belongsTo(Section::class, 'section_id');
+    }
+
+    public function academicSession()
+    {
+        return $this->belongsTo(AcademicSession::class, 'academic_session_id');
+    }
+
+    public function teacher()
+    {
+        return $this->belongsTo(Teacher::class, 'teacher_id');
     }
 
     public function getNextClasses()
