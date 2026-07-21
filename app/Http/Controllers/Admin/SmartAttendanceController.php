@@ -250,60 +250,6 @@ class SmartAttendanceController extends Controller
     }
 
     /**
-     * Auto-mark attendance based on biometric data (simulated)
-     */
-    public function autoMarkAttendance(Request $request)
-    {
-        $request->validate([
-            'class' => 'required|string',
-            'date' => 'required|date',
-            'auto_mark_threshold' => 'required|integer|min:0|max:100' // Percentage for auto-marking
-        ]);
-        
-        $class = $request->class;
-        $date = $request->date;
-        $threshold = $request->auto_mark_threshold;
-        
-        // Get students in the class
-        $students = Student::where('class', $class)->get();
-        
-        $markedCount = 0;
-        
-        foreach ($students as $student) {
-            // Check if attendance already exists
-            $existingAttendance = Attendance::where('student_id', $student->id)
-                ->whereDate('date', $date)
-                ->first();
-            
-            if (!$existingAttendance) {
-                // Simulate biometric check - if student's biometric data exists for this date/time
-                // In a real system, this would check against biometric logs
-                
-                // For now, let's mark as present based on threshold probability
-                $shouldMarkPresent = rand(1, 100) <= $threshold;
-                
-                Attendance::create([
-                    'student_id' => $student->id,
-                    'date' => $date,
-                    'status' => $shouldMarkPresent ? 'present' : 'absent',
-                    'remarks' => $shouldMarkPresent ? 'Auto-marked via biometric simulation' : 'Auto-marked absent',
-                    'class' => $class,
-                    'session' => date('Y') . '-' . (date('Y') + 1),
-                    'marked_by' => auth()->id(),
-                    'ip_address' => request()->ip(),
-                    'device_info' => request()->userAgent(),
-                ]);
-                
-                $markedCount++;
-            }
-        }
-        
-        return redirect()->back()->with('success', 
-            "Auto-marked attendance for $markedCount students in class $class on $date"
-        );
-    }
-
-    /**
      * Get attendance analytics dashboard
      */
     public function analytics()
