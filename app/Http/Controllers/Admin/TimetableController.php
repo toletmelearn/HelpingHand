@@ -15,6 +15,8 @@ class TimetableController extends Controller
 {
     public function index(Request $request)
     {
+        $this->authorize('viewAny', TimetableSlot::class);
+
         $schoolClassId = $request->get('school_class_id');
         $sectionId = $request->get('section_id');
 
@@ -50,6 +52,8 @@ class TimetableController extends Controller
 
     public function store(Request $request)
     {
+        $this->authorize('create', TimetableSlot::class);
+
         $validated = $request->validate([
             'school_class_id' => 'required|exists:school_classes,id',
             'section_id' => 'nullable|exists:sections,id',
@@ -81,6 +85,7 @@ class TimetableController extends Controller
     public function destroy($id)
     {
         $slot = TimetableSlot::findOrFail($id);
+        $this->authorize('delete', $slot);
         $slot->delete();
 
         return back()->with('success', 'Timetable slot cleared.');
@@ -88,6 +93,8 @@ class TimetableController extends Controller
 
     public function checkConflictsApi(Request $request)
     {
+        $this->authorize('viewAny', TimetableSlot::class);
+
         $result = $this->checkSlotConflicts($request);
         return response()->json($result);
     }
