@@ -7,10 +7,19 @@ use App\Models\Student;
 use App\Models\Teacher;
 use App\Models\Attendance;
 use App\Models\Fee;
+use App\Services\ProfessionalDashboardService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 
 class AdminDashboardController extends Controller
 {
+    protected $dashboardService;
+
+    public function __construct(ProfessionalDashboardService $dashboardService)
+    {
+        $this->dashboardService = $dashboardService;
+    }
+
     public function index()
     {
         $user = auth()->user();
@@ -42,6 +51,13 @@ class AdminDashboardController extends Controller
         // Fetch recent import sessions for the dashboard widget
         $recentImports = \App\Models\ImportSession::with('creator')->latest()->take(5)->get();
 
+        try {
+            $upcomingEvents = $this->dashboardService->getUpcomingEvents();
+        } catch (\Throwable $e) {
+            Log::error('Failed to load upcoming events for admin dashboard: ' . $e->getMessage());
+            $upcomingEvents = [];
+        }
+
         // Fetch recent admission enquiries
         if ($isAdminOrSuperAdmin) {
             $recentEnquiries = \App\Models\AdmissionEnquiry::with('counsellor')->latest()->take(5)->get();
@@ -51,7 +67,7 @@ class AdminDashboardController extends Controller
             $myEnquiries = \App\Models\AdmissionEnquiry::where('counsellor_id', $user->id)->latest()->take(5)->get();
         }
 
-        return view('admin.dashboard', compact('stats', 'showOnboardingChecklist', 'recentImports', 'recentEnquiries', 'myEnquiries'));
+        return view('admin.dashboard', compact('stats', 'showOnboardingChecklist', 'recentImports', 'recentEnquiries', 'myEnquiries', 'upcomingEvents'));
     }
     
     private function getUpcomingExams()
