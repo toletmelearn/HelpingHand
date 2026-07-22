@@ -69,10 +69,10 @@
                         <div class="row">
                             <div class="col-md-6">
                                 <div class="form-group mb-3">
-                                    <label for="aadhar_number" class="form-label">Aadhar Number *</label>
-                                    <input type="text" name="aadhar_number" id="aadhar_number" class="form-control @error('aadhar_number') is-invalid @enderror" 
-                                           value="{{ old('aadhar_number') }}" required>
-                                    @error('aadhar_number')
+                                    <label for="aadhaar_number" class="form-label">Aadhaar Number *</label>
+                                    <input type="text" name="aadhaar_number" id="aadhaar_number" class="form-control @error('aadhaar_number') is-invalid @enderror" 
+                                           value="{{ old('aadhaar_number') }}" required>
+                                    @error('aadhaar_number')
                                         <div class="invalid-feedback">{{ $message }}</div>
                                     @enderror
                                 </div>
@@ -81,9 +81,45 @@
                             <div class="col-md-6">
                                 <div class="form-group mb-3">
                                     <label for="mobile" class="form-label">Mobile *</label>
-                                    <input type="text" name="mobile" id="mobile" class="form-control @error('mobile') is-invalid @enderror" 
+                                    <input type="text" name="mobile" id="mobile" class="form-control @error('mobile') is-invalid @enderror"
                                            value="{{ old('mobile') }}" required>
                                     @error('mobile')
+                                        <div class="invalid-feedback">{{ $message }}</div>
+                                    @enderror
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-4">
+                                <div class="form-group mb-3">
+                                    <label for="udise_pen" class="form-label">UDISE PEN</label>
+                                    <input type="text" name="udise_pen" id="udise_pen" class="form-control @error('udise_pen') is-invalid @enderror"
+                                           value="{{ old('udise_pen') }}">
+                                    @error('udise_pen')
+                                        <div class="invalid-feedback">{{ $message }}</div>
+                                    @enderror
+                                </div>
+                            </div>
+
+                            <div class="col-md-4">
+                                <div class="form-group mb-3">
+                                    <label for="apaar_id" class="form-label">APAAR ID</label>
+                                    <input type="text" name="apaar_id" id="apaar_id" class="form-control @error('apaar_id') is-invalid @enderror"
+                                           value="{{ old('apaar_id') }}" maxlength="12">
+                                    @error('apaar_id')
+                                        <div class="invalid-feedback">{{ $message }}</div>
+                                    @enderror
+                                    <div class="form-text">Exactly 12 digits, if known.</div>
+                                </div>
+                            </div>
+
+                            <div class="col-md-4">
+                                <div class="form-group mb-3">
+                                    <label for="name_as_per_aadhaar" class="form-label">Name as per Aadhaar</label>
+                                    <input type="text" name="name_as_per_aadhaar" id="name_as_per_aadhaar" class="form-control @error('name_as_per_aadhaar') is-invalid @enderror"
+                                           value="{{ old('name_as_per_aadhaar') }}">
+                                    @error('name_as_per_aadhaar')
                                         <div class="invalid-feedback">{{ $message }}</div>
                                     @enderror
                                 </div>

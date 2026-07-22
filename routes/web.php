@@ -489,11 +489,13 @@ Route::middleware(['auth'])->group(function () {
         Route::post('students', [App\Http\Controllers\Admin\AdminStudentController::class, 'store'])->name('students.store');
         // Must come before the {student} wildcard routes below.
         Route::post('students/bulk-destroy', [App\Http\Controllers\Admin\AdminStudentController::class, 'bulkDestroy'])->name('students.bulk-destroy');
+        Route::get('students/export/udise', [App\Http\Controllers\Admin\AdminStudentController::class, 'exportUdise'])->name('students.export.udise');
         Route::get('students/{student}', [App\Http\Controllers\Admin\AdminStudentController::class, 'show'])->name('students.show');
         Route::get('students/{student}/edit', [App\Http\Controllers\Admin\AdminStudentController::class, 'edit'])->name('students.edit');
         Route::put('students/{student}', [App\Http\Controllers\Admin\AdminStudentController::class, 'update'])->name('students.update');
         Route::delete('students/{student}', [App\Http\Controllers\Admin\AdminStudentController::class, 'destroy'])->name('students.destroy');
-        
+        Route::post('students/{student}/apaar-consent', [App\Http\Controllers\Admin\AdminStudentController::class, 'recordApaarConsent'])->name('students.apaar-consent');
+
         // Parent Directory & Management
         Route::get('parents', [\App\Http\Controllers\Admin\AdminParentController::class, 'index'])->name('parents.index');
         Route::get('parents/{id}', [\App\Http\Controllers\Admin\AdminParentController::class, 'show'])->name('parents.show');

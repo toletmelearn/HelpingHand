@@ -69,6 +69,23 @@
                             </button>
                         </div>
                     </div>
+
+                    <div class="row mb-4">
+                        <div class="col-md-6">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="filterAadhaarMismatch"
+                                       {{ ($aadhaarMismatch ?? false) ? 'checked' : '' }} onchange="applyFilters()">
+                                <label class="form-check-label" for="filterAadhaarMismatch">
+                                    Only show name / Aadhaar name mismatches
+                                </label>
+                            </div>
+                        </div>
+                        <div class="col-md-6 text-md-end">
+                            <a href="{{ route('admin.students.export.udise') }}" class="btn btn-outline-secondary">
+                                <i class="fas fa-file-export"></i> Export UDISE+ Sheet
+                            </a>
+                        </div>
+                    </div>
                     
                     @php
                         $canBulkDeleteStudents = auth()->user()->hasRole('admin') || auth()->user()->hasPermission('delete-students');
@@ -117,7 +134,12 @@
                                                  class="rounded-circle" width="40" height="40" style="object-fit: cover;">
                                         </td>
                                         <td>{{ $student->roll_number ?: 'N/A' }}</td>
-                                        <td>{{ $student->name }}</td>
+                                        <td>
+                                            {{ $student->name }}
+                                            @if($student->hasAadhaarNameMismatch())
+                                                <span class="badge bg-warning text-dark" title="Name does not match name_as_per_aadhaar">Aadhaar name mismatch</span>
+                                            @endif
+                                        </td>
                                         <td>{{ $student->admission_no ?: 'N/A' }}</td>
                                         <td>{{ $student->father_name }}</td>
                                         <td>{{ $student->mobile ?: 'N/A' }}</td>
@@ -369,10 +391,11 @@ function applyFilters() {
     const filterClass = document.getElementById('filterClass');
     const filterSection = document.getElementById('filterSection');
     const filterSearch = document.getElementById('filterSearch');
-    
+    const filterAadhaarMismatch = document.getElementById('filterAadhaarMismatch');
+
     let url = window.location.origin + '/admin/students';
     const params = new URLSearchParams();
-    
+
     if (filterClass.value) {
         params.append('class_id', filterClass.value);
     }
@@ -382,7 +405,10 @@ function applyFilters() {
     if (filterSearch.value) {
         params.append('search', filterSearch.value);
     }
-    
+    if (filterAadhaarMismatch.checked) {
+        params.append('aadhaar_mismatch', '1');
+    }
+
     window.location.href = url + '?' + params.toString();
 }
 

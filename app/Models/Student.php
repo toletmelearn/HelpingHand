@@ -193,11 +193,20 @@ class Student extends Authenticatable
      * as read-only-in-practice legacy columns; not yet dropped from the
      * schema.
      */
+    /**
+     * apaar_consent_given/apaar_consent_date/apaar_consent_by are
+     * deliberately NOT fillable -- DPDP-relevant consent records must only
+     * be set via the dedicated consent-recording action
+     * (AdminStudentController::recordApaarConsent()), never through the
+     * generic create/update form. Set them via direct property assignment
+     * there, which bypasses mass-assignment protection as intended.
+     */
     protected $fillable = [
-        'name', 'father_name', 'mother_name', 'date_of_birth', 'aadhar_number',
+        'name', 'father_name', 'mother_name', 'date_of_birth', 'aadhaar_number',
         'admission_no', 'admission_session_id', 'phone', 'mobile', 'gender', 'category', 'is_rte', 'is_special_needs', 'referred_by_admission_no', 'class', 'section', 'roll_number',
         'religion', 'caste', 'blood_group', 'address', 'user_id', 'is_verified',
-        'guardian_name', 'class_id', 'school_class_id', 'section_id', 'photo', 'family_id'
+        'guardian_name', 'class_id', 'school_class_id', 'section_id', 'photo', 'family_id',
+        'udise_pen', 'apaar_id', 'name_as_per_aadhaar',
     ];
     
     protected $casts = [
@@ -208,7 +217,9 @@ class Student extends Authenticatable
         'school_class_id' => 'integer',
         'guardian_name' => 'string',
         'is_rte' => 'boolean',
-        'is_special_needs' => 'boolean'
+        'is_special_needs' => 'boolean',
+        'apaar_consent_given' => 'boolean',
+        'apaar_consent_date' => 'date',
     ];
     
     protected $dates = ['date_of_birth'];
@@ -294,6 +305,32 @@ class Student extends Authenticatable
     public function schoolSection()
     {
         return $this->belongsTo(Section::class, 'section_id');
+    }
+
+    /**
+     * Case/whitespace-insensitive mismatch between the student's name and
+     * name_as_per_aadhaar. False (not a mismatch) when there's nothing to
+     * compare against yet -- an unset name_as_per_aadhaar isn't itself a
+     * data-quality problem, just missing compliance data.
+     */
+    public function hasAadhaarNameMismatch(): bool
+    {
+        if (empty($this->name_as_per_aadhaar)) {
+            return false;
+        }
+
+        return trim(mb_strtolower((string) $this->name)) !== trim(mb_strtolower((string) $this->name_as_per_aadhaar));
+    }
+
+    /**
+     * SQL-level equivalent of hasAadhaarNameMismatch(), for filtering an
+     * admin list without loading every student into PHP.
+     */
+    public function scopeAadhaarNameMismatch($query)
+    {
+        return $query->whereNotNull('name_as_per_aadhaar')
+            ->where('name_as_per_aadhaar', '!=', '')
+            ->whereRaw('LOWER(TRIM(name)) != LOWER(TRIM(name_as_per_aadhaar))');
     }
 
     public function canonicalClassId(): ?int
