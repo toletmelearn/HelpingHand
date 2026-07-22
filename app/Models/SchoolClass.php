@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 
 class SchoolClass extends Model
 {
@@ -13,13 +14,18 @@ class SchoolClass extends Model
     protected $fillable = [
         'name',
         'class_order',
+        'section_id',
         'academic_session_id',
+        'teacher_id',
         'description',
+        'capacity',
+        'stream',
         'is_active'
     ];
 
     protected $casts = [
         'class_order' => 'integer',
+        'capacity' => 'integer',
         'is_active' => 'boolean',
     ];
 
@@ -36,6 +42,28 @@ class SchoolClass extends Model
     public function students()
     {
         return $this->hasMany(Student::class, 'class_id');
+    }
+
+    public function section()
+    {
+        return $this->belongsTo(Section::class, 'section_id');
+    }
+
+    public function academicSession()
+    {
+        return $this->belongsTo(AcademicSession::class, 'academic_session_id');
+    }
+
+    public function teacher()
+    {
+        return $this->belongsTo(Teacher::class, 'teacher_id');
+    }
+
+    public function subjects(): BelongsToMany
+    {
+        return $this->belongsToMany(Subject::class, 'class_subject_assignments', 'class_id', 'subject_id')
+                    ->withPivot('teacher_id', 'assigned_at')
+                    ->withTimestamps();
     }
 
     public function getNextClasses()

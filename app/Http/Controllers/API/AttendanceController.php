@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\API;
 
+use App\Models\AcademicEvent;
 use App\Models\Attendance;
 use App\Models\Student;
 use App\Models\StudentStatus;
@@ -51,6 +52,10 @@ class AttendanceController extends BaseApiController
 
             // Phase 5L: marked_by is derived from authenticated API user and cannot be supplied by client.
             $validated['marked_by'] = $user->id;
+
+            if ($holiday = AcademicEvent::isHoliday($validated['date'])) {
+                return $this->error("Attendance cannot be marked on a holiday: {$holiday->title}.", 422);
+            }
 
             $student = Student::find($validated['student_id']);
 

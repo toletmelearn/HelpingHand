@@ -67,7 +67,7 @@ class MigrationPlatformIntegrationTest extends TestCase
             'date_of_birth' => '2015-05-10',
             'admission_date' => '2026-04-01',
             'is_active' => true,
-            'aadhar_number' => '123456789012',
+            'aadhaar_number' => '123456789012',
             'address' => '123 Test Rd'
         ]);
         $this->assertEquals('green', $engine->getModuleStatus('students'));
@@ -106,7 +106,7 @@ class MigrationPlatformIntegrationTest extends TestCase
             'date_of_birth' => '2015-05-10',
             'admission_date' => '2026-04-01',
             'is_active' => true,
-            'aadhar_number' => '123456789012',
+            'aadhaar_number' => '123456789012',
             'address' => '123 Test Rd'
         ]);
         Teacher::create([

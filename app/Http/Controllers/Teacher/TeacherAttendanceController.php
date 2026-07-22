@@ -187,7 +187,7 @@ class TeacherAttendanceController extends Controller
         // Verify teacher has access to this student's class
         // FIXED: Use assignment-based access, not direct teacher->class_id
         $hasAccess = \App\Models\TeacherClassSubjectAssignment::where('teacher_id', $teacher->id)
-            ->where('class_id', $student->class_id)
+            ->where('class_id', $student->school_class_id)
             ->exists();
         
         if (!$hasAccess) {

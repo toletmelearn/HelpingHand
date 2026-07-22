@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Student;
 use App\Models\Teacher;
 use App\Models\ClassManagement;
+use App\Models\LegacyClassMap;
 use App\Models\FieldPermission;
 use App\Models\AuditLog;
 use Illuminate\Http\Request;
@@ -22,7 +23,14 @@ class ClassTeacherController extends Controller
         if (auth()->user() && auth()->user()->roles->pluck('name')->contains('class-teacher')) {
             $classTeacher = Teacher::where('user_id', auth()->user()->id)->first();
             if ($classTeacher) {
-                $classIds = $classTeacher->classes()->pluck('class_management.id')->toArray();
+                // Teacher::classes() is keyed to class_management, but
+                // Student::class_id is a school_classes id -- translate
+                // through legacy_class_map so this actually scopes to the
+                // teacher's real classes.
+                $classManagementIds = $classTeacher->classes()->pluck('class_management.id')->toArray();
+                $classIds = LegacyClassMap::whereIn('class_management_id', $classManagementIds)
+                    ->pluck('school_class_id')
+                    ->toArray();
                 $query->whereIn('class_id', $classIds);
             }
         }

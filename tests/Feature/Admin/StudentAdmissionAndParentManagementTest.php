@@ -56,7 +56,7 @@ class StudentAdmissionAndParentManagementTest extends TestCase
             'date_of_birth' => '2018-05-15',
             'gender' => 'male',
             'category' => 'General',
-            'aadhar_number' => '123456789012',
+            'aadhaar_number' => '123456789012',
             'address' => '456 Garden Lane',
             'roll_number' => 10,
         ]);
@@ -168,13 +168,13 @@ class StudentAdmissionAndParentManagementTest extends TestCase
                 'date_of_birth' => '2016-01-01',
                 'gender' => 'male',
                 'category' => 'General',
-                // aadhar_number intentionally omitted to exercise the placeholder generator
+                // aadhaar_number intentionally omitted to exercise the placeholder generator
             ]);
 
             $response->assertSessionHas('success');
             $student = Student::where('name', "Placeholder Kid {$i}")->firstOrFail();
-            $this->assertStringStartsWith('TBD-', $student->aadhar_number);
-            $generatedAadhaar[] = $student->aadhar_number;
+            $this->assertStringStartsWith('TBD-', $student->aadhaar_number);
+            $generatedAadhaar[] = $student->aadhaar_number;
 
             // Parent password must never be the old fixed default, and must require a reset.
             $parent = ParentModel::where('student_id', $student->id)->first();
@@ -339,7 +339,7 @@ class StudentAdmissionAndParentManagementTest extends TestCase
             'date_of_birth' => '2015-01-01',
             'gender' => 'male',
             'category' => 'General',
-            'aadhar_number' => '111122223333',
+            'aadhaar_number' => '111122223333',
             'phone' => '9000000000',
             'address' => 'Somewhere',
             'class_id' => $class->id,
@@ -383,7 +383,7 @@ class StudentAdmissionAndParentManagementTest extends TestCase
             'date_of_birth' => '2015-01-01',
             'gender' => 'male',
             'category' => 'General',
-            'aadhar_number' => '222233334444',
+            'aadhaar_number' => '222233334444',
             'phone' => '9000000001',
             'address' => 'Somewhere',
             'class_id' => $class->id,
@@ -561,7 +561,7 @@ class StudentAdmissionAndParentManagementTest extends TestCase
             'date_of_birth' => '2016-01-01',
             'gender' => 'male',
             'category' => 'General',
-            'aadhar_number' => '111111111111',
+            'aadhaar_number' => '111111111111',
             'phone' => '1234567890',
             'address' => 'Street 1',
             'parent_id' => $parent->id,
@@ -574,7 +574,7 @@ class StudentAdmissionAndParentManagementTest extends TestCase
             'date_of_birth' => '2017-02-02',
             'gender' => 'female',
             'category' => 'General',
-            'aadhar_number' => '222222222222',
+            'aadhaar_number' => '222222222222',
             'phone' => '1234567890',
             'address' => 'Street 1',
             'parent_id' => $parent->id,
@@ -608,7 +608,7 @@ class StudentAdmissionAndParentManagementTest extends TestCase
             'date_of_birth' => '2018-03-03',
             'gender' => 'male',
             'category' => 'General',
-            'aadhar_number' => '333333333333',
+            'aadhaar_number' => '333333333333',
             'phone' => '0000000000',
             'address' => 'Street 2',
         ]);

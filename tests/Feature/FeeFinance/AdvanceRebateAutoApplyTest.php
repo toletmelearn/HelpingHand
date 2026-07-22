@@ -37,7 +37,7 @@ class AdvanceRebateAutoApplyTest extends TestCase
         $student = Student::create([
             'name' => 'Rebate Kid', 'father_name' => 'Father', 'mother_name' => 'Mother',
             'date_of_birth' => '2015-01-01', 'gender' => 'male', 'category' => 'General',
-            'aadhar_number' => (string) random_int(100000000000, 999999999999),
+            'aadhaar_number' => (string) random_int(100000000000, 999999999999),
             'phone' => '9' . random_int(100000000, 999999999), 'address' => 'Somewhere',
         ]);
 
@@ -198,7 +198,7 @@ class AdvanceRebateAutoApplyTest extends TestCase
         $student = Student::create([
             'name' => 'Scoped Rebate Kid', 'father_name' => 'Father', 'mother_name' => 'Mother',
             'date_of_birth' => '2015-01-01', 'gender' => 'male', 'category' => 'General',
-            'aadhar_number' => (string) random_int(100000000000, 999999999999),
+            'aadhaar_number' => (string) random_int(100000000000, 999999999999),
             'phone' => '9' . random_int(100000000, 999999999), 'address' => 'Somewhere',
         ]);
         $structure = FeeStructure::create(['class_name' => 'Class 1', 'academic_year' => '2026-2027', 'frequency' => 'yearly', 'status' => 'active']);

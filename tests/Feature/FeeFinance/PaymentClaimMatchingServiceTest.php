@@ -24,7 +24,7 @@ class PaymentClaimMatchingServiceTest extends TestCase
         $student = Student::create([
             'name' => 'Matching Kid', 'father_name' => 'Father', 'mother_name' => 'Mother',
             'date_of_birth' => '2015-01-01', 'gender' => 'male', 'category' => 'General',
-            'aadhar_number' => (string) random_int(100000000000, 999999999999),
+            'aadhaar_number' => (string) random_int(100000000000, 999999999999),
             'admission_no' => $admissionNo,
             'phone' => '9' . random_int(100000000, 999999999), 'address' => 'Somewhere',
         ]);

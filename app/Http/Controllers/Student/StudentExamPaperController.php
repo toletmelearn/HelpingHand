@@ -19,7 +19,7 @@ class StudentExamPaperController extends Controller
         }
         
         $examPapers = ExamPaper::where('is_published', true)
-            ->where('class_id', $student->class_id)
+            ->where('class_id', $student->school_class_id)
             ->orderBy('created_at', 'desc')
             ->paginate(15);
         

@@ -19,7 +19,9 @@ class AuthServiceProvider extends ServiceProvider
         'App\Models\BellSchedule' => 'App\Policies\BellSchedulePolicy',
         'App\Models\SpecialDayOverride' => 'App\Policies\SpecialDayOverridePolicy',
         'App\Models\ClassTeacherAssignment' => 'App\Policies\ClassTeacherAssignmentPolicy',
-        'App\Models\ClassManagement' => 'App\Policies\ClassManagementPolicy',
+        // ClassManagement => ClassManagementPolicy mapping removed (see A4):
+        // the policy class never existed, so authorize()/can() against a
+        // ClassManagement instance would have thrown if ever invoked.
         'App\Models\Book' => 'App\Policies\BookPolicy',
         'App\Models\BookIssue' => 'App\Policies\BookIssuePolicy',
         'App\Models\LessonPlan' => 'App\Policies\LessonPlanPolicy',
@@ -45,7 +47,9 @@ class AuthServiceProvider extends ServiceProvider
         'App\Models\Syllabus' => 'App\Policies\SyllabusPolicy',
         'App\Models\DailyTeachingWork' => 'App\Policies\DailyTeachingWorkPolicy',
         'App\Models\BellTiming' => 'App\Policies\BellTimingPolicy',
-        
+        'App\Models\TimetableSlot' => 'App\Policies\TimetableSlotPolicy',
+        'App\Models\AcademicEvent' => 'App\Policies\AcademicEventPolicy',
+
         // Class Teacher Policy
         'App\Http\Controllers\ClassTeacherAssignmentController' => 'App\Policies\ClassTeacherPolicy',
     ];

@@ -34,7 +34,7 @@ class ReportCardDesignerTest extends TestCase
             'father_name' => 'Mr. Granger',
             'mother_name' => 'Mrs. Granger',
             'date_of_birth' => '2016-09-19',
-            'aadhar_number' => '111122223330',
+            'aadhaar_number' => '111122223330',
             'address' => 'London',
             'phone' => '9876543210',
             'gender' => 'female',

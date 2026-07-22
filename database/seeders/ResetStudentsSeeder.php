@@ -34,7 +34,7 @@ class ResetStudentsSeeder extends Seeder
                         'phone' => '90000000'.$i,
                         'mobile' => '98'.rand(10000000, 99999999),
                         'date_of_birth' => '2010-01-01',
-                        'aadhar_number' => '1234567890'.$class->id.$section->id.$i,
+                        'aadhaar_number' => '1234567890'.$class->id.$section->id.$i,
                         'address' => 'Test Address',
                         'gender' => 'male',
                         'category' => 'General',

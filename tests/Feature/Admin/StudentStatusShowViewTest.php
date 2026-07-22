@@ -33,6 +33,11 @@ class StudentStatusShowViewTest extends TestCase
 
     public function test_student_status_show_displays_canonical_school_class_name(): void
     {
+        // school_class_id is master (see Phase A closure) and wins over a
+        // disagreeing legacy class_id -- school_class_id=8 names "Class 5",
+        // not class_id=11's "Class 8". This test previously (incorrectly)
+        // asserted the class_id-derived name, which was the exact backwards
+        // priority Phase A closure fixed.
         $this->seedStudentStatus([
             'class' => 'Legacy Class',
             'class_id' => 11,
@@ -43,7 +48,7 @@ class StudentStatusShowViewTest extends TestCase
 
         $html = $this->renderStatusShow();
 
-        $this->assertStringContainsString('Class 8', $html);
+        $this->assertStringContainsString('Class 5', $html);
         $this->assertStringContainsString('C', $html);
         $this->assertStringNotContainsString('Legacy Class', $html);
     }

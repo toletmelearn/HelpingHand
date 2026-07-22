@@ -9,6 +9,7 @@ use App\Models\Student;
 use App\Models\SchoolClass;
 use App\Models\Teacher;
 use App\Models\User;
+use App\Models\LegacyClassMap;
 use App\Notifications\DefaulterActionNotification;
 use App\Services\DefaulterService;
 use App\Services\ExamRestrictionService;
@@ -59,7 +60,15 @@ class DefaulterController extends Controller
             return null; // e.g. Receptionist -- no class of their own, sees all.
         }
 
-        return $teacher->classes()->pluck('class_management.id')->toArray();
+        // Teacher::classes() is keyed to class_management (the legacy class
+        // table), but Student::class_id/school_class_id are school_classes
+        // ids -- translate through legacy_class_map so this scoping actually
+        // matches the students it's meant to.
+        $classManagementIds = $teacher->classes()->pluck('class_management.id')->toArray();
+
+        return LegacyClassMap::whereIn('class_management_id', $classManagementIds)
+            ->pluck('school_class_id')
+            ->toArray();
     }
 
     /**

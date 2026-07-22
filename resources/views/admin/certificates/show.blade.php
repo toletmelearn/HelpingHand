@@ -34,6 +34,11 @@
                         <a href="{{ route('admin.certificates.preview', $certificate->id) }}" class="btn btn-info btn-sm" target="_blank">
                             <i class="fas fa-eye"></i> Preview
                         </a>
+                        @if(in_array($certificate->status, ['generated', 'published', 'locked']))
+                        <a href="{{ route('admin.certificates.download-pdf', $certificate->id) }}" class="btn btn-success btn-sm">
+                            <i class="fas fa-file-pdf"></i> Download PDF
+                        </a>
+                        @endif
                     </div>
                 </div>
                 <div class="card-body">

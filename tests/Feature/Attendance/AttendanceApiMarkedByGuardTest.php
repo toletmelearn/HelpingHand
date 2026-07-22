@@ -69,10 +69,23 @@ class AttendanceApiMarkedByGuardTest extends TestCase
             $table->string('device_info')->nullable();
             $table->timestamps();
         });
+
+        Schema::create('academic_events', function (Blueprint $table) {
+            $table->increments('id');
+            $table->integer('academic_session_id')->nullable();
+            $table->string('title');
+            $table->string('type');
+            $table->date('start_date');
+            $table->date('end_date');
+            $table->text('description')->nullable();
+            $table->boolean('is_active')->default(true);
+            $table->timestamps();
+        });
     }
 
     protected function tearDown(): void
     {
+        Schema::dropIfExists('academic_events');
         Schema::dropIfExists('attendances');
         Schema::dropIfExists('student_statuses');
         Schema::dropIfExists('students');

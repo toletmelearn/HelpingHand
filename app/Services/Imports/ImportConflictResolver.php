@@ -26,8 +26,14 @@ class ImportConflictResolver
             }
         }
 
-        if (isset($data['aadhar_number']) && !empty($data['aadhar_number'])) {
-            $query = DB::table($table)->where('aadhar_number', $data['aadhar_number']);
+        // students standardized on "aadhaar_number"; teachers/guardians/etc.
+        // still use the original "aadhar_number" spelling -- this resolver
+        // is shared across all of them, so pick the key/column that
+        // actually matches the table being imported.
+        $aadhaarKey = $table === 'students' ? 'aadhaar_number' : 'aadhar_number';
+
+        if (isset($data[$aadhaarKey]) && !empty($data[$aadhaarKey])) {
+            $query = DB::table($table)->where($aadhaarKey, $data[$aadhaarKey]);
             if ($hasSoftDeletes) {
                 $query->whereNull('deleted_at');
             }

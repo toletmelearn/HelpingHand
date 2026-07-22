@@ -32,7 +32,10 @@ class TeacherClassAssignment extends Model
 
     public function class()
     {
-        return $this->belongsTo(ClassManagement::class, 'class_id');
+        // teacher_class_assignments.class_id has always had a real DB
+        // foreign key to school_classes (see the 2026_02_05 migration), not
+        // class_management -- this relation was pointed at the wrong model.
+        return $this->belongsTo(SchoolClass::class, 'class_id');
     }
 
     // Scopes

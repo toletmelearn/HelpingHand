@@ -47,17 +47,24 @@ class Student extends Authenticatable
                 return;
             }
 
-            if ($student->class_id !== null && $student->school_class_id === null) {
-                // Unlike school_class_id, class_id has no foreign key
-                // constraint -- some legacy/loosely-normalized rows carry a
-                // class_id that isn't a real school_classes row. Only copy
-                // it across when it actually resolves, so this sync can
-                // never itself cause a constraint-violation write failure.
+            if ($student->school_class_id !== null) {
+                // school_class_id is master (see Phase A closure): class_id
+                // always derives from it, even overriding a stale or
+                // conflicting value a caller also set explicitly.
+                if ((int) $student->class_id !== (int) $student->school_class_id) {
+                    $student->class_id = (int) $student->school_class_id;
+                }
+            } elseif ($student->class_id !== null) {
+                // Legacy write path: caller only set class_id (no
+                // school_class_id at all). Unlike school_class_id, class_id
+                // has no foreign key constraint -- some legacy/loosely-
+                // normalized rows carry a class_id that isn't a real
+                // school_classes row. Only copy it across when it actually
+                // resolves, so this fallback can never itself cause a
+                // constraint-violation write failure.
                 if (\App\Models\SchoolClass::whereKey($student->class_id)->exists()) {
                     $student->school_class_id = $student->class_id;
                 }
-            } elseif ($student->school_class_id !== null && $student->class_id === null) {
-                $student->class_id = $student->school_class_id;
             }
         });
 
@@ -178,11 +185,28 @@ class Student extends Authenticatable
         });
     }
 
+    /**
+     * @deprecated 'class' (free-text label) and 'class_id' (legacy FK) are
+     * both derived/legacy as of Phase A closure. school_class_id is the
+     * authoritative class reference -- read/write through it (or the
+     * schoolClass() relation), not these two. Kept fillable for one release
+     * as read-only-in-practice legacy columns; not yet dropped from the
+     * schema.
+     */
+    /**
+     * apaar_consent_given/apaar_consent_date/apaar_consent_by are
+     * deliberately NOT fillable -- DPDP-relevant consent records must only
+     * be set via the dedicated consent-recording action
+     * (AdminStudentController::recordApaarConsent()), never through the
+     * generic create/update form. Set them via direct property assignment
+     * there, which bypasses mass-assignment protection as intended.
+     */
     protected $fillable = [
-        'name', 'father_name', 'mother_name', 'date_of_birth', 'aadhar_number',
+        'name', 'father_name', 'mother_name', 'date_of_birth', 'aadhaar_number',
         'admission_no', 'admission_session_id', 'phone', 'mobile', 'gender', 'category', 'is_rte', 'is_special_needs', 'referred_by_admission_no', 'class', 'section', 'roll_number',
         'religion', 'caste', 'blood_group', 'address', 'user_id', 'is_verified',
-        'guardian_name', 'class_id', 'section_id', 'photo', 'family_id'
+        'guardian_name', 'class_id', 'school_class_id', 'section_id', 'photo', 'family_id',
+        'udise_pen', 'apaar_id', 'name_as_per_aadhaar',
     ];
     
     protected $casts = [
@@ -190,9 +214,12 @@ class Student extends Authenticatable
         'admission_no' => 'string',
         'mobile' => 'string',
         'class_id' => 'integer',
+        'school_class_id' => 'integer',
         'guardian_name' => 'string',
         'is_rte' => 'boolean',
-        'is_special_needs' => 'boolean'
+        'is_special_needs' => 'boolean',
+        'apaar_consent_given' => 'boolean',
+        'apaar_consent_date' => 'date',
     ];
     
     protected $dates = ['date_of_birth'];
@@ -280,14 +307,42 @@ class Student extends Authenticatable
         return $this->belongsTo(Section::class, 'section_id');
     }
 
-    public function canonicalClassId(): ?int
+    /**
+     * Case/whitespace-insensitive mismatch between the student's name and
+     * name_as_per_aadhaar. False (not a mismatch) when there's nothing to
+     * compare against yet -- an unset name_as_per_aadhaar isn't itself a
+     * data-quality problem, just missing compliance data.
+     */
+    public function hasAadhaarNameMismatch(): bool
     {
-        if ($this->class_id !== null) {
-            return (int) $this->class_id;
+        if (empty($this->name_as_per_aadhaar)) {
+            return false;
         }
 
+        return trim(mb_strtolower((string) $this->name)) !== trim(mb_strtolower((string) $this->name_as_per_aadhaar));
+    }
+
+    /**
+     * SQL-level equivalent of hasAadhaarNameMismatch(), for filtering an
+     * admin list without loading every student into PHP.
+     */
+    public function scopeAadhaarNameMismatch($query)
+    {
+        return $query->whereNotNull('name_as_per_aadhaar')
+            ->where('name_as_per_aadhaar', '!=', '')
+            ->whereRaw('LOWER(TRIM(name)) != LOWER(TRIM(name_as_per_aadhaar))');
+    }
+
+    public function canonicalClassId(): ?int
+    {
+        // school_class_id is master (see Phase A closure); class_id is
+        // legacy/derived and only consulted if school_class_id is unset.
         if ($this->school_class_id !== null) {
             return (int) $this->school_class_id;
+        }
+
+        if ($this->class_id !== null) {
+            return (int) $this->class_id;
         }
 
         return null;
@@ -321,12 +376,12 @@ class Student extends Authenticatable
 
     private function classCompatibilitySource(): string
     {
-        if ($this->class_id !== null) {
-            return 'class_id';
+        if ($this->school_class_id !== null) {
+            return 'school_class_id';
         }
 
-        if ($this->school_class_id !== null) {
-            return 'school_class_id_fallback';
+        if ($this->class_id !== null) {
+            return 'class_id_fallback';
         }
 
         return 'none';

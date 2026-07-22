@@ -58,7 +58,7 @@ class FinanceReportTest extends TestCase
             'father_name' => 'Father',
             'mother_name' => 'Mother',
             'date_of_birth' => '2010-01-01',
-            'aadhar_number' => '123456789012',
+            'aadhaar_number' => '123456789012',
             'address' => 'Test Address',
             'phone' => '9876543210',
             'class_id' => $this->schoolClass->id,
@@ -141,7 +141,7 @@ class FinanceReportTest extends TestCase
         $juniorClass = SchoolClass::create(['name' => 'Class 5', 'class_order' => 5]);
         $juniorStudent = Student::create([
             'name' => 'Amit Junior', 'admission_no' => 'ADM-2026-5001', 'father_name' => 'Father',
-            'mother_name' => 'Mother', 'date_of_birth' => '2015-01-01', 'aadhar_number' => '555555555555',
+            'mother_name' => 'Mother', 'date_of_birth' => '2015-01-01', 'aadhaar_number' => '555555555555',
             'address' => 'Test', 'phone' => '9555555555', 'class_id' => $juniorClass->id,
         ]);
 
@@ -151,7 +151,7 @@ class FinanceReportTest extends TestCase
         $otherSection = Section::create(['name' => 'B', 'class_id' => $this->schoolClass->id]);
         $otherSectionStudent = Student::create([
             'name' => 'Priya OtherSection', 'admission_no' => 'ADM-2026-5002', 'father_name' => 'Father',
-            'mother_name' => 'Mother', 'date_of_birth' => '2010-01-01', 'aadhar_number' => '666666666666',
+            'mother_name' => 'Mother', 'date_of_birth' => '2010-01-01', 'aadhaar_number' => '666666666666',
             'address' => 'Test', 'phone' => '9666666666', 'class_id' => $this->schoolClass->id,
             'section_id' => $otherSection->id,
         ]);

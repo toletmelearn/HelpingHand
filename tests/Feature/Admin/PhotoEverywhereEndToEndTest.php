@@ -55,7 +55,7 @@ class PhotoEverywhereEndToEndTest extends TestCase
         $this->student = Student::create([
             'name' => 'Photo Test Student', 'father_name' => 'Father', 'mother_name' => 'Mother',
             'date_of_birth' => '2015-01-01', 'gender' => 'male', 'category' => 'General',
-            'aadhar_number' => '999911112222', 'phone' => '9998887766', 'address' => 'Somewhere',
+            'aadhaar_number' => '999911112222', 'phone' => '9998887766', 'address' => 'Somewhere',
             'photo' => UploadedFile::fake()->image('student.jpg')->store('student_photos', 'public'),
         ]);
 

@@ -439,10 +439,10 @@
                 </div>
                 <div class="nav-collapse">
                     <ul class="nav flex-column">
-                        @if(Route::has('admin.classes.index') && (Auth::user()->hasRole(['admin', 'staff']) || Auth::user()->hasPermission('view-classes')))
+                        @if(Route::has('admin.school-classes.index') && (Auth::user()->hasRole(['admin', 'staff']) || Auth::user()->hasPermission('view-classes')))
                         <li class="nav-item">
-                            <a class="nav-link text-white {{ request()->routeIs('admin.classes.*') ? 'active' : '' }}" 
-                               href="{{ route('admin.classes.index') }}">
+                            <a class="nav-link text-white {{ request()->routeIs('admin.school-classes.*') ? 'active' : '' }}"
+                               href="{{ route('admin.school-classes.index') }}">
                                 <i class="bi bi-building me-2"></i>
                                 <span>Classes</span>
                             </a>
@@ -472,6 +472,15 @@
                                href="{{ route('admin.academic-sessions.index') }}">
                                 <i class="bi bi-calendar-check me-2"></i>
                                 <span>Academic Sessions</span>
+                            </a>
+                        </li>
+                        @endif
+                        @if(Route::has('admin.academic-events.index') && (Auth::user()->hasRole(['admin', 'staff']) || Auth::user()->hasPermission('view-academic-events')))
+                        <li class="nav-item">
+                            <a class="nav-link text-white {{ request()->routeIs('admin.academic-events.*') ? 'active' : '' }}"
+                               href="{{ route('admin.academic-events.index') }}">
+                                <i class="bi bi-calendar-week me-2"></i>
+                                <span>Academic Calendar</span>
                             </a>
                         </li>
                         @endif

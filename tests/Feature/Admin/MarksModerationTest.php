@@ -45,7 +45,7 @@ class MarksModerationTest extends TestCase
             'father_name' => 'James Potter',
             'mother_name' => 'Lily Potter',
             'date_of_birth' => '2016-07-31',
-            'aadhar_number' => '111122223339',
+            'aadhaar_number' => '111122223339',
             'address' => '4 Privet Drive',
             'phone' => '9876543219',
             'gender' => 'male',

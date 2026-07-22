@@ -5,6 +5,7 @@ namespace App\Policies;
 use App\Models\User;
 use App\Models\Teacher;
 use App\Models\Student;
+use App\Models\LegacyClassMap;
 use Illuminate\Auth\Access\Response;
 
 class ClassTeacherPolicy
@@ -33,9 +34,15 @@ class ClassTeacherPolicy
                 return false;
             }
             
-            // Check if student's class is assigned to this teacher as class teacher
-            $classIds = $classTeacher->classes()->pluck('class_management.id')->toArray();
-            return in_array($student->class_id, $classIds);
+            // Check if student's class is assigned to this teacher as class
+            // teacher. Teacher::classes() is keyed to class_management, so
+            // translate through legacy_class_map into school_classes ids --
+            // school_class_id is the student's authoritative class column.
+            $classManagementIds = $classTeacher->classes()->pluck('class_management.id')->toArray();
+            $classIds = LegacyClassMap::whereIn('class_management_id', $classManagementIds)
+                ->pluck('school_class_id')
+                ->toArray();
+            return in_array($student->school_class_id, $classIds);
         }
         
         return false;
@@ -57,9 +64,15 @@ class ClassTeacherPolicy
                 return false;
             }
             
-            // Check if student's class is assigned to this teacher as class teacher
-            $classIds = $classTeacher->classes()->pluck('class_management.id')->toArray();
-            return in_array($student->class_id, $classIds);
+            // Check if student's class is assigned to this teacher as class
+            // teacher. Teacher::classes() is keyed to class_management, so
+            // translate through legacy_class_map into school_classes ids --
+            // school_class_id is the student's authoritative class column.
+            $classManagementIds = $classTeacher->classes()->pluck('class_management.id')->toArray();
+            $classIds = LegacyClassMap::whereIn('class_management_id', $classManagementIds)
+                ->pluck('school_class_id')
+                ->toArray();
+            return in_array($student->school_class_id, $classIds);
         }
         
         return false;

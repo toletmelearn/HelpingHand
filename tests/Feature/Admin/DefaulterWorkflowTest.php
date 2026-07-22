@@ -64,7 +64,7 @@ class DefaulterWorkflowTest extends TestCase
             'father_name' => 'Father',
             'mother_name' => 'Mother',
             'date_of_birth' => '2010-01-01',
-            'aadhar_number' => '123456789012',
+            'aadhaar_number' => '123456789012',
             'address' => 'Test Address',
             'phone' => '9876543210',
             'class_id' => $this->schoolClass->id,
@@ -345,7 +345,7 @@ class DefaulterWorkflowTest extends TestCase
         $otherStudent = Student::create([
             'name' => 'Outside Class Kid', 'admission_no' => 'ADM-2026-8888',
             'father_name' => 'Father', 'mother_name' => 'Mother', 'date_of_birth' => '2010-01-01',
-            'aadhar_number' => '999999999999', 'address' => 'Test Address', 'phone' => '9998887777',
+            'aadhaar_number' => '999999999999', 'address' => 'Test Address', 'phone' => '9998887777',
             'class_id' => $otherClass->id,
         ]);
 
@@ -372,6 +372,14 @@ class DefaulterWorkflowTest extends TestCase
         ]);
         $classManagement = ClassManagement::create(['name' => 'Class 10', 'is_active' => true]);
         $teacherRecord->classes()->attach($classManagement->id);
+        // scopedClassIds() translates class_management assignments to
+        // school_classes ids via legacy_class_map (see A3) -- a real
+        // migration/admin action would link these two "Class 10" rows the
+        // same way the fixture does here.
+        \App\Models\LegacyClassMap::create([
+            'class_management_id' => $classManagement->id,
+            'school_class_id' => $this->schoolClass->id,
+        ]);
 
         // Index only shows their own class's defaulter, not the other class's.
         $mockNotificationService = $this->createMock(\App\Services\NotificationService::class);
@@ -409,7 +417,7 @@ class DefaulterWorkflowTest extends TestCase
     {
         $julyDefaulter = Student::create([
             'name' => 'July Debtor', 'admission_no' => 'ADM-2026-7001', 'father_name' => 'Father',
-            'mother_name' => 'Mother', 'date_of_birth' => '2010-01-01', 'aadhar_number' => '111111111111',
+            'mother_name' => 'Mother', 'date_of_birth' => '2010-01-01', 'aadhaar_number' => '111111111111',
             'address' => 'Test', 'phone' => '9111111111', 'class_id' => $this->schoolClass->id,
         ]);
         StudentFeeLedger::create([
@@ -420,7 +428,7 @@ class DefaulterWorkflowTest extends TestCase
 
         $decemberDefaulter = Student::create([
             'name' => 'December Debtor', 'admission_no' => 'ADM-2026-7002', 'father_name' => 'Father',
-            'mother_name' => 'Mother', 'date_of_birth' => '2010-01-01', 'aadhar_number' => '222222222222',
+            'mother_name' => 'Mother', 'date_of_birth' => '2010-01-01', 'aadhaar_number' => '222222222222',
             'address' => 'Test', 'phone' => '9222222222', 'class_id' => $this->schoolClass->id,
         ]);
         StudentFeeLedger::create([
@@ -460,7 +468,7 @@ class DefaulterWorkflowTest extends TestCase
         // of actual age until this was caught via manual browser testing.
         $recentDebtor = Student::create([
             'name' => 'Recent Debtor', 'admission_no' => 'ADM-2026-8001', 'father_name' => 'Father',
-            'mother_name' => 'Mother', 'date_of_birth' => '2010-01-01', 'aadhar_number' => '311111111111',
+            'mother_name' => 'Mother', 'date_of_birth' => '2010-01-01', 'aadhaar_number' => '311111111111',
             'address' => 'Test', 'phone' => '9311111111', 'class_id' => $this->schoolClass->id,
         ]);
         StudentFeeLedger::create([
@@ -471,7 +479,7 @@ class DefaulterWorkflowTest extends TestCase
 
         $oldDebtor = Student::create([
             'name' => 'Old Debtor', 'admission_no' => 'ADM-2026-8002', 'father_name' => 'Father',
-            'mother_name' => 'Mother', 'date_of_birth' => '2010-01-01', 'aadhar_number' => '322222222222',
+            'mother_name' => 'Mother', 'date_of_birth' => '2010-01-01', 'aadhaar_number' => '322222222222',
             'address' => 'Test', 'phone' => '9322222222', 'class_id' => $this->schoolClass->id,
         ]);
         StudentFeeLedger::create([
@@ -509,7 +517,7 @@ class DefaulterWorkflowTest extends TestCase
         $otherClass = SchoolClass::create(['name' => 'Class 11', 'class_order' => 11]);
         $otherStudent = Student::create([
             'name' => 'Other Class Debtor', 'admission_no' => 'ADM-2026-9001', 'father_name' => 'Father',
-            'mother_name' => 'Mother', 'date_of_birth' => '2010-01-01', 'aadhar_number' => '444444444444',
+            'mother_name' => 'Mother', 'date_of_birth' => '2010-01-01', 'aadhaar_number' => '444444444444',
             'address' => 'Test', 'phone' => '9444444444', 'class_id' => $otherClass->id,
         ]);
         StudentFeeLedger::create([
