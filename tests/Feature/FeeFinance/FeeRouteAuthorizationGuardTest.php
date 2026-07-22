@@ -85,7 +85,7 @@ class FeeRouteAuthorizationGuardTest extends TestCase
             $table->string('father_name')->nullable();
             $table->string('mother_name')->nullable();
             $table->date('date_of_birth')->nullable();
-            $table->string('aadhar_number')->nullable();
+            $table->string('aadhaar_number')->nullable();
             $table->string('address')->nullable();
             $table->string('phone')->nullable();
             $table->timestamp('deleted_at')->nullable();

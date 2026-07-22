@@ -39,7 +39,7 @@ class FeeCollectionRegisterTest extends TestCase
             'father_name' => 'Father',
             'mother_name' => 'Mother',
             'date_of_birth' => '2010-01-01',
-            'aadhar_number' => '123456789098',
+            'aadhaar_number' => '123456789098',
             'address' => 'Address',
             'phone' => '1234567890',
         ]);

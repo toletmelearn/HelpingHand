@@ -477,7 +477,7 @@ class FrontOfficeTest extends TestCase
             'date_of_birth' => '2016-01-01',
             'gender' => 'male',
             'category' => 'General',
-            'aadhar_number' => '111111111111',
+            'aadhaar_number' => '111111111111',
             'phone' => '1234567890',
             'address' => 'Street 1',
         ]);
@@ -516,7 +516,7 @@ class FrontOfficeTest extends TestCase
             'date_of_birth' => '2016-01-01',
             'gender' => 'male',
             'category' => 'General',
-            'aadhar_number' => '222222222222',
+            'aadhaar_number' => '222222222222',
             'phone' => '1234567890',
             'address' => 'Street 1',
         ]);
@@ -548,7 +548,7 @@ class FrontOfficeTest extends TestCase
             'date_of_birth' => '2016-01-01',
             'gender' => 'male',
             'category' => 'General',
-            'aadhar_number' => '333333333333',
+            'aadhaar_number' => '333333333333',
             'phone' => '1234567890',
             'address' => 'Street 1',
         ]);
@@ -575,7 +575,7 @@ class FrontOfficeTest extends TestCase
             'date_of_birth' => '2016-01-01',
             'gender' => 'male',
             'category' => 'General',
-            'aadhar_number' => '444444444444',
+            'aadhaar_number' => '444444444444',
             'phone' => '1234567890',
             'address' => 'Street 1',
         ]);

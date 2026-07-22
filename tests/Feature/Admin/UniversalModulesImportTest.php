@@ -99,7 +99,7 @@ class UniversalModulesImportTest extends TestCase
             'class_id' => 1,
             'section_id' => 1,
             'address' => 'Student Home Address',
-            'aadhar_number' => '123456789012',
+            'aadhaar_number' => '123456789012',
             'roll_number' => 1
         ]);
 
@@ -502,7 +502,7 @@ class UniversalModulesImportTest extends TestCase
         SchoolClass::create(['name' => 'UKG', 'class_order' => 1, 'is_active' => true]);
         Section::create(['name' => 'B']);
 
-        $headers = "Name,Father Name,Mother Name,Date of Birth,Gender,Mobile,Phone,Class,Section,Aadhar Number,Roll Number,Religion,Caste,Blood Group,Address,Sibling Admission No,Admission No,Admission Type (NEW/OLD)\n";
+        $headers = "Name,Father Name,Mother Name,Date of Birth,Gender,Mobile,Phone,Class,Section,Aadhaar Number,Roll Number,Religion,Caste,Blood Group,Address,Sibling Admission No,Admission No,Admission Type (NEW/OLD)\n";
         $row = "EKANSH GUPTA,ANKIT GUPTA,SAKSHI GUPTA,16-Apr-21,M,8077294244,8279824193,UKG,B,,,,,,,,1815,\n";
 
         $file = UploadedFile::fake()->createWithContent('students_real.csv', $headers . $row);
@@ -512,7 +512,7 @@ class UniversalModulesImportTest extends TestCase
             'name' => 'Name', 'father_name' => 'Father Name', 'mother_name' => 'Mother Name',
             'date_of_birth' => 'Date of Birth', 'gender' => 'Gender', 'mobile' => 'Mobile',
             'phone' => 'Phone', 'class' => 'Class', 'section' => 'Section',
-            'aadhar_number' => 'Aadhar Number', 'roll_number' => 'Roll Number',
+            'aadhaar_number' => 'Aadhaar Number', 'roll_number' => 'Roll Number',
             'religion' => 'Religion', 'caste' => 'Caste', 'blood_group' => 'Blood Group',
             'address' => 'Address', 'sibling_admission_no' => 'Sibling Admission No',
             'admission_no' => 'Admission No', 'admission_type' => 'Admission Type (NEW/OLD)',
@@ -529,7 +529,7 @@ class UniversalModulesImportTest extends TestCase
         $this->assertEquals('SAKSHI GUPTA', $student->mother_name);
         $this->assertEquals('Not Specified', $student->address);
         $this->assertEquals('1815', $student->admission_no);
-        $this->assertNull($student->aadhar_number);
+        $this->assertNull($student->aadhaar_number);
         $this->assertNull($student->roll_number);
     }
 

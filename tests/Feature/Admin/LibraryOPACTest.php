@@ -46,7 +46,7 @@ class LibraryOPACTest extends TestCase
             'father_name' => 'John Smith',
             'mother_name' => 'Mary Smith',
             'date_of_birth' => '2016-05-15',
-            'aadhar_number' => '123456789012',
+            'aadhaar_number' => '123456789012',
             'address' => '123 School Lane',
             'phone' => '9876543210',
             'gender' => 'female',

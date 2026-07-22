@@ -45,7 +45,7 @@ class PaymentAllocationEngineTest extends TestCase
             'father_name' => 'Father',
             'mother_name' => 'Mother',
             'date_of_birth' => '2010-01-01',
-            'aadhar_number' => '987654321012',
+            'aadhaar_number' => '987654321012',
             'address' => 'Address',
             'phone' => '1234567890',
             'mobile' => '1234567890',

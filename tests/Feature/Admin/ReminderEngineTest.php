@@ -54,7 +54,7 @@ class ReminderEngineTest extends TestCase
             'father_name' => 'Father',
             'mother_name' => 'Mother',
             'date_of_birth' => '2010-01-01',
-            'aadhar_number' => '123456789012',
+            'aadhaar_number' => '123456789012',
             'address' => 'Test Address',
             'phone' => '9876543210',
             'class_id' => $this->schoolClass->id,

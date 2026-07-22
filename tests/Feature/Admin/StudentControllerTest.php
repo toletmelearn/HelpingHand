@@ -49,7 +49,7 @@ class StudentControllerTest extends TestCase
             'father_name' => 'Father Name',
             'mother_name' => 'Mother Name',
             'date_of_birth' => '2010-01-01',
-            'aadhar_number' => '123456789012',
+            'aadhaar_number' => '123456789012',
             'address' => 'Test Address',
             'mobile' => '1234567890',
             'gender' => 'male',

@@ -53,7 +53,7 @@ class PhotoUploadTest extends TestCase
         return Student::create([
             'name' => 'Test Student', 'father_name' => 'Father', 'mother_name' => 'Mother',
             'date_of_birth' => '2015-01-01', 'gender' => 'male', 'category' => 'General',
-            'aadhar_number' => '111122223333', 'phone' => '9998887770', 'address' => 'Somewhere',
+            'aadhaar_number' => '111122223333', 'phone' => '9998887770', 'address' => 'Somewhere',
         ]);
     }
 

@@ -91,7 +91,7 @@ class StudentImportWizardTest extends TestCase
             'mother_name' => 'Mother Name',
             'class' => 'Class',
             'section' => 'Section',
-            'aadhar_number' => 'Aadhar',
+            'aadhaar_number' => 'Aadhar',
             'roll_number' => 'Roll No',
             'address' => 'Address'
         ];
@@ -130,7 +130,7 @@ class StudentImportWizardTest extends TestCase
             'mother_name' => 'Mother Name',
             'class' => 'Class',
             'section' => 'Section',
-            'aadhar_number' => 'Aadhar',
+            'aadhaar_number' => 'Aadhar',
             'roll_number' => 'Roll No',
             'address' => 'Address'
         ];
@@ -178,7 +178,7 @@ class StudentImportWizardTest extends TestCase
             'mobile' => '9999999999',
             'class_id' => $this->testClass->id,
             'section_id' => $this->testSection->id,
-            'aadhar_number' => '999999999999',
+            'aadhaar_number' => '999999999999',
             'address' => 'Existing road'
         ]);
 
@@ -198,7 +198,7 @@ class StudentImportWizardTest extends TestCase
             'mother_name' => 'Mother Name',
             'class' => 'Class',
             'section' => 'Section',
-            'aadhar_number' => 'Aadhar',
+            'aadhaar_number' => 'Aadhar',
             'roll_number' => 'Roll No',
             'address' => 'Address'
         ];

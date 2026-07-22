@@ -42,7 +42,7 @@ class StudentFinancialAccountTest extends TestCase
             'father_name' => 'Father',
             'mother_name' => 'Mother',
             'date_of_birth' => '2010-01-01',
-            'aadhar_number' => '987654321012',
+            'aadhaar_number' => '987654321012',
             'address' => 'Address',
             'phone' => '9876543210',
             'mobile' => '9876543210',

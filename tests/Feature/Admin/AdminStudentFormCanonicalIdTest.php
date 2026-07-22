@@ -141,7 +141,7 @@ class AdminStudentFormCanonicalIdTest extends TestCase
             'father_name' => 'Existing Father',
             'mother_name' => 'Existing Mother',
             'date_of_birth' => '2010-01-01',
-            'aadhar_number' => '111111111111',
+            'aadhaar_number' => '111111111111',
             'address' => 'Existing Address',
             'mobile' => '9876543210',
             'gender' => 'male',
@@ -200,7 +200,7 @@ class AdminStudentFormCanonicalIdTest extends TestCase
             $table->string('father_name')->nullable();
             $table->string('mother_name')->nullable();
             $table->date('date_of_birth')->nullable();
-            $table->string('aadhar_number')->nullable();
+            $table->string('aadhaar_number')->nullable();
             $table->text('address')->nullable();
             $table->string('mobile')->nullable();
             $table->string('gender')->nullable();
