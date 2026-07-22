@@ -8,6 +8,7 @@ use App\Models\CertificateTemplate;
 use App\Models\Student;
 use App\Models\StudentStatus;
 use App\Models\Teacher;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
@@ -300,6 +301,35 @@ class CertificateController extends Controller
         return view('admin.certificates.preview', compact('certificate', 'content'));
     }
     
+    /**
+     * Download the certificate as an A4 PDF. Same authorization as
+     * preview() -- the auth middleware from the constructor, no
+     * additional policy check (preview() has none either).
+     */
+    public function downloadPdf(Certificate $certificate)
+    {
+        if (!in_array($certificate->status, ['generated', 'published', 'locked'], true)) {
+            return back()->withErrors(['error' => 'Certificate cannot be downloaded in its current status.']);
+        }
+
+        $certificate->load(['recipient']);
+
+        $template = CertificateTemplate::getDefaultTemplate($certificate->certificate_type);
+        if (!$template) {
+            return back()->withErrors(['error' => 'No template found for this certificate type.']);
+        }
+
+        $content = $this->renderCertificateContent($certificate, $template);
+
+        $pdf = Pdf::loadView('admin.certificates.certificate-pdf', compact('certificate', 'content'));
+
+        $recipientName = $certificate->recipient->name ?? 'recipient';
+        $safeName = preg_replace('/[^A-Za-z0-9_-]+/', '_', $recipientName);
+        $filename = "{$certificate->serial_number}_{$safeName}.pdf";
+
+        return $pdf->download($filename);
+    }
+
     private function renderCertificateContent(Certificate $certificate, CertificateTemplate $template)
     {
         $content = $template->template_content;
