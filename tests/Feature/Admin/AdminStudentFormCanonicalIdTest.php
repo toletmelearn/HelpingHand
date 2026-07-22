@@ -57,6 +57,8 @@ class AdminStudentFormCanonicalIdTest extends TestCase
 
     public function test_admin_edit_form_selects_student_canonical_class_id(): void
     {
+        // school_class_id is master (see Phase A closure) and wins over a
+        // disagreeing legacy class_id -- id 8, not 11, should be selected.
         $studentId = $this->insertStudent([
             'class' => 'Class 8',
             'class_id' => 11,
@@ -70,7 +72,7 @@ class AdminStudentFormCanonicalIdTest extends TestCase
             ->getContent();
 
         $this->assertStringContainsString('name="class_id"', $content);
-        $this->assertStringContainsString('<option value="11" selected>', $content);
+        $this->assertStringContainsString('<option value="8" selected>', $content);
     }
 
     public function test_admin_edit_form_selects_student_section_id(): void
