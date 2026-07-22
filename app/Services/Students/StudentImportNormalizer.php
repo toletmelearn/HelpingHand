@@ -103,9 +103,9 @@ class StudentImportNormalizer
 
     private function addDuplicateWarnings(array $row, array &$warnings): void
     {
-        $aadharNumber = $this->firstFilled($row, ['aadhar_number', 'Aadhar Number', 5]);
-        if ($aadharNumber !== null && Student::where('aadhar_number', $aadharNumber)->exists()) {
-            $warnings[] = 'Duplicate aadhar_number found.';
+        $aadharNumber = $this->firstFilled($row, ['aadhaar_number', 'Aadhaar Number', 5]);
+        if ($aadharNumber !== null && Student::where('aadhaar_number', $aadharNumber)->exists()) {
+            $warnings[] = 'Duplicate aadhaar_number found.';
         }
 
         $rollNumber = $this->firstFilled($row, ['roll_number', 'Roll Number', 11]);

@@ -107,8 +107,8 @@
                 <td>{{ $student->phone }}</td>
             </tr>
             <tr>
-                <td>Aadhar Number</td>
-                <td>{{ $student->aadhar_number }}</td>
+                <td>Aadhaar Number</td>
+                <td>{{ $student->aadhaar_number }}</td>
             </tr>
             <tr>
                 <td>Address</td>

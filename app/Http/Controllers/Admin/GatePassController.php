@@ -228,7 +228,7 @@ class GatePassController extends Controller
             ->where(function($query) use ($search) {
                 $query->where('name', 'like', "%{$search}%")
                       ->orWhere('admission_no', 'like', "%{$search}%")
-                      ->orWhere('aadhar_number', 'like', "%{$search}%")
+                      ->orWhere('aadhaar_number', 'like', "%{$search}%")
                       ->orWhere('father_name', 'like', "%{$search}%");
             })
             ->latest()

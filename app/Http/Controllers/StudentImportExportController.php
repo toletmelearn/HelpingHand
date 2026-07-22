@@ -34,7 +34,7 @@ class StudentImportExportController extends Controller
 
             fputcsv($file, [
                 'ID', 'Name', 'Father Name', 'Mother Name', 'Date of Birth',
-                'Aadhar Number', 'Phone', 'Mobile', 'Gender', 'Category', 'Class ID',
+                'Aadhaar Number', 'Phone', 'Mobile', 'Gender', 'Category', 'Class ID',
                 'Class', 'Section ID', 'Section', 'Roll Number', 'Religion', 'Caste',
                 'Blood Group', 'Address', 'Admission No'
             ]);
@@ -46,7 +46,7 @@ class StudentImportExportController extends Controller
                     $student->father_name,
                     $student->mother_name,
                     $student->date_of_birth ? $student->date_of_birth->format('Y-m-d') : '',
-                    $student->aadhar_number,
+                    $student->aadhaar_number,
                     $student->phone,
                     $student->mobile,
                     $student->gender,
@@ -94,7 +94,7 @@ class StudentImportExportController extends Controller
                         $student->father_name,
                         $student->mother_name,
                         $student->date_of_birth ? $student->date_of_birth->format('Y-m-d') : '',
-                        $student->aadhar_number,
+                        $student->aadhaar_number,
                         $student->phone,
                         $student->mobile,
                         $student->gender,
@@ -117,7 +117,7 @@ class StudentImportExportController extends Controller
             {
                 return [
                     'ID', 'Name', 'Father Name', 'Mother Name', 'Date of Birth',
-                    'Aadhar Number', 'Phone', 'Mobile', 'Gender', 'Category', 'Class ID',
+                    'Aadhaar Number', 'Phone', 'Mobile', 'Gender', 'Category', 'Class ID',
                     'Class', 'Section ID', 'Section', 'Roll Number', 'Religion', 'Caste',
                     'Blood Group', 'Address', 'Admission No'
                 ];
@@ -441,7 +441,7 @@ class StudentImportExportController extends Controller
             $rowNumber = $row['row_number'] ?? 'unknown';
 
             foreach ([
-                'aadhar_number' => ['aadhar_number', 'Aadhar Number', 5],
+                'aadhaar_number' => ['aadhaar_number', 'Aadhaar Number', 5],
                 'roll_number' => ['roll_number', 'Roll Number', 11],
             ] as $field => $keys) {
                 $value = $this->firstImportValue($row['original'] ?? [], $keys);
@@ -475,7 +475,7 @@ class StudentImportExportController extends Controller
             'father_name' => $this->firstImportValue($original, ['father_name', 'Father Name', 2]) ?? '',
             'mother_name' => $this->firstImportValue($original, ['mother_name', 'Mother Name', 3]) ?? '',
             'date_of_birth' => $this->parseDate($this->firstImportValue($original, ['date_of_birth', 'Date of Birth', 4]) ?? ''),
-            'aadhar_number' => $this->firstImportValue($original, ['aadhar_number', 'Aadhar Number', 5]) ?: 'TBD-' . \Illuminate\Support\Str::random(12),
+            'aadhaar_number' => $this->firstImportValue($original, ['aadhaar_number', 'Aadhaar Number', 5]) ?: 'TBD-' . \Illuminate\Support\Str::random(12),
             'phone' => $this->firstImportValue($original, ['phone', 'Phone', 6]) ?? '',
             'mobile' => $this->firstImportValue($original, ['mobile', 'Mobile']),
             'gender' => strtolower($this->firstImportValue($original, ['gender', 'Gender', 7]) ?? 'male'),
