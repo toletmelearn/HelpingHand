@@ -45,7 +45,7 @@
                                 <option value="">Select Class</option>
                                 @foreach($classes as $class)
                                     <option value="{{ $class->name }}" {{ old('class_name', $exam->class_name) == $class->name ? 'selected' : '' }}>
-                                        {{ $class->name }} {{ $class->section ? '- '.$class->section : '' }}
+                                        {{ $class->name }} {{ $class->section?->name ? '- '.$class->section->name : '' }}
                                     </option>
                                 @endforeach
                             </select>

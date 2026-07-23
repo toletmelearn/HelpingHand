@@ -10,6 +10,7 @@ use App\Models\ParentModel;
 use App\Models\AdmissionEnquiry;
 use App\Models\SchoolClass;
 use App\Models\ClassManagement;
+use App\Models\Section;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 
 class StudentAdmissionAndParentManagementTest extends TestCase
@@ -33,9 +34,19 @@ class StudentAdmissionAndParentManagementTest extends TestCase
     {
         $this->actingAs($this->admin);
 
-        // Setup class and section
+        // Setup class and section. $section (class_management) is what the
+        // admission form's "section_id" input actually submits -- it gets
+        // bridged to a real `sections` row via class_sections, since
+        // Student::section_id is a genuine FK to `sections`, not
+        // class_management (see AdminAdmissionController::confirmAdmission).
         $class = SchoolClass::create(['name' => 'Grade 1', 'class_order' => 1]);
         $section = ClassManagement::create(['name' => 'Grade 1', 'section' => 'A', 'capacity' => 30]);
+        $realSection = Section::create(['name' => 'A', 'capacity' => 30]);
+        \DB::table('class_sections')->insert([
+            'class_management_id' => $section->id,
+            'section_id' => $realSection->id,
+            'assigned_at' => now(),
+        ]);
 
         // Selected Enquiry
         $enquiry = AdmissionEnquiry::create([
@@ -71,7 +82,7 @@ class StudentAdmissionAndParentManagementTest extends TestCase
         $student = Student::where('name', 'John Doe Junior')->first();
         $this->assertNotNull($student);
         $this->assertEquals($class->id, $student->class_id);
-        $this->assertEquals($section->id, $student->section_id);
+        $this->assertEquals($realSection->id, $student->section_id);
         $this->assertStringStartsWith('ADM-', $student->admission_no);
 
         // Check Parent Record Auto-Created and Linked
@@ -331,6 +342,12 @@ class StudentAdmissionAndParentManagementTest extends TestCase
 
         $class = SchoolClass::create(['name' => 'Grade 7', 'class_order' => 7]);
         $section = ClassManagement::create(['name' => 'Grade 7', 'section' => 'A', 'capacity' => 1]);
+        $realSection = Section::create(['name' => 'A', 'capacity' => 1]);
+        \DB::table('class_sections')->insert([
+            'class_management_id' => $section->id,
+            'section_id' => $realSection->id,
+            'assigned_at' => now(),
+        ]);
 
         Student::create([
             'name' => 'Existing Student',
@@ -343,7 +360,7 @@ class StudentAdmissionAndParentManagementTest extends TestCase
             'phone' => '9000000000',
             'address' => 'Somewhere',
             'class_id' => $class->id,
-            'section_id' => $section->id,
+            'section_id' => $realSection->id,
         ]);
 
         $enquiry = AdmissionEnquiry::create([
@@ -375,6 +392,12 @@ class StudentAdmissionAndParentManagementTest extends TestCase
 
         $class = SchoolClass::create(['name' => 'Grade 8', 'class_order' => 8]);
         $section = ClassManagement::create(['name' => 'Grade 8', 'section' => 'A', 'capacity' => 1]);
+        $realSection = Section::create(['name' => 'A', 'capacity' => 1]);
+        \DB::table('class_sections')->insert([
+            'class_management_id' => $section->id,
+            'section_id' => $realSection->id,
+            'assigned_at' => now(),
+        ]);
 
         Student::create([
             'name' => 'Existing Student Two',
@@ -387,7 +410,7 @@ class StudentAdmissionAndParentManagementTest extends TestCase
             'phone' => '9000000001',
             'address' => 'Somewhere',
             'class_id' => $class->id,
-            'section_id' => $section->id,
+            'section_id' => $realSection->id,
         ]);
 
         $enquiry = AdmissionEnquiry::create([

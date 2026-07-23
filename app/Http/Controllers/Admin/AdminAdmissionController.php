@@ -104,10 +104,19 @@ class AdminAdmissionController extends Controller
 
         $classes = \App\Models\SchoolClass::orderBy('class_order')->get();
         $sections = \App\Models\ClassManagement::all()->groupBy('name');
-        $sectionOccupancy = \App\Models\Student::whereNotNull('section_id')
+        // Students are keyed to real `sections` rows (Student::section_id), not
+        // class_management ids -- bridge through class_sections so the occupancy
+        // map the view indexes by class_management id ($sec->id in the blade
+        // JS) reflects real seat counts instead of always reading as empty.
+        $classManagementToSection = \Illuminate\Support\Facades\DB::table('class_sections')
+            ->pluck('section_id', 'class_management_id');
+        $occupancyBySection = \App\Models\Student::whereNotNull('section_id')
             ->selectRaw('section_id, count(*) as cnt')
             ->groupBy('section_id')
             ->pluck('cnt', 'section_id');
+        $sectionOccupancy = $classManagementToSection->map(
+            fn($sectionId) => $occupancyBySection[$sectionId] ?? 0
+        );
         $isAdmin = $this->isAdmin(auth()->user());
 
         return view('admin.admissions.confirm', compact('enquiry', 'classes', 'sections', 'sectionOccupancy', 'isAdmin'));
@@ -137,8 +146,14 @@ class AdminAdmissionController extends Controller
 
         $class = \App\Models\SchoolClass::findOrFail($request->class_id);
         $section = \App\Models\ClassManagement::findOrFail($request->section_id);
+        // Same class_management-id-vs-real-section-id distinction as the
+        // write below -- resolve the real sections.id via class_sections so
+        // this counts against the same column Student::create() actually sets.
+        $realSectionId = \Illuminate\Support\Facades\DB::table('class_sections')
+            ->where('class_management_id', $section->id)
+            ->value('section_id');
 
-        $occupancy = \App\Models\Student::where('class_id', $class->id)->where('section_id', $section->id)->count();
+        $occupancy = \App\Models\Student::where('class_id', $class->id)->where('section_id', $realSectionId ?? -1)->count();
         $isOverride = $request->boolean('override_capacity') && $this->isAdmin(auth()->user());
         if ($occupancy >= $section->capacity && !$isOverride) {
             return redirect()->back()->withInput()->with('error',
@@ -170,7 +185,7 @@ class AdminAdmissionController extends Controller
         $tempParentPassword = \Illuminate\Support\Str::random(10);
         $currentSession = \App\Models\AcademicSession::current()->first();
 
-        \Illuminate\Support\Facades\DB::transaction(function () use ($enquiry, $request, $class, $section, $admissionNo, $aadharNumber, $tempParentPassword, $currentSession) {
+        \Illuminate\Support\Facades\DB::transaction(function () use ($enquiry, $request, $class, $section, $realSectionId, $admissionNo, $aadharNumber, $tempParentPassword, $currentSession) {
             $student = \App\Models\Student::create([
                 'name' => $enquiry->candidate_name,
                 'father_name' => $enquiry->parent_name,
@@ -184,7 +199,16 @@ class AdminAdmissionController extends Controller
                 'address' => $request->address ?: 'Not Specified',
                 'class_id' => $class->id,
                 'class' => $class->name,
-                'section_id' => $section->id,
+                // $section->id is a class_management id, not a sections id --
+                // Student::section_id is a real FK to the `sections` table
+                // (see Student::section(), belongsTo(Section::class)), and
+                // class_management ids for this class range (14-19, the XI/XII
+                // streams) collide with real, unrelated Section rows (16-19:
+                // "COM", "Science (PCB)", "Science (PCM)", "Commerce") --
+                // writing $section->id here was silently mis-tagging students'
+                // sections. $realSectionId was resolved via class_sections
+                // above; null if no mapping exists rather than a coincidentally-wrong id.
+                'section_id' => $realSectionId,
                 'section' => $section->section,
                 'roll_number' => $request->roll_number,
                 'admission_no' => $admissionNo,

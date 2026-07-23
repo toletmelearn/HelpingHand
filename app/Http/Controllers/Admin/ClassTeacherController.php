@@ -5,7 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Student;
 use App\Models\Teacher;
-use App\Models\ClassManagement;
+use App\Models\SchoolClass;
 use App\Models\LegacyClassMap;
 use App\Models\FieldPermission;
 use App\Models\AuditLog;
@@ -44,7 +44,11 @@ class ClassTeacherController extends Controller
         }
 
         $students = $query->paginate(20);
-        $classes = ClassManagement::all();
+        // Was ClassManagement::all() -- the class_id filter above/the
+        // student's class_id column are both SchoolClass ids, so the filter
+        // dropdown must be sourced from SchoolClass too (ClassManagement has
+        // diverged from it, e.g. duplicate indistinguishable "Class 11" rows).
+        $classes = SchoolClass::orderBy('class_order')->get();
         $sections = \App\Models\Section::all();
 
         return view('admin.class-teacher-control.student-records', compact('students', 'classes', 'sections'));
@@ -59,7 +63,11 @@ class ClassTeacherController extends Controller
         $userRole = auth()->user()->roles->first()->name;
         $fieldPermissions = FieldPermission::getPermissionsForRole(Student::class, $userRole);
 
-        $classes = ClassManagement::all();
+        // Was ClassManagement::all() -- the class_id filter above/the
+        // student's class_id column are both SchoolClass ids, so the filter
+        // dropdown must be sourced from SchoolClass too (ClassManagement has
+        // diverged from it, e.g. duplicate indistinguishable "Class 11" rows).
+        $classes = SchoolClass::orderBy('class_order')->get();
         $sections = \App\Models\Section::all();
 
         return view('admin.class-teacher-control.edit-student', compact('student', 'fieldPermissions', 'classes', 'sections'));

@@ -4,7 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Exam;
-use App\Models\ClassManagement;
+use App\Models\SchoolClass;
 use App\Models\Subject;
 use App\Models\Teacher;
 use Illuminate\Http\Request;
@@ -33,7 +33,13 @@ class ExamController extends Controller
     public function create()
     {
         $this->authorize('create', Exam::class);
-        $classes = ClassManagement::all();
+        // Was ClassManagement::all() -- that legacy table has diverged from
+        // SchoolClass (e.g. 3 indistinguishable rows named "Class 11" vs
+        // SchoolClass's "Class 11 Science/Commerce/Arts"), which made
+        // Exam::schoolClass() (belongsTo SchoolClass via class_name) unable
+        // to resolve for any XI/XII exam. SchoolClass is what Student and
+        // every other Academic Management screen actually uses.
+        $classes = SchoolClass::with('section')->orderBy('class_order')->get();
         $subjects = Subject::all();
         $teachers = Teacher::all();
         return view('admin.exams.create', compact('classes', 'subjects', 'teachers'));
@@ -49,7 +55,7 @@ class ExamController extends Controller
         $request->validate([
             'name' => 'required|string|max:255',
             'exam_type' => 'required|string|max:100',
-            'class_name' => 'required|string|max:100',
+            'class_name' => 'required|string|max:100|exists:school_classes,name',
             'subject' => 'required|string|max:100',
             'exam_date' => 'required|date',
             'start_time' => 'required|date_format:H:i',
@@ -97,7 +103,13 @@ class ExamController extends Controller
     public function edit(Exam $exam)
     {
         $this->authorize('update', $exam);
-        $classes = ClassManagement::all();
+        // Was ClassManagement::all() -- that legacy table has diverged from
+        // SchoolClass (e.g. 3 indistinguishable rows named "Class 11" vs
+        // SchoolClass's "Class 11 Science/Commerce/Arts"), which made
+        // Exam::schoolClass() (belongsTo SchoolClass via class_name) unable
+        // to resolve for any XI/XII exam. SchoolClass is what Student and
+        // every other Academic Management screen actually uses.
+        $classes = SchoolClass::with('section')->orderBy('class_order')->get();
         $subjects = Subject::all();
         $teachers = Teacher::all();
         return view('admin.exams.edit', compact('exam', 'classes', 'subjects', 'teachers'));
@@ -113,7 +125,7 @@ class ExamController extends Controller
         $request->validate([
             'name' => 'required|string|max:255',
             'exam_type' => 'required|string|max:100',
-            'class_name' => 'required|string|max:100',
+            'class_name' => 'required|string|max:100|exists:school_classes,name',
             'subject' => 'required|string|max:100',
             'exam_date' => 'required|date',
             'start_time' => 'required|date_format:H:i',
