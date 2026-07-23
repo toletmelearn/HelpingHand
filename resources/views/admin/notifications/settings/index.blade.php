@@ -9,7 +9,7 @@
             <i class="bi bi-bell"></i> Notification Settings
         </h1>
         <div>
-            <a href="{{ route('admin.admin.notification-settings.logs') }}" class="btn btn-outline-info me-2">
+            <a href="{{ route('admin.notification-settings.logs') }}" class="btn btn-outline-info me-2">
                 <i class="bi bi-list"></i> View Logs
             </a>
             <a href="{{ route('admin.notification-settings.create') }}" class="btn btn-primary">
@@ -219,7 +219,7 @@
                         <i class="bi bi-clock-history fs-1 text-info"></i>
                         <h5>Scheduled Notifications</h5>
                         <p class="text-muted small">Manage automated notification schedules</p>
-                        <a href="{{ route('admin.admin.notification-settings.logs') }}" class="btn btn-sm btn-outline-info">View Schedule</a>
+                        <a href="{{ route('admin.notification-settings.logs') }}" class="btn btn-sm btn-outline-info">View Schedule</a>
                     </div>
                 </div>
             </div>

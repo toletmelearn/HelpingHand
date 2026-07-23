@@ -84,7 +84,7 @@
     <!-- Selector Card -->
     <div class="card glass-card mb-4">
         <div class="card-body">
-            <form action="{{ route('timetable.index') }}" method="GET" class="row align-items-end">
+            <form action="{{ route('admin.timetable.index') }}" method="GET" class="row align-items-end">
                 <div class="col-md-4">
                     <label for="school_class_id" class="font-weight-bold text-dark">Select Class</label>
                     <select name="school_class_id" id="school_class_id" class="form-control" required>
@@ -155,7 +155,7 @@
                                         <span class="badge badge-secondary mt-1">Room {{ $slot->room_number }}</span>
                                     @endif
                                 </div>
-                                <form action="{{ route('timetable.destroy', $slot->id) }}" method="POST" onsubmit="return confirm('Clear this slot?');">
+                                <form action="{{ route('admin.timetable.destroy', $slot->id) }}" method="POST" onsubmit="return confirm('Clear this slot?');">
                                     @csrf
                                     @method('DELETE')
                                     <button type="submit" class="delete-slot-btn" title="Clear slot">
@@ -198,7 +198,7 @@
                     <span aria-hidden="true">&times;</span>
                 </button>
             </div>
-            <form action="{{ route('timetable.store') }}" method="POST">
+            <form action="{{ route('admin.timetable.store') }}" method="POST">
                 @csrf
                 <input type="hidden" name="school_class_id" value="{{ $schoolClassId }}">
                 <input type="hidden" name="section_id" value="{{ $sectionId }}">
@@ -273,7 +273,7 @@
             return;
         }
 
-        fetch(`{{ route('timetable.check-conflicts') }}?bell_timing_id=${timingId}&teacher_id=${teacherId}&room_number=${room}`)
+        fetch(`{{ route('admin.timetable.check-conflicts') }}?bell_timing_id=${timingId}&teacher_id=${teacherId}&room_number=${room}`)
             .then(res => res.json())
             .then(data => {
                 const alertDiv = document.getElementById('conflictAlert');

@@ -39,9 +39,9 @@
                                     <h5>Active Schedule</h5>
                                 </div>
                                 <div class="card-body">
-                                    @if($currentSchedule && $currentSchedule->getData())
+                                    @if($currentSchedule && $currentSchedule->getData(true))
                                         @php
-                                            $scheduleData = $currentSchedule->getData();
+                                            $scheduleData = $currentSchedule->getData(true);
                                             $schedule = $scheduleData['schedule'];
                                         @endphp
                                         

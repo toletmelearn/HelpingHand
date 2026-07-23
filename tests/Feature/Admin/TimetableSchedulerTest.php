@@ -81,7 +81,7 @@ class TimetableSchedulerTest extends TestCase
     public function test_timetable_dashboard_loads()
     {
         $response = $this->actingAs($this->adminUser)
-            ->get(route('timetable.index', ['school_class_id' => $this->class->id]));
+            ->get(route('admin.timetable.index', ['school_class_id' => $this->class->id]));
 
         $response->assertStatus(200);
         $response->assertSee('Academic Timetable Scheduler');
@@ -91,7 +91,7 @@ class TimetableSchedulerTest extends TestCase
     public function test_can_schedule_timetable_slot()
     {
         $response = $this->actingAs($this->adminUser)
-            ->post(route('timetable.store'), [
+            ->post(route('admin.timetable.store'), [
                 'school_class_id' => $this->class->id,
                 'section_id' => $this->section->id,
                 'bell_timing_id' => $this->timing1->id,
@@ -128,7 +128,7 @@ class TimetableSchedulerTest extends TestCase
         $otherClass = SchoolClass::create(['name' => 'Class XI', 'class_order' => 11]);
 
         $response = $this->actingAs($this->adminUser)
-            ->post(route('timetable.store'), [
+            ->post(route('admin.timetable.store'), [
                 'school_class_id' => $otherClass->id,
                 'bell_timing_id' => $this->timing1->id,
                 'subject_id' => $this->subject->id,
@@ -155,7 +155,7 @@ class TimetableSchedulerTest extends TestCase
         ]);
 
         $response = $this->actingAs($this->adminUser)
-            ->delete(route('timetable.destroy', $slot->id));
+            ->delete(route('admin.timetable.destroy', $slot->id));
 
         $response->assertRedirect();
         $this->assertDatabaseMissing('timetable_slots', ['id' => $slot->id]);
@@ -174,7 +174,7 @@ class TimetableSchedulerTest extends TestCase
 
         // Check api for same teacher
         $response = $this->actingAs($this->adminUser)
-            ->get(route('timetable.check-conflicts', [
+            ->get(route('admin.timetable.check-conflicts', [
                 'bell_timing_id' => $this->timing1->id,
                 'teacher_id' => $this->teacher->id,
                 'room_number' => 'Room 102',

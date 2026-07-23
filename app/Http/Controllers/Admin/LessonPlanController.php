@@ -55,9 +55,40 @@ class LessonPlanController extends Controller
     public function show(LessonPlan $lessonPlan)
     {
         $this->authorize('view', $lessonPlan);
-        
+
         $lessonPlan->load(['teacher', 'class', 'subject']);
-        
+
         return view('admin.lesson-plans.show', compact('lessonPlan'));
+    }
+
+    // The three actions below are linked from the admin dashboard's "Lesson Plans"
+    // widget but were never implemented -- their routes previously pointed at
+    // methods that didn't exist on this class, which 500'd whenever the route
+    // ordering bug that masked them (see routes/web.php) got fixed. These stubs
+    // keep the dashboard links working without fabricating report data; replace
+    // with real logic when the feature is actually built.
+
+    public function compliance(Request $request)
+    {
+        $this->authorize('viewAny', LessonPlan::class);
+
+        return redirect()->route('admin.lesson-plans.index')
+            ->with('info', 'Teacher Compliance report is not yet implemented.');
+    }
+
+    public function subjectProgress(Request $request)
+    {
+        $this->authorize('viewAny', LessonPlan::class);
+
+        return redirect()->route('admin.lesson-plans.index')
+            ->with('info', 'Subject Progress report is not yet implemented.');
+    }
+
+    public function exportPdf(Request $request)
+    {
+        $this->authorize('viewAny', LessonPlan::class);
+
+        return redirect()->route('admin.lesson-plans.index')
+            ->with('info', 'Lesson Plan PDF export is not yet implemented.');
     }
 }

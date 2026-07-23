@@ -482,7 +482,7 @@ Route::middleware(['auth'])->group(function () {
         
         // Admin specific students view (class & section wise)
         Route::get('students', [App\Http\Controllers\Admin\AdminStudentController::class, 'index'])->name('students.index');
-        Route::get('students-class-wise', [App\Http\Controllers\Admin\AdminStudentController::class, 'index'])->name('admin.students.class-wise');
+        Route::get('students-class-wise', [App\Http\Controllers\Admin\AdminStudentController::class, 'index'])->name('students.class-wise');
         
         // Direct student CRUD routes for intuitive access
         Route::get('students/create', [App\Http\Controllers\Admin\AdminStudentController::class, 'create'])->name('students.create');
@@ -501,7 +501,7 @@ Route::middleware(['auth'])->group(function () {
         Route::post('parents/{id}/reset-password', [\App\Http\Controllers\Admin\AdminParentController::class, 'resetPassword'])->name('parents.reset-password');
         
         // Legacy CRUD routes (maintaining backward compatibility)
-        Route::get('students-crud', [App\Http\Controllers\Admin\AdminStudentController::class, 'list'])->name('admin.students.list');
+        Route::get('students-crud', [App\Http\Controllers\Admin\AdminStudentController::class, 'list'])->name('students.list');
         Route::get('students-crud/create', [App\Http\Controllers\Admin\AdminStudentController::class, 'create'])->name('students-legacy.create');
         Route::post('students-crud', [App\Http\Controllers\Admin\AdminStudentController::class, 'store'])->name('students-legacy.store');
         Route::get('students-crud/{student}', [App\Http\Controllers\Admin\AdminStudentController::class, 'show'])->name('students-legacy.show');
@@ -669,8 +669,12 @@ Route::middleware(['auth'])->group(function () {
         Route::post('settings/payment', [App\Http\Controllers\Admin\PaymentSettingsController::class, 'updatePaymentSettings'])->name('settings.payment.update');
         
         // Homework & Notice Routes
+        // 'upcoming' is quarantined: HomeworkNoticeController::upcoming() renders
+        // 'admin.homework-notices.upcoming', a view that was never created (only
+        // create/index exist under resources/views/admin/homework-notices/), and
+        // nothing in the app links to this route. Re-enable once the view is built.
+        // Route::get('homework-notices/upcoming', [App\Http\Controllers\Admin\HomeworkNoticeController::class, 'upcoming'])->name('homework-notices.upcoming');
         Route::resource('homework-notices', App\Http\Controllers\Admin\HomeworkNoticeController::class);
-        Route::get('homework-notices/upcoming', [App\Http\Controllers\Admin\HomeworkNoticeController::class, 'upcoming'])->name('homework-notices.upcoming');
         
         // ID Card Routes
         Route::resource('id-cards', App\Http\Controllers\Admin\IdCardController::class);
@@ -761,26 +765,40 @@ Route::middleware(['auth'])->group(function () {
         Route::post('uploaded-marks/delete/{id}', [App\Http\Controllers\Admin\AdminUploadedMarksController::class, 'deleteResult'])->name('uploaded-marks.delete');
         Route::post('uploaded-marks/unlock/{id}', [App\Http\Controllers\Admin\AdminUploadedMarksController::class, 'unlockResult'])->name('uploaded-marks.unlock');
         
-        // Lesson Plan Management Routes
-        Route::resource('lesson-plans', App\Http\Controllers\Admin\LessonPlanController::class);
-        Route::get('lesson-plans/{lessonPlan}/show', [App\Http\Controllers\Admin\LessonPlanController::class, 'show'])->name('admin.lesson-plans.show');
-        
+        // Lesson Plan Management Routes: quarantined here (duplicate of the canonical
+        // registration further below, which also carries the compliance/reports/
+        // dashboard-stats/export-pdf/subject-progress sub-routes). The custom
+        // '{lessonPlan}/show' route was dead weight too -- it registered with name
+        // 'admin.lesson-plans.show' inside a group already prefixed 'admin.', so its
+        // real name was 'admin.admin.lesson-plans.show' and every view already calls
+        // the resource's own (correctly named) show route instead.
+        // Route::resource('lesson-plans', App\Http\Controllers\Admin\LessonPlanController::class);
+        // Route::get('lesson-plans/{lessonPlan}/show', [App\Http\Controllers\Admin\LessonPlanController::class, 'show'])->name('admin.lesson-plans.show');
+
         // Professional Lesson Plan Admin Routes
+        // NOTE: ->names() values must NOT repeat the 'admin.' group prefix -- doing so
+        // previously produced 'admin.admin.professional-lesson-plans.*', which none of
+        // the views could resolve (they call the correctly-prefixed 'admin.professional-lesson-plans.*').
         Route::resource('professional-lesson-plans', App\Http\Controllers\Admin\ProfessionalLessonPlanController::class)->names([
-            'index' => 'admin.professional-lesson-plans.index',
-            'show' => 'admin.professional-lesson-plans.show',
-            'destroy' => 'admin.professional-lesson-plans.destroy',
+            'index' => 'professional-lesson-plans.index',
+            'show' => 'professional-lesson-plans.show',
+            'destroy' => 'professional-lesson-plans.destroy',
         ])->except(['create', 'store', 'edit', 'update']);
-        
+
         // Homework Management Routes
-        Route::resource('homework', App\Http\Controllers\Admin\HomeworkController::class);
-        Route::get('homework/{homework}/show', [App\Http\Controllers\Admin\HomeworkController::class, 'show'])->name('admin.homework.show');
-        
+        // Only index/show are implemented on this controller -- create/store/edit/update/destroy
+        // don't exist (confirmed via reflection); ->only() keeps those routes from 500ing if
+        // ever visited directly, since nothing in the UI links to them anyway.
+        Route::resource('homework', App\Http\Controllers\Admin\HomeworkController::class)->only(['index', 'show']);
+        // Custom '{homework}/show' route removed: it registered as
+        // 'admin.admin.homework.show' (see lesson-plans note above) and was dead --
+        // the resource's own show route already covers this and is what views call.
+
         // Professional Homework Admin Routes
         Route::resource('professional-homework', App\Http\Controllers\Admin\ProfessionalHomeworkController::class)->names([
-            'index' => 'admin.professional-homework.index',
-            'show' => 'admin.professional-homework.show',
-            'destroy' => 'admin.professional-homework.destroy',
+            'index' => 'professional-homework.index',
+            'show' => 'professional-homework.show',
+            'destroy' => 'professional-homework.destroy',
         ])->except(['create', 'store', 'edit', 'update']);
         
         // Professional Result Features
@@ -853,8 +871,10 @@ Route::middleware(['auth'])->group(function () {
         Route::resource('academic-sessions', App\Http\Controllers\Admin\AcademicSessionController::class);
         
         // Bell Schedule Management Routes
-        Route::resource('bell-schedules', App\Http\Controllers\BellScheduleController::class);
+        // IMPORTANT: Custom routes MUST come BEFORE resource route to avoid conflicts
+        // (live-monitor was being swallowed by the resource's show route)
         Route::get('bell-schedules/live-monitor', [App\Http\Controllers\BellScheduleController::class, 'liveMonitor'])->name('bell-schedules.live-monitor');
+        Route::resource('bell-schedules', App\Http\Controllers\BellScheduleController::class);
         
         // Special Day Override Management Routes
         Route::resource('special-day-overrides', App\Http\Controllers\SpecialDayOverrideController::class);
@@ -878,10 +898,14 @@ Route::middleware(['auth'])->group(function () {
         // neither method ever existed on the controller.
         
         // Teacher Subject Assignment Management Routes
-        Route::resource('teacher-subject-assignments', App\Http\Controllers\Admin\TeacherSubjectAssignmentController::class);
+        // 'show' isn't implemented on this controller (confirmed via reflection) and nothing
+        // links to it -- ->except() keeps it from 500ing if ever visited directly.
+        Route::resource('teacher-subject-assignments', App\Http\Controllers\Admin\TeacherSubjectAssignmentController::class)->except(['show']);
         
         // Teacher Class Assignment Management Routes
-        Route::resource('teacher-class-assignments', App\Http\Controllers\Admin\TeacherClassAssignmentController::class);
+        // 'show' isn't implemented on this controller (confirmed via reflection) and nothing
+        // links to it -- ->except() keeps it from 500ing if ever visited directly.
+        Route::resource('teacher-class-assignments', App\Http\Controllers\Admin\TeacherClassAssignmentController::class)->except(['show']);
         
         // Teacher Class Subject Assignment Management Routes removed (see
         // A4): TeacherClassSubjectAssignmentController was a raw-DB::table()
@@ -982,14 +1006,14 @@ Route::middleware(['auth'])->group(function () {
         
         // Notification System Routes
         Route::resource('notification-settings', App\Http\Controllers\Admin\NotificationSettingController::class);
-        Route::get('notification-settings/logs', [App\Http\Controllers\Admin\NotificationSettingController::class, 'logs'])->name('admin.notification-settings.logs');
-        Route::post('notification-settings/{notificationSetting}/test', [App\Http\Controllers\Admin\NotificationSettingController::class, 'sendTest'])->name('admin.notification-settings.test');
-        Route::post('notification-settings/send-bulk', [App\Http\Controllers\Admin\NotificationSettingController::class, 'sendBulk'])->name('admin.notification-settings.send-bulk');
+        Route::get('notification-settings/logs', [App\Http\Controllers\Admin\NotificationSettingController::class, 'logs'])->name('notification-settings.logs');
+        Route::post('notification-settings/{notificationSetting}/test', [App\Http\Controllers\Admin\NotificationSettingController::class, 'sendTest'])->name('notification-settings.test');
+        Route::post('notification-settings/send-bulk', [App\Http\Controllers\Admin\NotificationSettingController::class, 'sendBulk'])->name('notification-settings.send-bulk');
         
         // Performance Analytics Routes
-        Route::get('performance-analytics', [App\Http\Controllers\Admin\PerformanceAnalyticsController::class, 'index'])->name('admin.performance-analytics.index');
-        Route::get('performance-analytics/dashboard', [App\Http\Controllers\Admin\PerformanceAnalyticsController::class, 'dashboard'])->name('admin.performance-analytics.dashboard');
-        Route::get('performance-analytics/export/{format}', [App\Http\Controllers\Admin\PerformanceAnalyticsController::class, 'export'])->name('admin.performance-analytics.export');
+        Route::get('performance-analytics', [App\Http\Controllers\Admin\PerformanceAnalyticsController::class, 'index'])->name('performance-analytics.index');
+        Route::get('performance-analytics/dashboard', [App\Http\Controllers\Admin\PerformanceAnalyticsController::class, 'dashboard'])->name('performance-analytics.dashboard');
+        Route::get('performance-analytics/export/{format}', [App\Http\Controllers\Admin\PerformanceAnalyticsController::class, 'export'])->name('performance-analytics.export');
         
         // Notification Routes
         Route::resource('notifications', App\Http\Controllers\Admin\NotificationTemplateController::class);
@@ -1021,8 +1045,10 @@ Route::middleware(['auth'])->group(function () {
         Route::get('daily-teaching-work/{dailyTeachingWork}/download-attachment/{index}', [App\Http\Controllers\Admin\DailyTeachingWorkController::class, 'downloadAttachment'])->name('daily-teaching-work.download-attachment');
         
         // Syllabi Routes
-        Route::resource('syllabi', App\Http\Controllers\Admin\SyllabusController::class);
+        // IMPORTANT: Custom routes MUST come BEFORE resource route to avoid conflicts
+        // (progress-report was being swallowed by the resource's show route)
         Route::get('syllabi/progress-report', [App\Http\Controllers\Admin\SyllabusController::class, 'progressReport'])->name('syllabi.progress-report');
+        Route::resource('syllabi', App\Http\Controllers\Admin\SyllabusController::class);
         
         // Language Settings Routes
         Route::resource('language-settings', App\Http\Controllers\Admin\LanguageSettingController::class);
@@ -1070,12 +1096,21 @@ Route::middleware(['auth'])->group(function () {
         Route::post('school-classes/{id}/restore', [App\Http\Controllers\Admin\SchoolClassController::class, 'restore'])->name('school-classes.restore');
 
         // Lesson Plan Management Routes (admin prefixed)
-        Route::resource('lesson-plans', App\Http\Controllers\Admin\LessonPlanController::class);
+        // IMPORTANT: Custom routes MUST come BEFORE resource route to avoid conflicts
+        // (these were previously registered after the resource, so 'compliance' etc.
+        // were being swallowed by the resource's show route, e.g. GET
+        // /admin/lesson-plans/compliance resolved to show('compliance') instead)
+        // 'reports' and 'dashboard-stats' were removed: LessonPlanController never had
+        // matching methods and nothing in the app links to either route name.
         Route::get('lesson-plans/compliance', [App\Http\Controllers\Admin\LessonPlanController::class, 'compliance'])->name('lesson-plans.compliance');
-        Route::get('lesson-plans/reports', [App\Http\Controllers\Admin\LessonPlanController::class, 'reports'])->name('lesson-plans.reports');
-        Route::get('lesson-plans/dashboard-stats', [App\Http\Controllers\Admin\LessonPlanController::class, 'dashboardStats'])->name('lesson-plans.dashboard-stats');
         Route::get('lesson-plans/export-pdf', [App\Http\Controllers\Admin\LessonPlanController::class, 'exportPdf'])->name('lesson-plans.export-pdf');
         Route::get('lesson-plans/subject-progress', [App\Http\Controllers\Admin\LessonPlanController::class, 'subjectProgress'])->name('lesson-plans.subject-progress');
+        // Only index/show are implemented on this controller -- create/store/edit/update/destroy
+        // don't exist (confirmed via reflection); ->only() keeps those routes from 500ing if
+        // ever visited directly. resources/views/admin/lesson-plans/{create,edit}.blade.php exist
+        // on disk but are unreachable and unlinked from anywhere -- someone built the forms but
+        // never wired the controller.
+        Route::resource('lesson-plans', App\Http\Controllers\Admin\LessonPlanController::class)->only(['index', 'show']);
         
         // Library Management Routes (admin prefixed)
         Route::get('library/dashboard', [App\Http\Controllers\Admin\BookController::class, 'dashboard'])->name('library.dashboard');
@@ -1685,10 +1720,10 @@ Route::middleware(['auth'])->group(function () {
 // Phase 6 Routes
 Route::middleware(['auth'])->group(function () {
     // Timetable Scheduler
-    Route::get('/admin/timetable', [\App\Http\Controllers\Admin\TimetableController::class, 'index'])->name('timetable.index');
-    Route::post('/admin/timetable', [\App\Http\Controllers\Admin\TimetableController::class, 'store'])->name('timetable.store');
-    Route::delete('/admin/timetable/{id}', [\App\Http\Controllers\Admin\TimetableController::class, 'destroy'])->name('timetable.destroy');
-    Route::get('/admin/timetable/check-conflicts', [\App\Http\Controllers\Admin\TimetableController::class, 'checkConflictsApi'])->name('timetable.check-conflicts');
+    Route::get('/admin/timetable', [\App\Http\Controllers\Admin\TimetableController::class, 'index'])->name('admin.timetable.index');
+    Route::post('/admin/timetable', [\App\Http\Controllers\Admin\TimetableController::class, 'store'])->name('admin.timetable.store');
+    Route::delete('/admin/timetable/{id}', [\App\Http\Controllers\Admin\TimetableController::class, 'destroy'])->name('admin.timetable.destroy');
+    Route::get('/admin/timetable/check-conflicts', [\App\Http\Controllers\Admin\TimetableController::class, 'checkConflictsApi'])->name('admin.timetable.check-conflicts');
 
     // Library circulations & OPAC
     Route::get('/admin/library', [\App\Http\Controllers\Admin\LibraryController::class, 'index'])->name('library.index');

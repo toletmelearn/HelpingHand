@@ -213,15 +213,6 @@
                             </a>
                         </li>
                         @endif
-                        @if(Route::has('admin.student-promotions.index'))
-                        <li class="nav-item">
-                            <a class="nav-link text-white {{ request()->routeIs('admin.student-promotions.*') ? 'active' : '' }}" 
-                               href="{{ route('admin.student-promotions.index') }}">
-                                <i class="bi bi-arrow-up-circle me-2"></i>
-                                <span>Student Promotion</span>
-                            </a>
-                        </li>
-                        @endif
                         @if(Route::has('admin.student-statuses.index'))
                         <li class="nav-item">
                             <a class="nav-link text-white {{ request()->routeIs('admin.student-statuses.*') ? 'active' : '' }}" 
@@ -432,7 +423,18 @@
             @endif
             
             <!-- 🧑‍🏫 4. ACADEMIC MANAGEMENT -->
-            @if(Auth::user()->hasRole(['admin', 'staff']) || Auth::user()->hasPermission('view-syllabi') || Auth::user()->hasPermission('view-daily-teaching-work'))
+            @if(Auth::user()->hasRole(['admin', 'staff'])
+                || Auth::user()->hasRole('teacher')
+                || Auth::user()->hasPermission('view-classes')
+                || Auth::user()->hasPermission('view-sections')
+                || Auth::user()->hasPermission('view-subjects')
+                || Auth::user()->hasPermission('view-academic-sessions')
+                || Auth::user()->hasPermission('view-syllabi')
+                || Auth::user()->hasPermission('view-daily-teaching-work')
+                || Auth::user()->hasPermission('view-student-promotion')
+                || Auth::user()->hasPermission('view-class-teacher-assignment')
+                || Auth::user()->hasPermission('view-teacher-subject-assignment')
+                || Auth::user()->hasPermission('view-bell-schedules'))
             <li class="nav-item sidebar-section mt-3" data-section="academic">
                 <div class="nav-header text-uppercase small px-3 py-2">
                     <i class="bi bi-mortarboard me-1"></i> Academic Management
@@ -450,7 +452,7 @@
                         @endif
                         @if(Route::has('admin.sections.index') && (Auth::user()->hasRole(['admin', 'staff']) || Auth::user()->hasPermission('view-sections')))
                         <li class="nav-item">
-                            <a class="nav-link text-white {{ request()->routeIs('admin.sections.*') ? 'active' : '' }}" 
+                            <a class="nav-link text-white {{ request()->routeIs('admin.sections.*') ? 'active' : '' }}"
                                href="{{ route('admin.sections.index') }}">
                                 <i class="bi bi-diagram-3 me-2"></i>
                                 <span>Sections</span>
@@ -459,7 +461,7 @@
                         @endif
                         @if(Route::has('admin.subjects.index') && (Auth::user()->hasRole(['admin', 'staff']) || Auth::user()->hasPermission('view-subjects')))
                         <li class="nav-item">
-                            <a class="nav-link text-white {{ request()->routeIs('admin.subjects.*') ? 'active' : '' }}" 
+                            <a class="nav-link text-white {{ request()->routeIs('admin.subjects.*') ? 'active' : '' }}"
                                href="{{ route('admin.subjects.index') }}">
                                 <i class="bi bi-book-half me-2"></i>
                                 <span>Subjects</span>
@@ -468,16 +470,25 @@
                         @endif
                         @if(Route::has('admin.academic-sessions.index') && (Auth::user()->hasRole(['admin', 'staff']) || Auth::user()->hasPermission('view-academic-sessions')))
                         <li class="nav-item">
-                            <a class="nav-link text-white {{ request()->routeIs('admin.academic-sessions.*') ? 'active' : '' }}" 
+                            <a class="nav-link text-white {{ request()->routeIs('admin.academic-sessions.*') ? 'active' : '' }}"
                                href="{{ route('admin.academic-sessions.index') }}">
                                 <i class="bi bi-calendar-check me-2"></i>
                                 <span>Academic Sessions</span>
                             </a>
                         </li>
                         @endif
+                        @if(Route::has('admin.timetable.index') && Auth::user()->hasRole(['admin', 'staff']))
+                        <li class="nav-item">
+                            <a class="nav-link text-white {{ request()->routeIs('admin.timetable.*') ? 'active' : '' }}"
+                               href="{{ route('admin.timetable.index') }}">
+                                <i class="bi bi-calendar3-week me-2"></i>
+                                <span>Timetable Scheduler</span>
+                            </a>
+                        </li>
+                        @endif
                         @if(Route::has('admin.syllabi.index') && (Auth::user()->hasRole('admin') || Auth::user()->hasPermission('view-syllabi')))
                         <li class="nav-item">
-                            <a class="nav-link text-white {{ request()->routeIs('admin.syllabi.*') ? 'active' : '' }}" 
+                            <a class="nav-link text-white {{ request()->routeIs('admin.syllabi.*') ? 'active' : '' }}"
                                href="{{ route('admin.syllabi.index') }}">
                                 <i class="bi bi-journal-bookmark me-2"></i>
                                 <span>Syllabus</span>
@@ -486,7 +497,7 @@
                         @endif
                         @if(Route::has('admin.daily-teaching-work.index') && (Auth::user()->hasRole('admin') || Auth::user()->hasPermission('view-daily-teaching-work')))
                         <li class="nav-item">
-                            <a class="nav-link text-white {{ request()->routeIs('admin.daily-teaching-work.*') ? 'active' : '' }}" 
+                            <a class="nav-link text-white {{ request()->routeIs('admin.daily-teaching-work.*') ? 'active' : '' }}"
                                href="{{ route('admin.daily-teaching-work.index') }}">
                                 <i class="bi bi-journal-text me-2"></i>
                                 <span>Daily Teaching Work</span>
@@ -495,10 +506,109 @@
                         @endif
                         @if(Route::has('admin.lesson-plans.index') && (Auth::user()->hasRole('admin') || Auth::user()->hasRole('teacher')))
                         <li class="nav-item">
-                            <a class="nav-link text-white {{ request()->routeIs('admin.lesson-plans.*') ? 'active' : '' }}" 
+                            <a class="nav-link text-white {{ request()->routeIs('admin.lesson-plans.*') && !request()->routeIs('admin.professional-lesson-plans.*') ? 'active' : '' }}"
                                href="{{ route('admin.lesson-plans.index') }}">
                                 <i class="bi bi-bookmarks me-2"></i>
                                 <span>Lesson Plans</span>
+                            </a>
+                        </li>
+                        @endif
+                        @if(Route::has('admin.professional-lesson-plans.index') && Auth::user()->hasRole('admin'))
+                        <li class="nav-item">
+                            <a class="nav-link text-white {{ request()->routeIs('admin.professional-lesson-plans.*') ? 'active' : '' }}"
+                               href="{{ route('admin.professional-lesson-plans.index') }}">
+                                <i class="bi bi-bookmark-star me-2"></i>
+                                <span>Professional Lesson Plans</span>
+                            </a>
+                        </li>
+                        @endif
+                        @if(Route::has('admin.homework.index') && Auth::user()->hasRole('admin'))
+                        <li class="nav-item">
+                            <a class="nav-link text-white {{ request()->routeIs('admin.homework.*') ? 'active' : '' }}"
+                               href="{{ route('admin.homework.index') }}">
+                                <i class="bi bi-pencil-square me-2"></i>
+                                <span>Homework</span>
+                            </a>
+                        </li>
+                        @endif
+                        @if(Route::has('admin.professional-homework.index') && Auth::user()->hasRole('admin'))
+                        <li class="nav-item">
+                            <a class="nav-link text-white {{ request()->routeIs('admin.professional-homework.*') ? 'active' : '' }}"
+                               href="{{ route('admin.professional-homework.index') }}">
+                                <i class="bi bi-journal-check me-2"></i>
+                                <span>Professional Homework</span>
+                            </a>
+                        </li>
+                        @endif
+                        @if(Route::has('admin.homework-notices.index') && Auth::user()->hasRole('admin'))
+                        <li class="nav-item">
+                            <a class="nav-link text-white {{ request()->routeIs('admin.homework-notices.*') ? 'active' : '' }}"
+                               href="{{ route('admin.homework-notices.index') }}">
+                                <i class="bi bi-megaphone me-2"></i>
+                                <span>Homework Notices</span>
+                            </a>
+                        </li>
+                        @endif
+                        @if(Route::has('admin.student-promotions.index') && (Auth::user()->hasRole('admin') || Auth::user()->hasPermission('view-student-promotion')))
+                        <li class="nav-item">
+                            <a class="nav-link text-white {{ request()->routeIs('admin.student-promotions.*') ? 'active' : '' }}"
+                               href="{{ route('admin.student-promotions.index') }}">
+                                <i class="bi bi-arrow-up-circle me-2"></i>
+                                <span>Student Promotion</span>
+                            </a>
+                        </li>
+                        @endif
+                        @if(Route::has('admin.class-teacher-control.student-records') && (Auth::user()->hasRole('admin') || Auth::user()->hasPermission('view-class-teacher-assignment')))
+                        <li class="nav-item">
+                            <a class="nav-link text-white {{ request()->routeIs('admin.class-teacher-control.*') ? 'active' : '' }}"
+                               href="{{ route('admin.class-teacher-control.student-records') }}">
+                                <i class="bi bi-person-check me-2"></i>
+                                <span>Class Teacher Control</span>
+                            </a>
+                        </li>
+                        @endif
+                        @if(Route::has('admin.teacher-subject-assignments.index') && (Auth::user()->hasRole('admin') || Auth::user()->hasPermission('view-teacher-subject-assignment')))
+                        <li class="nav-item">
+                            <a class="nav-link text-white {{ request()->routeIs('admin.teacher-subject-assignments.*') ? 'active' : '' }}"
+                               href="{{ route('admin.teacher-subject-assignments.index') }}">
+                                <i class="bi bi-arrow-left-right me-2"></i>
+                                <span>Teacher-Subject Assignment</span>
+                            </a>
+                        </li>
+                        @endif
+                        @if(Route::has('admin.teacher-class-assignments.index') && Auth::user()->hasRole('admin'))
+                        <li class="nav-item">
+                            <a class="nav-link text-white {{ request()->routeIs('admin.teacher-class-assignments.*') ? 'active' : '' }}"
+                               href="{{ route('admin.teacher-class-assignments.index') }}">
+                                <i class="bi bi-arrow-down-up me-2"></i>
+                                <span>Teacher-Class Assignment</span>
+                            </a>
+                        </li>
+                        @endif
+                        @if(Route::has('admin.class-teacher-assignments.index') && Auth::user()->hasRole('admin'))
+                        <li class="nav-item">
+                            <a class="nav-link text-white {{ request()->routeIs('admin.class-teacher-assignments.*') ? 'active' : '' }}"
+                               href="{{ route('admin.class-teacher-assignments.index') }}">
+                                <i class="bi bi-people-fill me-2"></i>
+                                <span>Class Teacher Assignments (Legacy)</span>
+                            </a>
+                        </li>
+                        @endif
+                        @if(Route::has('admin.bell-schedules.index') && (Auth::user()->hasRole('admin') || Auth::user()->hasPermission('view-bell-schedules')))
+                        <li class="nav-item">
+                            <a class="nav-link text-white {{ request()->routeIs('admin.bell-schedules.*') ? 'active' : '' }}"
+                               href="{{ route('admin.bell-schedules.index') }}">
+                                <i class="bi bi-bell me-2"></i>
+                                <span>Bell Schedules</span>
+                            </a>
+                        </li>
+                        @endif
+                        @if(Route::has('admin.special-day-overrides.index') && (Auth::user()->hasRole('admin') || Auth::user()->hasPermission('view-bell-schedules')))
+                        <li class="nav-item">
+                            <a class="nav-link text-white {{ request()->routeIs('admin.special-day-overrides.*') ? 'active' : '' }}"
+                               href="{{ route('admin.special-day-overrides.index') }}">
+                                <i class="bi bi-calendar-x me-2"></i>
+                                <span>Special Day Overrides</span>
                             </a>
                         </li>
                         @endif
@@ -539,13 +649,31 @@
             @endif
             
             <!-- 🎓 6. EXAMINATION SYSTEM -->
-            @if(Auth::user()->hasRole('admin') || Auth::user()->hasPermission('view-exams') || Auth::user()->hasPermission('view-results') || Auth::user()->hasPermission('view-exam-papers'))
+            @if(Auth::user()->hasRole('admin') || Auth::user()->hasPermission('view-exams') || Auth::user()->hasPermission('view-results') || Auth::user()->hasPermission('view-exam-papers') || Auth::user()->hasPermission('view-grading-systems') || Auth::user()->hasPermission('view-examination-patterns'))
             <li class="nav-item sidebar-section mt-3" data-section="exams">
                 <div class="nav-header text-uppercase small px-3 py-2">
                     <i class="bi bi-clipboard me-1"></i> Examination System
                 </div>
                 <div class="nav-collapse">
                     <ul class="nav flex-column">
+                        @if(Route::has('admin.grading-systems.index') && (Auth::user()->hasRole('admin') || Auth::user()->hasPermission('view-grading-systems')))
+                        <li class="nav-item">
+                            <a class="nav-link text-white {{ request()->routeIs('admin.grading-systems.*') ? 'active' : '' }}"
+                               href="{{ route('admin.grading-systems.index') }}">
+                                <i class="bi bi-bar-chart me-2"></i>
+                                <span>Grading Systems</span>
+                            </a>
+                        </li>
+                        @endif
+                        @if(Route::has('admin.examination-patterns.index') && (Auth::user()->hasRole('admin') || Auth::user()->hasPermission('view-examination-patterns')))
+                        <li class="nav-item">
+                            <a class="nav-link text-white {{ request()->routeIs('admin.examination-patterns.*') ? 'active' : '' }}"
+                               href="{{ route('admin.examination-patterns.index') }}">
+                                <i class="bi bi-layout-three-columns me-2"></i>
+                                <span>Examination Patterns</span>
+                            </a>
+                        </li>
+                        @endif
                         @if(Route::has('admin.exams.index'))
                         <li class="nav-item">
                             <a class="nav-link text-white {{ request()->routeIs('admin.exams.*') && !request()->routeIs('exams.arrangements.*') ? 'active' : '' }}" 
@@ -1067,51 +1195,6 @@
                             </a>
                         </li>
                         @endif
-                        @if(Route::has('admin.class-teacher-control.student-records'))
-                        <li class="nav-item">
-                            <a class="nav-link text-white {{ request()->routeIs('admin.class-teacher-control.*') ? 'active' : '' }}" 
-                               href="{{ route('admin.class-teacher-control.student-records') }}">
-                                <i class="bi bi-person-check me-2"></i>
-                                <span>Class Teacher Control</span>
-                            </a>
-                        </li>
-                        @endif
-                        @if(Route::has('admin.teacher-subject-assignments.index'))
-                        <li class="nav-item">
-                            <a class="nav-link text-white {{ request()->routeIs('admin.teacher-subject-assignments.*') ? 'active' : '' }}" 
-                               href="{{ route('admin.teacher-subject-assignments.index') }}">
-                                <i class="bi bi-arrow-left-right me-2"></i>
-                                <span>Teacher-Subject Assignment</span>
-                            </a>
-                        </li>
-                        @endif
-                        @if(Route::has('admin.teacher-class-assignments.index'))
-                        <li class="nav-item">
-                            <a class="nav-link text-white {{ request()->routeIs('admin.teacher-class-assignments.*') ? 'active' : '' }}" 
-                               href="{{ route('admin.teacher-class-assignments.index') }}">
-                                <i class="bi bi-arrow-down-up me-2"></i>
-                                <span>Teacher-Class Assignment</span>
-                            </a>
-                        </li>
-                        @endif
-                        @if(Route::has('admin.grading-systems.index'))
-                        <li class="nav-item">
-                            <a class="nav-link text-white {{ request()->routeIs('admin.grading-systems.*') ? 'active' : '' }}" 
-                               href="{{ route('admin.grading-systems.index') }}">
-                                <i class="bi bi-bar-chart me-2"></i>
-                                <span>Grading Systems</span>
-                            </a>
-                        </li>
-                        @endif
-                        @if(Route::has('admin.examination-patterns.index'))
-                        <li class="nav-item">
-                            <a class="nav-link text-white {{ request()->routeIs('admin.examination-patterns.*') ? 'active' : '' }}" 
-                               href="{{ route('admin.examination-patterns.index') }}">
-                                <i class="bi bi-layout-three-columns me-2"></i>
-                                <span>Examination Patterns</span>
-                            </a>
-                        </li>
-                        @endif
                         @if(Route::has('admin.document-formats.index'))
                         <li class="nav-item">
                             <a class="nav-link text-white {{ request()->routeIs('admin.document-formats.*') ? 'active' : '' }}" 
@@ -1190,24 +1273,6 @@
                                href="{{ route('admin.backups.index') }}">
                                 <i class="bi bi-cloud-arrow-up me-2"></i>
                                 <span>Backup Management</span>
-                            </a>
-                        </li>
-                        @endif
-                        @if(Route::has('admin.bell-schedules.index'))
-                        <li class="nav-item">
-                            <a class="nav-link text-white {{ request()->routeIs('admin.bell-schedules.*') ? 'active' : '' }}" 
-                               href="{{ route('admin.bell-schedules.index') }}">
-                                <i class="bi bi-bell me-2"></i>
-                                <span>Bell Schedules</span>
-                            </a>
-                        </li>
-                        @endif
-                        @if(Route::has('admin.special-day-overrides.index'))
-                        <li class="nav-item">
-                            <a class="nav-link text-white {{ request()->routeIs('admin.special-day-overrides.*') ? 'active' : '' }}" 
-                               href="{{ route('admin.special-day-overrides.index') }}">
-                                <i class="bi bi-calendar-x me-2"></i>
-                                <span>Special Day Overrides</span>
                             </a>
                         </li>
                         @endif
