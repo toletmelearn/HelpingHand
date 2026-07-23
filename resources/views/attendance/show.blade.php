@@ -69,7 +69,7 @@
                                 </div>
                                 <div class="col-md-6">
                                     <p><strong>Roll Number:</strong> {{ $attendance->student->roll_number }}</p>
-                                    <p><strong>Aadhar:</strong> {{ substr($attendance->student->aadhar_number, 0, 4) }}****{{ substr($attendance->student->aadhar_number, -4) }}</p>
+                                    <p><strong>Aadhaar:</strong> {{ substr($attendance->student->aadhaar_number, 0, 4) }}****{{ substr($attendance->student->aadhaar_number, -4) }}</p>
                                     <p><strong>Phone:</strong> {{ $attendance->student->phone }}</p>
                                 </div>
                             </div>

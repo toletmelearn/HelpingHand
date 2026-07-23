@@ -32,7 +32,7 @@ class LessonPlanController extends Controller
             ]);
         }
 
-        $lessonPlans = \App\Models\LessonPlan::where('class_id', $student->class_id)
+        $lessonPlans = \App\Models\LessonPlan::where('class_id', $student->school_class_id)
             ->where('show_to_parents', 1)
             ->latest()
             ->get();
@@ -40,7 +40,7 @@ class LessonPlanController extends Controller
         \Illuminate\Support\Facades\Log::info('Parent viewing lesson plans', [
             'parent_id' => $parent->id ?? null,
             'student_id' => $student->id ?? null,
-            'class_id' => $student->class_id ?? null,
+            'class_id' => $student->school_class_id ?? null,
             'plans_count' => $lessonPlans->count()
         ]);
 
@@ -66,7 +66,7 @@ class LessonPlanController extends Controller
         $lessonPlan = \App\Models\LessonPlan::findOrFail($id);
 
         // SECURITY CHECK
-        if ($lessonPlan->class_id != $student->class_id) {
+        if ($lessonPlan->class_id != $student->school_class_id) {
             abort(403, 'Unauthorized access');
         }
 
@@ -91,7 +91,7 @@ class LessonPlanController extends Controller
         $student = $parent->student;
         
         // Get lesson plans with books/notebooks required for student's class
-        $lessonPlans = LessonPlan::where('class_id', $student->class_id)
+        $lessonPlans = LessonPlan::where('class_id', $student->school_class_id)
             ->where('show_to_parents', 1)
             ->whereNotNull('books_notebooks_required')
             ->where('books_notebooks_required', '!=', '')
@@ -118,7 +118,7 @@ class LessonPlanController extends Controller
         $startOfWeek = now()->startOfWeek();
         $endOfWeek = now()->endOfWeek();
         
-        $lessonPlans = LessonPlan::where('class_id', $student->class_id)
+        $lessonPlans = LessonPlan::where('class_id', $student->school_class_id)
             ->where('show_to_parents', 1)
             ->whereBetween('date', [$startOfWeek, $endOfWeek])
             ->orderBy('date', 'asc')

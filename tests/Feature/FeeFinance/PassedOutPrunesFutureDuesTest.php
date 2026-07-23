@@ -38,7 +38,7 @@ class PassedOutPrunesFutureDuesTest extends TestCase
         $student = Student::create([
             'name' => 'Leaving Kid', 'father_name' => 'Father', 'mother_name' => 'Mother',
             'date_of_birth' => '2016-01-01', 'gender' => 'male', 'category' => 'General',
-            'aadhar_number' => (string) random_int(100000000000, 999999999999),
+            'aadhaar_number' => (string) random_int(100000000000, 999999999999),
             'phone' => '9998887722', 'address' => 'Somewhere',
             'class_id' => $class->id, 'school_class_id' => $class->id, 'class' => $class->name,
         ]);

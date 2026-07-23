@@ -41,7 +41,7 @@ class BulkAssignmentFaultIsolationTest extends TestCase
             return Student::create([
                 'name' => "Bulk Kid {$i}", 'father_name' => 'Father', 'mother_name' => 'Mother',
                 'date_of_birth' => '2015-01-01', 'gender' => 'male', 'category' => 'General',
-                'aadhar_number' => (string) random_int(100000000000, 999999999999),
+                'aadhaar_number' => (string) random_int(100000000000, 999999999999),
                 'phone' => '999888' . str_pad((string) $i, 4, '0', STR_PAD_LEFT), 'address' => 'Somewhere',
                 'class_id' => $class->id, 'school_class_id' => $class->id, 'class' => $class->name,
             ]);

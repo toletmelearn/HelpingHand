@@ -489,11 +489,13 @@ Route::middleware(['auth'])->group(function () {
         Route::post('students', [App\Http\Controllers\Admin\AdminStudentController::class, 'store'])->name('students.store');
         // Must come before the {student} wildcard routes below.
         Route::post('students/bulk-destroy', [App\Http\Controllers\Admin\AdminStudentController::class, 'bulkDestroy'])->name('students.bulk-destroy');
+        Route::get('students/export/udise', [App\Http\Controllers\Admin\AdminStudentController::class, 'exportUdise'])->name('students.export.udise');
         Route::get('students/{student}', [App\Http\Controllers\Admin\AdminStudentController::class, 'show'])->name('students.show');
         Route::get('students/{student}/edit', [App\Http\Controllers\Admin\AdminStudentController::class, 'edit'])->name('students.edit');
         Route::put('students/{student}', [App\Http\Controllers\Admin\AdminStudentController::class, 'update'])->name('students.update');
         Route::delete('students/{student}', [App\Http\Controllers\Admin\AdminStudentController::class, 'destroy'])->name('students.destroy');
-        
+        Route::post('students/{student}/apaar-consent', [App\Http\Controllers\Admin\AdminStudentController::class, 'recordApaarConsent'])->name('students.apaar-consent');
+
         // Parent Directory & Management
         Route::get('parents', [\App\Http\Controllers\Admin\AdminParentController::class, 'index'])->name('parents.index');
         Route::get('parents/{id}', [\App\Http\Controllers\Admin\AdminParentController::class, 'show'])->name('parents.show');
@@ -840,7 +842,10 @@ Route::middleware(['auth'])->group(function () {
         
         // Section Management Routes
         Route::resource('sections', App\Http\Controllers\Admin\SectionController::class);
-        
+
+        // Academic Calendar / Events / Holidays Routes
+        Route::resource('academic-events', App\Http\Controllers\Admin\AcademicEventController::class);
+
         // Class Management Routes -- ClassController retired in favor of
         // SchoolClassController (see A3 of the Academic module rebuild);
         // canonical registration is the 'school-classes' resource below.
@@ -1031,7 +1036,8 @@ Route::middleware(['auth'])->group(function () {
         Route::put('certificates/{certificate}/lock', [App\Http\Controllers\Admin\CertificateController::class, 'lock'])->name('certificates.lock');
         Route::put('certificates/{certificate}/revoke', [App\Http\Controllers\Admin\CertificateController::class, 'revoke'])->name('certificates.revoke');
         Route::get('certificates/{certificate}/preview', [App\Http\Controllers\Admin\CertificateController::class, 'preview'])->name('certificates.preview');
-        
+        Route::get('certificates/{certificate}/download-pdf', [App\Http\Controllers\Admin\CertificateController::class, 'downloadPdf'])->name('certificates.download-pdf');
+
         Route::resource('certificate-templates', App\Http\Controllers\Admin\CertificateTemplateController::class);
         Route::post('certificate-templates/{certificateTemplate}/set-default', [App\Http\Controllers\Admin\CertificateTemplateController::class, 'setDefault'])->name('certificate-templates.set-default');
         

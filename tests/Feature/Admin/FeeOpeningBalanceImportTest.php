@@ -46,7 +46,7 @@ class FeeOpeningBalanceImportTest extends TestCase
         $student = Student::create([
             'name' => 'Opening Balance Student', 'father_name' => 'Father', 'mother_name' => 'Mother',
             'date_of_birth' => '2014-01-01', 'gender' => 'male', 'category' => 'General',
-            'aadhar_number' => (string) random_int(100000000000, 999999999999),
+            'aadhaar_number' => (string) random_int(100000000000, 999999999999),
             'phone' => '9998887772', 'address' => 'Somewhere', 'admission_no' => 'ADM-OB-001',
         ]);
 

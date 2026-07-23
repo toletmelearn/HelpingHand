@@ -385,6 +385,59 @@
         </div>
     </div>
 
+    <!-- 📅 Upcoming Academic Events -->
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="card h-100 border-0 shadow-sm">
+                <div class="card-header bg-light border-0 py-3 d-flex align-items-center justify-content-between">
+                    <h5 class="mb-0 fw-bold text-dark"><i class="fas fa-calendar-alt text-primary me-2"></i> Upcoming Events</h5>
+                    @if(Route::has('admin.academic-events.index') && (Auth::user()->hasRole(['admin', 'staff']) || Auth::user()->hasPermission('view-academic-events')))
+                        <a href="{{ route('admin.academic-events.index') }}" class="btn btn-xs btn-outline-primary py-0">View Calendar</a>
+                    @endif
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle mb-0" style="font-size: 0.9rem;">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Title</th>
+                                    <th>Date</th>
+                                    <th>Type</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @forelse($upcomingEvents as $event)
+                                    <tr>
+                                        <td class="fw-bold">{{ $event['title'] }}</td>
+                                        <td>{{ \Illuminate\Support\Carbon::parse($event['date'])->format('d M') }}</td>
+                                        <td>
+                                            @php $eventType = $event['type'] ?? 'other'; @endphp
+                                            @if($eventType === 'holiday')
+                                                <span class="badge bg-danger">Holiday</span>
+                                            @elseif($eventType === 'exam')
+                                                <span class="badge bg-warning text-dark">Exam</span>
+                                            @elseif($eventType === 'ptm')
+                                                <span class="badge bg-info text-white">PTM</span>
+                                            @elseif($eventType === 'event')
+                                                <span class="badge bg-primary">Event</span>
+                                            @else
+                                                <span class="badge bg-secondary text-capitalize">{{ ucfirst($eventType) }}</span>
+                                            @endif
+                                        </td>
+                                    </tr>
+                                @empty
+                                    <tr>
+                                        <td colspan="3" class="text-center py-4 text-muted">No upcoming events this week.</td>
+                                    </tr>
+                                @endforelse
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- 🗄️ Universal Data Imports Dashboard Integration -->
     @if(Auth::user()->hasRole(['admin', 'super-admin']))
     <div class="row mt-4">

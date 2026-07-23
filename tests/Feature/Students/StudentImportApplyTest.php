@@ -56,7 +56,7 @@ class StudentImportApplyTest extends TestCase
     {
         DB::table('students')->insert([
             'name' => 'Existing Student',
-            'aadhar_number' => '123456789012',
+            'aadhaar_number' => '123456789012',
             'created_at' => now(),
             'updated_at' => now(),
         ]);
@@ -66,7 +66,7 @@ class StudentImportApplyTest extends TestCase
         ]);
 
         $response->assertOk();
-        $response->assertSee('Duplicate aadhar_number found.');
+        $response->assertSee('Duplicate aadhaar_number found.');
         $response->assertDontSee('Apply Import');
         $response->assertSessionMissing('student_import_preview');
     }
@@ -156,7 +156,7 @@ class StudentImportApplyTest extends TestCase
 
         DB::table('students')->insert([
             'name' => 'Race Winner',
-            'aadhar_number' => '123456789012',
+            'aadhaar_number' => '123456789012',
             'created_at' => now(),
             'updated_at' => now(),
         ]);
@@ -296,7 +296,7 @@ class StudentImportApplyTest extends TestCase
 
     private function csvHeader(): string
     {
-        return "ID,Name,Father Name,Mother Name,Date of Birth,Aadhar Number,Phone,Gender,Category,Class,Section,Roll Number,Religion,Caste,Blood Group,Address\n";
+        return "ID,Name,Father Name,Mother Name,Date of Birth,Aadhaar Number,Phone,Gender,Category,Class,Section,Roll Number,Religion,Caste,Blood Group,Address\n";
     }
 
     private function csvFile(string $contents): UploadedFile
@@ -351,7 +351,7 @@ class StudentImportApplyTest extends TestCase
             $table->string('father_name')->nullable();
             $table->string('mother_name')->nullable();
             $table->date('date_of_birth')->nullable();
-            $table->string('aadhar_number')->nullable();
+            $table->string('aadhaar_number')->nullable();
             $table->string('phone')->nullable();
             $table->string('mobile')->nullable();
             $table->string('gender')->nullable();

@@ -104,7 +104,7 @@ class AttendanceDeleteUiDisabledTest extends TestCase
             'father_name' => 'Father One',
             'mother_name' => 'Mother One',
             'roll_number' => '10',
-            'aadhar_number' => '123456789012',
+            'aadhaar_number' => '123456789012',
             'phone' => '9999999999',
         ]);
         $attendance->setRelation('markedBy', new User([

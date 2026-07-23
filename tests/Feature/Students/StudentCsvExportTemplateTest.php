@@ -136,7 +136,7 @@ class StudentCsvExportTemplateTest extends TestCase
             'father_name' => 'Export Father',
             'mother_name' => 'Export Mother',
             'date_of_birth' => '2010-01-01',
-            'aadhar_number' => '123456789012',
+            'aadhaar_number' => '123456789012',
             'phone' => '9876543210',
             'mobile' => '9876500000',
             'gender' => 'male',
@@ -159,7 +159,7 @@ class StudentCsvExportTemplateTest extends TestCase
 
     private function newTemplateCsv(): string
     {
-        return "ID,Name,Father Name,Mother Name,Date of Birth,Aadhar Number,Phone,Mobile,Gender,Category,Class ID,Class,Section ID,Section,Roll Number,Religion,Caste,Blood Group,Address,Admission No\n"
+        return "ID,Name,Father Name,Mother Name,Date of Birth,Aadhaar Number,Phone,Mobile,Gender,Category,Class ID,Class,Section ID,Section,Roll Number,Religion,Caste,Blood Group,Address,Admission No\n"
             . "1,Template Student,Template Father,Template Mother,2010-01-01,555555555555,9876543210,9999999999,male,General,8,Canonical Class 5,1,A,44,Hindu,General,A+,Template Address,ADM-200\n";
     }
 
@@ -207,7 +207,7 @@ class StudentCsvExportTemplateTest extends TestCase
             $table->string('father_name')->nullable();
             $table->string('mother_name')->nullable();
             $table->date('date_of_birth')->nullable();
-            $table->string('aadhar_number')->nullable();
+            $table->string('aadhaar_number')->nullable();
             $table->string('phone')->nullable();
             $table->string('mobile')->nullable();
             $table->string('gender')->nullable();

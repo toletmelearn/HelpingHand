@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\AcademicEvent;
 use App\Models\Student;
 use App\Models\Teacher;
 use App\Models\Attendance;
@@ -198,22 +199,40 @@ class ProfessionalDashboardService
         $events = [];
         
         // Get upcoming exams
-        $upcomingExams = Exam::where('date', '>=', now())
-                            ->where('date', '<=', now()->addDays(7))
-                            ->orderBy('date')
+        $upcomingExams = Exam::where('exam_date', '>=', now())
+                            ->where('exam_date', '<=', now()->addDays(7))
+                            ->orderBy('exam_date')
                             ->take(5)
                             ->get();
-        
+
         foreach ($upcomingExams as $exam) {
             $events[] = [
                 'title' => $exam->name,
-                'date' => $exam->date,
+                'date' => $exam->exam_date,
                 'type' => 'exam',
-                'description' => "Exam for {$exam->subject} in {$exam->class}"
+                'description' => "Exam for {$exam->subject} in {$exam->class_name}"
             ];
         }
-        
-        // Add other events (holidays, meetings, etc.)
+
+        // Calendar events (holidays, PTMs, other school events) in the next 7 days
+        $upcomingCalendarEvents = AcademicEvent::where('is_active', true)
+            ->where('start_date', '<=', now()->addDays(7))
+            ->where('end_date', '>=', now())
+            ->orderBy('start_date')
+            ->take(5)
+            ->get();
+
+        foreach ($upcomingCalendarEvents as $calendarEvent) {
+            $events[] = [
+                'title' => $calendarEvent->title,
+                'date' => $calendarEvent->start_date,
+                'type' => $calendarEvent->type,
+                'description' => $calendarEvent->description ?? ucfirst($calendarEvent->type)
+            ];
+        }
+
+        usort($events, fn ($a, $b) => Carbon::parse($a['date'])->timestamp <=> Carbon::parse($b['date'])->timestamp);
+
         return $events;
     }
     

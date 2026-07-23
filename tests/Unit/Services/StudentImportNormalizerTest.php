@@ -123,24 +123,24 @@ class StudentImportNormalizerTest extends TestCase
         $this->assertContains('Section could not be resolved.', $result['errors']);
     }
 
-    public function test_normalizer_detects_duplicate_aadhar_number_if_present(): void
+    public function test_normalizer_detects_duplicate_aadhaar_number_if_present(): void
     {
         DB::table('students')->insert([
             'name' => 'Existing Student',
-            'aadhar_number' => '123456789012',
+            'aadhaar_number' => '123456789012',
             'created_at' => now(),
             'updated_at' => now(),
         ]);
 
         $result = $this->normalizer()->normalizeRow([
             'Name' => 'Test Student',
-            'Aadhar Number' => '123456789012',
+            'Aadhaar Number' => '123456789012',
             'Class' => 'Class 5',
             'Section' => 'A',
         ]);
 
         $this->assertTrue($result['is_valid']);
-        $this->assertContains('Duplicate aadhar_number found.', $result['warnings']);
+        $this->assertContains('Duplicate aadhaar_number found.', $result['warnings']);
     }
 
     public function test_normalizer_does_not_modify_database(): void
@@ -151,7 +151,7 @@ class StudentImportNormalizerTest extends TestCase
             'Name' => 'Test Student',
             'Class' => 'Class 5',
             'Section' => 'A',
-            'Aadhar Number' => '123456789012',
+            'Aadhaar Number' => '123456789012',
         ]);
 
         $this->assertSame($before, DB::table('students')->count());
@@ -200,7 +200,7 @@ class StudentImportNormalizerTest extends TestCase
         Schema::create('students', function (Blueprint $table) {
             $table->id();
             $table->string('name')->nullable();
-            $table->string('aadhar_number')->nullable();
+            $table->string('aadhaar_number')->nullable();
             $table->string('phone')->nullable();
             $table->string('mobile')->nullable();
             $table->integer('roll_number')->nullable();

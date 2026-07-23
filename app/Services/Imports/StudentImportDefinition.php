@@ -52,7 +52,7 @@ class StudentImportDefinition implements ImportDefinitionInterface
             'phone' => 'nullable|string|max:20',
             'class' => 'required|string',
             'section' => 'required|string',
-            'aadhar_number' => 'nullable|string|max:20',
+            'aadhaar_number' => 'nullable|string|max:20',
             'roll_number' => 'nullable|string|max:20',
             'religion' => 'nullable|string|max:255',
             'caste' => 'nullable|string|max:255',
@@ -134,7 +134,7 @@ class StudentImportDefinition implements ImportDefinitionInterface
 
     public function getTemplateHeaders(): array
     {
-        return ['Name', 'Father Name', 'Mother Name', 'Date of Birth', 'Gender', 'Mobile', 'Phone', 'Class', 'Section', 'Aadhar Number', 'Roll Number', 'Religion', 'Caste', 'Blood Group', 'Address', 'Sibling Admission No', 'Admission No', 'Admission Type (NEW/OLD)'];
+        return ['Name', 'Father Name', 'Mother Name', 'Date of Birth', 'Gender', 'Mobile', 'Phone', 'Class', 'Section', 'Aadhaar Number', 'Roll Number', 'Religion', 'Caste', 'Blood Group', 'Address', 'Sibling Admission No', 'Admission No', 'Admission Type (NEW/OLD)'];
     }
 
     public function executeWrite(array $rowData, ImportSession $session, string $resolutionStrategy): array

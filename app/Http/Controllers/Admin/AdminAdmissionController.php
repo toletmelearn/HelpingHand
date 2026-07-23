@@ -137,7 +137,7 @@ class AdminAdmissionController extends Controller
             'date_of_birth' => 'required|date|before:today',
             'gender' => 'required|in:male,female,other',
             'category' => 'required|string|max:50',
-            'aadhar_number' => 'nullable|string|max:20|unique:students,aadhar_number',
+            'aadhaar_number' => 'nullable|string|max:20|unique:students,aadhaar_number',
             'mother_name' => 'nullable|string|max:255',
             'address' => 'nullable|string|max:500',
             'roll_number' => 'nullable|integer',
@@ -175,11 +175,11 @@ class AdminAdmissionController extends Controller
             $admissionNo = 'ADM-' . $year . '-' . $random;
         }
 
-        $aadharNumber = $request->aadhar_number;
+        $aadharNumber = $request->aadhaar_number;
         if (!$aadharNumber) {
             do {
                 $aadharNumber = 'TBD-' . mt_rand(100000, 999999);
-            } while (\App\Models\Student::where('aadhar_number', $aadharNumber)->exists());
+            } while (\App\Models\Student::where('aadhaar_number', $aadharNumber)->exists());
         }
 
         $tempParentPassword = \Illuminate\Support\Str::random(10);
@@ -193,7 +193,7 @@ class AdminAdmissionController extends Controller
                 'date_of_birth' => $request->date_of_birth,
                 'gender' => $request->gender,
                 'category' => $request->category,
-                'aadhar_number' => $aadharNumber,
+                'aadhaar_number' => $aadharNumber,
                 'phone' => $enquiry->phone,
                 'mobile' => $enquiry->phone,
                 'address' => $request->address ?: 'Not Specified',

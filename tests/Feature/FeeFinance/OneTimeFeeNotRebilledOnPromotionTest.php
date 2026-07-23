@@ -94,7 +94,7 @@ class OneTimeFeeNotRebilledOnPromotionTest extends TestCase
         $student = Student::create([
             'name' => 'One Time Fee Kid', 'father_name' => 'Father', 'mother_name' => 'Mother',
             'date_of_birth' => '2014-01-01', 'gender' => 'male', 'category' => 'General',
-            'aadhar_number' => (string) random_int(100000000000, 999999999999),
+            'aadhaar_number' => (string) random_int(100000000000, 999999999999),
             'phone' => '9998887755', 'address' => 'Somewhere',
             'class_id' => $classA->id, 'school_class_id' => $classA->id, 'class' => $classA->name,
             'admission_session_id' => $session->id,

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Exports\UdiseStudentsExport;
 use App\Http\Controllers\Controller;
 use App\Http\Controllers\StudentController;
 use App\Models\Student;
@@ -11,6 +12,7 @@ use App\Helpers\FieldPermissionHelper;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
+use Maatwebsite\Excel\Facades\Excel;
 
 class AdminStudentController extends Controller
 {
@@ -27,10 +29,15 @@ class AdminStudentController extends Controller
         $section = $request->get('section');
         $search = $request->get('search');
         $createdDate = $request->get('created_date');
+        $aadhaarMismatch = $request->boolean('aadhaar_mismatch');
 
-        if ($classId || $sectionId || $section || $search || $createdDate) {
+        if ($classId || $sectionId || $section || $search || $createdDate || $aadhaarMismatch) {
             // If filters are applied, show students list
             $query = Student::query();
+
+            if ($aadhaarMismatch) {
+                $query->aadhaarNameMismatch();
+            }
 
             if ($classId) {
                 $query->where(function($q) use ($classId) {
@@ -79,6 +86,7 @@ class AdminStudentController extends Controller
                 'selectedSectionId' => $sectionId ?: $this->resolveSectionIdForSelection($section),
                 'selectedSection' => $section,
                 'search' => $search,
+                'aadhaarMismatch' => $aadhaarMismatch,
                 'showingStudents' => true
             ]);
         } else {
@@ -230,7 +238,7 @@ class AdminStudentController extends Controller
             'father_name' => 'required|string|max:255',
             'mother_name' => 'required|string|max:255',
             'date_of_birth' => 'required|date|before:today', // Ensure birth date is not in future
-            'aadhar_number' => 'required|digits:12|unique:students',
+            'aadhaar_number' => 'required|digits:12|unique:students',
             'admission_no' => 'nullable|string|max:100|unique:students,admission_no',
             'address' => 'required|string',
             'mobile' => 'required|digits:10',
@@ -243,7 +251,10 @@ class AdminStudentController extends Controller
             'roll_number' => 'nullable|integer|unique:students',
             'religion' => 'nullable|string|max:50',
             'caste' => 'nullable|string|max:50',
-            'blood_group' => 'nullable|in:A+,A-,B+,B-,AB+,AB-,O+,O-,unknown'
+            'blood_group' => 'nullable|in:A+,A-,B+,B-,AB+,AB-,O+,O-,unknown',
+            'udise_pen' => 'nullable|string|max:255|unique:students,udise_pen',
+            'apaar_id' => 'nullable|digits:12|unique:students,apaar_id',
+            'name_as_per_aadhaar' => 'nullable|string|max:255',
         ]);
 
         $normalized = $this->normalizeClassSectionPayload($validated, $request);
@@ -256,6 +267,16 @@ class AdminStudentController extends Controller
         // Redirect with success message
         return redirect()->route('admin.students.index')
                          ->with('success', 'Student successfully added!');
+    }
+
+    /**
+     * Export all students in the column set UDISE+ student import requires.
+     */
+    public function exportUdise()
+    {
+        $this->authorize('viewAny', Student::class);
+
+        return Excel::download(new UdiseStudentsExport(), 'udise-students-' . date('Y-m-d') . '.xlsx');
     }
 
     /**
@@ -292,7 +313,7 @@ class AdminStudentController extends Controller
             'father_name' => 'required|string|max:255',
             'mother_name' => 'required|string|max:255',
             'date_of_birth' => 'required|date|before:today', // Ensure birth date is not in future
-            'aadhar_number' => 'required|digits:12|unique:students,aadhar_number,'.$id,
+            'aadhaar_number' => 'required|digits:12|unique:students,aadhaar_number,'.$id,
             'admission_no' => 'nullable|string|max:100|unique:students,admission_no,'.$id,
             'address' => 'required|string',
             'mobile' => 'required|digits:10',
@@ -305,7 +326,10 @@ class AdminStudentController extends Controller
             'roll_number' => 'nullable|integer|unique:students,roll_number,'.$id,
             'religion' => 'nullable|string|max:50',
             'caste' => 'nullable|string|max:50',
-            'blood_group' => 'nullable|in:A+,A-,B+,B-,AB+,AB-,O+,O-,unknown'
+            'blood_group' => 'nullable|in:A+,A-,B+,B-,AB+,AB-,O+,O-,unknown',
+            'udise_pen' => 'nullable|string|max:255|unique:students,udise_pen,'.$id,
+            'apaar_id' => 'nullable|digits:12|unique:students,apaar_id,'.$id,
+            'name_as_per_aadhaar' => 'nullable|string|max:255',
         ]);
 
         $normalized = $this->normalizeClassSectionPayload($validated, $request);
@@ -357,6 +381,34 @@ class AdminStudentController extends Controller
         }
 
         return redirect()->back()->with('success', 'Student photo updated successfully.');
+    }
+
+    /**
+     * Record (or withdraw) APAAR consent for a student. Deliberately
+     * separate from update() -- apaar_consent_given/date/by are DPDP-
+     * relevant consent records and are not in Student::$fillable, so they
+     * can only be set here, via direct property assignment, never through
+     * the generic edit form.
+     */
+    public function recordApaarConsent(Request $request, $id)
+    {
+        $this->authorize('update', [Student::class, Student::findOrFail($id)]);
+        $student = Student::findOrFail($id);
+
+        $validated = $request->validate([
+            'apaar_consent_given' => 'required|boolean',
+            'apaar_consent_by' => 'required_if:apaar_consent_given,1|nullable|string|max:255',
+        ]);
+
+        $consentGiven = (bool) $validated['apaar_consent_given'];
+
+        $student->apaar_consent_given = $consentGiven;
+        $student->apaar_consent_by = $consentGiven ? $validated['apaar_consent_by'] : null;
+        $student->apaar_consent_date = $consentGiven ? now()->toDateString() : null;
+        $student->save();
+
+        return redirect()->route('admin.students.show', $student->id)
+            ->with('success', $consentGiven ? 'APAAR consent recorded successfully.' : 'APAAR consent withdrawn.');
     }
 
     /**

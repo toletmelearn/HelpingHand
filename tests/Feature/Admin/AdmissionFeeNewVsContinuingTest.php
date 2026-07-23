@@ -28,7 +28,7 @@ class AdmissionFeeNewVsContinuingTest extends TestCase
             'date_of_birth' => '2015-01-01',
             'gender' => 'male',
             'category' => 'General',
-            'aadhar_number' => (string) random_int(100000000000, 999999999999),
+            'aadhaar_number' => (string) random_int(100000000000, 999999999999),
             'phone' => '9998887771',
             'address' => 'Somewhere',
             'admission_session_id' => $admissionSessionId,

@@ -90,7 +90,7 @@ class StudentImportExportControllerExtractionTest extends TestCase
             'father_name' => 'Export Father',
             'mother_name' => 'Export Mother',
             'date_of_birth' => '2010-01-01',
-            'aadhar_number' => '123456789012',
+            'aadhaar_number' => '123456789012',
             'phone' => '9876543210',
             'mobile' => '9876500000',
             'gender' => 'male',
@@ -155,7 +155,7 @@ class StudentImportExportControllerExtractionTest extends TestCase
 
     private function validCsv(): string
     {
-        return "ID,Name,Father Name,Mother Name,Date of Birth,Aadhar Number,Phone,Gender,Category,Class,Section,Roll Number,Religion,Caste,Blood Group,Address\n"
+        return "ID,Name,Father Name,Mother Name,Date of Birth,Aadhaar Number,Phone,Gender,Category,Class,Section,Roll Number,Religion,Caste,Blood Group,Address\n"
             . "1,Test Student,Test Father,Test Mother,2010-01-01,123456789012,9876543210,male,General,Class 5,A,1,Hindu,General,A+,Address\n";
     }
 
@@ -203,7 +203,7 @@ class StudentImportExportControllerExtractionTest extends TestCase
             $table->string('father_name')->nullable();
             $table->string('mother_name')->nullable();
             $table->date('date_of_birth')->nullable();
-            $table->string('aadhar_number')->nullable();
+            $table->string('aadhaar_number')->nullable();
             $table->string('phone')->nullable();
             $table->string('mobile')->nullable();
             $table->string('gender')->nullable();

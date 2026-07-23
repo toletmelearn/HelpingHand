@@ -32,7 +32,7 @@ class HomeworkController extends Controller
             ]);
         }
 
-        $homeworks = \App\Models\HomeworkNotice::where('class_id', $student->class_id)
+        $homeworks = \App\Models\HomeworkNotice::where('class_id', $student->school_class_id)
             ->where('type', 'homework')
             ->where('visible_to_parent', 1)
             ->latest()
@@ -54,7 +54,7 @@ class HomeworkController extends Controller
         $student = $parent->student;
         
         // CRITICAL SECURITY FIX: Verify homework belongs to student's class
-        if ($homeworkNotice->class_id != $student->class_id || $homeworkNotice->type != 'homework') {
+        if ($homeworkNotice->class_id != $student->school_class_id || $homeworkNotice->type != 'homework') {
             abort(403, 'Unauthorized access to this homework.');
         }
 

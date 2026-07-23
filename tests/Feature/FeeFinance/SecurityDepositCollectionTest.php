@@ -29,7 +29,7 @@ class SecurityDepositCollectionTest extends TestCase
         $student = Student::create([
             'name' => 'Deposit Kid', 'father_name' => 'Father', 'mother_name' => 'Mother',
             'date_of_birth' => '2015-01-01', 'gender' => 'male', 'category' => 'General',
-            'aadhar_number' => (string) random_int(100000000000, 999999999999),
+            'aadhaar_number' => (string) random_int(100000000000, 999999999999),
             'phone' => '9998880001', 'address' => 'Somewhere',
         ]);
 
@@ -70,7 +70,7 @@ class SecurityDepositCollectionTest extends TestCase
         $student = Student::create([
             'name' => 'Tuition Kid', 'father_name' => 'Father', 'mother_name' => 'Mother',
             'date_of_birth' => '2015-01-01', 'gender' => 'female', 'category' => 'General',
-            'aadhar_number' => (string) random_int(100000000000, 999999999999),
+            'aadhaar_number' => (string) random_int(100000000000, 999999999999),
             'phone' => '9998880002', 'address' => 'Somewhere',
         ]);
 

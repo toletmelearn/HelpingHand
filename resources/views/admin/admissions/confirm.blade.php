@@ -116,10 +116,10 @@
                             <input type="text" name="mother_name" class="form-control" value="{{ old('mother_name') }}" placeholder="Leave blank if not provided">
                         </div>
 
-                        <!-- Aadhar Number -->
+                        <!-- Aadhaar Number -->
                         <div class="form-group mb-3">
-                            <label class="fw-bold">Aadhar Number (Optional)</label>
-                            <input type="text" name="aadhar_number" class="form-control" value="{{ old('aadhar_number') }}" placeholder="12-digit UIDAI number">
+                            <label class="fw-bold">Aadhaar Number (Optional)</label>
+                            <input type="text" name="aadhaar_number" class="form-control" value="{{ old('aadhaar_number') }}" placeholder="12-digit UIDAI number">
                         </div>
 
                         <!-- Address -->

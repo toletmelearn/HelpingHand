@@ -48,6 +48,7 @@ class AuthServiceProvider extends ServiceProvider
         'App\Models\DailyTeachingWork' => 'App\Policies\DailyTeachingWorkPolicy',
         'App\Models\BellTiming' => 'App\Policies\BellTimingPolicy',
         'App\Models\TimetableSlot' => 'App\Policies\TimetableSlotPolicy',
+        'App\Models\AcademicEvent' => 'App\Policies\AcademicEventPolicy',
 
         // Class Teacher Policy
         'App\Http\Controllers\ClassTeacherAssignmentController' => 'App\Policies\ClassTeacherPolicy',

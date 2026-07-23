@@ -61,8 +61,8 @@
                                     <td>{{ $student->date_of_birth ? $student->date_of_birth->format('d M Y') : 'N/A' }}</td>
                                 </tr>
                                 <tr>
-                                    <th>Aadhar Number:</th>
-                                    <td>{{ $student->aadhar_number }}</td>
+                                    <th>Aadhaar Number:</th>
+                                    <td>{{ $student->aadhaar_number }}</td>
                                 </tr>
                                 <tr>
                                     <th>Mobile Number:</th>
@@ -120,6 +120,65 @@
                         <div class="col-12">
                             <h5>Address</h5>
                             <p>{{ $student->address }}</p>
+                        </div>
+                    </div>
+
+                    <div class="row mt-4">
+                        <div class="col-12">
+                            <h5>Compliance (UDISE / APAAR)</h5>
+                            @if($student->hasAadhaarNameMismatch())
+                                <div class="alert alert-warning py-2">
+                                    <i class="fas fa-exclamation-triangle"></i>
+                                    Name does not match name as per Aadhaar.
+                                </div>
+                            @endif
+                            <div class="table-responsive">
+                                <table class="table table-borderless">
+                                    <tr>
+                                        <th width="30%">UDISE PEN:</th>
+                                        <td>{{ $student->udise_pen ?: 'N/A' }}</td>
+                                    </tr>
+                                    <tr>
+                                        <th>APAAR ID:</th>
+                                        <td>{{ $student->apaar_id ?: 'N/A' }}</td>
+                                    </tr>
+                                    <tr>
+                                        <th>Name as per Aadhaar:</th>
+                                        <td>{{ $student->name_as_per_aadhaar ?: 'N/A' }}</td>
+                                    </tr>
+                                    <tr>
+                                        <th>APAAR Consent:</th>
+                                        <td>
+                                            @if($student->apaar_consent_given)
+                                                <span class="badge bg-success">Given</span>
+                                                on {{ $student->apaar_consent_date?->format('d M Y') }}
+                                                by {{ $student->apaar_consent_by }}
+                                            @else
+                                                <span class="badge bg-secondary">Not given</span>
+                                            @endif
+                                        </td>
+                                    </tr>
+                                </table>
+                            </div>
+                            @can('update', $student)
+                            <form action="{{ route('admin.students.apaar-consent', $student->id) }}" method="POST" class="row g-2 align-items-end">
+                                @csrf
+                                <div class="col-auto">
+                                    <label class="form-label">Parent/Guardian Name</label>
+                                    <input type="text" name="apaar_consent_by" class="form-control form-control-sm"
+                                           value="{{ $student->apaar_consent_by }}" placeholder="Consent given by">
+                                </div>
+                                <div class="col-auto">
+                                    @if($student->apaar_consent_given)
+                                        <input type="hidden" name="apaar_consent_given" value="0">
+                                        <button type="submit" class="btn btn-sm btn-outline-danger">Withdraw Consent</button>
+                                    @else
+                                        <input type="hidden" name="apaar_consent_given" value="1">
+                                        <button type="submit" class="btn btn-sm btn-primary">Record Consent</button>
+                                    @endif
+                                </div>
+                            </form>
+                            @endcan
                         </div>
                     </div>
                 </div>

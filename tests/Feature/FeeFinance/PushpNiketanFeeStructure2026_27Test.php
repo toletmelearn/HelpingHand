@@ -107,7 +107,7 @@ class PushpNiketanFeeStructure2026_27Test extends TestCase
         $student = Student::create([
             'name' => 'Class 3 New Kid', 'father_name' => 'Father', 'mother_name' => 'Mother',
             'date_of_birth' => '2018-01-01', 'gender' => 'male', 'category' => 'General',
-            'aadhar_number' => (string) random_int(100000000000, 999999999999),
+            'aadhaar_number' => (string) random_int(100000000000, 999999999999),
             'phone' => '9998887799', 'address' => 'Somewhere',
             'class_id' => $class->id, 'school_class_id' => $class->id, 'class' => $class->name,
             'admission_session_id' => $session->id,
@@ -162,7 +162,7 @@ class PushpNiketanFeeStructure2026_27Test extends TestCase
         $student = Student::create([
             'name' => 'Class 3 Continuing Kid', 'father_name' => 'Father', 'mother_name' => 'Mother',
             'date_of_birth' => '2017-01-01', 'gender' => 'male', 'category' => 'General',
-            'aadhar_number' => (string) random_int(100000000000, 999999999999),
+            'aadhaar_number' => (string) random_int(100000000000, 999999999999),
             'phone' => '9998887788', 'address' => 'Somewhere',
             'class_id' => $class->id, 'school_class_id' => $class->id, 'class' => $class->name,
             'admission_session_id' => $priorSession->id,
@@ -215,7 +215,7 @@ class PushpNiketanFeeStructure2026_27Test extends TestCase
         $student = Student::create([
             'name' => 'Class 3 Advance Payer', 'father_name' => 'Father', 'mother_name' => 'Mother',
             'date_of_birth' => '2018-01-01', 'gender' => 'male', 'category' => 'General',
-            'aadhar_number' => (string) random_int(100000000000, 999999999999),
+            'aadhaar_number' => (string) random_int(100000000000, 999999999999),
             'phone' => '9998887700', 'address' => 'Somewhere',
             'class_id' => $class->id, 'school_class_id' => $class->id, 'class' => $class->name,
             'admission_session_id' => $session->id,

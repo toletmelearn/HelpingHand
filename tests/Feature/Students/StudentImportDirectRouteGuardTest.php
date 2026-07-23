@@ -87,7 +87,7 @@ class StudentImportDirectRouteGuardTest extends TestCase
 
     private function csvFile(): UploadedFile
     {
-        $contents = "ID,Name,Father Name,Mother Name,Date of Birth,Aadhar Number,Phone,Gender,Category,Class,Section,Roll Number,Religion,Caste,Blood Group,Address\n"
+        $contents = "ID,Name,Father Name,Mother Name,Date of Birth,Aadhaar Number,Phone,Gender,Category,Class,Section,Roll Number,Religion,Caste,Blood Group,Address\n"
             . "1,Test Student,Test Father,Test Mother,2010-01-01,123456789012,9876543210,male,General,Class 5,A,1,Hindu,General,A+,Address\n";
 
         return UploadedFile::fake()->createWithContent('students.csv', $contents);
@@ -129,7 +129,7 @@ class StudentImportDirectRouteGuardTest extends TestCase
         Schema::create('students', function (Blueprint $table) {
             $table->id();
             $table->string('name')->nullable();
-            $table->string('aadhar_number')->nullable();
+            $table->string('aadhaar_number')->nullable();
             $table->string('phone')->nullable();
             $table->string('mobile')->nullable();
             $table->integer('roll_number')->nullable();

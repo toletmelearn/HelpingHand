@@ -35,7 +35,7 @@ class AccountManagementSecurityTest extends TestCase
         $student = Student::create([
             'name' => 'No Parent Kid', 'father_name' => 'Father', 'mother_name' => 'Mother',
             'date_of_birth' => '2016-01-01', 'gender' => 'male', 'category' => 'General',
-            'aadhar_number' => '999988887777', 'phone' => '9998880002', 'address' => 'Somewhere',
+            'aadhaar_number' => '999988887777', 'phone' => '9998880002', 'address' => 'Somewhere',
         ]);
         // Student::saved() auto-creates a ParentModel; delete it so this student
         // counts as "without a parent login" for syncAccounts() to pick up.
