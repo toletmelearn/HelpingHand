@@ -20,6 +20,8 @@ class StudentPromotionController extends Controller
 {
     public function index()
     {
+        $this->authorize('viewAny', StudentPromotionLog::class);
+
         $currentSession = AcademicSession::current()->first();
 
         // Grouping by the legacy raw `students.class` text column (in
@@ -66,6 +68,8 @@ class StudentPromotionController extends Controller
      */
     public function create(Request $request)
     {
+        $this->authorize('create', StudentPromotionLog::class);
+
         $currentSession = AcademicSession::current()->first();
         
         // SOURCE: SchoolClass (Table school_classes, 19 rows) - Always load these
@@ -125,6 +129,8 @@ class StudentPromotionController extends Controller
 
     public function store(Request $request)
     {
+        $this->authorize('create', StudentPromotionLog::class);
+
         $request->validate([
             'academic_session_id' => 'required|exists:academic_sessions,id',
             'from_class' => 'required|integer|exists:school_classes,id',
@@ -179,8 +185,23 @@ class StudentPromotionController extends Controller
         $structureAdjustment = new StructureAdjustmentService();
         $today = now()->toDateString();
 
-        DB::transaction(function () use ($students, $destinationClass, $sourceClass, $sessionId, $promotedBy, $remarks, $newFeeStructure, $structureAdjustment, $today) {
-            foreach ($students as $student) {
+        // Idempotency guard: a student already logged as promoted to this
+        // exact destination class in this exact academic session is skipped
+        // rather than promoted (and logged) a second time. Re-submitting the
+        // same batch -- a double-click, a retried request -- must not create
+        // duplicate StudentPromotionLog rows or re-run the fee-structure
+        // change twice for the same student.
+        $alreadyPromotedIds = StudentPromotionLog::where('academic_session_id', $sessionId)
+            ->where('to_class', $destinationClass->name)
+            ->whereIn('student_id', $students->pluck('id'))
+            ->pluck('student_id')
+            ->all();
+
+        $studentsToPromote = $students->reject(fn ($student) => in_array($student->id, $alreadyPromotedIds, true));
+        $skippedStudents = $students->whereIn('id', $alreadyPromotedIds);
+
+        DB::transaction(function () use ($studentsToPromote, $destinationClass, $sourceClass, $sessionId, $promotedBy, $remarks, $newFeeStructure, $structureAdjustment, $today) {
+            foreach ($studentsToPromote as $student) {
                 // school_class_id is master (see Phase A closure); class_id
                 // derives from it automatically via the saving() hook.
                 $student->school_class_id = $destinationClass->id;
@@ -203,12 +224,19 @@ class StudentPromotionController extends Controller
             }
         });
 
-        return redirect()->route('admin.student-promotions.index')
-            ->with('success', count($request->students) . ' students promoted from ' . $sourceClass->name . ' to ' . $destinationClass->name);
+        $message = $studentsToPromote->count() . ' students promoted from ' . $sourceClass->name . ' to ' . $destinationClass->name;
+        if ($skippedStudents->isNotEmpty()) {
+            $message .= '. ' . $skippedStudents->count() . ' student(s) already promoted to ' . $destinationClass->name
+                . ' this session were skipped: ' . $skippedStudents->pluck('name')->implode(', ') . '.';
+        }
+
+        return redirect()->route('admin.student-promotions.index')->with('success', $message);
     }
 
     public function getStudentsByClass($class)
     {
+        $this->authorize('viewAny', StudentPromotionLog::class);
+
         $id = ($class instanceof SchoolClass) ? $class->id : $class;
         $sourceClass = SchoolClass::find($id);
         
@@ -237,6 +265,8 @@ class StudentPromotionController extends Controller
      */
     public function getDestinationClasses($class)
     {
+        $this->authorize('viewAny', StudentPromotionLog::class);
+
         Log::info('getDestinationClasses called', ['param' => $class]);
 
         $id = ($class instanceof SchoolClass) ? $class->id : $class;
@@ -286,6 +316,8 @@ class StudentPromotionController extends Controller
 
     public function studentHistory($studentId)
     {
+        $this->authorize('viewAny', StudentPromotionLog::class);
+
         $student = Student::findOrFail($studentId);
         $promotions = StudentPromotionLog::where('student_id', $studentId)
             ->with(['academicSession', 'promotedBy'])
@@ -297,6 +329,8 @@ class StudentPromotionController extends Controller
 
     public function markAsPassedOut(Request $request, $studentId)
     {
+        $this->authorize('create', StudentPromotionLog::class);
+
         $request->validate(['remarks' => 'nullable|string']);
 
         $student = Student::findOrFail($studentId);
