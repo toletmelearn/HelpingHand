@@ -1334,12 +1334,18 @@ Route::get('/admin/results/final-result/{studentId}/{examId}', [App\Http\Control
         });
     });
     
-    // Attendance Routes
-    Route::get('/attendance/reports', [AttendanceController::class, 'reports'])->name('attendance.reports');
-    Route::get('/attendance/export', [AttendanceController::class, 'export'])->name('attendance.export');
-    Route::get('/attendance/bulk-mark', [AttendanceController::class, 'bulkMark'])->name('attendance.bulk-mark');
-    Route::get('/attendance/student/{studentId}/report', [AttendanceController::class, 'studentReport'])->name('attendance.student.report');
-    Route::resource('attendance', AttendanceController::class)->except(['reports', 'export']);
+    // Attendance Routes -- previously carried only the global 'web'
+    // middleware (no auth at all), despite being the main attendance UI
+    // linked from the admin/home/parent dashboards, not a device/API
+    // integration. Matched to the auth stack its admin.attendance.*
+    // sibling already uses.
+    Route::middleware(['auth', 'verified', 'redirect.if.not.onboarded'])->group(function () {
+        Route::get('/attendance/reports', [AttendanceController::class, 'reports'])->name('attendance.reports');
+        Route::get('/attendance/export', [AttendanceController::class, 'export'])->name('attendance.export');
+        Route::get('/attendance/bulk-mark', [AttendanceController::class, 'bulkMark'])->name('attendance.bulk-mark');
+        Route::get('/attendance/student/{studentId}/report', [AttendanceController::class, 'studentReport'])->name('attendance.student.report');
+        Route::resource('attendance', AttendanceController::class)->except(['reports', 'export']);
+    });
     
     // Library Management Routes
     Route::resource('books', App\Http\Controllers\Admin\BookController::class);
