@@ -20,6 +20,8 @@ class TeacherSubjectAssignmentController extends Controller
      */
     public function index()
     {
+        $this->authorize('viewAny', TeacherClassSubjectAssignment::class);
+
         $query = TeacherClassSubjectAssignment::with(['teacher', 'subject', 'schoolClass', 'section']);
         
         // Apply filters
@@ -51,6 +53,8 @@ class TeacherSubjectAssignmentController extends Controller
      */
     public function create()
     {
+        $this->authorize('create', TeacherClassSubjectAssignment::class);
+
         $teachers = Teacher::orderBy('name')->get();
         $subjects = Subject::orderBy('name')->get();
         $classes = SchoolClass::orderBy('name')->get();
@@ -67,6 +71,8 @@ class TeacherSubjectAssignmentController extends Controller
      */
     public function store(Request $request)
     {
+        $this->authorize('create', TeacherClassSubjectAssignment::class);
+
         $request->validate([
             'teacher_id' => 'required|exists:teachers,id',
             'class_id' => 'required|exists:school_classes,id',
@@ -146,6 +152,9 @@ class TeacherSubjectAssignmentController extends Controller
     public function edit($id)
     {
         $assignment = TeacherClassSubjectAssignment::with(['teacher', 'subject', 'schoolClass', 'section'])->findOrFail($id);
+
+        $this->authorize('update', $assignment);
+
         $teachers = Teacher::orderBy('name')->get();
         $subjects = Subject::orderBy('name')->get();
         $classes = SchoolClass::orderBy('name')->get();
@@ -162,6 +171,10 @@ class TeacherSubjectAssignmentController extends Controller
      */
     public function update(Request $request, $id)
     {
+        $assignment = TeacherClassSubjectAssignment::findOrFail($id);
+
+        $this->authorize('update', $assignment);
+
         $request->validate([
             'teacher_id' => 'required|exists:teachers,id',
             'class_id' => 'required|exists:school_classes,id',
@@ -172,7 +185,6 @@ class TeacherSubjectAssignmentController extends Controller
             'is_primary_subject_teacher' => 'boolean',
         ]);
 
-        $assignment = TeacherClassSubjectAssignment::findOrFail($id);
         $isClassTeacher = $request->has('is_class_teacher');
         $isPrimarySubjectTeacher = $request->has('is_primary_subject_teacher');
 
@@ -213,6 +225,9 @@ class TeacherSubjectAssignmentController extends Controller
     public function destroy($id)
     {
         $assignment = TeacherClassSubjectAssignment::findOrFail($id);
+
+        $this->authorize('delete', $assignment);
+
         $assignment->delete();
         
         return redirect()->route('admin.teacher-subject-assignments.index')
