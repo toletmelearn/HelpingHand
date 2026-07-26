@@ -206,13 +206,17 @@ class PhotoEverywhereEndToEndTest extends TestCase
 
     public function test_exam_seating_arrangement_shows_student_photo()
     {
+        // Seating is resolved via school_class_id (exam.class_id ->
+        // students.school_class_id), not the legacy class/class_name
+        // string pair -- see remediation Task 7.
+        $schoolClass = SchoolClass::create(['name' => 'Class 5', 'class_order' => 5, 'is_active' => true]);
         $exam = Exam::create([
-            'name' => 'Seating Exam', 'exam_type' => 'term', 'class_name' => $this->student->class ?? 'Class 5',
+            'name' => 'Seating Exam', 'exam_type' => 'term', 'class_id' => $schoolClass->id, 'class_name' => $schoolClass->name,
             'subject' => 'Math', 'exam_date' => today()->addDays(5), 'start_time' => '10:00', 'end_time' => '12:00',
             'total_marks' => 100, 'passing_marks' => 33,
             'academic_year' => '2026-27', 'status' => 'active',
         ]);
-        $this->student->update(['class' => $exam->class_name]);
+        $this->student->update(['school_class_id' => $schoolClass->id]);
 
         $seating = $this->get(route('admin.exams.arrangements.seating', $exam->id));
         $seating->assertOk();

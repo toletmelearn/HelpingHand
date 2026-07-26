@@ -39,16 +39,16 @@
                         </div>
 
                         <div class="form-group mb-3">
-                            <label for="class_name">Class *</label>
-                            <select name="class_name" id="class_name" class="form-control @error('class_name') is-invalid @enderror" required>
+                            <label for="class_id">Class *</label>
+                            <select name="class_id" id="class_id" class="form-control @error('class_id') is-invalid @enderror" required>
                                 <option value="">Select Class</option>
                                 @foreach($classes as $class)
-                                    <option value="{{ $class->name }}" {{ old('class_name') == $class->name ? 'selected' : '' }}>
-                                        {{ $class->name }} {{ $class->section ? '- '.$class->section : '' }}
+                                    <option value="{{ $class->id }}" {{ old('class_id') == $class->id ? 'selected' : '' }}>
+                                        {{ $class->name }}
                                     </option>
                                 @endforeach
                             </select>
-                            @error('class_name')
+                            @error('class_id')
                                 <div class="invalid-feedback">{{ $message }}</div>
                             @enderror
                         </div>

@@ -71,10 +71,18 @@ class ExamArrangementController extends Controller
     public function seatingIndex($examId)
     {
         $exam = Exam::findOrFail($examId);
-        
-        // Get all students enrolled in the class of this exam
-        $students = Student::where('class', $exam->class_name)->orderBy('name')->get();
-        
+
+        // Get all students enrolled in the class of this exam. Reads
+        // school_class_id via exam.class_id, not the free-text class/
+        // class_name string pair -- those use different vocabularies
+        // (e.g. "X" vs "Class 10") and never matched anyone.
+        $students = Student::where('school_class_id', $exam->class_id)->orderBy('name')->get();
+
+        if ($students->isEmpty()) {
+            return redirect()->route('admin.exams.arrangements.index')
+                ->withErrors(['error' => 'No students found in the class for this exam.']);
+        }
+
         // Fetch existing seating
         $seating = ExamSeatingArrangement::where('exam_id', $exam->id)
             ->get()
@@ -96,10 +104,11 @@ class ExamArrangementController extends Controller
             'start_number' => 'required|integer|min:1',
         ]);
 
-        $students = Student::where('class', $exam->class_name)->orderBy('name')->get();
-        
+        // Reads school_class_id via exam.class_id -- see seatingIndex() above.
+        $students = Student::where('school_class_id', $exam->class_id)->orderBy('name')->get();
+
         if ($students->isEmpty()) {
-            return redirect()->back()->with('error', 'No students found in the class for this exam.');
+            return redirect()->back()->withErrors(['error' => 'No students found in the class for this exam.']);
         }
 
         $room = $request->room_number;
