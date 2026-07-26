@@ -13,6 +13,7 @@ use Illuminate\Support\Facades\Log;
 use Carbon\Carbon;
 use App\Services\Attendance\AttendanceClassResolver;
 use App\Services\Attendance\AttendanceBulkPreflightService;
+use App\Services\AttendanceNotificationService;
 use App\Support\Attendance\AttendancePeriodPresenter;
 use App\Support\Attendance\AttendanceCreditCalculator;
 
@@ -309,7 +310,12 @@ class AttendanceController extends Controller
         }
         
         Attendance::insert($attendances);
-        
+
+        $notificationService = app(AttendanceNotificationService::class);
+        foreach ($attendances as $record) {
+            $notificationService->sendAttendanceMarkedNotification($record['student_id'], $record['date'], $record['status']);
+        }
+
         return redirect()->route('attendance.index')
             ->with('success', 'Attendance marked successfully for ' . count($attendances) . ' students!');
     }

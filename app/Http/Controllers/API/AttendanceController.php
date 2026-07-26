@@ -7,6 +7,7 @@ use App\Models\Attendance;
 use App\Models\Student;
 use App\Models\StudentStatus;
 use App\Services\Attendance\AttendanceClassResolver;
+use App\Services\AttendanceNotificationService;
 use App\Support\Attendance\AttendancePeriodPresenter;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\Request;
@@ -98,6 +99,13 @@ class AttendanceController extends BaseApiController
             }
 
             $attendance = Attendance::create($validated)->refresh();
+
+            app(AttendanceNotificationService::class)->sendAttendanceMarkedNotification(
+                $attendance->student_id,
+                $attendance->date,
+                $attendance->status
+            );
+
             return $this->success($this->transformAttendanceForApi($attendance), 'Attendance marked successfully', 201);
         } catch (QueryException $e) {
             if ($this->isDuplicateAttendanceException($e)) {

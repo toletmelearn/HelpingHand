@@ -23,19 +23,11 @@ class AttendanceNotificationSendGuardTest extends TestCase
         Notification::assertNothingSent();
     }
 
-    public function test_attendance_notification_service_marked_notification_is_guarded()
-    {
-        Notification::fake();
-        $svc = new AttendanceNotificationService();
-
-        $res = $svc->sendAttendanceMarkedNotification(1, '2026-01-01', 'present');
-
-        $this->assertIsArray($res);
-        $this->assertTrue($res['disabled']);
-
-        Notification::assertNothingSent();
-    }
-
+    /**
+     * sendAttendanceMarkedNotification() was re-enabled for real in
+     * remediation Task 5 -- it's no longer part of this blanket guard.
+     * See tests/Feature/Attendance/AttendanceMarkedNotificationTest.php.
+     */
     public function test_attendance_notification_service_daily_summary_is_guarded()
     {
         Notification::fake();
