@@ -4,11 +4,13 @@ namespace Tests\Feature\Attendance;
 
 use App\Http\Controllers\API\AttendanceController as ApiAttendanceController;
 use App\Models\AcademicEvent;
+use App\Models\Attendance;
 use App\Models\Role;
 use App\Models\Student;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Schema;
 use Tests\TestCase;
 
 class AttendanceHolidayBlockTest extends TestCase
@@ -116,5 +118,49 @@ class AttendanceHolidayBlockTest extends TestCase
             $response->getData(true)['message']
         );
         $this->assertDatabaseMissing('attendances', ['student_id' => $student->id]);
+    }
+
+    public function test_web_attendance_marking_does_not_break_if_holiday_check_throws(): void
+    {
+        $admin = $this->makeAdmin();
+        $student = $this->makeStudent();
+
+        // Simulate the calendar table being unavailable (the exact real-world
+        // failure this defensive wrap exists for, before the academic_events
+        // migration was applied).
+        Schema::drop('academic_events');
+
+        $response = $this->actingAs($admin)->post(route('admin.attendance.store'), [
+            'class' => 'Class A',
+            'date' => '2026-11-10',
+            'subject' => 'Math',
+            'student_ids' => [$student->id],
+            'statuses' => ['present'],
+        ]);
+
+        $response->assertRedirect(route('attendance.index'));
+        $this->assertDatabaseHas('attendances', ['student_id' => $student->id, 'date' => '2026-11-10']);
+    }
+
+    public function test_api_attendance_marking_does_not_break_if_holiday_check_throws(): void
+    {
+        $admin = $this->makeAdmin();
+        $student = $this->makeStudent();
+
+        Schema::drop('academic_events');
+
+        $request = Request::create('/api/v1/attendance', 'POST', [
+            'student_id' => $student->id,
+            'date' => '2026-11-10',
+            'status' => 'present',
+        ]);
+        $request->setUserResolver(fn () => $admin);
+
+        $response = (new ApiAttendanceController())->store($request);
+
+        $this->assertSame(201, $response->getStatusCode());
+        $this->assertTrue(
+            Attendance::whereDate('date', '2026-11-10')->where('student_id', $student->id)->exists()
+        );
     }
 }

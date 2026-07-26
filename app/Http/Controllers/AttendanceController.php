@@ -9,6 +9,7 @@ use App\Models\Teacher;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
 use Carbon\Carbon;
 use App\Services\Attendance\AttendanceClassResolver;
 use App\Services\Attendance\AttendanceBulkPreflightService;
@@ -253,7 +254,14 @@ class AttendanceController extends Controller
             return back()->with('error', 'Attendance for this class, date, and period is already marked!');
         }
 
-        if ($holiday = AcademicEvent::isHoliday($request->date)) {
+        try {
+            $holiday = AcademicEvent::isHoliday($request->date);
+        } catch (\Throwable $e) {
+            Log::warning('Failed to check holiday status while marking attendance: ' . $e->getMessage());
+            $holiday = null;
+        }
+
+        if ($holiday) {
             return back()->with('error', "Attendance cannot be marked on a holiday: {$holiday->title}.");
         }
         
