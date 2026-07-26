@@ -16,6 +16,8 @@ class ClassTeacherAssignmentController extends Controller
 
     public function index(Request $request)
     {
+        $this->authorize('viewAny', ClassTeacherAssignment::class);
+
         $query = ClassTeacherAssignment::with('teacher');
 
         // Apply filters
@@ -45,12 +47,16 @@ class ClassTeacherAssignmentController extends Controller
 
     public function create()
     {
+        $this->authorize('create', ClassTeacherAssignment::class);
+
         $teachers = User::role('teacher')->get();
         return view('admin.class-teacher-assignments.create', compact('teachers'));
     }
 
     public function store(Request $request)
     {
+        $this->authorize('create', ClassTeacherAssignment::class);
+
         $request->validate([
             'teacher_id' => 'required|exists:users,id',
             'assigned_class' => 'required|string|max:255',
@@ -72,21 +78,27 @@ class ClassTeacherAssignmentController extends Controller
                          ->with('success', 'Class teacher assignment created successfully.');
     }
 
-    public function show(ClassTeacherAssignment $assignment)
+    public function show(ClassTeacherAssignment $class_teacher_assignment)
     {
-        $assignment->load('teacher');
-        return view('admin.class-teacher-assignments.show', compact('assignment'));
+        $this->authorize('view', $class_teacher_assignment);
+
+        $class_teacher_assignment->load('teacher');
+        return view('admin.class-teacher-assignments.show', ['assignment' => $class_teacher_assignment]);
     }
 
-    public function edit(ClassTeacherAssignment $assignment)
+    public function edit(ClassTeacherAssignment $class_teacher_assignment)
     {
-        $assignment->load('teacher');
+        $this->authorize('update', $class_teacher_assignment);
+
+        $class_teacher_assignment->load('teacher');
         $teachers = User::role('teacher')->get();
-        return view('admin.class-teacher-assignments.edit', compact('assignment', 'teachers'));
+        return view('admin.class-teacher-assignments.edit', ['assignment' => $class_teacher_assignment, 'teachers' => $teachers]);
     }
 
-    public function update(Request $request, ClassTeacherAssignment $assignment)
+    public function update(Request $request, ClassTeacherAssignment $class_teacher_assignment)
     {
+        $this->authorize('update', $class_teacher_assignment);
+
         $request->validate([
             'teacher_id' => 'required|exists:users,id',
             'assigned_class' => 'required|string|max:255',
@@ -95,7 +107,7 @@ class ClassTeacherAssignmentController extends Controller
             'is_active' => 'boolean',
         ]);
 
-        $assignment->update([
+        $class_teacher_assignment->update([
             'teacher_id' => $request->teacher_id,
             'assigned_class' => $request->assigned_class,
             'start_date' => $request->start_date,
@@ -108,9 +120,11 @@ class ClassTeacherAssignmentController extends Controller
                          ->with('success', 'Class teacher assignment updated successfully.');
     }
 
-    public function destroy(ClassTeacherAssignment $assignment)
+    public function destroy(ClassTeacherAssignment $class_teacher_assignment)
     {
-        $assignment->delete();
+        $this->authorize('delete', $class_teacher_assignment);
+
+        $class_teacher_assignment->delete();
 
         return redirect()->route('admin.class-teacher-assignments.index')
                          ->with('success', 'Class teacher assignment deleted successfully.');
