@@ -13,6 +13,7 @@ class CertificatePolicy
     public function viewAny(User $user): bool
     {
         return $user->hasRole('admin')
+            || $user->hasRole('accountant')
             || $user->hasPermission('view-certificates')
             || $user->hasPermission('manage-certificates');
     }
@@ -27,11 +28,16 @@ class CertificatePolicy
     }
 
     /**
-     * Determine whether the user can create models.
+     * Determine whether the user can create models. Accountants are
+     * included: TC certificate creation is tightly coupled to the fee-
+     * defaulter/TC-hold workflow they manage (the very thing
+     * DefaulterWorkflowTest exercises -- an accountant attempting to
+     * create a TC certificate for a student on TC Hold, expecting a
+     * validation error, not an authorization one).
      */
     public function create(User $user): bool
     {
-        return $user->hasRole('admin') || $user->hasPermission('manage-certificates');
+        return $user->hasRole('admin') || $user->hasRole('accountant') || $user->hasPermission('manage-certificates');
     }
 
     /**
