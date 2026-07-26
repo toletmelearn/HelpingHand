@@ -52,6 +52,7 @@ class AuthServiceProvider extends ServiceProvider
         'App\Models\StudentPromotionLog' => 'App\Policies\StudentPromotionPolicy',
         'App\Models\TeacherClassAssignment' => 'App\Policies\TeacherClassAssignmentPolicy',
         'App\Models\TeacherClassSubjectAssignment' => 'App\Policies\TeacherClassSubjectAssignmentPolicy',
+        'App\Models\Certificate' => 'App\Policies\CertificatePolicy',
 
         // Class Teacher Policy
         'App\Http\Controllers\ClassTeacherAssignmentController' => 'App\Policies\ClassTeacherPolicy',
