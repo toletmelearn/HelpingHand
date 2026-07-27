@@ -52,7 +52,7 @@ class SubstituteFinderServiceTest extends TestCase
     {
         $data = $this->makeSubstitution();
 
-        $candidates = (new SubstituteFinderService())->findCandidates($data['substitution']);
+        $candidates = (new SubstituteFinderService())->findCandidatesForSubstitution($data['substitution']);
 
         $this->assertFalse(collect($candidates)->pluck('teacher.id')->contains($data['absentTeacher']->id));
     }
@@ -71,7 +71,7 @@ class SubstituteFinderServiceTest extends TestCase
             'teacher_id' => $busyTeacher->id,
         ]);
 
-        $candidates = (new SubstituteFinderService())->findCandidates($data['substitution']);
+        $candidates = (new SubstituteFinderService())->findCandidatesForSubstitution($data['substitution']);
 
         $this->assertFalse(collect($candidates)->pluck('teacher.id')->contains($busyTeacher->id));
     }
@@ -87,7 +87,7 @@ class SubstituteFinderServiceTest extends TestCase
             'is_available' => false,
         ]);
 
-        $candidates = (new SubstituteFinderService())->findCandidates($data['substitution']);
+        $candidates = (new SubstituteFinderService())->findCandidatesForSubstitution($data['substitution']);
 
         $this->assertFalse(collect($candidates)->pluck('teacher.id')->contains($blockedTeacher->id));
     }
@@ -114,7 +114,7 @@ class SubstituteFinderServiceTest extends TestCase
             'created_by' => 1,
         ]);
 
-        $candidates = (new SubstituteFinderService())->findCandidates($data['substitution']);
+        $candidates = (new SubstituteFinderService())->findCandidatesForSubstitution($data['substitution']);
 
         $this->assertFalse(collect($candidates)->pluck('teacher.id')->contains($busyElsewhere->id));
     }
@@ -141,7 +141,7 @@ class SubstituteFinderServiceTest extends TestCase
             'created_by' => 1,
         ]);
 
-        $candidates = (new SubstituteFinderService())->findCandidates($data['substitution']);
+        $candidates = (new SubstituteFinderService())->findCandidatesForSubstitution($data['substitution']);
 
         $this->assertTrue(collect($candidates)->pluck('teacher.id')->contains($freeTeacher->id));
     }
@@ -158,7 +158,7 @@ class SubstituteFinderServiceTest extends TestCase
             'subject_id' => $data['subject']->id,
         ]);
 
-        $candidates = collect((new SubstituteFinderService())->findCandidates($data['substitution']))->keyBy(fn ($c) => $c['teacher']->id);
+        $candidates = collect((new SubstituteFinderService())->findCandidatesForSubstitution($data['substitution']))->keyBy(fn ($c) => $c['teacher']->id);
 
         $this->assertGreaterThan($candidates[$plainTeacher->id]['score'], $candidates[$matchingTeacher->id]['score']);
         $this->assertStringContainsString('Teaches Class 7B Maths', $candidates[$matchingTeacher->id]['reason_text']);
@@ -178,7 +178,7 @@ class SubstituteFinderServiceTest extends TestCase
             TimetableSlot::create(['school_class_id' => $otherClass->id, 'bell_timing_id' => $t->id, 'subject_id' => $otherSubject->id, 'teacher_id' => $busyToday->id]);
         }
 
-        $candidates = collect((new SubstituteFinderService())->findCandidates($data['substitution']))->keyBy(fn ($c) => $c['teacher']->id);
+        $candidates = collect((new SubstituteFinderService())->findCandidatesForSubstitution($data['substitution']))->keyBy(fn ($c) => $c['teacher']->id);
 
         $this->assertGreaterThan($candidates[$busyToday->id]['score'], $candidates[$freeToday->id]['score']);
         $this->assertStringContainsString('0 periods today', $candidates[$freeToday->id]['reason_text']);
@@ -197,7 +197,7 @@ class SubstituteFinderServiceTest extends TestCase
             'subject_id' => $data['subject']->id,
         ]);
 
-        $candidates = (new SubstituteFinderService())->findCandidates($data['substitution']);
+        $candidates = (new SubstituteFinderService())->findCandidatesForSubstitution($data['substitution']);
 
         $this->assertSame($best->id, $candidates[0]['teacher']->id);
         $scores = collect($candidates)->pluck('score')->all();

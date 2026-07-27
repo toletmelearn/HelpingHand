@@ -875,11 +875,17 @@ Route::middleware(['auth'])->group(function () {
         Route::resource('special-day-overrides', App\Http\Controllers\SpecialDayOverrideController::class);
         
         // Teacher Substitution Management Routes
-        Route::resource('teacher-substitutions', App\Http\Controllers\Admin\TeacherSubstitutionController::class);
+        // Literal-path routes registered BEFORE the resource() call so
+        // they don't get swallowed by its GET {teacher_substitution} show
+        // route (same class of ordering bug fixed for bell-timing routes
+        // during remediation).
         Route::get('teacher-substitutions/today', [App\Http\Controllers\Admin\TeacherSubstitutionController::class, 'today'])->name('teacher-substitutions.today');
         Route::get('teacher-substitutions/absence-overview', [App\Http\Controllers\Admin\TeacherSubstitutionController::class, 'absenceOverview'])->name('teacher-substitutions.absence-overview');
+        Route::get('teacher-substitutions/absent-today', [App\Http\Controllers\Admin\TeacherSubstitutionController::class, 'absentToday'])->name('teacher-substitutions.absent-today');
+        Route::post('teacher-substitutions/assign-from-slot', [App\Http\Controllers\Admin\TeacherSubstitutionController::class, 'assignFromSlot'])->name('teacher-substitutions.assign-from-slot');
         Route::get('teacher-substitutions/rules', [App\Http\Controllers\Admin\TeacherSubstitutionController::class, 'rules'])->name('teacher-substitutions.rules');
         Route::post('teacher-substitutions/rules', [App\Http\Controllers\Admin\TeacherSubstitutionController::class, 'updateRules'])->name('teacher-substitutions.update-rules');
+        Route::resource('teacher-substitutions', App\Http\Controllers\Admin\TeacherSubstitutionController::class);
         
                 // Teacher Attendance Management Routes - Specific routes must come before resource route to avoid conflicts
         Route::get('teacher-attendance/reports', [App\Http\Controllers\Admin\TeacherAttendanceController::class, 'reports'])->name('teacher-attendance.reports');

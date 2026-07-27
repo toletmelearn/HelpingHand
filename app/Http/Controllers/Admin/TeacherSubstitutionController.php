@@ -9,8 +9,10 @@ use App\Models\Teacher;
 use App\Models\SchoolClass;
 use App\Models\Section;
 use App\Models\Subject;
+use App\Models\TimetableSlot;
 use App\Models\User;
 use App\Services\Timetable\SubstituteFinderService;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
@@ -181,7 +183,7 @@ class TeacherSubstitutionController extends Controller
     public function suggestSubstitutes(TeacherSubstitution $substitution)
     {
         $substitution->loadMissing(['bellTiming', 'class', 'subject']);
-        $candidates = (new SubstituteFinderService())->findCandidates($substitution);
+        $candidates = (new SubstituteFinderService())->findCandidatesForSubstitution($substitution);
 
         // Auto-suggest the top-ranked candidate; stays pending for admin review.
         if (!empty($candidates)) {
@@ -270,5 +272,110 @@ class TeacherSubstitutionController extends Controller
     {
         // Return view for managing substitution rules
         return view('admin.teacher-substitutions.rules');
+    }
+
+    /**
+     * T3 item 3: "Teacher absent today" flow -- pick a teacher + date,
+     * see their day's timetable slots, and a ranked list of substitute
+     * suggestions per slot that doesn't already have one recorded.
+     */
+    public function absentToday(Request $request)
+    {
+        $this->authorize('manageAbsentToday', TeacherSubstitution::class);
+
+        $teachers = Teacher::active()->orderBy('name')->get();
+        $selectedTeacherId = $request->integer('teacher_id') ?: null;
+        $date = $request->filled('date') ? Carbon::parse($request->date) : Carbon::today();
+
+        $selectedTeacher = null;
+        $rows = [];
+
+        if ($selectedTeacherId) {
+            $selectedTeacher = Teacher::findOrFail($selectedTeacherId);
+            $dayOfWeek = $date->format('l');
+
+            $timetableSlots = TimetableSlot::with(['bellTiming', 'schoolClass', 'section', 'subject'])
+                ->where('teacher_id', $selectedTeacherId)
+                ->whereHas('bellTiming', fn ($q) => $q->where('day_of_week', $dayOfWeek))
+                ->get()
+                ->filter(fn (TimetableSlot $s) => $s->bellTiming !== null)
+                ->sortBy(fn (TimetableSlot $s) => $s->bellTiming->order_index)
+                ->values();
+
+            $service = new SubstituteFinderService();
+
+            foreach ($timetableSlots as $slot) {
+                $existing = TeacherSubstitution::with('substituteTeacher')
+                    ->where('absent_teacher_id', $selectedTeacherId)
+                    ->where('bell_timing_id', $slot->bell_timing_id)
+                    ->whereDate('substitution_date', $date)
+                    ->where('status', '!=', 'cancelled')
+                    ->first();
+
+                $candidates = $existing || !$slot->schoolClass || !$slot->subject
+                    ? []
+                    : $service->findCandidates($slot->bellTiming, $date, $slot->schoolClass, $slot->subject, $selectedTeacherId);
+
+                $rows[] = [
+                    'slot' => $slot,
+                    'existing' => $existing,
+                    'candidates' => array_slice($candidates, 0, 5),
+                ];
+            }
+        }
+
+        return view('admin.teacher-substitutions.absent-today', compact('teachers', 'selectedTeacher', 'date', 'rows'));
+    }
+
+    /**
+     * T3 item 3: one-click assign from the absent-today flow -- records
+     * the substitution and assigns the chosen candidate in one step
+     * (skips the separate "create then suggest then assign" path the
+     * manual form uses).
+     */
+    public function assignFromSlot(Request $request)
+    {
+        $this->authorize('manageAbsentToday', TeacherSubstitution::class);
+
+        $validated = $request->validate([
+            'substitution_date' => 'required|date',
+            'absent_teacher_id' => 'required|exists:teachers,id',
+            'class_id' => 'required|exists:school_classes,id',
+            'section_id' => 'nullable|exists:sections,id',
+            'subject_id' => 'required|exists:subjects,id',
+            'bell_timing_id' => 'required|exists:bell_timings,id',
+            'substitute_teacher_id' => 'required|exists:teachers,id',
+        ]);
+
+        $alreadyRecorded = TeacherSubstitution::where('absent_teacher_id', $validated['absent_teacher_id'])
+            ->where('bell_timing_id', $validated['bell_timing_id'])
+            ->whereDate('substitution_date', $validated['substitution_date'])
+            ->where('status', '!=', 'cancelled')
+            ->exists();
+
+        if ($alreadyRecorded) {
+            return redirect()->route('admin.teacher-substitutions.absent-today', [
+                'teacher_id' => $validated['absent_teacher_id'],
+                'date' => $validated['substitution_date'],
+            ])->with('error', 'A substitution for this teacher and period is already recorded.');
+        }
+
+        TeacherSubstitution::create([
+            'substitution_date' => $validated['substitution_date'],
+            'absent_teacher_id' => $validated['absent_teacher_id'],
+            'substitute_teacher_id' => $validated['substitute_teacher_id'],
+            'class_id' => $validated['class_id'],
+            'section_id' => $validated['section_id'] ?? null,
+            'subject_id' => $validated['subject_id'],
+            'bell_timing_id' => $validated['bell_timing_id'],
+            'status' => 'assigned',
+            'assigned_at' => now(),
+            'created_by' => Auth::id(),
+        ]);
+
+        return redirect()->route('admin.teacher-substitutions.absent-today', [
+            'teacher_id' => $validated['absent_teacher_id'],
+            'date' => $validated['substitution_date'],
+        ])->with('success', 'Substitute assigned.');
     }
 }
