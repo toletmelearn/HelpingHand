@@ -17,6 +17,7 @@ class BellTiming extends Model
         'class_section',    // Specific class/section if needed
         'is_active',        // Whether this schedule is currently active
         'is_break',         // Whether this is a break time
+        'period_type',      // teaching/assembly/prayer/break/zero/dispersal
         'order_index',      // Order of periods in a day
         'academic_year',    // Academic year identifier
         'semester',         // Semester identifier
@@ -44,12 +45,17 @@ class BellTiming extends Model
     const SATURDAY = 'Saturday';
     const SUNDAY = 'Sunday';
 
-    // Period types
-    const PERIOD_TYPE_REGULAR = 'regular';
-    const PERIOD_TYPE_BREAK = 'break';
-    const PERIOD_TYPE_LUNCH = 'lunch';
+    // Period types (T2b: real `period_type` column values, matching the
+    // enum in the 2026_07_27_080014 migration). Replaces a same-named but
+    // unused/never-called getPeriodTypeAttribute() guess-from-period_name
+    // accessor that would otherwise have silently shadowed this real
+    // column on every `$timing->period_type` access.
+    const PERIOD_TYPE_TEACHING = 'teaching';
     const PERIOD_TYPE_ASSEMBLY = 'assembly';
-    const PERIOD_TYPE_EXTRA_CURRICULAR = 'extra_curricular';
+    const PERIOD_TYPE_PRAYER = 'prayer';
+    const PERIOD_TYPE_BREAK = 'break';
+    const PERIOD_TYPE_ZERO = 'zero';
+    const PERIOD_TYPE_DISPERSAL = 'dispersal';
 
     // Scopes for common queries
     public function scopeActive($query)
@@ -238,23 +244,14 @@ class BellTiming extends Model
         return 'Invalid Time';
     }
 
-    public function getPeriodTypeAttribute()
+    /**
+     * Only 'teaching' periods count toward capacity math and solver
+     * placement (T2b); assembly/prayer/break/zero/dispersal are excluded
+     * there but still print in the PDF grids, shaded.
+     */
+    public function scopeTeachingType($query)
     {
-        if ($this->is_break) {
-            if (stripos($this->period_name, 'lunch') !== false) {
-                return self::PERIOD_TYPE_LUNCH;
-            } elseif (stripos($this->period_name, 'break') !== false) {
-                return self::PERIOD_TYPE_BREAK;
-            } else {
-                return self::PERIOD_TYPE_BREAK;
-            }
-        } elseif (stripos($this->period_name, 'assembly') !== false) {
-            return self::PERIOD_TYPE_ASSEMBLY;
-        } elseif (stripos($this->period_name, 'sports') !== false || stripos($this->period_name, 'games') !== false) {
-            return self::PERIOD_TYPE_EXTRA_CURRICULAR;
-        } else {
-            return self::PERIOD_TYPE_REGULAR;
-        }
+        return $query->where('period_type', self::PERIOD_TYPE_TEACHING);
     }
 
     
