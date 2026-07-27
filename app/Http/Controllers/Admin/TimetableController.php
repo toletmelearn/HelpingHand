@@ -232,7 +232,7 @@ class TimetableController extends Controller
             return back()->with('error', "No timetable slots found for {$label} -- nothing to print yet.");
         }
 
-        [$periods, $days] = $this->buildPeriodDayAxes($session?->code);
+        [$periods, $days, $periodMeta] = $this->buildPeriodDayAxes($session?->code);
 
         $grid = [];
         foreach ($slots as $slot) {
@@ -250,6 +250,7 @@ class TimetableController extends Controller
             'session' => $session,
             'periods' => $periods,
             'days' => $days,
+            'periodMeta' => $periodMeta,
             'grid' => $grid,
         ]);
         $pdf->setPaper('A4', 'landscape');
@@ -280,7 +281,7 @@ class TimetableController extends Controller
             return back()->with('error', "No timetable slots found for {$teacher->name} -- nothing to print yet.");
         }
 
-        [$periods, $days] = $this->buildPeriodDayAxes($session?->code);
+        [$periods, $days, $periodMeta] = $this->buildPeriodDayAxes($session?->code);
 
         $grid = [];
         foreach ($slots as $slot) {
@@ -296,6 +297,7 @@ class TimetableController extends Controller
             'session' => $session,
             'periods' => $periods,
             'days' => $days,
+            'periodMeta' => $periodMeta,
             'grid' => $grid,
         ]);
         $pdf->setPaper('A4', 'landscape');
@@ -319,7 +321,7 @@ class TimetableController extends Controller
             return back()->with('error', 'No timetable slots found for any class -- nothing to print yet.');
         }
 
-        [$periods, $days] = $this->buildPeriodDayAxes($session?->code);
+        [$periods, $days, $periodMeta] = $this->buildPeriodDayAxes($session?->code);
         $classes = SchoolClass::active()->orderByOrder()->get();
 
         // [day][class_id][period_name] => slot
@@ -336,6 +338,7 @@ class TimetableController extends Controller
             'session' => $session,
             'periods' => $periods,
             'days' => $days,
+            'periodMeta' => $periodMeta,
             'classes' => $classes,
             'byDay' => $byDay,
         ]);
@@ -345,10 +348,21 @@ class TimetableController extends Controller
     }
 
     /**
-     * Active teaching periods (rows) and the days they occur on (columns),
-     * ordered consistently -- periods by bell_timings.order_index, days by
-     * BellTiming's own canonical day_order accessor (Mon..Sun), not a
-     * hardcoded list, so this doesn't assume which days the school runs.
+     * Active periods (rows) -- teaching AND non-teaching -- and the days
+     * they occur on (columns), ordered consistently: periods by
+     * bell_timings.order_index, days by BellTiming's own canonical
+     * day_order accessor (Mon..Sun), not a hardcoded list, so this
+     * doesn't assume which days the school runs.
+     *
+     * T2b: also returns $periodMeta[$periodName][$day] describing
+     * whether that specific (period, day) cell is a teaching period --
+     * non-teaching cells (assembly/prayer/break/zero/dispersal) still
+     * print in the PDF grids, just shaded with a label instead of
+     * waiting for a TimetableSlot that will never exist there. Looked up
+     * per (period, day) rather than per period name alone, since two
+     * different days can use the same period_name for different things
+     * (confirmed possible by T2b item 2's finding that each bell_timings
+     * row is independently keyed by day).
      */
     private function buildPeriodDayAxes(?string $academicYear): array
     {
@@ -360,7 +374,15 @@ class TimetableController extends Controller
         $periods = $activeTimings->pluck('period_name')->unique()->values()->all();
         $days = $activeTimings->sortBy('day_order')->pluck('day_of_week')->unique()->values()->all();
 
-        return [$periods, $days];
+        $periodMeta = [];
+        foreach ($activeTimings as $timing) {
+            $periodMeta[$timing->period_name][$timing->day_of_week] = [
+                'is_teaching' => $timing->period_type === BellTiming::PERIOD_TYPE_TEACHING,
+                'label' => $timing->custom_label ?: ucfirst($timing->period_type),
+            ];
+        }
+
+        return [$periods, $days, $periodMeta];
     }
 
     private function pdfFilename(string $type, string $name, ?AcademicSession $session): string

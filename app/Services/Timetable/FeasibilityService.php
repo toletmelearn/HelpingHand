@@ -31,6 +31,18 @@ use Illuminate\Support\Collection;
  *      constraints (should be zero -- this proves the constraints work),
  *      plus slots referencing inactive teachers/subjects/classes.
  *
+ * T2b: capacity math now filters on bell_timings.period_type = 'teaching'
+ * (was is_break = false) -- assembly/prayer/zero/dispersal periods are
+ * real, printed periods but aren't teaching capacity. A combined-class
+ * group's placement writes one TimetableSlot row per member class
+ * (T2b item 3); grid_capacity counts those correctly with zero changes
+ * needed (each member class's own row is genuinely occupied once), but
+ * teacher_load's placed-period counts collapse a combined group's N
+ * member rows back down to the ONE period they actually represent on
+ * that teacher's day (see the `unique()` calls in teacherLoad()) --
+ * otherwise a single combined period would be counted N times against
+ * the teacher's week.
+ *
  * Data-model note that shapes #1's design: `sections` is a shared,
  * unscoped label pool in this schema (sections.class_id is NULL for
  * every row in the live data, despite the column existing) -- a
@@ -53,7 +65,7 @@ class FeasibilityService
     {
         $activeTimings = BellTiming::query()
             ->where('is_active', true)
-            ->where('is_break', false)
+            ->teachingType()
             ->when($academicYear, fn ($q) => $q->where('academic_year', $academicYear))
             ->get();
 
@@ -81,6 +93,11 @@ class FeasibilityService
                 ->filter(fn (BellTiming $t) => $t->class_section === null || $t->class_section === $class->name)
                 ->count();
 
+            // A combined group's slots naturally count once per member
+            // class here already -- each member class gets exactly one
+            // TimetableSlot row of its own, so no dedup is needed on this
+            // side (contrast with teacherLoad(), which must dedup by
+            // combined_class_group_id).
             $classSlots = $slots->where('school_class_id', $class->id);
             $classAssignments = $assignments->where('class_id', $class->id);
 
@@ -169,9 +186,20 @@ class FeasibilityService
 
         foreach ($teachers as $teacher) {
             $teacherSlots = $slots->where('teacher_id', $teacher->id);
-            $placed = $teacherSlots->count();
 
-            $byDay = $teacherSlots->groupBy(fn (TimetableSlot $s) => $s->bellTiming?->day_of_week);
+            // A combined-class group writes one TimetableSlot row per
+            // member class, all for the SAME period -- collapse those
+            // back to the single period they represent on this teacher's
+            // day before counting anything. Solo rows (combined_class_
+            // group_id null) each keep their own identity via their own
+            // row id, so they're never accidentally collapsed together.
+            $distinctTeacherSlots = $teacherSlots->unique(
+                fn (TimetableSlot $s) => $s->combined_class_group_id ?? 'solo_' . $s->id
+            );
+
+            $placed = $distinctTeacherSlots->count();
+
+            $byDay = $distinctTeacherSlots->groupBy(fn (TimetableSlot $s) => $s->bellTiming?->day_of_week);
 
             $busiestDay = null;
             $busiestCount = 0;

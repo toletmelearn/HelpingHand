@@ -36,6 +36,26 @@ class BellTiming extends Model
         'updated_at' => 'datetime'
     ];
 
+    /**
+     * is_break=true and period_type='teaching' are contradictory --
+     * neither BellTimingController nor its API counterpart ever set
+     * period_type, so every break created through the admin UI would
+     * otherwise silently fall through to the column's DB default
+     * ('teaching') and get wrongly counted as teaching capacity by
+     * FeasibilityService (T2b). Only overrides when the caller left
+     * period_type unset or contradictorily 'teaching' -- an explicit
+     * non-teaching value (e.g. is_break=true AND period_type=assembly)
+     * is left alone.
+     */
+    protected static function booted(): void
+    {
+        static::saving(function (BellTiming $timing) {
+            if ($timing->is_break && in_array($timing->period_type, [null, self::PERIOD_TYPE_TEACHING], true)) {
+                $timing->period_type = self::PERIOD_TYPE_BREAK;
+            }
+        });
+    }
+
     // Days of the week constants
     const MONDAY = 'Monday';
     const TUESDAY = 'Tuesday';

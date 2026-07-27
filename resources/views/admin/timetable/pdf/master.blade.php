@@ -61,6 +61,11 @@
             font-weight: bold;
             text-align: left;
         }
+        table.grid td.non-teaching {
+            background-color: #e2e8f0;
+            color: #64748b;
+            font-style: italic;
+        }
     </style>
 </head>
 <body>
@@ -86,9 +91,15 @@
                         <tr>
                             <td class="class-label">{{ $class->name }}</td>
                             @foreach($periods as $period)
-                                @php $slot = $byDay[$day][$class->id][$period] ?? null; @endphp
-                                <td>
-                                    @if($slot)
+                                @php
+                                    $meta = $periodMeta[$period][$day] ?? null;
+                                    $isNonTeaching = $meta && !$meta['is_teaching'];
+                                    $slot = $byDay[$day][$class->id][$period] ?? null;
+                                @endphp
+                                <td class="{{ $isNonTeaching ? 'non-teaching' : '' }}">
+                                    @if($isNonTeaching)
+                                        {{ $meta['label'] }}
+                                    @elseif($slot)
                                         {{ $slot->subject->code ?? $slot->subject->name ?? '' }}/{{ $slot->teacher->short_name ?? '' }}
                                     @endif
                                 </td>

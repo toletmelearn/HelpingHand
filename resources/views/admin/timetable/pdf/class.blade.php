@@ -56,6 +56,11 @@
             font-weight: bold;
             text-align: left;
         }
+        table.grid td.non-teaching {
+            background-color: #e2e8f0;
+            color: #64748b;
+            font-style: italic;
+        }
         .subject { font-weight: bold; display: block; }
         .teacher { color: #555; display: block; font-size: 9px; }
     </style>
@@ -81,9 +86,15 @@
                 <tr>
                     <td class="period-label">{{ $period }}</td>
                     @foreach($days as $day)
-                        @php $slot = $grid[$period][$day] ?? null; @endphp
-                        <td>
-                            @if($slot)
+                        @php
+                            $meta = $periodMeta[$period][$day] ?? null;
+                            $isNonTeaching = $meta && !$meta['is_teaching'];
+                            $slot = $grid[$period][$day] ?? null;
+                        @endphp
+                        <td class="{{ $isNonTeaching ? 'non-teaching' : '' }}">
+                            @if($isNonTeaching)
+                                {{ $meta['label'] }}
+                            @elseif($slot)
                                 <span class="subject">{{ $slot->subject->code ?? $slot->subject->name ?? '' }}</span>
                                 <span class="teacher">{{ $slot->teacher->short_name ?? '' }}</span>
                             @endif

@@ -56,7 +56,12 @@
             font-weight: bold;
             text-align: left;
         }
-        /* Free periods are left visibly blank -- no placeholder text or shading. */
+        table.grid td.non-teaching {
+            background-color: #e2e8f0;
+            color: #64748b;
+            font-style: italic;
+        }
+        /* Free TEACHING periods are left visibly blank -- no placeholder text or shading. */
         .class-section { font-weight: bold; display: block; }
         .subject { color: #555; display: block; font-size: 9px; }
     </style>
@@ -82,9 +87,15 @@
                 <tr>
                     <td class="period-label">{{ $period }}</td>
                     @foreach($days as $day)
-                        @php $slot = $grid[$period][$day] ?? null; @endphp
-                        <td>
-                            @if($slot)
+                        @php
+                            $meta = $periodMeta[$period][$day] ?? null;
+                            $isNonTeaching = $meta && !$meta['is_teaching'];
+                            $slot = $grid[$period][$day] ?? null;
+                        @endphp
+                        <td class="{{ $isNonTeaching ? 'non-teaching' : '' }}">
+                            @if($isNonTeaching)
+                                {{ $meta['label'] }}
+                            @elseif($slot)
                                 <span class="class-section">{{ $slot->schoolClass->name ?? '' }}{{ $slot->section ? ' '.$slot->section->name : '' }}</span>
                                 <span class="subject">{{ $slot->subject->code ?? $slot->subject->name ?? '' }}</span>
                             @endif

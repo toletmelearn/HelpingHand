@@ -4,6 +4,8 @@ namespace Tests\Unit\Services\Timetable;
 
 use App\Models\AcademicSession;
 use App\Models\BellTiming;
+use App\Models\CombinedClassGroup;
+use App\Models\CombinedClassGroupMember;
 use App\Models\SchoolClass;
 use App\Models\Section;
 use App\Models\Subject;
@@ -298,5 +300,71 @@ class FeasibilityServiceTest extends TestCase
         $this->assertSame(1, $report['grid_capacity'][0]['capacity']);
         $this->assertSame(0, $report['grid_capacity'][0]['placed']);
         $this->assertSame([], $report['conflicts']);
+    }
+
+    public function test_non_teaching_periods_are_excluded_from_capacity_math(): void
+    {
+        AcademicSession::create(['name' => self::YEAR, 'code' => self::YEAR, 'start_date' => '2026-04-01', 'end_date' => '2027-03-31', 'is_current' => true]);
+        BellTiming::create(['day_of_week' => 'Monday', 'period_name' => 'P1', 'start_time' => '08:00', 'end_time' => '08:45', 'is_active' => true, 'is_break' => false, 'order_index' => 1, 'academic_year' => self::YEAR]);
+        // Non-teaching, and NOT is_break -- proves the filter is period_type,
+        // not the old is_break=false check, which would have missed this.
+        BellTiming::create(['day_of_week' => 'Monday', 'period_name' => 'Assembly', 'start_time' => '07:45', 'end_time' => '08:00', 'is_active' => true, 'is_break' => false, 'order_index' => 0, 'academic_year' => self::YEAR, 'period_type' => BellTiming::PERIOD_TYPE_ASSEMBLY]);
+        SchoolClass::create(['name' => 'Class Only', 'class_order' => 1, 'is_active' => true]);
+
+        $report = (new FeasibilityService())->build(self::YEAR);
+
+        // Only the 1 teaching period counts, not the assembly period too.
+        $this->assertSame(1, $report['grid_capacity'][0]['capacity']);
+    }
+
+    public function test_combined_group_slot_counts_once_per_member_class_for_capacity(): void
+    {
+        AcademicSession::create(['name' => self::YEAR, 'code' => self::YEAR, 'start_date' => '2026-04-01', 'end_date' => '2027-03-31', 'is_current' => true]);
+        $timing = BellTiming::create(['day_of_week' => 'Monday', 'period_name' => 'P1', 'start_time' => '08:00', 'end_time' => '08:45', 'is_active' => true, 'is_break' => false, 'order_index' => 1, 'academic_year' => self::YEAR]);
+        $classA = SchoolClass::create(['name' => 'Combined A', 'class_order' => 1, 'is_active' => true]);
+        $classB = SchoolClass::create(['name' => 'Combined B', 'class_order' => 2, 'is_active' => true]);
+        $subject = Subject::create(['name' => 'Sanskrit', 'code' => 'SANS1']);
+        $teacher = Teacher::create(['name' => 'Combined Teacher', 'status' => 'active']);
+        $session = AcademicSession::where('code', self::YEAR)->first();
+        $group = CombinedClassGroup::create(['name' => 'Combined', 'subject_id' => $subject->id, 'academic_session_id' => $session->id]);
+        CombinedClassGroupMember::create(['combined_class_group_id' => $group->id, 'school_class_id' => $classA->id]);
+        CombinedClassGroupMember::create(['combined_class_group_id' => $group->id, 'school_class_id' => $classB->id]);
+
+        TimetableSlot::create(['school_class_id' => $classA->id, 'bell_timing_id' => $timing->id, 'subject_id' => $subject->id, 'teacher_id' => $teacher->id, 'combined_class_group_id' => $group->id, 'academic_year' => self::YEAR]);
+        TimetableSlot::create(['school_class_id' => $classB->id, 'bell_timing_id' => $timing->id, 'subject_id' => $subject->id, 'teacher_id' => $teacher->id, 'combined_class_group_id' => $group->id, 'academic_year' => self::YEAR]);
+
+        $report = (new FeasibilityService())->build(self::YEAR);
+        $rows = collect($report['grid_capacity'])->keyBy('class_name');
+
+        // Each member class shows its own slot as placed=1, not affected
+        // by the other member's row.
+        $this->assertSame(1, $rows['Combined A']['placed']);
+        $this->assertSame(1, $rows['Combined B']['placed']);
+    }
+
+    public function test_combined_group_slot_counts_once_total_for_teacher_load(): void
+    {
+        AcademicSession::create(['name' => self::YEAR, 'code' => self::YEAR, 'start_date' => '2026-04-01', 'end_date' => '2027-03-31', 'is_current' => true]);
+        $timing = BellTiming::create(['day_of_week' => 'Monday', 'period_name' => 'P1', 'start_time' => '08:00', 'end_time' => '08:45', 'is_active' => true, 'is_break' => false, 'order_index' => 1, 'academic_year' => self::YEAR]);
+        $classA = SchoolClass::create(['name' => 'Combined A', 'class_order' => 1, 'is_active' => true]);
+        $classB = SchoolClass::create(['name' => 'Combined B', 'class_order' => 2, 'is_active' => true]);
+        $subject = Subject::create(['name' => 'Sanskrit', 'code' => 'SANS1']);
+        $teacher = Teacher::create(['name' => 'Combined Teacher', 'status' => 'active']);
+        $session = AcademicSession::where('code', self::YEAR)->first();
+        $group = CombinedClassGroup::create(['name' => 'Combined', 'subject_id' => $subject->id, 'academic_session_id' => $session->id]);
+        CombinedClassGroupMember::create(['combined_class_group_id' => $group->id, 'school_class_id' => $classA->id]);
+        CombinedClassGroupMember::create(['combined_class_group_id' => $group->id, 'school_class_id' => $classB->id]);
+
+        TimetableSlot::create(['school_class_id' => $classA->id, 'bell_timing_id' => $timing->id, 'subject_id' => $subject->id, 'teacher_id' => $teacher->id, 'combined_class_group_id' => $group->id, 'academic_year' => self::YEAR]);
+        TimetableSlot::create(['school_class_id' => $classB->id, 'bell_timing_id' => $timing->id, 'subject_id' => $subject->id, 'teacher_id' => $teacher->id, 'combined_class_group_id' => $group->id, 'academic_year' => self::YEAR]);
+
+        $report = (new FeasibilityService())->build(self::YEAR);
+        $rows = collect($report['teacher_load'])->keyBy('teacher_name');
+
+        // 2 TimetableSlot rows for this teacher at this period, but it's
+        // ONE period of their day -- must count once, not twice.
+        $this->assertSame(1, $rows['Combined Teacher']['placed_periods']);
+        $this->assertSame('Monday', $rows['Combined Teacher']['busiest_day']);
+        $this->assertSame(1, $rows['Combined Teacher']['busiest_day_count']);
     }
 }
