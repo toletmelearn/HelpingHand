@@ -12,8 +12,8 @@
                         <i class="fas fa-edit"></i> Edit Teacher Substitution
                     </h4>
                     <span class="badge badge-light">
-                        {{ $teacherSubstitution->substitution_date->format('d M Y') }} - 
-                        Period {{ $teacherSubstitution->period_number }}
+                        {{ $teacherSubstitution->substitution_date->format('d M Y') }} -
+                        {{ $teacherSubstitution->period_name }}
                     </span>
                 </div>
                 <div class="card-body">
@@ -111,32 +111,20 @@
                         </div>
 
                         <div class="row">
-                            <div class="col-md-6">
+                            <div class="col-md-12">
                                 <div class="form-group mb-3">
-                                    <label for="period_number" class="form-label">Period Number *</label>
-                                    <select name="period_number" id="period_number" 
-                                            class="form-control @error('period_number') is-invalid @enderror" required>
+                                    <label for="bell_timing_id" class="form-label">Period *</label>
+                                    <select name="bell_timing_id" id="bell_timing_id"
+                                            class="form-control @error('bell_timing_id') is-invalid @enderror" required>
                                         <option value="">Select Period</option>
-                                        @foreach($periods as $period)
-                                            <option value="{{ $period }}" 
-                                                    {{ old('period_number', $teacherSubstitution->period_number) == $period ? 'selected' : '' }}>
-                                                Period {{ $period }}
+                                        @foreach($bellTimings as $timing)
+                                            <option value="{{ $timing->id }}"
+                                                    {{ old('bell_timing_id', $teacherSubstitution->bell_timing_id) == $timing->id ? 'selected' : '' }}>
+                                                {{ $timing->day_of_week }} - {{ $timing->period_name }} ({{ $timing->start_time->format('H:i') }}-{{ $timing->end_time->format('H:i') }})
                                             </option>
                                         @endforeach
                                     </select>
-                                    @error('period_number')
-                                        <div class="invalid-feedback">{{ $message }}</div>
-                                    @enderror
-                                </div>
-                            </div>
-                            <div class="col-md-6">
-                                <div class="form-group mb-3">
-                                    <label for="period_name" class="form-label">Period Name</label>
-                                    <input type="text" name="period_name" id="period_name" 
-                                           class="form-control @error('period_name') is-invalid @enderror" 
-                                           value="{{ old('period_name', $teacherSubstitution->period_name) }}" 
-                                           placeholder="e.g., Morning Assembly, Break, etc.">
-                                    @error('period_name')
+                                    @error('bell_timing_id')
                                         <div class="invalid-feedback">{{ $message }}</div>
                                     @enderror
                                 </div>

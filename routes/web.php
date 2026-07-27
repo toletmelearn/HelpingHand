@@ -1165,9 +1165,14 @@ Route::middleware(['auth'])->group(function () {
         Route::put('admit-cards/{admit_card}/revoke', [App\Http\Controllers\Admin\AdmitCardController::class, 'revoke'])->name('admit-cards.revoke');
         
         // Teacher Substitutions Additional Routes
-        Route::post('teacher-substitutions/{substitution}/assign', [App\Http\Controllers\Admin\TeacherSubstitutionController::class, 'assignSubstitute'])->name('teacher-substitutions.assign');
-        Route::post('teacher-substitutions/{substitution}/approve', [App\Http\Controllers\Admin\TeacherSubstitutionController::class, 'approveSubstitute'])->name('teacher-substitutions.approve');
-        Route::post('teacher-substitutions/{substitution}/cancel', [App\Http\Controllers\Admin\TeacherSubstitutionController::class, 'cancelSubstitute'])->name('teacher-substitutions.cancel');
+        // Wildcard renamed teacher_substitution to match the controller's
+        // $teacherSubstitution parameter (implicit binding only matches by
+        // exact name or its snake_case form -- {substitution} silently
+        // failed to bind, same class of bug fixed in ClassTeacherAssignmentController
+        // during the remediation phase).
+        Route::post('teacher-substitutions/{teacher_substitution}/assign', [App\Http\Controllers\Admin\TeacherSubstitutionController::class, 'assignSubstitute'])->name('teacher-substitutions.assign');
+        Route::post('teacher-substitutions/{teacher_substitution}/approve', [App\Http\Controllers\Admin\TeacherSubstitutionController::class, 'approveSubstitute'])->name('teacher-substitutions.approve');
+        Route::post('teacher-substitutions/{teacher_substitution}/cancel', [App\Http\Controllers\Admin\TeacherSubstitutionController::class, 'cancelSubstitute'])->name('teacher-substitutions.cancel');
         
         // User Roles Management
         Route::put('user-roles/{user}', [App\Http\Controllers\RolePermissionController::class, 'update'])->name('user-roles.update');

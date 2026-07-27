@@ -18,6 +18,7 @@ class TeacherSubstitution extends Model
         'section_id',
         'subject_id',
         'period_number',
+        'bell_timing_id',
         'period_name',
         'status',
         'reason',
@@ -31,7 +32,32 @@ class TeacherSubstitution extends Model
         'assigned_at' => 'datetime',
     ];
 
+    /**
+     * T3 item 1: period_name is a display duplicate of the linked
+     * bell_timing's own period_name -- auto-derived here so the two
+     * can never drift apart (same pattern as TeacherAvailability::day
+     * and BellTiming::period_type elsewhere in this module).
+     */
+    protected static function booted(): void
+    {
+        static::saving(function (TeacherSubstitution $substitution) {
+            if ($substitution->bell_timing_id) {
+                $bellTiming = $substitution->relationLoaded('bellTiming')
+                    ? $substitution->bellTiming
+                    : BellTiming::find($substitution->bell_timing_id);
+                if ($bellTiming) {
+                    $substitution->period_name = $bellTiming->period_name;
+                }
+            }
+        });
+    }
+
     // Relationships
+    public function bellTiming(): BelongsTo
+    {
+        return $this->belongsTo(BellTiming::class);
+    }
+
     public function absentTeacher(): BelongsTo
     {
         return $this->belongsTo(Teacher::class, 'absent_teacher_id');

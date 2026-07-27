@@ -24,7 +24,7 @@
                                     <p class="mb-1">
                                         <i class="fas fa-chalkboard-teacher"></i> 
                                         @foreach($teacher->absentSubstitutions as $sub)
-                                            {{ $sub->class->name }}-{{ $sub->section->name }}: {{ $sub->subject->name }} (P{{ $sub->period_number }})
+                                            {{ $sub->class->name }}-{{ $sub->section->name }}: {{ $sub->subject->name }} ({{ $sub->period_name }})
                                             @if(!$loop->last), @endif
                                         @endforeach
                                     </p>
@@ -63,7 +63,7 @@
                                     <p class="mb-1">
                                         <i class="fas fa-chalkboard-teacher"></i> 
                                         @foreach($teacher->substituteSubstitutions as $sub)
-                                            {{ $sub->class->name }}-{{ $sub->section->name }}: {{ $sub->subject->name }} (P{{ $sub->period_number }})
+                                            {{ $sub->class->name }}-{{ $sub->section->name }}: {{ $sub->subject->name }} ({{ $sub->period_name }})
                                             @if(!$loop->last), @endif
                                         @endforeach
                                     </p>

@@ -12,8 +12,8 @@
                         <i class="fas fa-file-alt"></i> Teacher Substitution Details
                     </h4>
                     <span class="badge badge-light">
-                        {{ $teacherSubstitution->substitution_date->format('d M Y') }} - 
-                        Period {{ $teacherSubstitution->period_number }}
+                        {{ $teacherSubstitution->substitution_date->format('d M Y') }} -
+                        {{ $teacherSubstitution->period_name }}
                     </span>
                 </div>
                 <div class="card-body">
@@ -52,9 +52,10 @@
                             <div class="mb-3">
                                 <strong>Period:</strong>
                                 <p class="text-muted">
-                                    {{ $teacherSubstitution->period_number }} 
-                                    @if($teacherSubstitution->period_name)
-                                        ({{ $teacherSubstitution->period_name }})
+                                    {{ $teacherSubstitution->period_name }}
+                                    @if($teacherSubstitution->bellTiming)
+                                        ({{ $teacherSubstitution->bellTiming->day_of_week }},
+                                        {{ $teacherSubstitution->bellTiming->start_time->format('H:i') }}-{{ $teacherSubstitution->bellTiming->end_time->format('H:i') }})
                                     @endif
                                 </p>
                             </div>

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\BellTiming;
 use App\Models\TeacherSubstitution;
 use App\Models\Teacher;
 use App\Models\SchoolClass;
@@ -22,7 +23,7 @@ class TeacherSubstitutionController extends Controller
 
     public function index(Request $request)
     {
-        $query = TeacherSubstitution::with(['absentTeacher', 'substituteTeacher', 'class', 'section', 'subject']);
+        $query = TeacherSubstitution::with(['absentTeacher', 'substituteTeacher', 'class', 'section', 'subject', 'bellTiming']);
 
         // Filter by date
         if ($request->filled('date')) {
@@ -46,7 +47,10 @@ class TeacherSubstitutionController extends Controller
             $query->forTeacher($request->teacher_id);
         }
 
-        $substitutions = $query->orderBy('period_number')->paginate(20);
+        $substitutions = $query->join('bell_timings', 'teacher_substitutions.bell_timing_id', '=', 'bell_timings.id')
+            ->orderBy('bell_timings.order_index')
+            ->select('teacher_substitutions.*')
+            ->paginate(20);
 
         // Get filters for the view
         $classes = SchoolClass::orderBy('name')->get();
@@ -62,9 +66,9 @@ class TeacherSubstitutionController extends Controller
         $classes = SchoolClass::orderBy('name')->get();
         $sections = Section::orderBy('name')->get();
         $subjects = Subject::orderBy('name')->get();
-        $periods = range(1, 10); // Assuming max 10 periods per day
-        
-        return view('admin.teacher-substitutions.create', compact('teachers', 'classes', 'sections', 'subjects', 'periods'));
+        $bellTimings = BellTiming::teachingType()->where('is_active', true)->orderBy('order_index')->get();
+
+        return view('admin.teacher-substitutions.create', compact('teachers', 'classes', 'sections', 'subjects', 'bellTimings'));
     }
 
     public function store(Request $request)
@@ -75,8 +79,7 @@ class TeacherSubstitutionController extends Controller
             'class_id' => 'required|exists:school_classes,id',
             'section_id' => 'required|exists:sections,id',
             'subject_id' => 'required|exists:subjects,id',
-            'period_number' => 'required|integer|min:1|max:10',
-            'period_name' => 'nullable|string|max:255',
+            'bell_timing_id' => 'required|exists:bell_timings,id',
             'reason' => 'nullable|string|max:1000',
         ]);
 
@@ -86,8 +89,7 @@ class TeacherSubstitutionController extends Controller
             'class_id' => $request->class_id,
             'section_id' => $request->section_id,
             'subject_id' => $request->subject_id,
-            'period_number' => $request->period_number,
-            'period_name' => $request->period_name,
+            'bell_timing_id' => $request->bell_timing_id,
             'reason' => $request->reason,
             'status' => 'pending',
             'created_by' => Auth::id(),
@@ -109,21 +111,21 @@ class TeacherSubstitutionController extends Controller
 
     public function edit(TeacherSubstitution $teacherSubstitution)
     {
-        $teacherSubstitution->load(['absentTeacher', 'substituteTeacher', 'class', 'section', 'subject']);
-        
+        $teacherSubstitution->load(['absentTeacher', 'substituteTeacher', 'class', 'section', 'subject', 'bellTiming']);
+
         $teachers = Teacher::with('user')->orderBy('id')->get();
         $classes = SchoolClass::orderBy('name')->get();
         $sections = Section::orderBy('name')->get();
         $subjects = Subject::orderBy('name')->get();
-        $periods = range(1, 10);
-        
+        $bellTimings = BellTiming::teachingType()->where('is_active', true)->orderBy('order_index')->get();
+
         return view('admin.teacher-substitutions.edit', compact(
-            'teacherSubstitution', 
-            'teachers', 
-            'classes', 
-            'sections', 
-            'subjects', 
-            'periods'
+            'teacherSubstitution',
+            'teachers',
+            'classes',
+            'sections',
+            'subjects',
+            'bellTimings'
         ));
     }
 
@@ -135,8 +137,7 @@ class TeacherSubstitutionController extends Controller
             'class_id' => 'required|exists:school_classes,id',
             'section_id' => 'required|exists:sections,id',
             'subject_id' => 'required|exists:subjects,id',
-            'period_number' => 'required|integer|min:1|max:10',
-            'period_name' => 'nullable|string|max:255',
+            'bell_timing_id' => 'required|exists:bell_timings,id',
             'status' => 'required|in:pending,assigned,approved,cancelled',
             'substitute_teacher_id' => 'nullable|exists:teachers,id',
             'reason' => 'nullable|string|max:1000',
@@ -148,8 +149,7 @@ class TeacherSubstitutionController extends Controller
             'class_id' => $request->class_id,
             'section_id' => $request->section_id,
             'subject_id' => $request->subject_id,
-            'period_number' => $request->period_number,
-            'period_name' => $request->period_name,
+            'bell_timing_id' => $request->bell_timing_id,
             'status' => $request->status,
             'substitute_teacher_id' => $request->substitute_teacher_id,
             'reason' => $request->reason,
@@ -332,10 +332,11 @@ class TeacherSubstitutionController extends Controller
 
     public function today()
     {
-        $substitutions = TeacherSubstitution::with(['absentTeacher', 'substituteTeacher', 'class', 'section', 'subject'])
+        $substitutions = TeacherSubstitution::with(['absentTeacher', 'substituteTeacher', 'class', 'section', 'subject', 'bellTiming'])
             ->forDate(now())
-            ->orderBy('period_number')
-            ->get();
+            ->get()
+            ->sortBy(fn (TeacherSubstitution $s) => $s->bellTiming?->order_index ?? PHP_INT_MAX)
+            ->values();
 
         return view('admin.teacher-substitutions.today', compact('substitutions'));
     }

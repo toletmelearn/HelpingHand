@@ -95,9 +95,9 @@
                                     <td>{{ $substitution->section->name }}</td>
                                     <td>{{ $substitution->subject->name }}</td>
                                     <td>
-                                        {{ $substitution->period_number }}
-                                        @if($substitution->period_name)
-                                            <br><small class="text-muted">{{ $substitution->period_name }}</small>
+                                        {{ $substitution->period_name }}
+                                        @if($substitution->bellTiming)
+                                            <br><small class="text-muted">{{ $substitution->bellTiming->day_of_week }}</small>
                                         @endif
                                     </td>
                                     <td>
