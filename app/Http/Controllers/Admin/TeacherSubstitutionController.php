@@ -12,6 +12,7 @@ use App\Models\Subject;
 use App\Models\TimetableSlot;
 use App\Models\User;
 use App\Services\Timetable\SubstituteFinderService;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -377,5 +378,62 @@ class TeacherSubstitutionController extends Controller
             'teacher_id' => $validated['absent_teacher_id'],
             'date' => $validated['substitution_date'],
         ])->with('success', 'Substitute assigned.');
+    }
+
+    /**
+     * T3 item 4: the daily "arrangement sheet" -- a period x class grid
+     * of ONLY the substitution changes for one day (not the whole
+     * timetable), the sheet on the principal's desk at 8am. Periods are
+     * that date's day-of-week active bell timings; classes are only the
+     * ones with an actual change that day (an unaffected class doesn't
+     * need a row).
+     */
+    public function arrangementSheetPdf(Request $request)
+    {
+        $this->authorize('viewAny', TeacherSubstitution::class);
+
+        $date = $request->filled('date') ? Carbon::parse($request->date) : Carbon::today();
+        $dayOfWeek = $date->format('l');
+
+        $substitutions = TeacherSubstitution::with(['bellTiming', 'class', 'section', 'subject', 'absentTeacher', 'substituteTeacher'])
+            ->whereDate('substitution_date', $date)
+            ->where('status', '!=', 'cancelled')
+            ->get();
+
+        if ($substitutions->isEmpty()) {
+            return back()->with('error', "No substitutions recorded for {$date->format('d M Y')} -- nothing to print yet.");
+        }
+
+        $periods = BellTiming::where('is_active', true)
+            ->where('day_of_week', $dayOfWeek)
+            ->teachingType()
+            ->orderBy('order_index')
+            ->pluck('period_name')
+            ->unique()
+            ->values()
+            ->all();
+
+        $classes = $substitutions->pluck('class')->filter()->unique('id')->sortBy('class_order')->values();
+
+        // [class_id][period_name] => substitution
+        $grid = [];
+        foreach ($substitutions as $substitution) {
+            if (!$substitution->bellTiming) {
+                continue;
+            }
+            $grid[$substitution->class_id][$substitution->bellTiming->period_name] = $substitution;
+        }
+
+        $pdf = Pdf::loadView('admin.teacher-substitutions.pdf.arrangement-sheet', [
+            'date' => $date,
+            'periods' => $periods,
+            'classes' => $classes,
+            'grid' => $grid,
+        ]);
+        $pdf->setPaper('A4', 'landscape');
+
+        $safeDate = $date->format('Y-m-d');
+
+        return $pdf->download("arrangement_sheet_{$safeDate}.pdf");
     }
 }

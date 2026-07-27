@@ -883,6 +883,7 @@ Route::middleware(['auth'])->group(function () {
         Route::get('teacher-substitutions/absence-overview', [App\Http\Controllers\Admin\TeacherSubstitutionController::class, 'absenceOverview'])->name('teacher-substitutions.absence-overview');
         Route::get('teacher-substitutions/absent-today', [App\Http\Controllers\Admin\TeacherSubstitutionController::class, 'absentToday'])->name('teacher-substitutions.absent-today');
         Route::post('teacher-substitutions/assign-from-slot', [App\Http\Controllers\Admin\TeacherSubstitutionController::class, 'assignFromSlot'])->name('teacher-substitutions.assign-from-slot');
+        Route::get('teacher-substitutions/arrangement-sheet', [App\Http\Controllers\Admin\TeacherSubstitutionController::class, 'arrangementSheetPdf'])->name('teacher-substitutions.arrangement-sheet');
         Route::get('teacher-substitutions/rules', [App\Http\Controllers\Admin\TeacherSubstitutionController::class, 'rules'])->name('teacher-substitutions.rules');
         Route::post('teacher-substitutions/rules', [App\Http\Controllers\Admin\TeacherSubstitutionController::class, 'updateRules'])->name('teacher-substitutions.update-rules');
         Route::resource('teacher-substitutions', App\Http\Controllers\Admin\TeacherSubstitutionController::class);

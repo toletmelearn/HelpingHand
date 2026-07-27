@@ -5,9 +5,14 @@
 @section('content')
 <div class="container-fluid">
     <div class="row mb-4">
-        <div class="col-12">
-            <h2 class="mb-0"><i class="fas fa-user-clock"></i> Teacher Absent Today</h2>
-            <p class="text-muted mb-0">Pick a teacher and date to see their slots for that day and ranked substitute suggestions.</p>
+        <div class="col-12 d-flex justify-content-between align-items-start">
+            <div>
+                <h2 class="mb-0"><i class="fas fa-user-clock"></i> Teacher Absent Today</h2>
+                <p class="text-muted mb-0">Pick a teacher and date to see their slots for that day and ranked substitute suggestions.</p>
+            </div>
+            <a href="{{ route('admin.teacher-substitutions.arrangement-sheet', ['date' => $date->format('Y-m-d')]) }}" class="btn btn-outline-secondary">
+                <i class="fas fa-file-pdf"></i> Arrangement Sheet PDF
+            </a>
         </div>
     </div>
 
