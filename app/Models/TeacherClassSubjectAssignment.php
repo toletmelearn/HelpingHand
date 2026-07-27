@@ -17,11 +17,14 @@ class TeacherClassSubjectAssignment extends Model
         'is_class_teacher',
         'is_primary_subject_teacher',
         'academic_year',
+        'periods_per_week',
+        'require_consecutive',
     ];
 
     protected $casts = [
         'is_class_teacher' => 'boolean',
         'is_primary_subject_teacher' => 'boolean',
+        'require_consecutive' => 'boolean',
     ];
 
     /**

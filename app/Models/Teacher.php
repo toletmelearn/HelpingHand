@@ -54,6 +54,8 @@ class Teacher extends Authenticatable
         'no_of_periods',
         'class_section',
         'responsibilities',
+        'max_periods_per_day',
+        'max_periods_per_week',
     ];
 
     protected $dates = ['date_of_birth', 'date_of_joining'];
