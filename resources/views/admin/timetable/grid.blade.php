@@ -57,9 +57,14 @@
     <div class="d-sm-flex align-items-center justify-content-between mb-4">
         <h1 class="h3 mb-0 text-gray-800">Academic Timetable Scheduler</h1>
         @if($schoolClassId)
-        <button class="btn btn-primary shadow-sm" data-toggle="modal" data-target="#addSlotModal">
-            <i class="fas fa-plus fa-sm text-white-50"></i> Schedule Class Period
-        </button>
+        <div>
+            <a href="{{ route('timetable.pdf.class', ['school_class_id' => $schoolClassId, 'section_id' => $sectionId]) }}" class="btn btn-outline-secondary shadow-sm">
+                <i class="fas fa-file-pdf"></i> Download Class Timetable PDF
+            </a>
+            <button class="btn btn-primary shadow-sm" data-toggle="modal" data-target="#addSlotModal">
+                <i class="fas fa-plus fa-sm text-white-50"></i> Schedule Class Period
+            </button>
+        </div>
         @endif
     </div>
 

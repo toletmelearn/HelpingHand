@@ -11,6 +11,7 @@ use App\Models\Section;
 use App\Models\Subject;
 use App\Models\Teacher;
 use App\Services\Timetable\FeasibilityService;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 
 class TimetableController extends Controller
@@ -119,6 +120,172 @@ class TimetableController extends Controller
         $report = $service->build($academicYear);
 
         return view('admin.timetable.feasibility', compact('sessions', 'selectedSession', 'report'));
+    }
+
+    /**
+     * T1c: A4 landscape grid PDF for one class(-section) -- days across,
+     * periods down. Policy-gated identically to timetable viewing.
+     */
+    public function classPdf(Request $request)
+    {
+        $this->authorize('viewAny', TimetableSlot::class);
+
+        $request->validate([
+            'school_class_id' => 'required|exists:school_classes,id',
+            'section_id' => 'nullable|exists:sections,id',
+        ]);
+
+        $class = SchoolClass::findOrFail($request->school_class_id);
+        $section = $request->filled('section_id') ? Section::find($request->section_id) : null;
+        $session = AcademicSession::current()->first();
+
+        $slots = TimetableSlot::with(['bellTiming', 'subject', 'teacher'])
+            ->where('school_class_id', $class->id)
+            ->when($request->filled('section_id'), fn ($q) => $q->where('section_id', $request->section_id))
+            ->get();
+
+        if ($slots->isEmpty()) {
+            $label = $section ? "{$class->name} {$section->name}" : $class->name;
+            return back()->with('error', "No timetable slots found for {$label} -- nothing to print yet.");
+        }
+
+        [$periods, $days] = $this->buildPeriodDayAxes($session?->code);
+
+        $grid = [];
+        foreach ($slots as $slot) {
+            $timing = $slot->bellTiming;
+            if (!$timing) {
+                continue;
+            }
+            $grid[$timing->period_name][$timing->day_of_week] = $slot;
+        }
+
+        $title = $section ? "{$class->name} - {$section->name}" : $class->name;
+
+        $pdf = Pdf::loadView('admin.timetable.pdf.class', [
+            'title' => $title,
+            'session' => $session,
+            'periods' => $periods,
+            'days' => $days,
+            'grid' => $grid,
+        ]);
+        $pdf->setPaper('A4', 'landscape');
+
+        return $pdf->download($this->pdfFilename('class', $title, $session));
+    }
+
+    /**
+     * T1c: A4 landscape grid PDF for one teacher -- days across, periods
+     * down, class-section + subject per cell, free periods left blank.
+     */
+    public function teacherPdf(Request $request)
+    {
+        $this->authorize('viewAny', TimetableSlot::class);
+
+        $request->validate([
+            'teacher_id' => 'required|exists:teachers,id',
+        ]);
+
+        $teacher = Teacher::findOrFail($request->teacher_id);
+        $session = AcademicSession::current()->first();
+
+        $slots = TimetableSlot::with(['bellTiming', 'subject', 'schoolClass', 'section'])
+            ->where('teacher_id', $teacher->id)
+            ->get();
+
+        if ($slots->isEmpty()) {
+            return back()->with('error', "No timetable slots found for {$teacher->name} -- nothing to print yet.");
+        }
+
+        [$periods, $days] = $this->buildPeriodDayAxes($session?->code);
+
+        $grid = [];
+        foreach ($slots as $slot) {
+            $timing = $slot->bellTiming;
+            if (!$timing) {
+                continue;
+            }
+            $grid[$timing->period_name][$timing->day_of_week] = $slot;
+        }
+
+        $pdf = Pdf::loadView('admin.timetable.pdf.teacher', [
+            'teacher' => $teacher,
+            'session' => $session,
+            'periods' => $periods,
+            'days' => $days,
+            'grid' => $grid,
+        ]);
+        $pdf->setPaper('A4', 'landscape');
+
+        return $pdf->download($this->pdfFilename('teacher', $teacher->name, $session));
+    }
+
+    /**
+     * T1c: master timetable -- all active classes x periods, one page per
+     * operating day, compact (subject/teacher-short-name per cell).
+     */
+    public function masterPdf(Request $request)
+    {
+        $this->authorize('viewAny', TimetableSlot::class);
+
+        $session = AcademicSession::current()->first();
+
+        $slots = TimetableSlot::with(['bellTiming', 'subject', 'teacher', 'schoolClass', 'section'])->get();
+
+        if ($slots->isEmpty()) {
+            return back()->with('error', 'No timetable slots found for any class -- nothing to print yet.');
+        }
+
+        [$periods, $days] = $this->buildPeriodDayAxes($session?->code);
+        $classes = SchoolClass::active()->orderByOrder()->get();
+
+        // [day][class_id][period_name] => slot
+        $byDay = [];
+        foreach ($slots as $slot) {
+            $timing = $slot->bellTiming;
+            if (!$timing) {
+                continue;
+            }
+            $byDay[$timing->day_of_week][$slot->school_class_id][$timing->period_name] = $slot;
+        }
+
+        $pdf = Pdf::loadView('admin.timetable.pdf.master', [
+            'session' => $session,
+            'periods' => $periods,
+            'days' => $days,
+            'classes' => $classes,
+            'byDay' => $byDay,
+        ]);
+        $pdf->setPaper('A4', 'landscape');
+
+        return $pdf->download($this->pdfFilename('master', 'all-classes', $session));
+    }
+
+    /**
+     * Active teaching periods (rows) and the days they occur on (columns),
+     * ordered consistently -- periods by bell_timings.order_index, days by
+     * BellTiming's own canonical day_order accessor (Mon..Sun), not a
+     * hardcoded list, so this doesn't assume which days the school runs.
+     */
+    private function buildPeriodDayAxes(?string $academicYear): array
+    {
+        $activeTimings = BellTiming::active()
+            ->when($academicYear, fn ($q) => $q->where('academic_year', $academicYear))
+            ->orderBy('order_index')
+            ->get();
+
+        $periods = $activeTimings->pluck('period_name')->unique()->values()->all();
+        $days = $activeTimings->sortBy('day_order')->pluck('day_of_week')->unique()->values()->all();
+
+        return [$periods, $days];
+    }
+
+    private function pdfFilename(string $type, string $name, ?AcademicSession $session): string
+    {
+        $safeName = preg_replace('/[^A-Za-z0-9_-]+/', '_', $name);
+        $safeSession = preg_replace('/[^A-Za-z0-9_-]+/', '_', $session->code ?? 'na');
+
+        return "timetable_{$type}_{$safeName}_{$safeSession}.pdf";
     }
 
     public function destroy($id)

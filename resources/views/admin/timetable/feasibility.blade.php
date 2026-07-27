@@ -17,8 +17,22 @@
 <div class="container-fluid">
     <div class="d-sm-flex align-items-center justify-content-between mb-4">
         <h1 class="h3 mb-0 text-gray-800">Timetable Feasibility Report</h1>
-        <a href="{{ route('timetable.index') }}" class="btn btn-outline-secondary btn-sm">Back to Timetable</a>
+        <div>
+            <a href="{{ route('timetable.pdf.master') }}" class="btn btn-outline-secondary btn-sm">
+                <i class="fas fa-file-pdf"></i> Download Master Timetable PDF
+            </a>
+            <a href="{{ route('timetable.index') }}" class="btn btn-outline-secondary btn-sm">Back to Timetable</a>
+        </div>
     </div>
+
+    @if(session('error'))
+        <div class="alert alert-danger alert-dismissible fade show shadow-sm" role="alert">
+            {{ session('error') }}
+            <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+                <span aria-hidden="true">&times;</span>
+            </button>
+        </div>
+    @endif
 
     <div class="card glass-card mb-4">
         <div class="card-body">
@@ -94,6 +108,7 @@
                                 <th>Busiest Day</th>
                                 <th>Days Fully Booked</th>
                                 <th>Status</th>
+                                <th>PDF</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -104,6 +119,13 @@
                                     <td>{{ $row['busiest_day'] ?? '—' }} @if($row['busiest_day']) ({{ $row['busiest_day_count'] }}) @endif</td>
                                     <td>{{ $row['days_with_zero_free_periods'] }}</td>
                                     <td class="{{ $row['over_threshold'] ? 'text-danger font-weight-bold' : '' }}">{{ $row['sentence'] }}</td>
+                                    <td>
+                                        @if($row['placed_periods'] > 0)
+                                            <a href="{{ route('timetable.pdf.teacher', ['teacher_id' => $row['teacher_id']]) }}" title="Download timetable PDF">
+                                                <i class="fas fa-file-pdf"></i>
+                                            </a>
+                                        @endif
+                                    </td>
                                 </tr>
                             @endforeach
                         </tbody>

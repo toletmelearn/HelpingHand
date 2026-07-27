@@ -209,6 +209,22 @@ class Teacher extends Authenticatable
         return $this->name . ' (' . $this->designation . ')';
     }
 
+    /**
+     * "Ravi Kumar" -> "Ravi K." -- for compact timetable PDF cells
+     * (timetable-module T1c) where a full name doesn't fit.
+     */
+    public function getShortNameAttribute()
+    {
+        $parts = preg_split('/\s+/', trim($this->name ?? ''));
+        $parts = array_filter($parts, fn ($p) => $p !== '');
+
+        if (count($parts) <= 1) {
+            return $parts[0] ?? '';
+        }
+
+        return reset($parts) . ' ' . mb_substr(end($parts), 0, 1) . '.';
+    }
+
     public function getAgeAttribute()
     {
         return $this->date_of_birth ? now()->diffInYears($this->date_of_birth) : null;
