@@ -10,9 +10,9 @@ use App\Models\SchoolClass;
 use App\Models\Section;
 use App\Models\Subject;
 use App\Models\User;
+use App\Services\Timetable\SubstituteFinderService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Carbon\Carbon;
 
 class TeacherSubstitutionController extends Controller
 {
@@ -173,124 +173,25 @@ class TeacherSubstitutionController extends Controller
                          ->with('success', 'Teacher substitution deleted successfully.');
     }
 
+    /**
+     * T3 item 2: real scoring via SubstituteFinderService, replacing the
+     * former stub implementation (calculateSubjectMatchScore always
+     * returned 0, hasClassExperience always returned false).
+     */
     public function suggestSubstitutes(TeacherSubstitution $substitution)
     {
-        // Find available teachers for the given date and period
-        $availableTeachers = $this->findAvailableTeachers(
-            $substitution->substitution_date,
-            $substitution->period_number,
-            $substitution->class_id,
-            $substitution->subject_id,
-            $substitution->absent_teacher_id
-        );
+        $substitution->loadMissing(['bellTiming', 'class', 'subject']);
+        $candidates = (new SubstituteFinderService())->findCandidates($substitution);
 
-        // Update substitution with first available teacher as suggestion
-        if (!empty($availableTeachers)) {
+        // Auto-suggest the top-ranked candidate; stays pending for admin review.
+        if (!empty($candidates)) {
             $substitution->update([
-                'substitute_teacher_id' => $availableTeachers[0]['teacher']->id,
-                'status' => 'pending' // Keep as pending for admin review
+                'substitute_teacher_id' => $candidates[0]['teacher']->id,
+                'status' => 'pending',
             ]);
         }
 
-        return $availableTeachers;
-    }
-
-    public function findAvailableTeachers($date, $periodNumber, $classId, $subjectId, $absentTeacherId = null)
-    {
-        $date = Carbon::parse($date);
-        
-        // Get all teachers
-        $allTeachers = Teacher::with('user')->get();
-        $availableTeachers = [];
-
-        foreach ($allTeachers as $teacher) {
-            // Skip the absent teacher
-            if ($teacher->id == $absentTeacherId) {
-                continue;
-            }
-
-            // Check if teacher is available in this period
-            $isAvailable = $this->checkTeacherAvailability($teacher->id, $date, $periodNumber);
-            
-            if ($isAvailable) {
-                $score = 0;
-                
-                // Calculate score based on matching criteria
-                // Note: We need to pass the substitution object to use its properties
-                // For now, we'll use the passed parameters appropriately
-                
-                // Placeholder for same subject check - we'd need to implement a proper way to check if teacher teaches the same subject
-                $score += $this->calculateSubjectMatchScore($teacher->id, $subjectId);
-                
-                if ($this->hasClassExperience($teacher->id, $classId)) {
-                    $score += 30; // Same class experience
-                }
-                
-                if (!$this->isOverloaded($teacher->id, $date)) {
-                    $score += 20; // Not overloaded
-                }
-                
-                $availableTeachers[] = [
-                    'teacher' => $teacher,
-                    'score' => $score,
-                    'reasons' => $this->getMatchingReasons($teacher->id, $date, $classId, $subjectId)
-                ];
-            }
-        }
-
-        // Sort by score descending
-        usort($availableTeachers, function($a, $b) {
-            return $b['score'] - $a['score'];
-        });
-
-        return $availableTeachers;
-    }
-
-    private function calculateSubjectMatchScore($teacherId, $subjectId)
-    {
-        // Placeholder implementation - would need to check if teacher teaches the same subject
-        // This would typically involve checking teacher-subject assignments
-        return 0; // For now, return 0 until we implement the proper logic
-    }
-
-    private function checkTeacherAvailability($teacherId, $date, $periodNumber)
-    {
-        // Check if teacher already has a class in this period
-        $existingSubstitution = TeacherSubstitution::where('substitute_teacher_id', $teacherId)
-            ->whereDate('substitution_date', $date)
-            ->where('period_number', $periodNumber)
-            ->where('status', '!=', 'cancelled')
-            ->exists();
-
-        return !$existingSubstitution;
-    }
-
-    private function hasClassExperience($teacherId, $classId)
-    {
-        // Placeholder: Check if teacher has taught this class before
-        // This would typically check assignments or previous substitutions
-        return false; // Need to implement actual logic
-    }
-
-    private function isOverloaded($teacherId, $date)
-    {
-        // Check if teacher already has too many substitutions today
-        $subCount = TeacherSubstitution::where('substitute_teacher_id', $teacherId)
-            ->whereDate('substitution_date', $date)
-            ->whereIn('status', ['assigned', 'approved'])
-            ->count();
-
-        return $subCount > 2; // Threshold can be adjusted
-    }
-
-    private function getMatchingReasons($teacherId, $date, $classId, $subjectId)
-    {
-        $reasons = [];
-        
-        // Placeholder reasons - would be based on actual checks
-        $reasons[] = "Free in Period {$date}";
-        
-        return $reasons;
+        return $candidates;
     }
 
     public function assignSubstitute(Request $request, TeacherSubstitution $teacherSubstitution)
