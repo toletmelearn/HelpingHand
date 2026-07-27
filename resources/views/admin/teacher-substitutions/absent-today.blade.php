@@ -54,6 +54,24 @@
         </div>
     </div>
 
+    @if($teachersOnApprovedLeave->isNotEmpty())
+        <div class="card shadow mb-4 border-warning">
+            <div class="card-header bg-warning bg-opacity-25">
+                <i class="fas fa-plane-departure"></i> On approved leave {{ $date->format('d M Y') }}
+            </div>
+            <div class="card-body">
+                <div class="d-flex flex-wrap gap-2">
+                    @foreach($teachersOnApprovedLeave as $teacher)
+                        <a href="{{ route('admin.teacher-substitutions.absent-today', ['teacher_id' => $teacher->id, 'date' => $date->format('Y-m-d')]) }}"
+                           class="btn btn-sm btn-outline-warning">
+                            {{ $teacher->name }} <i class="fas fa-arrow-right ms-1"></i>
+                        </a>
+                    @endforeach
+                </div>
+            </div>
+        </div>
+    @endif
+
     @if($selectedTeacher)
         <h5 class="mb-3">{{ $selectedTeacher->name }} — {{ $date->format('d F Y (l)') }}</h5>
 

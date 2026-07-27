@@ -10,6 +10,7 @@ use App\Models\SchoolClass;
 use App\Models\Section;
 use App\Models\Subject;
 use App\Models\Teacher;
+use App\Models\TeacherLeave;
 use App\Models\TeacherSubstitution;
 use App\Models\TimetableSlot;
 use App\Models\User;
@@ -187,5 +188,65 @@ class TeacherAbsentTodayTest extends TestCase
 
         $response->assertRedirect();
         $response->assertSessionHas('success');
+    }
+
+    public function test_teacher_on_approved_leave_today_is_shown_as_a_shortcut(): void
+    {
+        $admin = $this->admin();
+        $onLeave = Teacher::create(['name' => 'On Leave Teacher', 'status' => 'active']);
+        TeacherLeave::create([
+            'teacher_id' => $onLeave->id,
+            'leave_type' => 'sick',
+            'start_date' => '2026-08-03',
+            'end_date' => '2026-08-03',
+            'days' => 1,
+            'status' => 'approved',
+        ]);
+
+        $response = $this->actingAs($admin)->get(route('admin.teacher-substitutions.absent-today', ['date' => '2026-08-03']));
+
+        $response->assertOk();
+        // The teacher's name alone also appears in the plain "pick a
+        // teacher" dropdown regardless of leave status, so assert on the
+        // shortcut link itself (only the leave banner emits this URL).
+        $response->assertSee(route('admin.teacher-substitutions.absent-today', ['teacher_id' => $onLeave->id, 'date' => '2026-08-03']));
+    }
+
+    public function test_teacher_on_pending_leave_is_not_shown_as_a_shortcut(): void
+    {
+        $admin = $this->admin();
+        $pending = Teacher::create(['name' => 'Pending Leave Teacher', 'status' => 'active']);
+        TeacherLeave::create([
+            'teacher_id' => $pending->id,
+            'leave_type' => 'sick',
+            'start_date' => '2026-08-03',
+            'end_date' => '2026-08-03',
+            'days' => 1,
+            'status' => 'pending',
+        ]);
+
+        $response = $this->actingAs($admin)->get(route('admin.teacher-substitutions.absent-today', ['date' => '2026-08-03']));
+
+        $response->assertOk();
+        $response->assertDontSee(route('admin.teacher-substitutions.absent-today', ['teacher_id' => $pending->id, 'date' => '2026-08-03']));
+    }
+
+    public function test_teacher_on_approved_leave_a_different_day_is_not_shown(): void
+    {
+        $admin = $this->admin();
+        $onLeave = Teacher::create(['name' => 'Different Day Leave', 'status' => 'active']);
+        TeacherLeave::create([
+            'teacher_id' => $onLeave->id,
+            'leave_type' => 'sick',
+            'start_date' => '2026-08-10',
+            'end_date' => '2026-08-10',
+            'days' => 1,
+            'status' => 'approved',
+        ]);
+
+        $response = $this->actingAs($admin)->get(route('admin.teacher-substitutions.absent-today', ['date' => '2026-08-03']));
+
+        $response->assertOk();
+        $response->assertDontSee(route('admin.teacher-substitutions.absent-today', ['teacher_id' => $onLeave->id, 'date' => '2026-08-03']));
     }
 }

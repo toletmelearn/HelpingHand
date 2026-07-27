@@ -288,6 +288,17 @@ class TeacherSubstitutionController extends Controller
         $selectedTeacherId = $request->integer('teacher_id') ?: null;
         $date = $request->filled('date') ? Carbon::parse($request->date) : Carbon::today();
 
+        // T3 item 5: HR leave integration -- read-only. Teachers with an
+        // approved TeacherLeave covering the selected date are surfaced
+        // as one-click shortcuts into this same flow, so admin doesn't
+        // have to separately know who's on leave before setting up
+        // substitutions for them. Nothing is written to teacher_leaves.
+        $teachersOnApprovedLeave = Teacher::whereHas('leaves', function ($q) use ($date) {
+            $q->where('status', 'approved')
+                ->whereDate('start_date', '<=', $date)
+                ->whereDate('end_date', '>=', $date);
+        })->orderBy('name')->get();
+
         $selectedTeacher = null;
         $rows = [];
 
@@ -325,7 +336,7 @@ class TeacherSubstitutionController extends Controller
             }
         }
 
-        return view('admin.teacher-substitutions.absent-today', compact('teachers', 'selectedTeacher', 'date', 'rows'));
+        return view('admin.teacher-substitutions.absent-today', compact('teachers', 'selectedTeacher', 'date', 'rows', 'teachersOnApprovedLeave'));
     }
 
     /**
