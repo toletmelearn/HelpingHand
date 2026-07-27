@@ -15,6 +15,7 @@ class TimetableSlot extends Model
         'bell_timing_id',
         'subject_id',
         'teacher_id',
+        'combined_class_group_id',
         'room_number',
         'academic_year',
     ];
@@ -42,5 +43,10 @@ class TimetableSlot extends Model
     public function teacher()
     {
         return $this->belongsTo(Teacher::class, 'teacher_id');
+    }
+
+    public function combinedClassGroup()
+    {
+        return $this->belongsTo(CombinedClassGroup::class, 'combined_class_group_id');
     }
 }

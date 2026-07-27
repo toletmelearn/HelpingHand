@@ -1716,6 +1716,13 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/admin/timetable/pdf/teacher', [\App\Http\Controllers\Admin\TimetableController::class, 'teacherPdf'])->name('timetable.pdf.teacher');
     Route::get('/admin/timetable/pdf/master', [\App\Http\Controllers\Admin\TimetableController::class, 'masterPdf'])->name('timetable.pdf.master');
 
+    // Combined classes (T2b)
+    Route::post('/admin/timetable/combined', [\App\Http\Controllers\Admin\TimetableController::class, 'storeCombined'])->name('timetable.combined.store');
+    Route::get('/admin/combined-class-groups', [\App\Http\Controllers\Admin\CombinedClassGroupController::class, 'index'])->name('combined-class-groups.index');
+    Route::get('/admin/combined-class-groups/create', [\App\Http\Controllers\Admin\CombinedClassGroupController::class, 'create'])->name('combined-class-groups.create');
+    Route::post('/admin/combined-class-groups', [\App\Http\Controllers\Admin\CombinedClassGroupController::class, 'store'])->name('combined-class-groups.store');
+    Route::delete('/admin/combined-class-groups/{combinedClassGroup}', [\App\Http\Controllers\Admin\CombinedClassGroupController::class, 'destroy'])->name('combined-class-groups.destroy');
+
     // Teacher availability grid (T2a)
     Route::get('/admin/teacher-availability', [\App\Http\Controllers\Admin\TeacherAvailabilityController::class, 'index'])->name('teacher-availability.index');
     Route::get('/admin/teacher-availability/{teacher}', [\App\Http\Controllers\Admin\TeacherAvailabilityController::class, 'edit'])->name('teacher-availability.edit');

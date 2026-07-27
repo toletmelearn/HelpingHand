@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\AcademicSession;
+use App\Models\CombinedClassGroup;
 use App\Models\TimetableSlot;
 use App\Models\BellTiming;
 use App\Models\SchoolClass;
@@ -13,6 +14,7 @@ use App\Models\Teacher;
 use App\Services\Timetable\FeasibilityService;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class TimetableController extends Controller
 {
@@ -100,6 +102,87 @@ class TimetableController extends Controller
         }
 
         return back()->with('success', 'Timetable slot scheduled successfully.');
+    }
+
+    /**
+     * T2b item 3: place one combined-group teaching event -- writes one
+     * TimetableSlot row per member class-section, all sharing the same
+     * teacher/period/subject (the group's subject). Authorization
+     * requires the acting user be allowed to write EVERY member
+     * class-section (reuses TimetableSlotPolicy::create per member --
+     * admin always passes, a teacher must be assigned to all of them).
+     *
+     * Conflict checking reuses checkSlotConflicts() exactly as store()
+     * does -- it scans by teacher_id + overlapping bell_timing without
+     * caring whether existing rows are solo or combined-group, so it
+     * already catches "teacher already committed elsewhere this period"
+     * for a NEW combined placement with zero changes needed. What it
+     * does NOT (and, out of scope this session, does not need to) handle
+     * is re-placing/editing an EXISTING combined group's own slots --
+     * only fresh placement is implemented here, matching the plan's
+     * "writes one row per member class" description.
+     */
+    public function storeCombined(Request $request)
+    {
+        $validated = $request->validate([
+            'combined_class_group_id' => 'required|exists:combined_class_groups,id',
+            'teacher_id' => 'required|exists:teachers,id',
+            'bell_timing_id' => 'required|exists:bell_timings,id',
+            'room_number' => 'nullable|string|max:50',
+            'academic_year' => 'nullable|string|max:20',
+        ]);
+
+        $group = CombinedClassGroup::with('members')->findOrFail($validated['combined_class_group_id']);
+
+        if ($group->members->count() < 2) {
+            return back()->with('error', "Combined group \"{$group->name}\" has fewer than 2 member classes -- nothing to place.")->withInput();
+        }
+
+        foreach ($group->members as $member) {
+            $this->authorize('create', [TimetableSlot::class, $member->school_class_id, $member->section_id]);
+        }
+
+        $conflictCheck = $this->checkSlotConflicts($request);
+        if ($conflictCheck['conflict']) {
+            return back()->with('error', 'Scheduling conflict: ' . $conflictCheck['message'])->withInput();
+        }
+
+        foreach ($group->members as $member) {
+            $alreadyBooked = TimetableSlot::where('school_class_id', $member->school_class_id)
+                ->where('section_id', $member->section_id)
+                ->where('bell_timing_id', $validated['bell_timing_id'])
+                ->exists();
+
+            if ($alreadyBooked) {
+                $label = $member->schoolClass->name . ($member->section ? " {$member->section->name}" : '');
+                return back()->with('error', "Scheduling conflict: {$label} already has a slot at this period.")->withInput();
+            }
+        }
+
+        try {
+            DB::transaction(function () use ($group, $validated) {
+                foreach ($group->members as $member) {
+                    TimetableSlot::create([
+                        'school_class_id' => $member->school_class_id,
+                        'section_id' => $member->section_id,
+                        'bell_timing_id' => $validated['bell_timing_id'],
+                        'subject_id' => $group->subject_id,
+                        'teacher_id' => $validated['teacher_id'],
+                        'combined_class_group_id' => $group->id,
+                        'room_number' => $validated['room_number'] ?? null,
+                        'academic_year' => $validated['academic_year'] ?? null,
+                    ]);
+                }
+            });
+        } catch (\Illuminate\Database\QueryException $e) {
+            if ((int) $e->errorInfo[1] === 1062) {
+                return back()->with('error', 'Scheduling conflict: this combined group could not be placed -- a member class or the teacher already has a slot at this period.')->withInput();
+            }
+
+            throw $e;
+        }
+
+        return back()->with('success', "Combined group \"{$group->name}\" scheduled for " . $group->members->count() . ' classes.');
     }
 
     /**
