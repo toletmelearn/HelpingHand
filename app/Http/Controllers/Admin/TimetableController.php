@@ -3,12 +3,14 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\AcademicSession;
 use App\Models\TimetableSlot;
 use App\Models\BellTiming;
 use App\Models\SchoolClass;
 use App\Models\Section;
 use App\Models\Subject;
 use App\Models\Teacher;
+use App\Services\Timetable\FeasibilityService;
 use Illuminate\Http\Request;
 
 class TimetableController extends Controller
@@ -97,6 +99,26 @@ class TimetableController extends Controller
         }
 
         return back()->with('success', 'Timetable slot scheduled successfully.');
+    }
+
+    /**
+     * T1b: read-only feasibility report -- policy-gated the same as
+     * timetable viewing (viewAny on TimetableSlot).
+     */
+    public function feasibility(Request $request, FeasibilityService $service)
+    {
+        $this->authorize('viewAny', TimetableSlot::class);
+
+        $sessions = AcademicSession::orderByDesc('id')->get();
+        $selectedSession = $request->filled('academic_session_id')
+            ? $sessions->firstWhere('id', (int) $request->get('academic_session_id'))
+            : $sessions->firstWhere('is_current', true);
+
+        $academicYear = $selectedSession?->code;
+
+        $report = $service->build($academicYear);
+
+        return view('admin.timetable.feasibility', compact('sessions', 'selectedSession', 'report'));
     }
 
     public function destroy($id)

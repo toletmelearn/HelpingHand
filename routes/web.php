@@ -1711,6 +1711,7 @@ Route::middleware(['auth'])->group(function () {
     Route::post('/admin/timetable', [\App\Http\Controllers\Admin\TimetableController::class, 'store'])->name('timetable.store');
     Route::delete('/admin/timetable/{id}', [\App\Http\Controllers\Admin\TimetableController::class, 'destroy'])->name('timetable.destroy');
     Route::get('/admin/timetable/check-conflicts', [\App\Http\Controllers\Admin\TimetableController::class, 'checkConflictsApi'])->name('timetable.check-conflicts');
+    Route::get('/admin/timetable/feasibility', [\App\Http\Controllers\Admin\TimetableController::class, 'feasibility'])->name('timetable.feasibility');
 
     // Library circulations & OPAC
     Route::get('/admin/library', [\App\Http\Controllers\Admin\LibraryController::class, 'index'])->name('library.index');
