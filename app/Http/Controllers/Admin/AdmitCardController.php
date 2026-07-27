@@ -54,9 +54,16 @@ class AdmitCardController extends Controller
         $exam = Exam::findOrFail($request->exam_id);
         $format = AdmitCardFormat::findOrFail($request->admit_card_format_id);
         
-        // Get students enrolled in the exam's class
-        $students = Student::where('class', $exam->class_name)->get();
-        
+        // Get students enrolled in the exam's class. Reads school_class_id
+        // (the authoritative class reference) via exam.class_id, not the
+        // free-text class/class_name string pair -- those use different
+        // vocabularies (e.g. "X" vs "Class 10") and never matched anyone.
+        $students = Student::where('school_class_id', $exam->class_id)->get();
+
+        if ($students->isEmpty()) {
+            return redirect()->back()->withErrors(['error' => 'No students found in the class for this exam.']);
+        }
+
         $generatedCount = 0;
         $skippedCount = 0;
         $errors = [];
@@ -98,8 +105,6 @@ class AdmitCardController extends Controller
                         'admit_card_format_id' => $format->id,
                         'academic_session' => $request->academic_session,
                         'status' => 'draft', // Set initial status to draft
-                        'validation_data' => ['validation_passed' => true, 'checks' => []],
-                        'version' => 1,
                         'data' => $admitCardData,
                         'generated_by' => Auth::id(),
                     ]);
@@ -112,15 +117,23 @@ class AdmitCardController extends Controller
             }
         }
         
+        if (!empty($errors)) {
+            session()->flash('warning', implode('<br>', $errors));
+        }
+
+        if ($generatedCount === 0) {
+            $reason = $skippedCount > 0
+                ? "All {$skippedCount} matched students failed validation."
+                : 'All matched students already have an admit card for this exam.';
+
+            return redirect()->back()->withErrors(['error' => "No admit cards were generated for {$exam->name}. {$reason}"]);
+        }
+
         $message = "Successfully generated {$generatedCount} admit cards for {$exam->name}.";
         if ($skippedCount > 0) {
             $message .= " Skipped {$skippedCount} students due to validation errors.";
         }
-        
-        if (!empty($errors)) {
-            session()->flash('warning', implode('<br>', $errors));
-        }
-        
+
         return redirect()->route('admin.admit-cards.index')->with('success', $message);
     }
     

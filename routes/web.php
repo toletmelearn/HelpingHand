@@ -441,13 +441,18 @@ Route::middleware(['auth'])->group(function () {
     Route::resource('teachers', TeacherController::class);
     Route::post('teachers/{teacher}/photo', [TeacherController::class, 'updatePhoto'])->name('teachers.photo.update');
     
-    // Bell Timing Routes
-    Route::resource('bell-timing', App\Http\Controllers\BellTimingController::class);
+    // Bell Timing Routes -- these literal-path routes must be registered
+    // BEFORE Route::resource(), otherwise the resource's show route
+    // (GET bell-timing/{bell_timing}) matches first and swallows them
+    // (e.g. GET /bell-timing/weekly resolves bell_timing='weekly', 404s
+    // on the model lookup instead of ever reaching weeklyTimetable()).
+    // Confirmed via direct router match() before/after reordering.
     Route::get('/bell-timing/weekly', [App\Http\Controllers\BellTimingController::class, 'weeklyTimetable'])->name('bell-timing.weekly');
     Route::get('/bell-timing/daily', [App\Http\Controllers\BellTimingController::class, 'todaysSchedule'])->name('bell-timing.daily');
     Route::get('/bell-timing/bulk-create', [App\Http\Controllers\BellTimingController::class, 'bulkCreate'])->name('bell-timing.bulk-create');
-    Route::post('/bell-timing/bulk-create', [App\Http\Controllers\BellTimingController::class, 'processBulkCreate'])->name('bell-timing.bulk-create.process');
+    Route::post('/bell-timing/bulk-create', [App\Http\Controllers\BellTimingController::class, 'bulkCreate'])->name('bell-timing.bulk-create.process');
     Route::get('/bell-timing/print/{classSection?}/{academicYear?}', [App\Http\Controllers\BellTimingController::class, 'printTimetable'])->name('bell-timing.print');
+    Route::resource('bell-timing', App\Http\Controllers\BellTimingController::class);
     
     // Removed legacy user-facing exam-papers routes. All routing is consolidated under Admin namespace.
     
@@ -774,10 +779,15 @@ Route::middleware(['auth'])->group(function () {
             'destroy' => 'admin.professional-lesson-plans.destroy',
         ])->except(['create', 'store', 'edit', 'update']);
         
-        // Homework Management Routes
-        Route::resource('homework', App\Http\Controllers\Admin\HomeworkController::class);
-        Route::get('homework/{homework}/show', [App\Http\Controllers\Admin\HomeworkController::class, 'show'])->name('admin.homework.show');
-        
+        // Homework Management Routes -- Admin\HomeworkController deleted
+        // (B10): only implemented index/show out of the full resource
+        // (create/store/edit/update/destroy all fatal'd), its show() had
+        // the same route-model-binding name mismatch bug found on
+        // ClassTeacherAssignmentController ($homeworkNotice vs {homework}),
+        // and it was unreferenced by any view outside its own two pages.
+        // HomeworkNoticeController (admin.homework-notices.*) is the real,
+        // fully-implemented survivor -- see routes below.
+
         // Professional Homework Admin Routes
         Route::resource('professional-homework', App\Http\Controllers\Admin\ProfessionalHomeworkController::class)->names([
             'index' => 'admin.professional-homework.index',
@@ -1334,12 +1344,18 @@ Route::get('/admin/results/final-result/{studentId}/{examId}', [App\Http\Control
         });
     });
     
-    // Attendance Routes
-    Route::get('/attendance/reports', [AttendanceController::class, 'reports'])->name('attendance.reports');
-    Route::get('/attendance/export', [AttendanceController::class, 'export'])->name('attendance.export');
-    Route::get('/attendance/bulk-mark', [AttendanceController::class, 'bulkMark'])->name('attendance.bulk-mark');
-    Route::get('/attendance/student/{studentId}/report', [AttendanceController::class, 'studentReport'])->name('attendance.student.report');
-    Route::resource('attendance', AttendanceController::class)->except(['reports', 'export']);
+    // Attendance Routes -- previously carried only the global 'web'
+    // middleware (no auth at all), despite being the main attendance UI
+    // linked from the admin/home/parent dashboards, not a device/API
+    // integration. Matched to the auth stack its admin.attendance.*
+    // sibling already uses.
+    Route::middleware(['auth', 'verified', 'redirect.if.not.onboarded'])->group(function () {
+        Route::get('/attendance/reports', [AttendanceController::class, 'reports'])->name('attendance.reports');
+        Route::get('/attendance/export', [AttendanceController::class, 'export'])->name('attendance.export');
+        Route::get('/attendance/bulk-mark', [AttendanceController::class, 'bulkMark'])->name('attendance.bulk-mark');
+        Route::get('/attendance/student/{studentId}/report', [AttendanceController::class, 'studentReport'])->name('attendance.student.report');
+        Route::resource('attendance', AttendanceController::class)->except(['reports', 'export']);
+    });
     
     // Library Management Routes
     Route::resource('books', App\Http\Controllers\Admin\BookController::class);

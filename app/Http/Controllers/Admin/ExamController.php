@@ -4,7 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Exam;
-use App\Models\ClassManagement;
+use App\Models\SchoolClass;
 use App\Models\Subject;
 use App\Models\Teacher;
 use Illuminate\Http\Request;
@@ -33,7 +33,7 @@ class ExamController extends Controller
     public function create()
     {
         $this->authorize('create', Exam::class);
-        $classes = ClassManagement::all();
+        $classes = SchoolClass::active()->orderByOrder()->get();
         $subjects = Subject::all();
         $teachers = Teacher::all();
         return view('admin.exams.create', compact('classes', 'subjects', 'teachers'));
@@ -49,7 +49,7 @@ class ExamController extends Controller
         $request->validate([
             'name' => 'required|string|max:255',
             'exam_type' => 'required|string|max:100',
-            'class_name' => 'required|string|max:100',
+            'class_id' => 'required|exists:school_classes,id',
             'subject' => 'required|string|max:100',
             'exam_date' => 'required|date',
             'start_time' => 'required|date_format:H:i',
@@ -61,7 +61,7 @@ class ExamController extends Controller
             'term' => 'required|string|max:50',
             'status' => 'required|in:active,scheduled,ongoing,cancelled,completed'
         ]);
-        
+
         // Validate that passing marks don't exceed total marks
         if ($request->passing_marks > $request->total_marks) {
             return redirect()->back()->withErrors(['passing_marks' => 'Passing marks cannot be greater than total marks.']);
@@ -69,10 +69,16 @@ class ExamController extends Controller
 
         // Normalize status value to match database enum
         $normalizedStatus = $request->status === 'active' ? 'scheduled' : $request->status;
-        
+
+        // class_name is derived from the chosen class_id, never trusted
+        // from the request -- kept populated for backward display
+        // compatibility with readers that still show the free-text label.
+        $schoolClass = SchoolClass::findOrFail($request->class_id);
+
         Exam::create(array_merge(
-            $request->except('status'),
+            $request->except(['status', 'class_name']),
             [
+                'class_name' => $schoolClass->name,
                 'status' => $normalizedStatus,
                 'created_by' => Auth::id()
             ]
@@ -97,7 +103,7 @@ class ExamController extends Controller
     public function edit(Exam $exam)
     {
         $this->authorize('update', $exam);
-        $classes = ClassManagement::all();
+        $classes = SchoolClass::active()->orderByOrder()->get();
         $subjects = Subject::all();
         $teachers = Teacher::all();
         return view('admin.exams.edit', compact('exam', 'classes', 'subjects', 'teachers'));
@@ -113,7 +119,7 @@ class ExamController extends Controller
         $request->validate([
             'name' => 'required|string|max:255',
             'exam_type' => 'required|string|max:100',
-            'class_name' => 'required|string|max:100',
+            'class_id' => 'required|exists:school_classes,id',
             'subject' => 'required|string|max:100',
             'exam_date' => 'required|date',
             'start_time' => 'required|date_format:H:i',
@@ -125,7 +131,7 @@ class ExamController extends Controller
             'term' => 'required|string|max:50',
             'status' => 'required|in:active,scheduled,ongoing,cancelled,completed'
         ]);
-        
+
         // Validate that passing marks don't exceed total marks
         if ($request->passing_marks > $request->total_marks) {
             return redirect()->back()->withErrors(['passing_marks' => 'Passing marks cannot be greater than total marks.']);
@@ -133,10 +139,15 @@ class ExamController extends Controller
 
         // Normalize status value to match database enum
         $normalizedStatus = $request->status === 'active' ? 'scheduled' : $request->status;
-        
+
+        $schoolClass = SchoolClass::findOrFail($request->class_id);
+
         $exam->update(array_merge(
-            $request->except('status'),
-            ['status' => $normalizedStatus]
+            $request->except(['status', 'class_name']),
+            [
+                'class_name' => $schoolClass->name,
+                'status' => $normalizedStatus,
+            ]
         ));
 
         return redirect()->route('admin.exams.index')

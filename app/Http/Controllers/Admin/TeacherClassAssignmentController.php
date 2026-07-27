@@ -18,6 +18,8 @@ class TeacherClassAssignmentController extends Controller
      */
     public function index()
     {
+        $this->authorize('viewAny', TeacherClassAssignment::class);
+
         // Get all teacher-class assignments with related data
         $assignments = TeacherClassAssignment::with(['teacher', 'class'])
             ->orderBy('class_id')
@@ -33,6 +35,8 @@ class TeacherClassAssignmentController extends Controller
      */
     public function create()
     {
+        $this->authorize('create', TeacherClassAssignment::class);
+
         $teachers = Teacher::orderBy('name')->get();
         $classes = SchoolClass::orderBy('class_order')->get();
         
@@ -47,6 +51,8 @@ class TeacherClassAssignmentController extends Controller
      */
     public function store(Request $request)
     {
+        $this->authorize('create', TeacherClassAssignment::class);
+
         $request->validate([
             'teacher_id' => 'required|exists:teachers,id',
             'class_id' => 'required|exists:school_classes,id',
@@ -94,6 +100,9 @@ class TeacherClassAssignmentController extends Controller
     public function edit($id)
     {
         $assignment = TeacherClassAssignment::with(['teacher', 'class'])->findOrFail($id);
+
+        $this->authorize('update', $assignment);
+
         $teachers = Teacher::orderBy('name')->get();
         $classes = SchoolClass::orderBy('class_order')->get();
         
@@ -109,6 +118,10 @@ class TeacherClassAssignmentController extends Controller
      */
     public function update(Request $request, $id)
     {
+        $assignment = TeacherClassAssignment::findOrFail($id);
+
+        $this->authorize('update', $assignment);
+
         $request->validate([
             'teacher_id' => 'required|exists:teachers,id',
             'class_id' => 'required|exists:school_classes,id',
@@ -117,8 +130,6 @@ class TeacherClassAssignmentController extends Controller
             'is_primary' => 'boolean',
         ]);
 
-        $assignment = TeacherClassAssignment::findOrFail($id);
-        
         // Check if assignment already exists (excluding current)
         $existing = TeacherClassAssignment::where('teacher_id', $request->teacher_id)
             ->where('class_id', $request->class_id)
@@ -161,6 +172,9 @@ class TeacherClassAssignmentController extends Controller
     public function destroy($id)
     {
         $assignment = TeacherClassAssignment::findOrFail($id);
+
+        $this->authorize('delete', $assignment);
+
         $assignment->delete();
         
         return redirect()->route('admin.teacher-class-assignments.index')

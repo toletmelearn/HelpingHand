@@ -26,6 +26,8 @@ class CertificateController extends Controller
      */
     public function index(Request $request)
     {
+        $this->authorize('viewAny', Certificate::class);
+
         $query = Certificate::with(['creator', 'approver', 'recipient']);
         
         // Filter by certificate type
@@ -59,6 +61,8 @@ class CertificateController extends Controller
      */
     public function create()
     {
+        $this->authorize('create', Certificate::class);
+
         $templates = CertificateTemplate::where('is_active', true)->get();
         $students = Student::all();
         $teachers = Teacher::all();
@@ -71,6 +75,8 @@ class CertificateController extends Controller
      */
     public function store(Request $request)
     {
+        $this->authorize('create', Certificate::class);
+
         $request->validate([
             'certificate_type' => 'required|in:tc,bonafide,character,experience',
             'recipient_type' => 'required|in:App\\Models\\Student,App\\Models\\Teacher',
@@ -134,6 +140,8 @@ class CertificateController extends Controller
      */
     public function show(Certificate $certificate)
     {
+        $this->authorize('view', $certificate);
+
         $certificate->load(['creator', 'approver', 'recipient']);
         
         return view('admin.certificates.show', compact('certificate'));
@@ -144,9 +152,11 @@ class CertificateController extends Controller
      */
     public function edit(Certificate $certificate)
     {
+        $this->authorize('update', $certificate);
+
         $certificate->load(['recipient']);
         $templates = CertificateTemplate::where('is_active', true)->get();
-        
+
         return view('admin.certificates.edit', compact('certificate', 'templates'));
     }
 
@@ -155,6 +165,8 @@ class CertificateController extends Controller
      */
     public function update(Request $request, Certificate $certificate)
     {
+        $this->authorize('update', $certificate);
+
         if (!$certificate->canBeModified()) {
             return back()->withErrors(['error' => 'Certificate cannot be modified in its current status.']);
         }
@@ -177,6 +189,8 @@ class CertificateController extends Controller
      */
     public function destroy(Certificate $certificate)
     {
+        $this->authorize('delete', $certificate);
+
         if (!$certificate->canBeModified()) {
             return back()->withErrors(['error' => 'Certificate cannot be deleted in its current status.']);
         }
@@ -192,6 +206,8 @@ class CertificateController extends Controller
      */
     public function approve(Request $request, Certificate $certificate)
     {
+        $this->authorize('approve', $certificate);
+
         if (!$certificate->canBeApproved()) {
             return back()->withErrors(['error' => 'Certificate cannot be approved in its current state.']);
         }
@@ -206,6 +222,8 @@ class CertificateController extends Controller
      */
     public function publish(Certificate $certificate)
     {
+        $this->authorize('publish', $certificate);
+
         if (!$certificate->canBePublished()) {
             return back()->withErrors(['error' => 'Certificate cannot be published in its current state.']);
         }
@@ -257,6 +275,8 @@ class CertificateController extends Controller
      */
     public function lock(Certificate $certificate)
     {
+        $this->authorize('lock', $certificate);
+
         if (!in_array($certificate->status, ['published'])) {
             return back()->withErrors(['error' => 'Certificate cannot be locked in its current state.']);
         }
@@ -271,6 +291,8 @@ class CertificateController extends Controller
      */
     public function revoke(Request $request, Certificate $certificate)
     {
+        $this->authorize('revoke', $certificate);
+
         if (!$certificate->canBeRevoked()) {
             return back()->withErrors(['error' => 'Certificate cannot be revoked in its current state.']);
         }
@@ -289,25 +311,28 @@ class CertificateController extends Controller
      */
     public function preview(Certificate $certificate)
     {
+        $this->authorize('view', $certificate);
+
         $certificate->load(['recipient']);
-        
+
         $template = CertificateTemplate::getDefaultTemplate($certificate->certificate_type);
         if (!$template) {
             return back()->withErrors(['error' => 'No template found for this certificate type.']);
         }
-        
+
         $content = $this->renderCertificateContent($certificate, $template);
-        
+
         return view('admin.certificates.preview', compact('certificate', 'content'));
     }
-    
+
     /**
      * Download the certificate as an A4 PDF. Same authorization as
-     * preview() -- the auth middleware from the constructor, no
-     * additional policy check (preview() has none either).
+     * preview() -- both gated by CertificatePolicy::view().
      */
     public function downloadPdf(Certificate $certificate)
     {
+        $this->authorize('view', $certificate);
+
         if (!in_array($certificate->status, ['generated', 'published', 'locked'], true)) {
             return back()->withErrors(['error' => 'Certificate cannot be downloaded in its current status.']);
         }

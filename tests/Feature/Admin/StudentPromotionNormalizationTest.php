@@ -108,11 +108,24 @@ class StudentPromotionNormalizationTest extends TestCase
 
     private function createUser(): User
     {
-        return User::create([
+        $user = User::create([
             'name' => 'Admin User',
             'email' => 'admin@example.test',
             'password' => Hash::make('password'),
         ]);
+
+        // StudentPromotionController now authorizes every action via
+        // StudentPromotionPolicy (admin-only), so this test's acting user
+        // needs the admin role to exercise the promotion logic itself.
+        $roleId = DB::table('roles')->insertGetId([
+            'name' => 'admin',
+            'display_name' => 'Admin',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+        DB::table('role_user')->insert(['user_id' => $user->id, 'role_id' => $roleId]);
+
+        return $user;
     }
 
     private function seedPromotionData(): void

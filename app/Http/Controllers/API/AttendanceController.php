@@ -7,10 +7,12 @@ use App\Models\Attendance;
 use App\Models\Student;
 use App\Models\StudentStatus;
 use App\Services\Attendance\AttendanceClassResolver;
+use App\Services\AttendanceNotificationService;
 use App\Support\Attendance\AttendancePeriodPresenter;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Support\Facades\Log;
 
 class AttendanceController extends BaseApiController
 {
@@ -53,7 +55,14 @@ class AttendanceController extends BaseApiController
             // Phase 5L: marked_by is derived from authenticated API user and cannot be supplied by client.
             $validated['marked_by'] = $user->id;
 
-            if ($holiday = AcademicEvent::isHoliday($validated['date'])) {
+            try {
+                $holiday = AcademicEvent::isHoliday($validated['date']);
+            } catch (\Throwable $e) {
+                Log::warning('Failed to check holiday status while marking attendance: ' . $e->getMessage());
+                $holiday = null;
+            }
+
+            if ($holiday) {
                 return $this->error("Attendance cannot be marked on a holiday: {$holiday->title}.", 422);
             }
 
@@ -90,6 +99,13 @@ class AttendanceController extends BaseApiController
             }
 
             $attendance = Attendance::create($validated)->refresh();
+
+            app(AttendanceNotificationService::class)->sendAttendanceMarkedNotification(
+                $attendance->student_id,
+                $attendance->date,
+                $attendance->status
+            );
+
             return $this->success($this->transformAttendanceForApi($attendance), 'Attendance marked successfully', 201);
         } catch (QueryException $e) {
             if ($this->isDuplicateAttendanceException($e)) {

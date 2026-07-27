@@ -7,6 +7,14 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class AdmitCard extends Model
 {
+    // validation_data, pdf_hash, and version were never migrated -- no
+    // such columns exist on admit_cards (dev DB and every migration
+    // checked). Writing them threw a SQL error on every AdmitCard::create()
+    // call, but this was never triggered in practice because the
+    // class/class_name matching bug (remediation Task 7) meant
+    // AdmitCardController::store() never actually matched any students to
+    // create cards for -- one bug was masking the other. Removed rather
+    // than migrated in: nothing else in the app reads any of the three.
     protected $fillable = [
         'student_id',
         'exam_id',
@@ -14,22 +22,17 @@ class AdmitCard extends Model
         'academic_session',
         'status',
         'data',
-        'validation_data',
         'generated_by',
         'published_by',
         'published_at',
         'revoked_by',
         'revoked_at',
-        'pdf_hash',
-        'version',
     ];
-    
+
     protected $casts = [
         'data' => 'array',
-        'validation_data' => 'array',
         'published_at' => 'datetime',
         'revoked_at' => 'datetime',
-        'version' => 'integer',
     ];
     
     // Relationships
@@ -104,8 +107,13 @@ class AdmitCard extends Model
     {
         $errors = [];
         
-        // Check if student is enrolled in the exam's class
-        if ($this->student->class !== $this->exam->class_name) {
+        // Check if student is enrolled in the exam's class. Compares
+        // school_class_id (authoritative) against exam.class_id, not the
+        // legacy class/class_name string pair -- those use different
+        // vocabularies (e.g. "X" vs "Class 10") and would reject nearly
+        // every real student even after the caller already selected them
+        // correctly by school_class_id (see remediation Task 7).
+        if ($this->exam && $this->exam->class_id && $this->student->school_class_id !== $this->exam->class_id) {
             $errors[] = 'Student is not enrolled in the exam class';
         }
         

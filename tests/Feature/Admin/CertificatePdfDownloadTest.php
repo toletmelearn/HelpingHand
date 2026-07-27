@@ -135,13 +135,12 @@ class CertificatePdfDownloadTest extends TestCase
     }
 
     /**
-     * CertificateController has no explicit authorization anywhere -- not
-     * on preview() (the action downloadPdf() was told to mirror "no
-     * weaker") nor on downloadPdf() itself. The only real access boundary
-     * is the 'auth' middleware from the constructor, so that's what's
-     * verified here rather than a fabricated role-based 403 that the
-     * controller doesn't actually enforce. Flagged in the completion
-     * report as a pre-existing gap, out of scope to fix in this task.
+     * downloadPdf() now requires CertificatePolicy::view() (remediation
+     * Task 3), same as preview() -- but that check only runs for an
+     * authenticated user; a guest is stopped earlier by the constructor's
+     * 'auth' middleware and redirected to login before authorization is
+     * even reached. See CertificateAuthorizationTest for the role-based
+     * 403 coverage now that the policy actually exists.
      */
     public function test_guest_cannot_download_pdf(): void
     {

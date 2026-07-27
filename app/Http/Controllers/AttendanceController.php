@@ -9,9 +9,11 @@ use App\Models\Teacher;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
 use Carbon\Carbon;
 use App\Services\Attendance\AttendanceClassResolver;
 use App\Services\Attendance\AttendanceBulkPreflightService;
+use App\Services\AttendanceNotificationService;
 use App\Support\Attendance\AttendancePeriodPresenter;
 use App\Support\Attendance\AttendanceCreditCalculator;
 
@@ -253,7 +255,14 @@ class AttendanceController extends Controller
             return back()->with('error', 'Attendance for this class, date, and period is already marked!');
         }
 
-        if ($holiday = AcademicEvent::isHoliday($request->date)) {
+        try {
+            $holiday = AcademicEvent::isHoliday($request->date);
+        } catch (\Throwable $e) {
+            Log::warning('Failed to check holiday status while marking attendance: ' . $e->getMessage());
+            $holiday = null;
+        }
+
+        if ($holiday) {
             return back()->with('error', "Attendance cannot be marked on a holiday: {$holiday->title}.");
         }
         
@@ -301,7 +310,12 @@ class AttendanceController extends Controller
         }
         
         Attendance::insert($attendances);
-        
+
+        $notificationService = app(AttendanceNotificationService::class);
+        foreach ($attendances as $record) {
+            $notificationService->sendAttendanceMarkedNotification($record['student_id'], $record['date'], $record['status']);
+        }
+
         return redirect()->route('attendance.index')
             ->with('success', 'Attendance marked successfully for ' . count($attendances) . ' students!');
     }
