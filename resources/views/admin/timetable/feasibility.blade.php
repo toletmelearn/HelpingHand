@@ -72,17 +72,19 @@
                                 <th>Placed</th>
                                 <th>Capacity</th>
                                 <th>Empty</th>
+                                <th>Required</th>
                                 <th>Status</th>
                             </tr>
                         </thead>
                         <tbody>
                             @foreach($report['grid_capacity'] as $row)
-                                <tr class="{{ $row['empty'] > 0 && $row['capacity'] > 0 ? 'flag-row' : ($row['capacity'] > 0 ? 'ok-row' : '') }}">
+                                <tr class="{{ $row['over_required'] || ($row['empty'] > 0 && $row['capacity'] > 0) ? 'flag-row' : ($row['capacity'] > 0 ? 'ok-row' : '') }}">
                                     <td>{{ $row['label'] }}</td>
                                     <td>{{ $row['placed'] }}</td>
                                     <td>{{ $row['capacity'] }}</td>
                                     <td>{{ $row['empty'] }}</td>
-                                    <td>{{ $row['sentence'] }}</td>
+                                    <td>{{ $row['required'] }}</td>
+                                    <td class="{{ $row['over_required'] ? 'text-danger font-weight-bold' : '' }}">{{ $row['sentence'] }}</td>
                                 </tr>
                             @endforeach
                         </tbody>
@@ -105,6 +107,8 @@
                             <tr>
                                 <th>Teacher</th>
                                 <th>Placed / Week</th>
+                                <th>Required</th>
+                                <th>Available</th>
                                 <th>Busiest Day</th>
                                 <th>Days Fully Booked</th>
                                 <th>Status</th>
@@ -113,12 +117,14 @@
                         </thead>
                         <tbody>
                             @foreach($report['teacher_load'] as $row)
-                                <tr class="{{ $row['over_threshold'] ? 'flag-row' : '' }}">
+                                <tr class="{{ $row['over_available'] || $row['over_threshold'] ? 'flag-row' : '' }}">
                                     <td>{{ $row['teacher_name'] }}</td>
                                     <td>{{ $row['placed_periods'] }} / {{ $report['threshold'] }}</td>
+                                    <td>{{ $row['required_periods'] }}</td>
+                                    <td>{{ $row['available_periods'] }}</td>
                                     <td>{{ $row['busiest_day'] ?? '—' }} @if($row['busiest_day']) ({{ $row['busiest_day_count'] }}) @endif</td>
                                     <td>{{ $row['days_with_zero_free_periods'] }}</td>
-                                    <td class="{{ $row['over_threshold'] ? 'text-danger font-weight-bold' : '' }}">{{ $row['sentence'] }}</td>
+                                    <td class="{{ $row['over_available'] || $row['over_threshold'] ? 'text-danger font-weight-bold' : '' }}">{{ $row['sentence'] }}</td>
                                     <td>
                                         @if($row['placed_periods'] > 0)
                                             <a href="{{ route('timetable.pdf.teacher', ['teacher_id' => $row['teacher_id']]) }}" title="Download timetable PDF">

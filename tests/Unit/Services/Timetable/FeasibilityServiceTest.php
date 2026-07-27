@@ -8,6 +8,8 @@ use App\Models\SchoolClass;
 use App\Models\Section;
 use App\Models\Subject;
 use App\Models\Teacher;
+use App\Models\TeacherAvailability;
+use App\Models\TeacherClassSubjectAssignment;
 use App\Models\TimetableSlot;
 use App\Services\Timetable\FeasibilityService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -186,6 +188,100 @@ class FeasibilityServiceTest extends TestCase
 
         $inactiveSubjectConflicts = collect($report['conflicts'])->where('type', 'inactive_subject');
         $this->assertGreaterThan(0, $inactiveSubjectConflicts->count());
+    }
+
+    public function test_class_over_required_periods_is_flagged_with_the_documented_sentence(): void
+    {
+        $data = $this->seedMiniTimetable();
+
+        // Class A's capacity is 5 (4 global + 1 class-A-specific). Two
+        // assignments totalling 6 periods/week exceed that.
+        TeacherClassSubjectAssignment::create([
+            'teacher_id' => $data['teacher1']->id,
+            'class_id' => $data['classA']->id,
+            'subject_id' => $data['subject']->id,
+            'periods_per_week' => 4,
+        ]);
+        TeacherClassSubjectAssignment::create([
+            'teacher_id' => $data['teacher2']->id,
+            'class_id' => $data['classA']->id,
+            'subject_id' => $data['subject']->id,
+            'periods_per_week' => 2,
+        ]);
+
+        $report = (new FeasibilityService())->build(self::YEAR);
+        $rows = collect($report['grid_capacity'])->keyBy('class_name');
+
+        $this->assertSame(6, $rows['Class A']['required']);
+        $this->assertTrue($rows['Class A']['over_required']);
+        $this->assertSame('Class A requires 6 periods but the week has 5.', $rows['Class A']['sentence']);
+
+        // Class B has no assignments, so it isn't flagged.
+        $this->assertSame(0, $rows['Class B']['required']);
+        $this->assertFalse($rows['Class B']['over_required']);
+    }
+
+    public function test_class_within_required_periods_is_not_flagged(): void
+    {
+        $data = $this->seedMiniTimetable();
+
+        TeacherClassSubjectAssignment::create([
+            'teacher_id' => $data['teacher1']->id,
+            'class_id' => $data['classA']->id,
+            'subject_id' => $data['subject']->id,
+            'periods_per_week' => 5,
+        ]);
+
+        $report = (new FeasibilityService())->build(self::YEAR);
+        $rows = collect($report['grid_capacity'])->keyBy('class_name');
+
+        $this->assertFalse($rows['Class A']['over_required']);
+        $this->assertStringContainsString('empty', $rows['Class A']['sentence']);
+    }
+
+    public function test_teacher_over_available_periods_is_flagged_with_the_documented_sentence(): void
+    {
+        $data = $this->seedMiniTimetable();
+
+        // 4 active non-break periods exist globally (Mon P1/P2, Tue P1/P2);
+        // Class A also has a 5th (Tuesday Extra), so 5 total. Block 3 of
+        // them for Teacher Two, leaving 2 available, then require 3.
+        TeacherClassSubjectAssignment::create([
+            'teacher_id' => $data['teacher2']->id,
+            'class_id' => $data['classB']->id,
+            'subject_id' => $data['subject']->id,
+            'periods_per_week' => 3,
+        ]);
+
+        TeacherAvailability::create(['teacher_id' => $data['teacher2']->id, 'bell_timing_id' => $data['mon1']->id, 'is_available' => false]);
+        TeacherAvailability::create(['teacher_id' => $data['teacher2']->id, 'bell_timing_id' => $data['mon2']->id, 'is_available' => false]);
+        TeacherAvailability::create(['teacher_id' => $data['teacher2']->id, 'bell_timing_id' => $data['tue1']->id, 'is_available' => false]);
+
+        $report = (new FeasibilityService())->build(self::YEAR);
+        $rows = collect($report['teacher_load'])->keyBy('teacher_name');
+
+        // 5 active periods total minus 3 blocked = 2 available; requires 3.
+        $this->assertSame(3, $rows['Teacher Two']['required_periods']);
+        $this->assertSame(2, $rows['Teacher Two']['available_periods']);
+        $this->assertTrue($rows['Teacher Two']['over_available']);
+        $this->assertSame('Teacher Two requires 3 periods but is available for only 2.', $rows['Teacher Two']['sentence']);
+    }
+
+    public function test_teacher_within_available_periods_is_not_flagged(): void
+    {
+        $data = $this->seedMiniTimetable();
+
+        TeacherClassSubjectAssignment::create([
+            'teacher_id' => $data['teacher2']->id,
+            'class_id' => $data['classB']->id,
+            'subject_id' => $data['subject']->id,
+            'periods_per_week' => 2,
+        ]);
+
+        $report = (new FeasibilityService())->build(self::YEAR);
+        $rows = collect($report['teacher_load'])->keyBy('teacher_name');
+
+        $this->assertFalse($rows['Teacher Two']['over_available']);
     }
 
     public function test_empty_timetable_reports_zero_placed_with_full_capacity(): void
