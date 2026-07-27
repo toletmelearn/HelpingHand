@@ -74,14 +74,27 @@ class TimetableController extends Controller
             return back()->with('error', 'Scheduling conflict: ' . $conflictCheck['message']);
         }
 
-        TimetableSlot::updateOrCreate(
-            [
-                'school_class_id' => $validated['school_class_id'],
-                'section_id' => $validated['section_id'] ?? null,
-                'bell_timing_id' => $validated['bell_timing_id'],
-            ],
-            $validated
-        );
+        // The app-level checkSlotConflicts() above is the primary guard;
+        // this catch is the DB-level safety net under it (T1a) -- a race
+        // between the check and the write (or any future caller that skips
+        // the check) still can't create a double-booking, it just gets the
+        // same friendly error instead of a 500.
+        try {
+            TimetableSlot::updateOrCreate(
+                [
+                    'school_class_id' => $validated['school_class_id'],
+                    'section_id' => $validated['section_id'] ?? null,
+                    'bell_timing_id' => $validated['bell_timing_id'],
+                ],
+                $validated
+            );
+        } catch (\Illuminate\Database\QueryException $e) {
+            if ((int) $e->errorInfo[1] === 1062) {
+                return back()->with('error', 'Scheduling conflict: this class or teacher already has a slot at this period.')->withInput();
+            }
+
+            throw $e;
+        }
 
         return back()->with('success', 'Timetable slot scheduled successfully.');
     }
