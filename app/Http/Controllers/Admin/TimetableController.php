@@ -52,7 +52,11 @@ class TimetableController extends Controller
 
     public function store(Request $request)
     {
-        $this->authorize('create', TimetableSlot::class);
+        $this->authorize('create', [
+            TimetableSlot::class,
+            $request->integer('school_class_id') ?: null,
+            $request->integer('section_id') ?: null,
+        ]);
 
         $validated = $request->validate([
             'school_class_id' => 'required|exists:school_classes,id',
