@@ -81,11 +81,14 @@ class TeacherSubjectAssignmentController extends Controller
             'academic_year' => 'nullable|string|max:20',
             'is_class_teacher' => 'boolean',
             'is_primary_subject_teacher' => 'boolean',
+            'periods_per_week' => 'nullable|integer|min:1|max:12',
+            'require_consecutive' => 'boolean',
         ]);
 
         $academicYear = $request->academic_year ?? date('Y') . '-' . (date('Y') + 1);
         $isClassTeacher = $request->has('is_class_teacher');
         $isPrimarySubjectTeacher = $request->has('is_primary_subject_teacher');
+        $requireConsecutive = $request->has('require_consecutive');
 
         DB::beginTransaction();
         try {
@@ -124,6 +127,8 @@ class TeacherSubjectAssignmentController extends Controller
                 [
                     'is_class_teacher' => $isClassTeacher, // Only set is_class_teacher if checkbox checked // Only set if checkbox checked
                     'is_primary_subject_teacher' => $isPrimarySubjectTeacher,
+                    'periods_per_week' => $request->periods_per_week,
+                    'require_consecutive' => $requireConsecutive,
                 ]
             );
 
@@ -183,10 +188,13 @@ class TeacherSubjectAssignmentController extends Controller
             'academic_year' => 'nullable|string|max:20',
             'is_class_teacher' => 'boolean',
             'is_primary_subject_teacher' => 'boolean',
+            'periods_per_week' => 'nullable|integer|min:1|max:12',
+            'require_consecutive' => 'boolean',
         ]);
 
         $isClassTeacher = $request->has('is_class_teacher');
         $isPrimarySubjectTeacher = $request->has('is_primary_subject_teacher');
+        $requireConsecutive = $request->has('require_consecutive');
 
         DB::beginTransaction();
         try {
@@ -208,6 +216,8 @@ class TeacherSubjectAssignmentController extends Controller
                 'academic_year' => $request->academic_year,
                 'is_class_teacher' => $isClassTeacher, // Only set is_class_teacher if checkbox checked
                 'is_primary_subject_teacher' => $isPrimarySubjectTeacher,
+                'periods_per_week' => $request->periods_per_week,
+                'require_consecutive' => $requireConsecutive,
             ]);
 
             DB::commit();

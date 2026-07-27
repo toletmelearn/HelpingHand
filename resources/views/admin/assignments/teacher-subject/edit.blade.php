@@ -138,13 +138,40 @@
                                 <label for="academic_year" class="form-label fw-bold">
                                     <i class="fas fa-calendar-alt"></i> Academic Year
                                 </label>
-                                <input type="text" name="academic_year" id="academic_year" 
-                                       class="form-control @error('academic_year') is-invalid @enderror" 
-                                       value="{{ old('academic_year', $assignment->academic_year) }}" 
+                                <input type="text" name="academic_year" id="academic_year"
+                                       class="form-control @error('academic_year') is-invalid @enderror"
+                                       value="{{ old('academic_year', $assignment->academic_year) }}"
                                        placeholder="e.g., 2025-2026">
                                 @error('academic_year')
                                     <div class="invalid-feedback">{{ $message }}</div>
                                 @enderror
+                            </div>
+                        </div>
+
+                        <!-- Timetable requirements (T2a) -->
+                        <div class="row mb-4">
+                            <div class="col-md-6">
+                                <label for="periods_per_week" class="form-label fw-bold">
+                                    <i class="fas fa-clock"></i> Periods Per Week <small class="text-muted">(Optional)</small>
+                                </label>
+                                <input type="number" name="periods_per_week" id="periods_per_week"
+                                       class="form-control @error('periods_per_week') is-invalid @enderror"
+                                       value="{{ old('periods_per_week', $assignment->periods_per_week) }}" min="1" max="12"
+                                       placeholder="e.g., 6">
+                                <small class="text-muted">How many periods a week this teacher needs for this subject/class -- used by the feasibility report and the future auto-generator.</small>
+                                @error('periods_per_week')
+                                    <div class="invalid-feedback">{{ $message }}</div>
+                                @enderror
+                            </div>
+                            <div class="col-md-6 d-flex align-items-center">
+                                <div class="form-check mt-4">
+                                    <input type="checkbox" name="require_consecutive" id="require_consecutive"
+                                           class="form-check-input" value="1" {{ old('require_consecutive', $assignment->require_consecutive) ? 'checked' : '' }}>
+                                    <label class="form-check-label fw-bold" for="require_consecutive">
+                                        Require Consecutive Periods
+                                    </label>
+                                    <p class="text-muted small mb-0">e.g. a double period for labs.</p>
+                                </div>
                             </div>
                         </div>
 
