@@ -1716,6 +1716,11 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/admin/timetable/pdf/teacher', [\App\Http\Controllers\Admin\TimetableController::class, 'teacherPdf'])->name('timetable.pdf.teacher');
     Route::get('/admin/timetable/pdf/master', [\App\Http\Controllers\Admin\TimetableController::class, 'masterPdf'])->name('timetable.pdf.master');
 
+    // Teacher availability grid (T2a)
+    Route::get('/admin/teacher-availability', [\App\Http\Controllers\Admin\TeacherAvailabilityController::class, 'index'])->name('teacher-availability.index');
+    Route::get('/admin/teacher-availability/{teacher}', [\App\Http\Controllers\Admin\TeacherAvailabilityController::class, 'edit'])->name('teacher-availability.edit');
+    Route::post('/admin/teacher-availability/{teacher}', [\App\Http\Controllers\Admin\TeacherAvailabilityController::class, 'update'])->name('teacher-availability.update');
+
     // Library circulations & OPAC
     Route::get('/admin/library', [\App\Http\Controllers\Admin\LibraryController::class, 'index'])->name('library.index');
     Route::post('/admin/library/issue', [\App\Http\Controllers\Admin\LibraryController::class, 'issueBook'])->name('library.issue');
