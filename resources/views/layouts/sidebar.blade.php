@@ -484,6 +484,15 @@
                             </a>
                         </li>
                         @endif
+                        @if(Route::has('timetable.feasibility') && (Auth::user()->hasRole('admin') || Auth::user()->hasRole('teacher')))
+                        <li class="nav-item">
+                            <a class="nav-link text-white {{ request()->routeIs('timetable.feasibility') ? 'active' : '' }}"
+                               href="{{ route('timetable.feasibility') }}">
+                                <i class="bi bi-clipboard-data me-2"></i>
+                                <span>Timetable Feasibility</span>
+                            </a>
+                        </li>
+                        @endif
                         @if(Route::has('admin.syllabi.index') && (Auth::user()->hasRole('admin') || Auth::user()->hasPermission('view-syllabi')))
                         <li class="nav-item">
                             <a class="nav-link text-white {{ request()->routeIs('admin.syllabi.*') ? 'active' : '' }}" 
