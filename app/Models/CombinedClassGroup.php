@@ -19,11 +19,24 @@ class CombinedClassGroup extends Model
         'name',
         'subject_id',
         'academic_session_id',
+        'teacher_id',
+        'periods_per_week',
     ];
 
     public function subject()
     {
         return $this->belongsTo(Subject::class);
+    }
+
+    /**
+     * T4a: the solver's standing weekly requirement for this group (set
+     * per-group, unlike ordinary lessons which get it per assignment).
+     * Nullable/unset means this group isn't picked up by the generator --
+     * still fully usable for T2b's manual placement flow either way.
+     */
+    public function teacher()
+    {
+        return $this->belongsTo(Teacher::class);
     }
 
     public function academicSession()

@@ -15,12 +15,14 @@ class Subject extends Model
         'code',
         'subject_type',
         'is_active',
-        'sort_order'
+        'sort_order',
+        'prefer_morning',
     ];
 
     protected $casts = [
         'is_active' => 'boolean',
-        'sort_order' => 'integer'
+        'sort_order' => 'integer',
+        'prefer_morning' => 'boolean',
     ];
 
     /**
