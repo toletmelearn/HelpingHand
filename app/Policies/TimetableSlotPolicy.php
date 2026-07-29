@@ -76,6 +76,24 @@ class TimetableSlotPolicy
     }
 
     /**
+     * T4b: triggering GenerateTimetableJob for a whole class is a bigger
+     * action than placing one slot (it replaces that class's entire draft
+     * proposal), and publishing/discarding one is exactly the action the
+     * plan calls "admin-only" for PUBLISH -- both gated the same way here
+     * for consistency, rather than letting a teacher force-regenerate or
+     * discard a class's draft.
+     */
+    public function generate(User $user): bool
+    {
+        return $user->hasRole('admin');
+    }
+
+    public function publish(User $user): bool
+    {
+        return $user->hasRole('admin');
+    }
+
+    /**
      * A teacher may write a slot for a class-section they hold any
      * assignment for. Assignments with a null section_id are treated as
      * covering the whole class (matches any requested section, including
