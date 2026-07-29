@@ -306,7 +306,10 @@ class TeacherSubstitutionController extends Controller
             $selectedTeacher = Teacher::findOrFail($selectedTeacherId);
             $dayOfWeek = $date->format('l');
 
+            // T4b: only the live timetable counts as "this teacher's actual
+            // slot today" -- a draft proposal isn't a real commitment yet.
             $timetableSlots = TimetableSlot::with(['bellTiming', 'schoolClass', 'section', 'subject'])
+                ->published()
                 ->where('teacher_id', $selectedTeacherId)
                 ->whereHas('bellTiming', fn ($q) => $q->where('day_of_week', $dayOfWeek))
                 ->get()

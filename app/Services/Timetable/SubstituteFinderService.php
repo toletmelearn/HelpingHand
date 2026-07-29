@@ -67,7 +67,10 @@ class SubstituteFinderService
         $bellTimingId = $bellTiming->id;
         $dayOfWeek = $bellTiming->day_of_week;
 
-        $busyTeacherIds = TimetableSlot::where('bell_timing_id', $bellTimingId)
+        // T4b: substitution is about who's ACTUALLY busy on the live
+        // timetable -- a teacher only committed in a draft proposal isn't
+        // really unavailable.
+        $busyTeacherIds = TimetableSlot::published()->where('bell_timing_id', $bellTimingId)
             ->pluck('teacher_id')->unique();
 
         $blockedTeacherIds = TeacherAvailability::where('bell_timing_id', $bellTimingId)
@@ -86,10 +89,11 @@ class SubstituteFinderService
         $subjectTeacherIds = TeacherClassSubjectAssignment::where('subject_id', $subject->id)
             ->pluck('teacher_id')->unique();
 
-        $periodsTodayByTeacher = TimetableSlot::whereHas(
-            'bellTiming',
-            fn ($q) => $q->where('day_of_week', $dayOfWeek)
-        )->selectRaw('teacher_id, COUNT(*) as c')
+        $periodsTodayByTeacher = TimetableSlot::published()
+            ->whereHas(
+                'bellTiming',
+                fn ($q) => $q->where('day_of_week', $dayOfWeek)
+            )->selectRaw('teacher_id, COUNT(*) as c')
             ->groupBy('teacher_id')
             ->pluck('c', 'teacher_id');
 

@@ -70,6 +70,7 @@ class FeasibilityService
             ->get();
 
         $slots = TimetableSlot::with(['schoolClass', 'section', 'bellTiming', 'teacher', 'subject'])
+            ->published() // T4b: the feasibility report is about the LIVE timetable, never a draft proposal
             ->when($academicYear, fn ($q) => $q->where('academic_year', $academicYear))
             ->get();
 
@@ -262,6 +263,7 @@ class FeasibilityService
         // structurally impossible -- this query proves it, live, rather
         // than just trusting the migration ran.
         $classDupes = TimetableSlot::query()
+            ->published()
             ->select('school_class_id', 'section_id', 'bell_timing_id')
             ->selectRaw('count(*) as c')
             ->when($academicYear, fn ($q) => $q->where('academic_year', $academicYear))
@@ -277,6 +279,7 @@ class FeasibilityService
         }
 
         $teacherDupes = TimetableSlot::query()
+            ->published()
             ->select('teacher_id', 'bell_timing_id')
             ->selectRaw('count(*) as c')
             ->when($academicYear, fn ($q) => $q->where('academic_year', $academicYear))
@@ -292,6 +295,7 @@ class FeasibilityService
         }
 
         $slots = TimetableSlot::with(['teacher', 'subject', 'schoolClass'])
+            ->published()
             ->when($academicYear, fn ($q) => $q->where('academic_year', $academicYear))
             ->get();
 
