@@ -432,7 +432,7 @@
             @endif
             
             <!-- 🧑‍🏫 4. ACADEMIC MANAGEMENT -->
-            @if(Auth::user()->hasRole(['admin', 'staff']) || Auth::user()->hasPermission('view-syllabi') || Auth::user()->hasPermission('view-daily-teaching-work'))
+            @if(Auth::user()->hasRole(['admin', 'staff', 'teacher']) || Auth::user()->hasPermission('view-syllabi') || Auth::user()->hasPermission('view-daily-teaching-work'))
             <li class="nav-item sidebar-section mt-3" data-section="academic">
                 <div class="nav-header text-uppercase small px-3 py-2">
                     <i class="bi bi-mortarboard me-1"></i> Academic Management
@@ -450,7 +450,7 @@
                         @endif
                         @if(Route::has('admin.sections.index') && (Auth::user()->hasRole(['admin', 'staff']) || Auth::user()->hasPermission('view-sections')))
                         <li class="nav-item">
-                            <a class="nav-link text-white {{ request()->routeIs('admin.sections.*') ? 'active' : '' }}" 
+                            <a class="nav-link text-white {{ request()->routeIs('admin.sections.*') ? 'active' : '' }}"
                                href="{{ route('admin.sections.index') }}">
                                 <i class="bi bi-diagram-3 me-2"></i>
                                 <span>Sections</span>
@@ -459,16 +459,84 @@
                         @endif
                         @if(Route::has('admin.subjects.index') && (Auth::user()->hasRole(['admin', 'staff']) || Auth::user()->hasPermission('view-subjects')))
                         <li class="nav-item">
-                            <a class="nav-link text-white {{ request()->routeIs('admin.subjects.*') ? 'active' : '' }}" 
+                            <a class="nav-link text-white {{ request()->routeIs('admin.subjects.*') ? 'active' : '' }}"
                                href="{{ route('admin.subjects.index') }}">
                                 <i class="bi bi-book-half me-2"></i>
                                 <span>Subjects</span>
                             </a>
                         </li>
                         @endif
+                        {{-- Navigation gap fix: these five existed and worked but had no
+                             sidebar link (or were buried in System Configuration, which
+                             a school admin would never think to check). Each gate below
+                             matches its controller's own policy exactly -- see the
+                             navigation-gap-analysis report for the audit. --}}
+                        @if(Route::has('admin.teacher-subject-assignments.index') && (Auth::user()->hasRole('admin') || Auth::user()->hasPermission('view-teacher-subject-assignment') || Auth::user()->hasPermission('manage-teacher-subject-assignment')))
+                        <li class="nav-item">
+                            <a class="nav-link text-white {{ request()->routeIs('admin.teacher-subject-assignments.*') ? 'active' : '' }}"
+                               href="{{ route('admin.teacher-subject-assignments.index') }}">
+                                <i class="bi bi-arrow-left-right me-2"></i>
+                                <span>Teacher-Subject Assignment</span>
+                            </a>
+                        </li>
+                        @endif
+                        @if(Route::has('admin.teacher-class-assignments.index') && Auth::user()->hasRole(['admin', 'staff']))
+                        <li class="nav-item">
+                            <a class="nav-link text-white {{ request()->routeIs('admin.teacher-class-assignments.*') ? 'active' : '' }}"
+                               href="{{ route('admin.teacher-class-assignments.index') }}">
+                                <i class="bi bi-arrow-down-up me-2"></i>
+                                <span>Class Teacher Assignment</span>
+                            </a>
+                        </li>
+                        @endif
+                        @if(Route::has('teacher-availability.index') && (Auth::user()->hasRole('admin') || Auth::user()->hasRole('teacher')))
+                        <li class="nav-item">
+                            <a class="nav-link text-white {{ request()->routeIs('teacher-availability.*') ? 'active' : '' }}"
+                               href="{{ route('teacher-availability.index') }}">
+                                <i class="bi bi-calendar2-week me-2"></i>
+                                <span>Teacher Availability</span>
+                            </a>
+                        </li>
+                        @endif
+                        @if(Route::has('combined-class-groups.index') && (Auth::user()->hasRole('admin') || Auth::user()->hasRole('teacher')))
+                        <li class="nav-item">
+                            <a class="nav-link text-white {{ request()->routeIs('combined-class-groups.*') ? 'active' : '' }}"
+                               href="{{ route('combined-class-groups.index') }}">
+                                <i class="bi bi-people me-2"></i>
+                                <span>Combined Class Groups</span>
+                            </a>
+                        </li>
+                        @endif
+                        @if(Route::has('bell-timing.index') && (Auth::user()->hasRole('admin') || Auth::user()->hasRole('teacher')))
+                        <li class="nav-item">
+                            <a class="nav-link text-white {{ request()->routeIs('bell-timing.*') ? 'active' : '' }}"
+                               href="{{ route('bell-timing.index') }}">
+                                <i class="bi bi-bell me-2"></i>
+                                <span>Bell Timings</span>
+                            </a>
+                        </li>
+                        @endif
+                        @if(Route::has('timetable.index') && (Auth::user()->hasRole('admin') || Auth::user()->hasRole('teacher')))
+                        <li class="nav-item">
+                            <a class="nav-link text-white {{ request()->routeIs('timetable.index') ? 'active' : '' }}"
+                               href="{{ route('timetable.index') }}">
+                                <i class="bi bi-calendar3 me-2"></i>
+                                <span>Timetable</span>
+                            </a>
+                        </li>
+                        @endif
+                        @if(Route::has('timetable.feasibility') && (Auth::user()->hasRole('admin') || Auth::user()->hasRole('teacher')))
+                        <li class="nav-item">
+                            <a class="nav-link text-white {{ request()->routeIs('timetable.feasibility') ? 'active' : '' }}"
+                               href="{{ route('timetable.feasibility') }}">
+                                <i class="bi bi-clipboard-data me-2"></i>
+                                <span>Timetable Feasibility</span>
+                            </a>
+                        </li>
+                        @endif
                         @if(Route::has('admin.academic-sessions.index') && (Auth::user()->hasRole(['admin', 'staff']) || Auth::user()->hasPermission('view-academic-sessions')))
                         <li class="nav-item">
-                            <a class="nav-link text-white {{ request()->routeIs('admin.academic-sessions.*') ? 'active' : '' }}" 
+                            <a class="nav-link text-white {{ request()->routeIs('admin.academic-sessions.*') ? 'active' : '' }}"
                                href="{{ route('admin.academic-sessions.index') }}">
                                 <i class="bi bi-calendar-check me-2"></i>
                                 <span>Academic Sessions</span>
@@ -481,15 +549,6 @@
                                href="{{ route('admin.academic-events.index') }}">
                                 <i class="bi bi-calendar-week me-2"></i>
                                 <span>Academic Calendar</span>
-                            </a>
-                        </li>
-                        @endif
-                        @if(Route::has('timetable.feasibility') && (Auth::user()->hasRole('admin') || Auth::user()->hasRole('teacher')))
-                        <li class="nav-item">
-                            <a class="nav-link text-white {{ request()->routeIs('timetable.feasibility') ? 'active' : '' }}"
-                               href="{{ route('timetable.feasibility') }}">
-                                <i class="bi bi-clipboard-data me-2"></i>
-                                <span>Timetable Feasibility</span>
                             </a>
                         </li>
                         @endif
@@ -1091,24 +1150,6 @@
                                href="{{ route('admin.class-teacher-control.student-records') }}">
                                 <i class="bi bi-person-check me-2"></i>
                                 <span>Class Teacher Control</span>
-                            </a>
-                        </li>
-                        @endif
-                        @if(Route::has('admin.teacher-subject-assignments.index'))
-                        <li class="nav-item">
-                            <a class="nav-link text-white {{ request()->routeIs('admin.teacher-subject-assignments.*') ? 'active' : '' }}" 
-                               href="{{ route('admin.teacher-subject-assignments.index') }}">
-                                <i class="bi bi-arrow-left-right me-2"></i>
-                                <span>Teacher-Subject Assignment</span>
-                            </a>
-                        </li>
-                        @endif
-                        @if(Route::has('admin.teacher-class-assignments.index'))
-                        <li class="nav-item">
-                            <a class="nav-link text-white {{ request()->routeIs('admin.teacher-class-assignments.*') ? 'active' : '' }}" 
-                               href="{{ route('admin.teacher-class-assignments.index') }}">
-                                <i class="bi bi-arrow-down-up me-2"></i>
-                                <span>Teacher-Class Assignment</span>
                             </a>
                         </li>
                         @endif
