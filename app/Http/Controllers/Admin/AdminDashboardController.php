@@ -8,6 +8,7 @@ use App\Models\Teacher;
 use App\Models\Attendance;
 use App\Models\Fee;
 use App\Services\ProfessionalDashboardService;
+use App\Services\Timetable\SubstitutionDashboardService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 
@@ -15,9 +16,12 @@ class AdminDashboardController extends Controller
 {
     protected $dashboardService;
 
-    public function __construct(ProfessionalDashboardService $dashboardService)
+    protected $substitutionDashboardService;
+
+    public function __construct(ProfessionalDashboardService $dashboardService, SubstitutionDashboardService $substitutionDashboardService)
     {
         $this->dashboardService = $dashboardService;
+        $this->substitutionDashboardService = $substitutionDashboardService;
     }
 
     public function index()
@@ -58,6 +62,18 @@ class AdminDashboardController extends Controller
             $upcomingEvents = [];
         }
 
+        // T5 item 4: today's substitution count + unfilled arrangements.
+        // Same degrade pattern as upcoming events -- a service hiccup here
+        // must never break the whole dashboard.
+        try {
+            $substitutionSummary = $this->substitutionDashboardService->getTodaysSummary();
+        } catch (\Throwable $e) {
+            Log::error('Failed to load substitution summary for admin dashboard: ' . $e->getMessage());
+            $substitutionSummary = ['count' => 0, 'unfilled' => 0];
+        }
+        $substitutionsToday = $substitutionSummary['count'];
+        $unfilledArrangements = $substitutionSummary['unfilled'];
+
         // Fetch recent admission enquiries
         if ($isAdminOrSuperAdmin) {
             $recentEnquiries = \App\Models\AdmissionEnquiry::with('counsellor')->latest()->take(5)->get();
@@ -67,7 +83,7 @@ class AdminDashboardController extends Controller
             $myEnquiries = \App\Models\AdmissionEnquiry::where('counsellor_id', $user->id)->latest()->take(5)->get();
         }
 
-        return view('admin.dashboard', compact('stats', 'showOnboardingChecklist', 'recentImports', 'recentEnquiries', 'myEnquiries', 'upcomingEvents'));
+        return view('admin.dashboard', compact('stats', 'showOnboardingChecklist', 'recentImports', 'recentEnquiries', 'myEnquiries', 'upcomingEvents', 'substitutionsToday', 'unfilledArrangements'));
     }
     
     private function getUpcomingExams()
