@@ -164,6 +164,17 @@ class ApiAccessControl
                 && $this->tokenAllows($user, 'mobile:teacher');
         }
 
+        // T5 item 2: unlike dashboard.parent/guardians.* (deliberately in
+        // parentBlockedRoutes() below -- their Student::whereHas('guardians',
+        // ...) lookup doesn't work, see ParentTimetableController's own
+        // docblock), this is a genuinely working parent-self route with a
+        // real ownership check.
+        if (in_array($routeName, $this->parentSelfRoutes(), true)) {
+            return $this->hasRole($user, 'parent')
+                && $this->isParentSelf($request, $user)
+                && $this->tokenAllows($user, 'mobile:parent');
+        }
+
         return false;
     }
 
@@ -235,6 +246,13 @@ class ApiAccessControl
             'api.v1.teachers.attendance-data',
             'api.v1.teachers.grading-data',
             'api.v1.lesson-plans.my',
+        ];
+    }
+
+    private function parentSelfRoutes(): array
+    {
+        return [
+            'api.v1.students.timetable-today',
         ];
     }
 
@@ -336,6 +354,32 @@ class ApiAccessControl
         return Teacher::where('id', $teacherId)
             ->where('user_id', $user->id)
             ->exists();
+    }
+
+    /**
+     * T5 item 2: bridges through the `parents` table by email -- the one
+     * identity fact that genuinely links a Sanctum-token parent User to
+     * their child today. See ParentTimetableController's docblock for why
+     * this doesn't (and can't, without a larger fix) use the Guardian
+     * system dashboard.parent/guardians.* rely on.
+     */
+    private function isParentSelf(Request $request, User $user): bool
+    {
+        $studentId = $this->routeParameterId($request, ['studentId', 'student', 'id']);
+
+        if (!$studentId) {
+            return false;
+        }
+
+        $parentRecord = \App\Models\ParentModel::where('email', $user->email)->first();
+
+        if (!$parentRecord) {
+            return false;
+        }
+
+        $allowedIds = $parentRecord->students->pluck('id')->push($parentRecord->student_id)->filter();
+
+        return $allowedIds->contains($studentId);
     }
 
     private function routeParameterId(Request $request, array $names): ?int
