@@ -1441,6 +1441,9 @@ Route::get('/admin/results/final-result/{studentId}/{examId}', [App\Http\Control
             // Parent Homework Routes
             Route::get('/homework', [App\Http\Controllers\Parent\HomeworkController::class, 'index'])->name('homework.index');
             Route::get('/homework/{homeworkNotice}', [App\Http\Controllers\Parent\HomeworkController::class, 'show'])->name('homework.show');
+
+            // T5 item 1: today's periods (published timetable + substitutions)
+            Route::get('/timetable/today', [App\Http\Controllers\Parent\TimetableController::class, 'today'])->name('timetable.today');
         });
     });
     
