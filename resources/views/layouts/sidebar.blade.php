@@ -525,6 +525,18 @@
                             </a>
                         </li>
                         @endif
+                        {{-- TimetableSlotPolicy::generate() is admin-only -- whole-school
+                             Generate (Beta) entry point, matches the existing per-class
+                             Generate button's own gate on the grid page. --}}
+                        @if(Route::has('timetable.generate.form') && Auth::user()->hasRole('admin'))
+                        <li class="nav-item">
+                            <a class="nav-link text-white {{ request()->routeIs('timetable.generate.form') || request()->routeIs('timetable.generation.review') ? 'active' : '' }}"
+                               href="{{ route('timetable.generate.form') }}">
+                                <i class="bi bi-magic me-2"></i>
+                                <span>Generate Timetable (Beta)</span>
+                            </a>
+                        </li>
+                        @endif
                         @if(Route::has('timetable.feasibility') && (Auth::user()->hasRole('admin') || Auth::user()->hasRole('teacher')))
                         <li class="nav-item">
                             <a class="nav-link text-white {{ request()->routeIs('timetable.feasibility') ? 'active' : '' }}"

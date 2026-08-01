@@ -31,5 +31,11 @@ return [
     'generator' => [
         'time_budget_seconds' => env('TIMETABLE_GENERATOR_TIME_BUDGET', 60),
         'backtrack_budget_per_lesson' => env('TIMETABLE_GENERATOR_BACKTRACK_BUDGET', 25),
+
+        // Whole-school Generate: GenerateTimetableJob's own timeout, separate
+        // from time_budget_seconds above -- this is headroom for the DB work
+        // around the solve (delete old drafts, insert every placement row),
+        // not the solver's own search budget.
+        'job_timeout_seconds' => env('TIMETABLE_GENERATOR_JOB_TIMEOUT', 300),
     ],
 ];

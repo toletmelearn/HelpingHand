@@ -447,18 +447,25 @@ class TimetableController extends Controller
     }
 
     /**
-     * T4b item 2/3: "Generate (Beta)" -- dispatches GenerateTimetableJob
-     * for one class's current academic session. The TimetableGeneration
-     * row is created here, synchronously, before dispatch, so the UI has
-     * an id to poll immediately regardless of queue latency (same pattern
-     * as FinancialYearClosing/StageYearClosingJob).
+     * "Generate (Beta)" -- dispatches GenerateTimetableJob for one or more
+     * classes' current academic session in a single solver run (a teacher
+     * who teaches several of the selected classes gets one globally-
+     * consistent schedule, not several independently-solved ones that
+     * could silently double-book them). The TimetableGeneration row is
+     * created here, synchronously, before dispatch, so the UI has an id to
+     * poll immediately regardless of queue latency (same pattern as
+     * FinancialYearClosing/StageYearClosingJob). Called from both the
+     * per-class grid's Generate button (a one-element array) and the
+     * whole-school scope-selection screen (many) -- same endpoint, same
+     * validation, no duplicated generation-row logic between the two.
      */
     public function generate(Request $request)
     {
         $this->authorize('generate', TimetableSlot::class);
 
         $validated = $request->validate([
-            'school_class_id' => 'required|exists:school_classes,id',
+            'school_class_ids' => 'required|array|min:1',
+            'school_class_ids.*' => 'integer|exists:school_classes,id',
         ]);
 
         $session = AcademicSession::current()->first();
@@ -466,7 +473,7 @@ class TimetableController extends Controller
         $generation = TimetableGeneration::create([
             'academic_year' => $session?->code,
             'academic_session_id' => $session?->id,
-            'school_class_ids' => [(int) $validated['school_class_id']],
+            'school_class_ids' => array_values(array_unique(array_map('intval', $validated['school_class_ids']))),
             'status' => TimetableGeneration::STATUS_QUEUED,
             'requested_by' => Auth::id(),
         ]);
@@ -476,7 +483,56 @@ class TimetableController extends Controller
         return response()->json([
             'generation_id' => $generation->id,
             'status_url' => route('timetable.generation.status', $generation),
+            'review_url' => route('timetable.generation.review', $generation),
         ]);
+    }
+
+    /**
+     * Scope-selection screen for a whole-school (or any multi-class)
+     * generation -- the single-class Generate button on the grid page
+     * skips straight to generate(); this is the entry point for picking
+     * more than one class at a time.
+     */
+    public function showGenerateForm()
+    {
+        $this->authorize('generate', TimetableSlot::class);
+
+        $classes = SchoolClass::active()->orderByOrder()->get();
+
+        return view('admin.timetable.generate', compact('classes'));
+    }
+
+    /**
+     * Batch review for a (possibly multi-class) generation: overall stats,
+     * a per-class placed/unplaced breakdown (from the generation's own
+     * stored report -- no new queries needed), and all unplaced-lesson
+     * sentences grouped in one place, since a whole-school run's cell-
+     * level detail still lives on each class's own draft grid
+     * (?school_class_id=X&status=draft), not here.
+     */
+    public function generationReview(TimetableGeneration $generation)
+    {
+        $this->authorize('viewAny', TimetableSlot::class);
+
+        $classes = SchoolClass::whereIn('id', $generation->school_class_ids)->orderByOrder()->get()->keyBy('id');
+
+        $placementsByClass = collect($generation->report['placements'] ?? [])->groupBy('school_class_id');
+        $unplacedByClass = collect($generation->report['unplaced'] ?? [])
+            ->flatMap(fn ($u) => collect($u['class_ids'] ?? [])->map(fn ($classId) => ['class_id' => $classId, 'reason' => $u['reason']]))
+            ->groupBy('class_id');
+
+        $perClass = collect($generation->school_class_ids)->map(function ($classId) use ($classes, $placementsByClass, $unplacedByClass) {
+            return [
+                'class_id' => $classId,
+                'class_name' => $classes->get($classId)?->name ?? "Class #{$classId}",
+                'placed' => $placementsByClass->get($classId, collect())->count(),
+                'unplaced' => $unplacedByClass->get($classId, collect())->count(),
+            ];
+        })->sortBy('class_name')->values();
+
+        $unplacedSentences = collect($generation->report['unplaced'] ?? [])->pluck('reason')->values();
+
+        return view('admin.timetable.generation-review', compact('generation', 'perClass', 'unplacedSentences'));
     }
 
     /**
@@ -530,7 +586,7 @@ class TimetableController extends Controller
             $generation->update(['status' => TimetableGeneration::STATUS_PUBLISHED]);
         });
 
-        return redirect()->route('timetable.index', ['school_class_id' => $generation->school_class_ids[0] ?? null])
+        return $this->redirectAfterGenerationAction($generation)
             ->with('success', 'Generation published -- this is now the live timetable for the affected classes.');
     }
 
@@ -553,8 +609,23 @@ class TimetableController extends Controller
             $generation->update(['status' => TimetableGeneration::STATUS_DISCARDED]);
         });
 
-        return redirect()->route('timetable.index', ['school_class_id' => $generation->school_class_ids[0] ?? null])
+        return $this->redirectAfterGenerationAction($generation)
             ->with('success', 'Draft discarded -- the live timetable is unchanged.');
+    }
+
+    /**
+     * A single-class generation goes straight back to that class's grid
+     * (unchanged behaviour from before whole-school generation existed);
+     * a multi-class one goes to the review page, which still shows the
+     * final per-class outcome after publish/discard.
+     */
+    private function redirectAfterGenerationAction(TimetableGeneration $generation)
+    {
+        if (count($generation->school_class_ids) === 1) {
+            return redirect()->route('timetable.index', ['school_class_id' => $generation->school_class_ids[0]]);
+        }
+
+        return redirect()->route('timetable.generation.review', $generation);
     }
 
     public function checkConflictsApi(Request $request)

@@ -1732,10 +1732,12 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/admin/timetable/pdf/master', [\App\Http\Controllers\Admin\TimetableController::class, 'masterPdf'])->name('timetable.pdf.master');
 
     // Auto-generation, draft/publish workflow (T4b)
+    Route::get('/admin/timetable/generate', [\App\Http\Controllers\Admin\TimetableController::class, 'showGenerateForm'])->name('timetable.generate.form');
     Route::post('/admin/timetable/generate', [\App\Http\Controllers\Admin\TimetableController::class, 'generate'])->name('timetable.generate');
     Route::get('/admin/timetable/generations/{generation}/status', [\App\Http\Controllers\Admin\TimetableController::class, 'generationStatus'])->name('timetable.generation.status');
     Route::post('/admin/timetable/generations/{generation}/publish', [\App\Http\Controllers\Admin\TimetableController::class, 'publishGeneration'])->name('timetable.generation.publish');
     Route::post('/admin/timetable/generations/{generation}/discard', [\App\Http\Controllers\Admin\TimetableController::class, 'discardGeneration'])->name('timetable.generation.discard');
+    Route::get('/admin/timetable/generations/{generation}', [\App\Http\Controllers\Admin\TimetableController::class, 'generationReview'])->name('timetable.generation.review');
 
     // Combined classes (T2b)
     Route::post('/admin/timetable/combined', [\App\Http\Controllers\Admin\TimetableController::class, 'storeCombined'])->name('timetable.combined.store');

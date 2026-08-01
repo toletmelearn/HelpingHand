@@ -26,10 +26,21 @@ class GenerateTimetableJob implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
-    public $timeout = 90; // generator's own time budget (config('timetable.generator.time_budget_seconds'), default 60) plus headroom
+    public $timeout;
 
+    /**
+     * config('timetable.generator.time_budget_seconds') (default 60) caps
+     * the SOLVER's own search time regardless of how many classes are in
+     * this run -- whole-school generation doesn't scale that part
+     * linearly, it just returns best-effort at the same mark. This
+     * timeout is headroom for the surrounding DB work (deleting old
+     * drafts, inserting every placement row), sized generously
+     * (job_timeout_seconds, default 300s) so a genuinely large school's
+     * batch insert never races the job's own kill switch.
+     */
     public function __construct(public int $generationId)
     {
+        $this->timeout = (int) config('timetable.generator.job_timeout_seconds', 300);
     }
 
     public function handle(GeneratorService $service): void

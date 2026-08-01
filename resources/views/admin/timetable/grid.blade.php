@@ -410,7 +410,7 @@
                 'Content-Type': 'application/json',
                 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || '{{ csrf_token() }}',
             },
-            body: JSON.stringify({ school_class_id: classId }),
+            body: JSON.stringify({ school_class_ids: [classId] }),
         })
         .then(res => res.json())
         .then(data => pollGenerationStatus(data.status_url, btn))

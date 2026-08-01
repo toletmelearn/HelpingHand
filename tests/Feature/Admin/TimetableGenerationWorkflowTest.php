@@ -114,7 +114,7 @@ class TimetableGenerationWorkflowTest extends TestCase
         $before = $this->snapshotPublishedSlots();
 
         $genResponse = $this->actingAs($admin)->postJson(route('timetable.generate'), [
-            'school_class_id' => $data['class']->id,
+            'school_class_ids' => [$data['class']->id],
         ]);
         $genResponse->assertOk();
         $generation = TimetableGeneration::findOrFail($genResponse->json('generation_id'));
@@ -146,7 +146,7 @@ class TimetableGenerationWorkflowTest extends TestCase
         ]);
 
         $genResponse = $this->actingAs($admin)->postJson(route('timetable.generate'), [
-            'school_class_id' => $data['class']->id,
+            'school_class_ids' => [$data['class']->id],
         ]);
         $genResponse->assertOk();
         $generation = TimetableGeneration::findOrFail($genResponse->json('generation_id'));
@@ -192,7 +192,7 @@ class TimetableGenerationWorkflowTest extends TestCase
         $data = $this->seedGeneratableClass();
 
         $genResponse = $this->actingAs($admin)->postJson(route('timetable.generate'), [
-            'school_class_id' => $data['class']->id,
+            'school_class_ids' => [$data['class']->id],
         ]);
         $generation = TimetableGeneration::findOrFail($genResponse->json('generation_id'));
         $this->assertSame(TimetableGeneration::STATUS_COMPLETED, $generation->status);
@@ -240,7 +240,7 @@ class TimetableGenerationWorkflowTest extends TestCase
         $data = $this->seedGeneratableClass();
 
         $response = $this->actingAs($teacherUser)->postJson(route('timetable.generate'), [
-            'school_class_id' => $data['class']->id,
+            'school_class_ids' => [$data['class']->id],
         ]);
 
         $response->assertForbidden();
@@ -254,7 +254,7 @@ class TimetableGenerationWorkflowTest extends TestCase
         $data = $this->seedGeneratableClass();
 
         $genResponse = $this->actingAs($admin)->postJson(route('timetable.generate'), [
-            'school_class_id' => $data['class']->id,
+            'school_class_ids' => [$data['class']->id],
         ]);
         $generation = TimetableGeneration::findOrFail($genResponse->json('generation_id'));
 
