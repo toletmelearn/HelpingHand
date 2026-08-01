@@ -25,7 +25,13 @@ use Illuminate\Support\Collection;
  *   require_consecutive AND the two periods are adjacent; a combined
  *   group's lesson is placed at the SAME period for every member class at
  *   once; non-teaching periods never used (the domain itself excludes
- *   them, since only BellTiming::teachingType() rows are ever loaded).
+ *   them, since only BellTiming::teachingType() rows are ever loaded);
+ *   T6 item 1 -- a class's class-teacher (teacher_class_subject_
+ *   assignments.is_class_teacher, see reserveClassTeacherPeriod1() for why
+ *   that field and not one of the other two "class teacher" concepts in
+ *   this codebase) holds period 1 of their own class every day it runs,
+ *   reserved BEFORE the normal solve as forced placements the rest of the
+ *   solver just sees as already-committed state.
  *
  *   SOFT (slot ordering only -- never rejects an otherwise-legal slot):
  *   prefer morning / avoid last period for subjects.prefer_morning,
@@ -133,8 +139,16 @@ class GeneratorService
             ->mapWithKeys(fn ($a) => ["{$a->teacher_id}|{$a->bell_timing_id}" => true])
             ->all();
 
-        $lessons = $this->buildLessons($academicYear, $academicSessionId, $classIds, $classesById);
-        $this->loadTeacherLimits(collect($lessons));
+        // Teacher limits must be loaded before ANY commits, including the
+        // class-teacher reservations below -- scoped by class, not by the
+        // (not yet built) lesson list, since reservation happens first.
+        $this->loadTeacherLimitsForClasses($classIds, $academicSessionId);
+
+        $excludedAssignmentIds = [];
+        $warnings = [];
+        $forcedLessonAttempts = $this->reserveClassTeacherPeriod1($classIds, $classesById, $academicYear, $excludedAssignmentIds, $warnings);
+
+        $lessons = $this->buildLessons($academicYear, $academicSessionId, $classIds, $classesById, $excludedAssignmentIds);
 
         $pending = collect($lessons)->keyBy('lesson_id');
         $dirty = $pending->keys()->all();
@@ -201,11 +215,13 @@ class GeneratorService
         return [
             'placements' => $placements,
             'unplaced' => $this->unplaced,
+            'warnings' => $warnings,
             'stats' => [
-                'total_lessons' => count($lessons),
+                'total_lessons' => count($lessons) + $forcedLessonAttempts,
                 'placed_lessons' => count($this->committed),
                 'placed_rows' => count($placements),
                 'unplaced_lessons' => count($this->unplaced),
+                'warnings_count' => count($warnings),
                 'elapsed_seconds' => round(microtime(true) - $startedAt, 3),
             ],
         ];
@@ -250,9 +266,24 @@ class GeneratorService
         $this->timingsByDay = $byDay;
     }
 
-    private function loadTeacherLimits(Collection $lessons): void
+    /**
+     * Scoped by class rather than derived from the lesson list, since the
+     * class-teacher reservations (which need limits loaded first) commit
+     * before the lesson list is even built.
+     */
+    private function loadTeacherLimitsForClasses(Collection $classIds, ?int $academicSessionId): void
     {
-        $teacherIds = $lessons->pluck('teacher_id')->unique();
+        $teacherIds = TeacherClassSubjectAssignment::whereIn('class_id', $classIds)
+            ->whereNotNull('periods_per_week')
+            ->pluck('teacher_id')
+            ->merge(
+                CombinedClassGroup::whereNotNull('periods_per_week')
+                    ->whereNotNull('teacher_id')
+                    ->when($academicSessionId, fn ($q) => $q->where('academic_session_id', $academicSessionId))
+                    ->pluck('teacher_id')
+            )
+            ->unique();
+
         $this->teacherLimits = Teacher::whereIn('id', $teacherIds)->get()
             ->mapWithKeys(fn ($t) => [$t->id => [
                 'max_per_day' => (int) $t->max_periods_per_day,
@@ -262,12 +293,116 @@ class GeneratorService
     }
 
     /**
+     * T6 item 1: reserve period 1 of every teaching day for each requested
+     * class's class-teacher (teacher_class_subject_assignments.
+     * is_class_teacher = true, with periods_per_week set -- see the class
+     * docblock for why this field). Committed directly, bypassing MRV
+     * entirely, since these are mandatory-first, not solver choices. The
+     * reserved assignment's periods_per_week is NOT separately honoured by
+     * the normal per-period lesson loop (buildLessons() excludes it via
+     * $excludedAssignmentIds) -- period 1 daily IS this assignment's
+     * placement, not an addition on top of it.
+     *
+     * A class with no class-teacher, or whose class-teacher assignment has
+     * no periods_per_week set, is simply skipped -- not an error, per the
+     * plan's "a class with no class-teacher still generates" requirement.
+     * A day the class has no teaching period at all is skipped too. Only a
+     * genuine conflict (most commonly: the same teacher is class-teacher
+     * of two requested classes that share the identical period-1 bell
+     * timing on some day, since teacher_class_subject_assignments allows a
+     * teacher to be class-teacher of up to 2 classes) produces a warning
+     * instead of failing silently or double-booking.
+     *
+     * @return int total (day x class-teacher-assignment) attempts, placed or not -- for the stats.total_lessons count
+     */
+    private function reserveClassTeacherPeriod1(Collection $classIds, Collection $classesById, ?string $academicYear, array &$excludedAssignmentIds, array &$warnings): int
+    {
+        $classTeacherAssignments = TeacherClassSubjectAssignment::with('subject')
+            ->whereIn('class_id', $classIds)
+            ->where('is_class_teacher', true)
+            ->whereNotNull('periods_per_week')
+            ->when($academicYear, fn ($q) => $q->where('academic_year', $academicYear))
+            ->get();
+
+        $attempts = 0;
+
+        foreach ($classTeacherAssignments as $assignment) {
+            $class = $classesById->get($assignment->class_id);
+            $subject = $assignment->subject;
+            if (! $class || ! $subject) {
+                continue;
+            }
+
+            $excludedAssignmentIds[] = $assignment->id;
+
+            $section = $assignment->section_id ? Section::find($assignment->section_id) : null;
+            $label = $section ? "{$class->name}{$section->name}" : $class->name;
+
+            $lesson = [
+                'lesson_id' => $this->nextLessonId++,
+                'type' => 'solo',
+                'teacher_id' => $assignment->teacher_id,
+                'subject_id' => $assignment->subject_id,
+                'subject_name' => $subject->name,
+                'prefer_morning' => (bool) $subject->prefer_morning,
+                'require_consecutive' => false,
+                'periods_needed' => 1,
+                'periods_per_week' => 1,
+                'class_ids' => [$assignment->class_id],
+                'section_ids' => [$assignment->section_id],
+                'class_name' => $class->name,
+                'label' => $label,
+                'source' => ['assignment_id' => $assignment->id, 'class_teacher_period1' => true],
+            ];
+
+            $daysPlaced = 0;
+            foreach ($this->timingsByDay as $dayIds) {
+                $periodOneSlot = $this->firstPeriodSlotForLesson($lesson, $dayIds);
+                if ($periodOneSlot === null) {
+                    continue; // this class has no teaching period at all on this day
+                }
+
+                $attempts++;
+
+                if ($this->isHardLegal($lesson, $periodOneSlot)) {
+                    $this->commit($lesson, $periodOneSlot);
+                    $daysPlaced++;
+                } else {
+                    $teacherName = optional(Teacher::find($assignment->teacher_id))->name ?? "Teacher #{$assignment->teacher_id}";
+                    $warnings[] = "Could not reserve period 1 for {$label}: {$teacherName} (class teacher) already has a commitment at that exact period -- most likely they're class-teacher of another class with the same period 1 that day.";
+                }
+            }
+
+            if ($daysPlaced === 0 && $attempts === 0) {
+                $warnings[] = "Could not reserve period 1 for {$label}: {$subject->name} has no teaching day to reserve on.";
+            }
+        }
+
+        return $attempts;
+    }
+
+    /** The lowest-order_index domain slot for $lesson within one day's own sorted, filtered id list, or null if none apply. */
+    private function firstPeriodSlotForLesson(array $lesson, array $dayIds): ?array
+    {
+        $filtered = array_values(array_filter($dayIds, function ($btId) use ($lesson) {
+            $cs = $this->timingMeta[$btId]['class_section'];
+            if ($cs === null || $cs === '') {
+                return true;
+            }
+
+            return $lesson['type'] === 'solo' && $cs === $lesson['class_name'];
+        }));
+
+        return empty($filtered) ? null : ['bell_timing_ids' => [$filtered[0]]];
+    }
+
+    /**
      * Build the lesson list: one unit per period, except require_consecutive
      * assignments which are pre-paired into double-period units (see
      * splitIntoPairs()) so adjacency is guaranteed by domain generation
      * rather than checked after the fact.
      */
-    private function buildLessons(?string $academicYear, ?int $academicSessionId, Collection $classIds, Collection $classesById): array
+    private function buildLessons(?string $academicYear, ?int $academicSessionId, Collection $classIds, Collection $classesById, array $excludedAssignmentIds = []): array
     {
         $lessons = [];
 
@@ -275,7 +410,11 @@ class GeneratorService
             ->whereIn('class_id', $classIds)
             ->whereNotNull('periods_per_week')
             ->when($academicYear, fn ($q) => $q->where('academic_year', $academicYear))
-            ->get();
+            ->get()
+            // T6 item 1: a class-teacher's own subject was already reserved
+            // for period 1 every day by reserveClassTeacherPeriod1() -- that
+            // IS this assignment's placement, not an addition on top of it.
+            ->reject(fn ($a) => in_array($a->id, $excludedAssignmentIds, true));
 
         $sectionsById = Section::whereIn('id', $assignments->pluck('section_id')->filter()->unique())->get()->keyBy('id');
 

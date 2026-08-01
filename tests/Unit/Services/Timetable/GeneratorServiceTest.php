@@ -297,4 +297,105 @@ class GeneratorServiceTest extends TestCase
         $this->assertNoTeacherDoubleBooked($result['placements']);
         $this->assertNoClassDoubleBooked($result['placements']);
     }
+
+    /**
+     * T6 item 1: the class-teacher period-1 rule, built on
+     * teacher_class_subject_assignments.is_class_teacher per the approved
+     * REPORT-THEN-STOP finding.
+     */
+    public function test_class_teacher_holds_period_1_every_day(): void
+    {
+        $year = 'T6-CT-DAILY';
+        $ids = $this->makeGrid(['Monday', 'Tuesday', 'Wednesday', 'Thursday'], 4, $year);
+
+        $class = SchoolClass::create(['name' => 'CT Class', 'class_order' => 1, 'is_active' => true]);
+        $ctSubject = Subject::create(['name' => 'Maths', 'code' => 'CTM-T6']);
+        $ctTeacher = Teacher::create(['name' => 'Class Teacher', 'status' => 'active']);
+        $otherSubject = Subject::create(['name' => 'Science', 'code' => 'CTS-T6']);
+        $otherTeacher = Teacher::create(['name' => 'Other Teacher', 'status' => 'active']);
+
+        TeacherClassSubjectAssignment::create([
+            'teacher_id' => $ctTeacher->id, 'class_id' => $class->id, 'subject_id' => $ctSubject->id,
+            'periods_per_week' => 4, 'is_class_teacher' => true, 'academic_year' => $year,
+        ]);
+        TeacherClassSubjectAssignment::create([
+            'teacher_id' => $otherTeacher->id, 'class_id' => $class->id, 'subject_id' => $otherSubject->id,
+            'periods_per_week' => 3, 'academic_year' => $year,
+        ]);
+
+        $result = (new GeneratorService())->generate($year, collect([$class]));
+
+        $this->assertSame([], $result['warnings']);
+
+        // Period 1 of every day: the 4 lowest-order_index bell timings, one per day.
+        $period1Ids = BellTiming::where('order_index', 1)->pluck('id');
+        $this->assertCount(4, $period1Ids);
+
+        $placementsAtPeriod1 = collect($result['placements'])->filter(
+            fn ($p) => in_array($p['bell_timing_ids'][0], $period1Ids->all(), true) && count($p['bell_timing_ids']) === 1
+        );
+
+        $this->assertCount(4, $placementsAtPeriod1, 'The class teacher must hold exactly period 1 on all 4 days');
+        foreach ($placementsAtPeriod1 as $p) {
+            $this->assertSame($ctTeacher->id, $p['teacher_id']);
+            $this->assertSame($ctSubject->id, $p['subject_id']);
+        }
+    }
+
+    public function test_class_with_no_class_teacher_still_generates(): void
+    {
+        $year = 'T6-NO-CT';
+        $this->makeGrid(['Monday', 'Tuesday'], 2, $year);
+
+        $class = SchoolClass::create(['name' => 'No CT Class', 'class_order' => 1, 'is_active' => true]);
+        $subject = Subject::create(['name' => 'Art', 'code' => 'NCT-T6']);
+        $teacher = Teacher::create(['name' => 'Art Teacher', 'status' => 'active']);
+
+        TeacherClassSubjectAssignment::create([
+            'teacher_id' => $teacher->id, 'class_id' => $class->id, 'subject_id' => $subject->id,
+            'periods_per_week' => 2, 'academic_year' => $year,
+        ]);
+
+        $result = (new GeneratorService())->generate($year, collect([$class]));
+
+        $this->assertSame(0, $result['stats']['unplaced_lessons']);
+        $this->assertSame([], $result['warnings']);
+        $this->assertCount(2, $result['placements']);
+    }
+
+    public function test_same_teacher_class_teacher_of_two_classes_sharing_period_1_reports_a_warning(): void
+    {
+        $year = 'T6-CT-CLASH';
+        // class_section left null on every timing, so period 1 of a given
+        // day is the SAME physical bell_timing_id for every class -- this
+        // is what makes one teacher holding period 1 in two classes
+        // simultaneously structurally impossible.
+        $this->makeGrid(['Monday', 'Tuesday'], 2, $year);
+
+        $classA = SchoolClass::create(['name' => 'Clash Class A', 'class_order' => 1, 'is_active' => true]);
+        $classB = SchoolClass::create(['name' => 'Clash Class B', 'class_order' => 2, 'is_active' => true]);
+        $subjectA = Subject::create(['name' => 'Maths', 'code' => 'CLA-T6']);
+        $subjectB = Subject::create(['name' => 'Hindi', 'code' => 'CLB-T6']);
+        $sharedTeacher = Teacher::create(['name' => 'Double Class Teacher', 'status' => 'active']);
+
+        TeacherClassSubjectAssignment::create([
+            'teacher_id' => $sharedTeacher->id, 'class_id' => $classA->id, 'subject_id' => $subjectA->id,
+            'periods_per_week' => 2, 'is_class_teacher' => true, 'academic_year' => $year,
+        ]);
+        TeacherClassSubjectAssignment::create([
+            'teacher_id' => $sharedTeacher->id, 'class_id' => $classB->id, 'subject_id' => $subjectB->id,
+            'periods_per_week' => 2, 'is_class_teacher' => true, 'academic_year' => $year,
+        ]);
+
+        $result = (new GeneratorService())->generate($year, collect([$classA, $classB]));
+
+        $this->assertNotEmpty($result['warnings'], 'A teacher who is class-teacher of two classes sharing period 1 must produce a readable warning, not fail silently or double-book.');
+        foreach ($result['warnings'] as $warning) {
+            $this->assertStringContainsString('class teacher', $warning);
+        }
+
+        // No double-booking: the shared teacher never appears twice at the
+        // same bell_timing across the two classes' placements.
+        $this->assertNoTeacherDoubleBooked($result['placements']);
+    }
 }
