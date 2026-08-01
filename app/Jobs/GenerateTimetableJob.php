@@ -57,7 +57,7 @@ class GenerateTimetableJob implements ShouldQueue
             $classIds = $generation->school_class_ids;
             $classes = SchoolClass::whereIn('id', $classIds)->get();
 
-            $result = $service->generate($generation->academic_year, $classes, $generation->academic_session_id);
+            $result = $service->generate($generation->academic_year, $classes, $generation->academic_session_id, $generation->style);
 
             DB::transaction(function () use ($generation, $classIds, $result) {
                 // "Drafts for a session/class replace previous drafts only" --

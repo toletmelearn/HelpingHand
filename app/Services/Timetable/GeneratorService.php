@@ -58,6 +58,12 @@ use Illuminate\Support\Collection;
  */
 class GeneratorService
 {
+    /** T6 item 2: each subject's periods spread across different days (the original, still the default). */
+    public const STYLE_ROTATING = 'rotating';
+
+    /** T6 item 2: one day's pattern is solved once and repeated identically on every running day. */
+    public const STYLE_FIXED_DAILY = 'fixed_daily';
+
     private int $backtrackBudgetPerLesson;
 
     private int $timeBudgetSeconds;
@@ -111,10 +117,12 @@ class GeneratorService
 
     /**
      * @param  Collection<int,\App\Models\SchoolClass>  $schoolClasses  the set of classes to generate for
-     * @return array{placements: array, unplaced: array, stats: array}
+     * @param  ?string  $style  self::STYLE_ROTATING (default) or self::STYLE_FIXED_DAILY
+     * @return array{placements: array, unplaced: array, warnings: array, stats: array}
      */
-    public function generate(?string $academicYear, Collection $schoolClasses, ?int $academicSessionId = null): array
+    public function generate(?string $academicYear, Collection $schoolClasses, ?int $academicSessionId = null, ?string $style = null): array
     {
+        $style = $style ?? self::STYLE_ROTATING;
         $this->resetState();
 
         $this->timeBudgetSeconds = (int) config('timetable.generator.time_budget_seconds', 60);
@@ -147,6 +155,10 @@ class GeneratorService
         $excludedAssignmentIds = [];
         $warnings = [];
         $forcedLessonAttempts = $this->reserveClassTeacherPeriod1($classIds, $classesById, $academicYear, $excludedAssignmentIds, $warnings);
+
+        if ($style === self::STYLE_FIXED_DAILY) {
+            $forcedLessonAttempts += $this->reserveFixedDailyLessons($classIds, $classesById, $academicYear, $excludedAssignmentIds, $warnings);
+        }
 
         $lessons = $this->buildLessons($academicYear, $academicSessionId, $classIds, $classesById, $excludedAssignmentIds);
 
@@ -217,6 +229,7 @@ class GeneratorService
             'unplaced' => $this->unplaced,
             'warnings' => $warnings,
             'stats' => [
+                'style' => $style,
                 'total_lessons' => count($lessons) + $forcedLessonAttempts,
                 'placed_lessons' => count($this->committed),
                 'placed_rows' => count($placements),
@@ -394,6 +407,245 @@ class GeneratorService
         }));
 
         return empty($filtered) ? null : ['bell_timing_ids' => [$filtered[0]]];
+    }
+
+    /**
+     * T6 item 2, STYLE_FIXED_DAILY: every solo assignment not already
+     * reserved for the class-teacher (Item 1's rule is already "fixed
+     * daily" in nature -- same teacher/subject in period 1 every day --
+     * so it needs no changes here and isn't touched by this method) is
+     * solved ONCE per class and repeated identically on every day that
+     * class runs, rather than spread across the week the way
+     * STYLE_ROTATING does. Reuses isHardLegal()/commit() completely
+     * unchanged -- each day's placement is just an ordinary single- or
+     * double-period 'solo' commit, called once per running day with that
+     * day's own bell_timing_id(s) at the chosen order_index(es).
+     *
+     * An assignment whose periods_per_week doesn't divide evenly across
+     * the class's running days, or whose require_consecutive flag doesn't
+     * match "exactly 2 periods/day" (consecutive) / "exactly 1 period/day"
+     * (not), is reported as not fixed-daily-compatible -- never guessed
+     * at partially. One that IS compatible but can't find a legal
+     * order_index pattern free on every running day (a scheduling
+     * conflict, not a math problem) is reported as a warning instead.
+     * Both go through the same $warnings array Item 1's clash case uses.
+     *
+     * @return int total assignments attempted (compatible or not) -- for the stats.total_lessons count
+     */
+    private function reserveFixedDailyLessons(Collection $classIds, Collection $classesById, ?string $academicYear, array &$excludedAssignmentIds, array &$warnings): int
+    {
+        $assignments = TeacherClassSubjectAssignment::with('subject')
+            ->whereIn('class_id', $classIds)
+            ->whereNotNull('periods_per_week')
+            ->when($academicYear, fn ($q) => $q->where('academic_year', $academicYear))
+            ->get()
+            ->reject(fn ($a) => in_array($a->id, $excludedAssignmentIds, true));
+
+        $sectionsById = Section::whereIn('id', $assignments->pluck('section_id')->filter()->unique())->get()->keyBy('id');
+
+        $attempts = 0;
+
+        foreach ($assignments->groupBy('class_id') as $classId => $classAssignments) {
+            $class = $classesById->get($classId);
+            if (! $class) {
+                continue;
+            }
+
+            $runningDays = $this->runningDaysForClass($class->name);
+            if (empty($runningDays)) {
+                continue;
+            }
+
+            $commonOrderIndexes = $this->commonOrderIndexesForClass($class->name, $runningDays);
+            $usedOrderIndexes = [];
+
+            foreach ($classAssignments as $assignment) {
+                $subject = $assignment->subject;
+                if (! $subject) {
+                    continue;
+                }
+
+                $excludedAssignmentIds[] = $assignment->id;
+                $attempts++;
+
+                $periodsPerWeek = (int) $assignment->periods_per_week;
+                $requireConsecutive = (bool) $assignment->require_consecutive;
+                $section = $assignment->section_id ? $sectionsById->get($assignment->section_id) : null;
+                $label = $section ? "{$class->name}{$section->name}" : $class->name;
+                $runningDayCount = count($runningDays);
+
+                if ($periodsPerWeek % $runningDayCount !== 0) {
+                    $warnings[] = "Could not use fixed-daily style for {$subject->name} in {$label}: {$periodsPerWeek} periods/week does not divide evenly across {$runningDayCount} running days -- not fixed-daily-compatible.";
+
+                    continue;
+                }
+
+                $periodsPerDay = intdiv($periodsPerWeek, $runningDayCount);
+
+                if ($requireConsecutive && $periodsPerDay !== 2) {
+                    $warnings[] = "Could not use fixed-daily style for {$subject->name} in {$label}: a consecutive-flagged subject needs exactly 2 periods/day in fixed-daily mode, this works out to {$periodsPerDay} -- not fixed-daily-compatible.";
+
+                    continue;
+                }
+                if (! $requireConsecutive && $periodsPerDay !== 1) {
+                    $warnings[] = "Could not use fixed-daily style for {$subject->name} in {$label}: a non-consecutive subject needs exactly 1 period/day in fixed-daily mode, this works out to {$periodsPerDay} -- not fixed-daily-compatible.";
+
+                    continue;
+                }
+
+                $lessonTemplate = [
+                    'type' => 'solo',
+                    'teacher_id' => $assignment->teacher_id,
+                    'subject_id' => $assignment->subject_id,
+                    'subject_name' => $subject->name,
+                    'prefer_morning' => (bool) $subject->prefer_morning,
+                    'require_consecutive' => $requireConsecutive,
+                    'periods_needed' => $periodsPerDay,
+                    'periods_per_week' => $periodsPerWeek,
+                    'class_ids' => [$assignment->class_id],
+                    'section_ids' => [$assignment->section_id],
+                    'class_name' => $class->name,
+                    'label' => $label,
+                ];
+
+                $candidate = $this->findFixedDailyCandidate($lessonTemplate, $runningDays, $commonOrderIndexes, $usedOrderIndexes);
+
+                if ($candidate === null) {
+                    $warnings[] = "Could not reserve a fixed-daily slot for {$subject->name} in {$label}: no order-index pattern is free on every running day.";
+
+                    continue;
+                }
+
+                foreach ($candidate['orderIndexes'] as $oi) {
+                    $usedOrderIndexes[] = $oi;
+                }
+
+                foreach ($runningDays as $dayOrder) {
+                    $lesson = $lessonTemplate;
+                    $lesson['lesson_id'] = $this->nextLessonId++;
+                    $this->commit($lesson, ['bell_timing_ids' => $candidate['idsByDay'][$dayOrder]]);
+                }
+            }
+        }
+
+        return $attempts;
+    }
+
+    /** Day-order values where this class has at least one domain slot (same class_section matching every other lesson type uses). */
+    private function runningDaysForClass(?string $className): array
+    {
+        $days = [];
+        foreach ($this->timingsByDay as $dayOrder => $ids) {
+            $hasAny = array_filter($ids, fn ($btId) => $this->slotAppliesToClass($btId, $className));
+            if (! empty($hasAny)) {
+                $days[] = $dayOrder;
+            }
+        }
+        sort($days);
+
+        return $days;
+    }
+
+    /** order_index values present in this class's domain on EVERY one of $runningDays -- the only values safely repeatable across all of them. */
+    private function commonOrderIndexesForClass(?string $className, array $runningDays): array
+    {
+        $perDaySets = [];
+        foreach ($runningDays as $dayOrder) {
+            $ids = array_filter($this->timingsByDay[$dayOrder] ?? [], fn ($btId) => $this->slotAppliesToClass($btId, $className));
+            $perDaySets[] = array_map(fn ($btId) => $this->timingMeta[$btId]['order_index'], $ids);
+        }
+
+        if (empty($perDaySets)) {
+            return [];
+        }
+
+        $common = array_shift($perDaySets);
+        foreach ($perDaySets as $set) {
+            $common = array_intersect($common, $set);
+        }
+
+        $common = array_values(array_unique($common));
+        sort($common);
+
+        return $common;
+    }
+
+    private function slotAppliesToClass(int $btId, ?string $className): bool
+    {
+        $cs = $this->timingMeta[$btId]['class_section'];
+
+        return $cs === null || $cs === '' || $cs === $className;
+    }
+
+    /**
+     * Try each not-yet-used order_index (or, for a 2-period/day lesson,
+     * each adjacent pair -- integers 1 apart, both still available) from
+     * $commonOrderIndexes, lowest first. A candidate is only accepted once
+     * EVERY running day's corresponding bell_timing(s) pass the exact same
+     * isHardLegal() check every other lesson type uses -- checked read-only
+     * across all days before committing anything, so a candidate that
+     * fails partway through never leaves a partial commit behind.
+     */
+    private function findFixedDailyCandidate(array $lessonTemplate, array $runningDays, array $commonOrderIndexes, array $usedOrderIndexes): ?array
+    {
+        $available = array_values(array_diff($commonOrderIndexes, $usedOrderIndexes));
+        sort($available);
+
+        $candidateGroups = [];
+        if ($lessonTemplate['periods_needed'] === 1) {
+            foreach ($available as $oi) {
+                $candidateGroups[] = [$oi];
+            }
+        } else {
+            for ($i = 0; $i < count($available) - 1; $i++) {
+                if ($available[$i + 1] - $available[$i] === 1) {
+                    $candidateGroups[] = [$available[$i], $available[$i + 1]];
+                }
+            }
+        }
+
+        foreach ($candidateGroups as $orderIndexes) {
+            $idsByDay = [];
+            $allLegal = true;
+
+            foreach ($runningDays as $dayOrder) {
+                $dayIds = [];
+                foreach ($orderIndexes as $oi) {
+                    $btId = $this->bellTimingIdForDayAndOrderIndex($dayOrder, $oi);
+                    if ($btId === null) {
+                        $allLegal = false;
+
+                        break 2;
+                    }
+                    $dayIds[] = $btId;
+                }
+
+                if (! $this->isHardLegal($lessonTemplate, ['bell_timing_ids' => $dayIds])) {
+                    $allLegal = false;
+
+                    break;
+                }
+
+                $idsByDay[$dayOrder] = $dayIds;
+            }
+
+            if ($allLegal) {
+                return ['orderIndexes' => $orderIndexes, 'idsByDay' => $idsByDay];
+            }
+        }
+
+        return null;
+    }
+
+    private function bellTimingIdForDayAndOrderIndex(int $dayOrder, int $orderIndex): ?int
+    {
+        foreach ($this->timingsByDay[$dayOrder] ?? [] as $btId) {
+            if ($this->timingMeta[$btId]['order_index'] === $orderIndex) {
+                return $btId;
+            }
+        }
+
+        return null;
     }
 
     /**

@@ -77,11 +77,14 @@ class TimetableWholeSchoolGenerationTest extends TestCase
         return $classes;
     }
 
-    private function generateFor(User $admin, array $classIds): TimetableGeneration
+    private function generateFor(User $admin, array $classIds, ?string $style = null): TimetableGeneration
     {
-        $response = $this->actingAs($admin)->postJson(route('timetable.generate'), [
-            'school_class_ids' => $classIds,
-        ]);
+        $payload = ['school_class_ids' => $classIds];
+        if ($style !== null) {
+            $payload['style'] = $style;
+        }
+
+        $response = $this->actingAs($admin)->postJson(route('timetable.generate'), $payload);
         $response->assertOk();
 
         return TimetableGeneration::findOrFail($response->json('generation_id'));
@@ -227,5 +230,56 @@ class TimetableWholeSchoolGenerationTest extends TestCase
         $this->actingAs($teacherUser)->get(route('timetable.generate.form'))->assertForbidden();
         $this->actingAs($teacherUser)->postJson(route('timetable.generate'), ['school_class_ids' => $classIds])->assertForbidden();
         $this->assertSame(0, TimetableGeneration::count());
+    }
+
+    /** T6 item 2: 'style' flows end-to-end through the real HTTP -> job -> draft pipeline, not just the service layer. */
+    public function test_fixed_daily_style_flows_through_to_identical_daily_draft_slots(): void
+    {
+        $admin = $this->makeAdmin();
+        $classes = $this->seedClasses(1);
+        $classId = $classes[0]['class']->id;
+
+        $generation = $this->generateFor($admin, [$classId], 'fixed_daily');
+
+        $this->assertSame('fixed_daily', $generation->style);
+        $this->assertSame(TimetableGeneration::STATUS_COMPLETED, $generation->status);
+        $this->assertSame([], $generation->report['warnings'] ?? ['not-empty']);
+
+        $draftSlots = TimetableSlot::draft()->where('timetable_generation_id', $generation->id)->with('bellTiming')->get();
+        $this->assertCount(4, $draftSlots); // 4 running days x 1 period/day
+
+        $orderIndexes = $draftSlots->pluck('bellTiming.order_index')->unique();
+        $this->assertCount(1, $orderIndexes, 'Fixed-daily must place the subject at the identical order_index every day.');
+    }
+
+    public function test_review_page_shows_style_warnings(): void
+    {
+        $admin = $this->makeAdmin();
+        AcademicSession::create([
+            'name' => self::YEAR, 'code' => self::YEAR,
+            'start_date' => '2026-04-01', 'end_date' => '2027-03-31', 'is_current' => true,
+        ]);
+        foreach (['Monday', 'Tuesday', 'Wednesday'] as $day) {
+            BellTiming::create([
+                'day_of_week' => $day, 'period_name' => 'P1', 'start_time' => '08:00:00', 'end_time' => '08:45:00',
+                'is_active' => true, 'is_break' => false, 'order_index' => 1, 'academic_year' => self::YEAR,
+            ]);
+        }
+        $class = SchoolClass::create(['name' => 'Warn Class', 'class_order' => 1, 'is_active' => true]);
+        $subject = Subject::create(['name' => 'Warn Subject', 'code' => 'WARN' . uniqid()]);
+        $teacher = Teacher::create(['name' => 'Warn Teacher', 'status' => 'active']);
+        // 2 periods/week across 3 running days does not divide evenly.
+        TeacherClassSubjectAssignment::create([
+            'teacher_id' => $teacher->id, 'class_id' => $class->id, 'subject_id' => $subject->id,
+            'periods_per_week' => 2, 'academic_year' => self::YEAR,
+        ]);
+
+        $generation = $this->generateFor($admin, [$class->id], 'fixed_daily');
+
+        $response = $this->actingAs($admin)->get(route('timetable.generation.review', $generation));
+
+        $response->assertOk();
+        $response->assertSee('Warnings');
+        $response->assertSee('not fixed-daily-compatible');
     }
 }

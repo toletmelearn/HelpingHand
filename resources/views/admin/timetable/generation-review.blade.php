@@ -46,6 +46,17 @@
                     </div>
                 @endif
 
+                @if(isset($warnings) && $warnings->isNotEmpty())
+                    <div class="alert alert-secondary mt-3">
+                        <strong>Warnings (class-teacher clashes / style-incompatible subjects):</strong>
+                        <ul class="mb-0">
+                            @foreach($warnings as $warning)
+                                <li>{{ $warning }}</li>
+                            @endforeach
+                        </ul>
+                    </div>
+                @endif
+
                 @if($generation->status === \App\Models\TimetableGeneration::STATUS_COMPLETED)
                     @can('publish', \App\Models\TimetableSlot::class)
                     <form action="{{ route('timetable.generation.publish', $generation) }}" method="POST" class="d-inline" onsubmit="return confirm('Publish this draft for all {{ $perClass->count() }} class(es)? This will archive the current live timetable for each and make the draft live.');">

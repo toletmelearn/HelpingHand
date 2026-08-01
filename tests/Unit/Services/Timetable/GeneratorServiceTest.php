@@ -398,4 +398,157 @@ class GeneratorServiceTest extends TestCase
         // same bell_timing across the two classes' placements.
         $this->assertNoTeacherDoubleBooked($result['placements']);
     }
+
+    /**
+     * T6 item 2: the style toggle. STYLE_FIXED_DAILY solves one day's
+     * pattern and repeats it identically on every running day.
+     */
+    public function test_fixed_daily_produces_identical_pattern_every_day(): void
+    {
+        $year = 'T6-FIXED-DAILY';
+        $this->makeGrid(['Monday', 'Tuesday', 'Wednesday', 'Thursday'], 4, $year);
+
+        $class = SchoolClass::create(['name' => 'FD Class', 'class_order' => 1, 'is_active' => true]);
+        $mathsSubject = Subject::create(['name' => 'Maths', 'code' => 'FDM-T6']);
+        $mathsTeacher = Teacher::create(['name' => 'Maths Teacher', 'status' => 'active']);
+        $scienceSubject = Subject::create(['name' => 'Science', 'code' => 'FDS-T6']);
+        $scienceTeacher = Teacher::create(['name' => 'Science Teacher', 'status' => 'active']);
+
+        // 4 periods/week across 4 running days = 1/day each -- evenly divisible.
+        TeacherClassSubjectAssignment::create([
+            'teacher_id' => $mathsTeacher->id, 'class_id' => $class->id, 'subject_id' => $mathsSubject->id,
+            'periods_per_week' => 4, 'academic_year' => $year,
+        ]);
+        TeacherClassSubjectAssignment::create([
+            'teacher_id' => $scienceTeacher->id, 'class_id' => $class->id, 'subject_id' => $scienceSubject->id,
+            'periods_per_week' => 4, 'academic_year' => $year,
+        ]);
+
+        $result = (new GeneratorService())->generate($year, collect([$class]), null, GeneratorService::STYLE_FIXED_DAILY);
+
+        $this->assertSame([], $result['warnings']);
+        $this->assertSame(0, $result['stats']['unplaced_lessons']);
+
+        // Group placements by their order_index; every day must show the
+        // identical (teacher_id, subject_id) at each order_index.
+        $orderIndexById = BellTiming::pluck('order_index', 'id');
+        $byOrderIndex = collect($result['placements'])->groupBy(fn ($p) => $orderIndexById[$p['bell_timing_ids'][0]]);
+
+        foreach ($byOrderIndex as $orderIndex => $rows) {
+            $signatures = $rows->map(fn ($r) => "{$r['teacher_id']}|{$r['subject_id']}")->unique();
+            $this->assertCount(1, $signatures, "Order index {$orderIndex} must have the identical teacher/subject on every day, got: " . $signatures->implode(', '));
+        }
+
+        // 4 days x 2 subjects = 8 placement rows total.
+        $this->assertCount(8, $result['placements']);
+    }
+
+    public function test_rotating_style_explicitly_still_spreads_subjects_across_days(): void
+    {
+        $year = 'T6-ROTATING';
+        $this->makeGrid(['Monday', 'Tuesday', 'Wednesday', 'Thursday'], 4, $year);
+
+        $class = SchoolClass::create(['name' => 'Rot Class', 'class_order' => 1, 'is_active' => true]);
+        $subject = Subject::create(['name' => 'English', 'code' => 'ROT-T6']);
+        $teacher = Teacher::create(['name' => 'English Teacher', 'status' => 'active']);
+
+        TeacherClassSubjectAssignment::create([
+            'teacher_id' => $teacher->id, 'class_id' => $class->id, 'subject_id' => $subject->id,
+            'periods_per_week' => 4, 'academic_year' => $year,
+        ]);
+
+        $result = (new GeneratorService())->generate($year, collect([$class]), null, GeneratorService::STYLE_ROTATING);
+
+        $this->assertSame([], $result['warnings']);
+        $this->assertSame(0, $result['stats']['unplaced_lessons']);
+        $this->assertSubjectAppearsAtMostOncePerDay($result['placements']);
+    }
+
+    public function test_class_teacher_period_1_rule_holds_in_fixed_daily_mode(): void
+    {
+        $year = 'T6-FD-CT';
+        $this->makeGrid(['Monday', 'Tuesday', 'Wednesday'], 3, $year);
+
+        $class = SchoolClass::create(['name' => 'FD CT Class', 'class_order' => 1, 'is_active' => true]);
+        $ctSubject = Subject::create(['name' => 'Maths', 'code' => 'FDCTM-T6']);
+        $ctTeacher = Teacher::create(['name' => 'FD Class Teacher', 'status' => 'active']);
+        $otherSubject = Subject::create(['name' => 'Hindi', 'code' => 'FDCTH-T6']);
+        $otherTeacher = Teacher::create(['name' => 'FD Other Teacher', 'status' => 'active']);
+
+        TeacherClassSubjectAssignment::create([
+            'teacher_id' => $ctTeacher->id, 'class_id' => $class->id, 'subject_id' => $ctSubject->id,
+            'periods_per_week' => 3, 'is_class_teacher' => true, 'academic_year' => $year,
+        ]);
+        TeacherClassSubjectAssignment::create([
+            'teacher_id' => $otherTeacher->id, 'class_id' => $class->id, 'subject_id' => $otherSubject->id,
+            'periods_per_week' => 3, 'academic_year' => $year,
+        ]);
+
+        $result = (new GeneratorService())->generate($year, collect([$class]), null, GeneratorService::STYLE_FIXED_DAILY);
+
+        $period1Ids = BellTiming::where('order_index', 1)->pluck('id')->all();
+        $placementsAtPeriod1 = collect($result['placements'])->filter(fn ($p) => in_array($p['bell_timing_ids'][0], $period1Ids, true));
+
+        $this->assertCount(3, $placementsAtPeriod1);
+        foreach ($placementsAtPeriod1 as $p) {
+            $this->assertSame($ctTeacher->id, $p['teacher_id']);
+            $this->assertSame($ctSubject->id, $p['subject_id']);
+        }
+    }
+
+    public function test_indivisible_periods_per_week_in_fixed_daily_reports_a_warning(): void
+    {
+        $year = 'T6-FD-INDIVISIBLE';
+        $this->makeGrid(['Monday', 'Tuesday', 'Wednesday', 'Thursday'], 4, $year);
+
+        $class = SchoolClass::create(['name' => 'FD Indivisible Class', 'class_order' => 1, 'is_active' => true]);
+        $subject = Subject::create(['name' => 'Art', 'code' => 'FDI-T6']);
+        $teacher = Teacher::create(['name' => 'Art Teacher', 'status' => 'active']);
+
+        // 3 periods/week across 4 running days does not divide evenly.
+        TeacherClassSubjectAssignment::create([
+            'teacher_id' => $teacher->id, 'class_id' => $class->id, 'subject_id' => $subject->id,
+            'periods_per_week' => 3, 'academic_year' => $year,
+        ]);
+
+        $result = (new GeneratorService())->generate($year, collect([$class]), null, GeneratorService::STYLE_FIXED_DAILY);
+
+        $this->assertNotEmpty($result['warnings']);
+        $this->assertStringContainsString('not fixed-daily-compatible', $result['warnings'][0]);
+        $this->assertCount(0, $result['placements'], 'An incompatible assignment gets no placement attempt at all, never a partial/guessed one.');
+    }
+
+    public function test_consecutive_subject_in_fixed_daily_places_a_daily_double_period(): void
+    {
+        $year = 'T6-FD-CONSECUTIVE';
+        $this->makeGrid(['Monday', 'Tuesday'], 4, $year);
+
+        $class = SchoolClass::create(['name' => 'FD Consecutive Class', 'class_order' => 1, 'is_active' => true]);
+        $subject = Subject::create(['name' => 'Lab Science', 'code' => 'FDC-T6']);
+        $teacher = Teacher::create(['name' => 'Lab Teacher', 'status' => 'active']);
+
+        // 4 periods/week across 2 running days = 2/day -- a daily double period.
+        TeacherClassSubjectAssignment::create([
+            'teacher_id' => $teacher->id, 'class_id' => $class->id, 'subject_id' => $subject->id,
+            'periods_per_week' => 4, 'require_consecutive' => true, 'academic_year' => $year,
+        ]);
+
+        $result = (new GeneratorService())->generate($year, collect([$class]), null, GeneratorService::STYLE_FIXED_DAILY);
+
+        $this->assertSame([], $result['warnings']);
+        $this->assertCount(2, $result['placements']); // one row per day, each carrying 2 bell_timing_ids
+
+        $orderIndexById = BellTiming::pluck('order_index', 'id');
+        foreach ($result['placements'] as $p) {
+            $this->assertCount(2, $p['bell_timing_ids']);
+            $orderIndexes = collect($p['bell_timing_ids'])->map(fn ($id) => $orderIndexById[$id])->sort()->values();
+            $this->assertSame(1, $orderIndexes[1] - $orderIndexes[0], 'The daily double period must be adjacent.');
+        }
+
+        // Both days must use the identical order_index pair.
+        $pairsUsed = collect($result['placements'])->map(
+            fn ($p) => collect($p['bell_timing_ids'])->map(fn ($id) => $orderIndexById[$id])->sort()->values()->all()
+        )->unique();
+        $this->assertCount(1, $pairsUsed, 'Both days must repeat the identical order-index pair.');
+    }
 }

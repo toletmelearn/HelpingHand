@@ -23,6 +23,26 @@
     @endif
 
     <div class="card shadow mb-4">
+        <div class="card-header py-3">
+            <h6 class="m-0 font-weight-bold text-primary">Timetable style</h6>
+        </div>
+        <div class="card-body">
+            <div class="form-check">
+                <input type="radio" class="form-check-input" name="style" id="styleRotating" value="rotating" checked>
+                <label class="form-check-label" for="styleRotating">
+                    <strong>Rotating</strong> -- each subject's periods are spread across different days of the week (the default).
+                </label>
+            </div>
+            <div class="form-check mt-2">
+                <input type="radio" class="form-check-input" name="style" id="styleFixedDaily" value="fixed_daily">
+                <label class="form-check-label" for="styleFixedDaily">
+                    <strong>Fixed daily</strong> -- one day's pattern is repeated identically every day (e.g. Maths is always period 3, every day). A subject whose periods/week doesn't divide evenly across the running days is reported instead of guessed at.
+                </label>
+            </div>
+        </div>
+    </div>
+
+    <div class="card shadow mb-4">
         <div class="card-header py-3 d-flex justify-content-between align-items-center">
             <h6 class="m-0 font-weight-bold text-primary">Select classes</h6>
             <div class="form-check">
@@ -62,13 +82,14 @@
 
     document.getElementById('generateSelectedBtn')?.addEventListener('click', function () {
         const ids = Array.from(document.querySelectorAll('.class-checkbox:checked')).map(cb => cb.value);
+        const style = document.querySelector('input[name="style"]:checked')?.value || 'rotating';
 
         if (ids.length === 0) {
             alert('Select at least one class first.');
             return;
         }
 
-        if (!confirm(`Generate (Beta) will create a DRAFT timetable proposal for ${ids.length} class(es). It does NOT change the live, published timetable -- nothing goes live until you review and Publish it. Continue?`)) {
+        if (!confirm(`Generate (Beta) will create a DRAFT timetable proposal for ${ids.length} class(es), ${style === 'fixed_daily' ? 'fixed-daily' : 'rotating'} style. It does NOT change the live, published timetable -- nothing goes live until you review and Publish it. Continue?`)) {
             return;
         }
 
@@ -83,7 +104,7 @@
                 'Content-Type': 'application/json',
                 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || '{{ csrf_token() }}',
             },
-            body: JSON.stringify({ school_class_ids: ids }),
+            body: JSON.stringify({ school_class_ids: ids, style: style }),
         })
         .then(res => res.json())
         .then(data => pollGenerationStatus(data.status_url, data.review_url, btn, statusSpan))

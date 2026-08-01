@@ -22,10 +22,15 @@ class TimetableGeneration extends Model
     public const STATUS_PUBLISHED = 'published';
     public const STATUS_DISCARDED = 'discarded';
 
+    /** T6 item 2: same pattern spread across days vs one day's pattern repeated on every running day. */
+    public const STYLE_ROTATING = 'rotating';
+    public const STYLE_FIXED_DAILY = 'fixed_daily';
+
     protected $fillable = [
         'academic_year',
         'academic_session_id',
         'school_class_ids',
+        'style',
         'status',
         'placed_count',
         'unplaced_count',

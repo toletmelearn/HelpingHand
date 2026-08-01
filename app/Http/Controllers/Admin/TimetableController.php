@@ -466,6 +466,7 @@ class TimetableController extends Controller
         $validated = $request->validate([
             'school_class_ids' => 'required|array|min:1',
             'school_class_ids.*' => 'integer|exists:school_classes,id',
+            'style' => 'nullable|in:rotating,fixed_daily',
         ]);
 
         $session = AcademicSession::current()->first();
@@ -474,6 +475,7 @@ class TimetableController extends Controller
             'academic_year' => $session?->code,
             'academic_session_id' => $session?->id,
             'school_class_ids' => array_values(array_unique(array_map('intval', $validated['school_class_ids']))),
+            'style' => $validated['style'] ?? TimetableGeneration::STYLE_ROTATING,
             'status' => TimetableGeneration::STATUS_QUEUED,
             'requested_by' => Auth::id(),
         ]);
@@ -532,7 +534,11 @@ class TimetableController extends Controller
 
         $unplacedSentences = collect($generation->report['unplaced'] ?? [])->pluck('reason')->values();
 
-        return view('admin.timetable.generation-review', compact('generation', 'perClass', 'unplacedSentences'));
+        // T6 items 1-2: class-teacher clashes and fixed-daily-incompatible
+        // assignments are reported here, not as ordinary unplaced lessons.
+        $warnings = collect($generation->report['warnings'] ?? [])->values();
+
+        return view('admin.timetable.generation-review', compact('generation', 'perClass', 'unplacedSentences', 'warnings'));
     }
 
     /**
@@ -554,6 +560,9 @@ class TimetableController extends Controller
             'error' => $generation->error,
             'unplaced' => $generation->status === TimetableGeneration::STATUS_COMPLETED
                 ? ($generation->report['unplaced'] ?? [])
+                : [],
+            'warnings' => $generation->status === TimetableGeneration::STATUS_COMPLETED
+                ? ($generation->report['warnings'] ?? [])
                 : [],
         ]);
     }
