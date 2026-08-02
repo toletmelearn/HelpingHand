@@ -59,6 +59,13 @@ use Illuminate\Support\Collection;
  * double-period and combined-group placements are treated as fixed once
  * committed, a deliberate scope limit on the backtracking (documented in
  * the T4a session report) that keeps the solver's behaviour predictable.
+ * A class-teacher's period-1 reservation (T6 item 1) is ALSO never
+ * relocatable by this backtrack, despite being a single-period solo
+ * commit -- it's a permanent fact decided before the normal solve even
+ * starts, not an ordinary lesson placement (bug found by the T6 real-data
+ * walkthrough: without this, an unrelated overloaded lesson elsewhere in
+ * the same class could silently bump the reservation to make room for
+ * itself; see the 'protected' flag in commit()).
  * If the backtrack budget for a lesson is exhausted, it is marked
  * UNPLACED with a human-readable reason naming the constraint that had
  * zero remaining slots, and the run continues -- best effort, never an
@@ -1024,6 +1031,15 @@ class GeneratorService
             'require_consecutive' => $lesson['require_consecutive'],
             'bell_timing_ids' => $ids,
             'combined_class_group_id' => $lesson['type'] === 'combined' ? $lesson['source']['group_id'] : null,
+            // Bugfix (found by the T6 real-data walkthrough): a class-
+            // teacher's period-1 reservation is committed BEFORE the normal
+            // solve as a permanent fact, but until this flag existed
+            // attemptBacktrack() couldn't tell it apart from an ordinary
+            // relocatable lesson once it was sitting in $this->committed --
+            // an unrelated overloaded lesson elsewhere in the same class
+            // could silently bump it to make room for itself. See
+            // attemptBacktrack()'s protected-blocker check.
+            'protected' => !empty($lesson['source']['class_teacher_period1'] ?? false),
         ];
 
         return $placementId;
@@ -1116,8 +1132,12 @@ class GeneratorService
                 continue; // two different placements block this slot; relocating one alone can't free it
             }
 
-            $attempts++;
             $blockerId = $teacherBlockerId ?? $classBlockerId;
+            if (!empty($this->committed[$blockerId]['protected'] ?? false)) {
+                continue; // a class-teacher's period-1 reservation is never relocatable -- see commit()
+            }
+
+            $attempts++;
             $removed = $this->uncommitPlacement($blockerId);
             $blockerLesson = [
                 'lesson_id' => $removed['lesson_id'],

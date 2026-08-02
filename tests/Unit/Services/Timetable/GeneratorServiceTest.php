@@ -402,6 +402,74 @@ class GeneratorServiceTest extends TestCase
     }
 
     /**
+     * T6 item 1 bugfix (found by the real-data walkthrough against the
+     * actual Pushp Niketan aSc PDFs): attemptBacktrack() must never
+     * relocate a class-teacher's period-1 reservation to make room for an
+     * unrelated, overloaded lesson elsewhere in the same class.
+     *
+     * 2 days x 3 periods. The class-teacher (Maths) reserves period 1
+     * every day. Science's same-subject-per-day cap (1/day, non-
+     * consecutive) means only 2 of its 3 requested periods can ever place,
+     * regardless of physical slot availability -- period 3 of each day
+     * stays genuinely UNOCCUPIED (nobody is busy there), just off-limits
+     * to Science specifically once its daily cap is used. That free
+     * period-3 slot is exactly what gives the class-teacher's Monday
+     * reservation a real, legal escape route once uncommitted: relocating
+     * it there is NOT rejected by isHardLegal, so before the fix
+     * attemptBacktrack() actually succeeds in bumping it out of period 1
+     * to make room for Science's unplaceable 3rd lesson. (An earlier
+     * version of this test used a 2-period grid with no escape route at
+     * all, where the relocation attempt failed for an unrelated reason
+     * regardless of the fix -- a false negative that never actually
+     * exercised the bug; this is the corrected reproduction.)
+     */
+    public function test_backtracking_never_relocates_a_class_teachers_period_1_reservation(): void
+    {
+        $year = 'T6-CT-BACKTRACK-PROTECTED';
+        $this->makeGrid(['Monday', 'Tuesday'], 3, $year); // 6 slots: Mon/Tue x P1,P2,P3
+
+        $class = SchoolClass::create(['name' => 'Backtrack Class', 'class_order' => 1, 'is_active' => true]);
+        $ctSubject = Subject::create(['name' => 'Maths', 'code' => 'BTP-CT-T6']);
+        $ctTeacher = Teacher::create(['name' => 'Class Teacher', 'status' => 'active']);
+        $otherSubject = Subject::create(['name' => 'Science', 'code' => 'BTP-SCI-T6']);
+        $otherTeacher = Teacher::create(['name' => 'Science Teacher', 'status' => 'active']);
+
+        TeacherClassSubjectAssignment::create([
+            'teacher_id' => $ctTeacher->id, 'class_id' => $class->id, 'subject_id' => $ctSubject->id,
+            'periods_per_week' => 2, 'is_class_teacher' => true, 'academic_year' => $year,
+        ]);
+        // 3 periods/week, non-consecutive, in a 2-day week: the per-day
+        // cap of 1 (not slot scarcity) makes the 3rd unplaceable at a
+        // legal slot -- exactly the pressure that pushes attemptBacktrack()
+        // to look at the class-teacher's period-1 slots as candidates.
+        TeacherClassSubjectAssignment::create([
+            'teacher_id' => $otherTeacher->id, 'class_id' => $class->id, 'subject_id' => $otherSubject->id,
+            'periods_per_week' => 3, 'academic_year' => $year,
+        ]);
+
+        $result = (new GeneratorService())->generate($year, collect([$class]));
+
+        $period1Ids = BellTiming::where('order_index', 1)->pluck('id')->all();
+        $ctPlacementsAtPeriod1 = collect($result['placements'])->filter(
+            fn ($p) => $p['teacher_id'] === $ctTeacher->id && in_array($p['bell_timing_ids'][0], $period1Ids, true)
+        );
+
+        $this->assertCount(2, $ctPlacementsAtPeriod1, 'The class teacher must still hold period 1 on BOTH days -- backtracking must never touch it.');
+        foreach ($ctPlacementsAtPeriod1 as $p) {
+            $this->assertSame($ctSubject->id, $p['subject_id']);
+        }
+
+        // Science's own placements must never land on a period-1 slot --
+        // whether all 3 fit (using the freed-up period-3 escape route
+        // legitimately) or the 3rd goes unplaced, period 1 stays the
+        // class-teacher's alone either way.
+        $sciencePlacements = collect($result['placements'])->where('teacher_id', $otherTeacher->id);
+        foreach ($sciencePlacements as $p) {
+            $this->assertNotContains($p['bell_timing_ids'][0], $period1Ids, 'Science must never have stolen a period-1 slot from the class teacher.');
+        }
+    }
+
+    /**
      * T6 item 1 (revised): a class WITH a designated class-teacher (via the
      * legacy class_teacher_assignments table) but no is_class_teacher-
      * flagged subject assignment gets a warning naming the gap, not a
