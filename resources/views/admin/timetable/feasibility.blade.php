@@ -157,6 +157,22 @@
         </div>
     </div>
 
+    <!-- Class Teacher Readiness -->
+    <div class="card shadow mb-4">
+        <div class="card-header font-weight-bold">Class Teacher Readiness</div>
+        <div class="card-body">
+            @if(empty($report['class_teacher_readiness']))
+                <p class="text-success mb-0"><i class="fas fa-check-circle"></i> Every active class has a class teacher assigned.</p>
+            @else
+                <ul class="list-group">
+                    @foreach($report['class_teacher_readiness'] as $row)
+                        <li class="list-group-item">{{ $row['sentence'] }}</li>
+                    @endforeach
+                </ul>
+            @endif
+        </div>
+    </div>
+
     @endif
 </div>
 @endsection

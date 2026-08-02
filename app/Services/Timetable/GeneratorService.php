@@ -3,6 +3,7 @@
 namespace App\Services\Timetable;
 
 use App\Models\BellTiming;
+use App\Models\ClassTeacherAssignment;
 use App\Models\CombinedClassGroup;
 use App\Models\Section;
 use App\Models\Teacher;
@@ -396,6 +397,50 @@ class GeneratorService
 
             if ($daysPlaced === 0 && $attempts === 0) {
                 $warnings[] = "Could not reserve period 1 for {$label}: {$subject->name} has no teaching day to reserve on.";
+            }
+        }
+
+        // T6 item 1 (revised): a class whose designated class-teacher (the
+        // legacy class_teacher_assignments table -- see ClassTeacherAssignment
+        // model) has no is_class_teacher-flagged subject in this class never
+        // gets period 1 forced (there's no subject to anchor it to); this is
+        // reported here as a warning naming the gap, not silently skipped --
+        // distinct from a class with NO designated class-teacher at all
+        // (App\Services\Timetable\FeasibilityService::classTeacherReadiness()
+        // handles that case, as a readiness note rather than a per-generation
+        // warning).
+        $classIdsWithoutSubjectAssignment = $classIds->diff($classTeacherAssignments->pluck('class_id')->unique());
+
+        if ($classIdsWithoutSubjectAssignment->isNotEmpty()) {
+            $classNames = $classIdsWithoutSubjectAssignment
+                ->map(fn ($id) => optional($classesById->get($id))->name)
+                ->filter();
+
+            $legacyAssignmentsByClassName = ClassTeacherAssignment::whereIn('assigned_class', $classNames)
+                ->active()
+                ->get()
+                ->filter(fn (ClassTeacherAssignment $a) => $a->isCurrentlyAssigned())
+                ->keyBy('assigned_class');
+
+            foreach ($classIdsWithoutSubjectAssignment as $classId) {
+                $class = $classesById->get($classId);
+                if (! $class) {
+                    continue;
+                }
+
+                $legacyAssignment = $legacyAssignmentsByClassName->get($class->name);
+                if (! $legacyAssignment) {
+                    continue; // no class-teacher designated at all -- FeasibilityService's readiness note, not a generation warning.
+                }
+
+                // class_teacher_assignments.teacher_id is FK'd to users.id
+                // (see the migration + ClassTeacherAssignmentAuthorizationTest),
+                // NOT teachers.id -- the model's own teacher() relationship/
+                // getClassTeacherName() incorrectly queries Teacher by that
+                // id and would silently resolve to "Unknown Teacher" on real
+                // data, so resolve via Teacher.user_id here instead.
+                $teacherName = Teacher::where('user_id', $legacyAssignment->teacher_id)->value('name') ?? 'Unknown Teacher';
+                $warnings[] = "Class {$class->name}: class teacher {$teacherName} has no subject assigned for this class -- period 1 was not reserved. Assign them a subject for {$class->name} if you want them to take first period.";
             }
         }
 

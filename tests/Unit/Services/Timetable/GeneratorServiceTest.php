@@ -4,6 +4,7 @@ namespace Tests\Unit\Services\Timetable;
 
 use App\Models\AcademicSession;
 use App\Models\BellTiming;
+use App\Models\ClassTeacherAssignment;
 use App\Models\CombinedClassGroup;
 use App\Models\CombinedClassGroupMember;
 use App\Models\SchoolClass;
@@ -11,6 +12,7 @@ use App\Models\Subject;
 use App\Models\Teacher;
 use App\Models\TeacherAvailability;
 use App\Models\TeacherClassSubjectAssignment;
+use App\Models\User;
 use App\Services\Timetable\GeneratorService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -397,6 +399,45 @@ class GeneratorServiceTest extends TestCase
         // No double-booking: the shared teacher never appears twice at the
         // same bell_timing across the two classes' placements.
         $this->assertNoTeacherDoubleBooked($result['placements']);
+    }
+
+    /**
+     * T6 item 1 (revised): a class WITH a designated class-teacher (via the
+     * legacy class_teacher_assignments table) but no is_class_teacher-
+     * flagged subject assignment gets a warning naming the gap, not a
+     * forced (and impossible) period-1 reservation.
+     */
+    public function test_designated_class_teacher_with_no_subject_reports_a_warning_and_generates_normally(): void
+    {
+        $year = 'T6-CT-NO-SUBJECT';
+        $this->makeGrid(['Monday', 'Tuesday'], 2, $year);
+
+        $class = SchoolClass::create(['name' => '9B', 'class_order' => 1, 'is_active' => true]);
+        $user = User::factory()->create(['name' => 'Amar Saxena']);
+        Teacher::create(['name' => 'Amar Saxena', 'status' => 'active', 'user_id' => $user->id]);
+
+        // The legacy table names Amar Saxena as 9B's class-teacher, but he
+        // has no teacher_class_subject_assignments row here at all.
+        ClassTeacherAssignment::create([
+            'teacher_id' => $user->id, 'assigned_class' => '9B', 'is_active' => true,
+        ]);
+
+        // A normal subject so the class still generates something.
+        $subject = Subject::create(['name' => 'Art', 'code' => 'CTNS-T6']);
+        $teacher = Teacher::create(['name' => 'Art Teacher', 'status' => 'active']);
+        TeacherClassSubjectAssignment::create([
+            'teacher_id' => $teacher->id, 'class_id' => $class->id, 'subject_id' => $subject->id,
+            'periods_per_week' => 2, 'academic_year' => $year,
+        ]);
+
+        $result = (new GeneratorService())->generate($year, collect([$class]));
+
+        $this->assertCount(1, $result['warnings']);
+        $this->assertStringContainsString('Class 9B: class teacher Amar Saxena has no subject assigned for this class', $result['warnings'][0]);
+        $this->assertStringContainsString('Assign them a subject for 9B', $result['warnings'][0]);
+
+        $this->assertSame(0, $result['stats']['unplaced_lessons']);
+        $this->assertCount(2, $result['placements']);
     }
 
     /**

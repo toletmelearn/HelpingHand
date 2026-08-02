@@ -48,7 +48,7 @@
 
                 @if(isset($warnings) && $warnings->isNotEmpty())
                     <div class="alert alert-secondary mt-3">
-                        <strong>Warnings (class-teacher clashes / style-incompatible subjects):</strong>
+                        <strong>Warnings (class-teacher clashes, missing class-teacher subjects, style-incompatible subjects):</strong>
                         <ul class="mb-0">
                             @foreach($warnings as $warning)
                                 <li>{{ $warning }}</li>

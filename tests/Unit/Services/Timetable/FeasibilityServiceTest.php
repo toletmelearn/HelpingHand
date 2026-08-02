@@ -4,6 +4,7 @@ namespace Tests\Unit\Services\Timetable;
 
 use App\Models\AcademicSession;
 use App\Models\BellTiming;
+use App\Models\ClassTeacherAssignment;
 use App\Models\CombinedClassGroup;
 use App\Models\CombinedClassGroupMember;
 use App\Models\SchoolClass;
@@ -13,6 +14,7 @@ use App\Models\Teacher;
 use App\Models\TeacherAvailability;
 use App\Models\TeacherClassSubjectAssignment;
 use App\Models\TimetableSlot;
+use App\Models\User;
 use App\Services\Timetable\FeasibilityService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -389,5 +391,48 @@ class FeasibilityServiceTest extends TestCase
 
         // Class B is uncapped and unaffected.
         $this->assertSame(4, $rows['Class B']['capacity']);
+    }
+
+    /** T6 item 1 (revised): a class with NO class-teacher signal at all gets a plain readiness note, not a conflict. */
+    public function test_class_with_no_class_teacher_at_all_gets_a_readiness_note(): void
+    {
+        $data = $this->seedMiniTimetable(); // Class A, Class B, neither has any class-teacher signal.
+
+        $report = (new FeasibilityService())->build(self::YEAR);
+        $rows = collect($report['class_teacher_readiness'])->keyBy('class_name');
+
+        $this->assertArrayHasKey('Class A', $rows->all());
+        $this->assertSame('Class A has no class teacher assigned.', $rows['Class A']['sentence']);
+        $this->assertArrayHasKey('Class B', $rows->all());
+    }
+
+    public function test_class_with_is_class_teacher_flagged_assignment_has_no_readiness_note(): void
+    {
+        $data = $this->seedMiniTimetable();
+
+        TeacherClassSubjectAssignment::create([
+            'teacher_id' => $data['teacher1']->id, 'class_id' => $data['classA']->id, 'subject_id' => $data['subject']->id,
+            'periods_per_week' => 1, 'is_class_teacher' => true,
+        ]);
+
+        $report = (new FeasibilityService())->build(self::YEAR);
+        $classNames = collect($report['class_teacher_readiness'])->pluck('class_name');
+
+        $this->assertNotContains('Class A', $classNames);
+        $this->assertContains('Class B', $classNames);
+    }
+
+    public function test_class_with_active_legacy_class_teacher_assignment_has_no_readiness_note(): void
+    {
+        $data = $this->seedMiniTimetable();
+
+        $user = User::factory()->create();
+        ClassTeacherAssignment::create(['teacher_id' => $user->id, 'assigned_class' => 'Class A', 'is_active' => true]);
+
+        $report = (new FeasibilityService())->build(self::YEAR);
+        $classNames = collect($report['class_teacher_readiness'])->pluck('class_name');
+
+        $this->assertNotContains('Class A', $classNames);
+        $this->assertContains('Class B', $classNames);
     }
 }

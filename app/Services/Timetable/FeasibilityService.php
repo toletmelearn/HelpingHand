@@ -3,6 +3,7 @@
 namespace App\Services\Timetable;
 
 use App\Models\BellTiming;
+use App\Models\ClassTeacherAssignment;
 use App\Models\SchoolClass;
 use App\Models\Section;
 use App\Models\Teacher;
@@ -30,6 +31,11 @@ use Illuminate\Support\Collection;
  *   3. Conflict scan: duplicate-key violations that predate the T1a DB
  *      constraints (should be zero -- this proves the constraints work),
  *      plus slots referencing inactive teachers/subjects/classes.
+ *   4. (T6 item 1, revised) Class-teacher readiness: classes with no
+ *      designated class-teacher at all (neither an is_class_teacher-
+ *      flagged assignment nor an active legacy ClassTeacherAssignment
+ *      row), listed as plain notes -- NOT conflicts -- since this is
+ *      normal/expected for a school still being set up.
  *
  * T2b: capacity math now filters on bell_timings.period_type = 'teaching'
  * (was is_break = false) -- assembly/prayer/zero/dispersal periods are
@@ -82,8 +88,50 @@ class FeasibilityService
             'grid_capacity' => $this->gridCapacity($activeTimings, $slots),
             'teacher_load' => $this->teacherLoad($activeTimings, $slots),
             'conflicts' => $this->conflictScan($academicYear),
+            'class_teacher_readiness' => $this->classTeacherReadiness(),
             'threshold' => (int) config('timetable.max_periods_per_week', 36),
         ];
+    }
+
+    /**
+     * T6 item 1 (revised): classes with NO designated class-teacher at all
+     * -- neither an is_class_teacher-flagged teacher_class_subject_
+     * assignments row nor an active legacy class_teacher_assignments row
+     * (App\Models\ClassTeacherAssignment) -- surfaced here as a plain
+     * readiness note, not an error (contrast with GeneratorService's
+     * per-generation warning for the narrower case of a class that HAS a
+     * designated class-teacher but no subject assigned to anchor period 1).
+     */
+    private function classTeacherReadiness(): array
+    {
+        $classes = SchoolClass::active()->orderByOrder()->get();
+
+        $flaggedClassIds = TeacherClassSubjectAssignment::whereIn('class_id', $classes->pluck('id'))
+            ->where('is_class_teacher', true)
+            ->pluck('class_id')
+            ->unique();
+
+        $legacyClassNames = ClassTeacherAssignment::whereIn('assigned_class', $classes->pluck('name'))
+            ->active()
+            ->get()
+            ->filter(fn (ClassTeacherAssignment $a) => $a->isCurrentlyAssigned())
+            ->pluck('assigned_class')
+            ->unique();
+
+        $rows = [];
+        foreach ($classes as $class) {
+            if ($flaggedClassIds->contains($class->id) || $legacyClassNames->contains($class->name)) {
+                continue;
+            }
+
+            $rows[] = [
+                'school_class_id' => $class->id,
+                'class_name' => $class->name,
+                'sentence' => "{$class->name} has no class teacher assigned.",
+            ];
+        }
+
+        return $rows;
     }
 
     private function gridCapacity(Collection $activeTimings, Collection $slots): array
