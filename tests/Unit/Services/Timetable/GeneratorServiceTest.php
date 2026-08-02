@@ -551,4 +551,91 @@ class GeneratorServiceTest extends TestCase
         )->unique();
         $this->assertCount(1, $pairsUsed, 'Both days must repeat the identical order-index pair.');
     }
+
+    /**
+     * T6 item 3: school_classes.last_teaching_period caps how far into the
+     * day a class's 'solo' lessons may be placed, per the approved
+     * REPORT-THEN-STOP finding.
+     */
+    public function test_class_capped_at_last_teaching_period_never_places_beyond_it(): void
+    {
+        $year = 'T6-CAP-SOLO';
+        $this->makeGrid(['Monday'], 8, $year); // order_index 1..8, one day
+
+        $class = SchoolClass::create([
+            'name' => 'Senior Class', 'class_order' => 1, 'is_active' => true, 'last_teaching_period' => 6,
+        ]);
+
+        // 7 single-period subjects: only 6 legal slots exist (periods 1-6),
+        // so the 7th must go unplaced -- it must NEVER spill into the
+        // physically-free periods 7/8.
+        for ($i = 1; $i <= 7; $i++) {
+            $subject = Subject::create(['name' => "Subject {$i}", 'code' => "CAP{$i}-T6"]);
+            $teacher = Teacher::create(['name' => "Teacher {$i}", 'status' => 'active']);
+            TeacherClassSubjectAssignment::create([
+                'teacher_id' => $teacher->id, 'class_id' => $class->id, 'subject_id' => $subject->id,
+                'periods_per_week' => 1, 'academic_year' => $year,
+            ]);
+        }
+
+        $result = (new GeneratorService())->generate($year, collect([$class]));
+
+        $this->assertCount(6, $result['placements']);
+        $this->assertCount(1, $result['unplaced']);
+
+        $orderIndexById = BellTiming::pluck('order_index', 'id');
+        foreach ($result['placements'] as $p) {
+            $orderIndex = $orderIndexById[$p['bell_timing_ids'][0]];
+            $this->assertLessThanOrEqual(6, $orderIndex, 'A capped class must never be placed beyond its last_teaching_period.');
+        }
+    }
+
+    public function test_uncapped_class_is_unaffected_by_another_classs_cap(): void
+    {
+        $year = 'T6-CAP-UNAFFECTED';
+        $this->makeGrid(['Monday'], 8, $year); // order_index 1..8, one day
+
+        $cappedClass = SchoolClass::create([
+            'name' => 'Capped Class', 'class_order' => 1, 'is_active' => true, 'last_teaching_period' => 6,
+        ]);
+        $fullClass = SchoolClass::create([
+            'name' => 'Full Class', 'class_order' => 2, 'is_active' => true,
+        ]);
+
+        for ($i = 1; $i <= 6; $i++) {
+            $subject = Subject::create(['name' => "Capped Subject {$i}", 'code' => "CAPU{$i}-T6"]);
+            $teacher = Teacher::create(['name' => "Capped Teacher {$i}", 'status' => 'active']);
+            TeacherClassSubjectAssignment::create([
+                'teacher_id' => $teacher->id, 'class_id' => $cappedClass->id, 'subject_id' => $subject->id,
+                'periods_per_week' => 1, 'academic_year' => $year,
+            ]);
+        }
+
+        for ($i = 1; $i <= 8; $i++) {
+            $subject = Subject::create(['name' => "Full Subject {$i}", 'code' => "FULU{$i}-T6"]);
+            $teacher = Teacher::create(['name' => "Full Teacher {$i}", 'status' => 'active']);
+            TeacherClassSubjectAssignment::create([
+                'teacher_id' => $teacher->id, 'class_id' => $fullClass->id, 'subject_id' => $subject->id,
+                'periods_per_week' => 1, 'academic_year' => $year,
+            ]);
+        }
+
+        $result = (new GeneratorService())->generate($year, collect([$cappedClass, $fullClass]));
+
+        $this->assertSame(0, $result['stats']['unplaced_lessons']);
+
+        $orderIndexById = BellTiming::pluck('order_index', 'id');
+        $fullClassOrderIndexes = collect($result['placements'])
+            ->where('school_class_id', $fullClass->id)
+            ->map(fn ($p) => $orderIndexById[$p['bell_timing_ids'][0]]);
+
+        $this->assertTrue($fullClassOrderIndexes->contains(8), 'An uncapped class must still be able to use period 8 even when another class in the same run is capped.');
+
+        $cappedClassOrderIndexes = collect($result['placements'])
+            ->where('school_class_id', $cappedClass->id)
+            ->map(fn ($p) => $orderIndexById[$p['bell_timing_ids'][0]]);
+        foreach ($cappedClassOrderIndexes as $orderIndex) {
+            $this->assertLessThanOrEqual(6, $orderIndex);
+        }
+    }
 }

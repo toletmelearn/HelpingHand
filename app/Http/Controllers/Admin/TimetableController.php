@@ -295,6 +295,7 @@ class TimetableController extends Controller
             'days' => $days,
             'periodMeta' => $periodMeta,
             'grid' => $grid,
+            'lastTeachingPeriod' => $class->last_teaching_period,
         ]);
         $pdf->setPaper('A4', 'landscape');
 
@@ -423,6 +424,7 @@ class TimetableController extends Controller
             $periodMeta[$timing->period_name][$timing->day_of_week] = [
                 'is_teaching' => $timing->period_type === BellTiming::PERIOD_TYPE_TEACHING,
                 'label' => $timing->custom_label ?: ucfirst($timing->period_type),
+                'order_index' => (int) $timing->order_index,
             ];
         }
 

@@ -57,7 +57,10 @@ use Illuminate\Support\Collection;
  * bell timing to one class by name match (best-effort string match
  * against SchoolClass::name -- the same kind of legacy-string field this
  * codebase has needed several targeted fixes for elsewhere; flagged here
- * rather than silently trusted).
+ * rather than silently trusted). T6 item 3: a class's capacity also
+ * excludes any order_index beyond its own school_classes.
+ * last_teaching_period (null = uncapped), matching the same ceiling the
+ * generator now honours.
  */
 class FeasibilityService
 {
@@ -92,6 +95,7 @@ class FeasibilityService
         foreach ($classes as $class) {
             $classCapacity = $activeTimings
                 ->filter(fn (BellTiming $t) => $t->class_section === null || $t->class_section === $class->name)
+                ->filter(fn (BellTiming $t) => ! $class->last_teaching_period || $t->order_index <= $class->last_teaching_period)
                 ->count();
 
             // A combined group's slots naturally count once per member

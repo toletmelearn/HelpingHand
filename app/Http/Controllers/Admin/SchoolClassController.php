@@ -58,6 +58,7 @@ class SchoolClassController extends Controller
             'class_order' => 'required|integer|min:1|unique:school_classes,class_order',
             'academic_session_id' => 'nullable|exists:academic_sessions,id',
             'description' => 'nullable|string|max:1000',
+            'last_teaching_period' => 'nullable|integer|min:1',
         ]);
 
         $validated['is_active'] = true;
@@ -102,6 +103,7 @@ class SchoolClassController extends Controller
             'academic_session_id' => 'required|exists:academic_sessions,id',
             'teacher_id' => 'nullable|exists:teachers,id',
             'description' => 'nullable|string|max:1000',
+            'last_teaching_period' => 'nullable|integer|min:1',
         ]);
 
         $schoolClass->update($request->all());

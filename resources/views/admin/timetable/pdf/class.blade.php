@@ -89,10 +89,13 @@
                         @php
                             $meta = $periodMeta[$period][$day] ?? null;
                             $isNonTeaching = $meta && !$meta['is_teaching'];
+                            $beyondClassDay = $meta && $lastTeachingPeriod && $meta['order_index'] > $lastTeachingPeriod;
                             $slot = $grid[$period][$day] ?? null;
                         @endphp
-                        <td class="{{ $isNonTeaching ? 'non-teaching' : '' }}">
-                            @if($isNonTeaching)
+                        <td class="{{ ($isNonTeaching || $beyondClassDay) ? 'non-teaching' : '' }}">
+                            @if($beyondClassDay)
+                                &mdash;
+                            @elseif($isNonTeaching)
                                 {{ $meta['label'] }}
                             @elseif($slot)
                                 <span class="subject">{{ $slot->subject->code ?? $slot->subject->name ?? '' }}</span>

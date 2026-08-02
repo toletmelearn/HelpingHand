@@ -31,7 +31,10 @@ use Illuminate\Support\Collection;
  *   that field and not one of the other two "class teacher" concepts in
  *   this codebase) holds period 1 of their own class every day it runs,
  *   reserved BEFORE the normal solve as forced placements the rest of the
- *   solver just sees as already-committed state.
+ *   solver just sees as already-committed state; T6 item 3 -- a class with
+ *   school_classes.last_teaching_period set never gets a 'solo' lesson
+ *   placed at an order_index beyond that ceiling (null = uncapped, every
+ *   class's default).
  *
  *   SOFT (slot ordering only -- never rejects an otherwise-legal slot):
  *   prefer morning / avoid last period for subjects.prefer_morning,
@@ -109,6 +112,9 @@ class GeneratorService
     /** @var array<string,int> "classId|sectionId|bellTimingId" => placementId, single-period solo placements only */
     private array $placementByClassSlot = [];
 
+    /** @var array<string,?int> className => last_teaching_period (order_index ceiling), null = uncapped. T6 item 3. */
+    private array $classLastPeriod = [];
+
     private array $unplaced = [];
 
     private int $nextLessonId = 1;
@@ -132,6 +138,7 @@ class GeneratorService
 
         $classIds = $schoolClasses->pluck('id');
         $classesById = $schoolClasses->keyBy('id');
+        $this->classLastPeriod = $schoolClasses->pluck('last_teaching_period', 'name')->all();
 
         $timings = BellTiming::query()
             ->where('is_active', true)
@@ -255,6 +262,7 @@ class GeneratorService
         $this->committed = [];
         $this->placementByTeacherSlot = [];
         $this->placementByClassSlot = [];
+        $this->classLastPeriod = [];
         $this->unplaced = [];
         $this->nextLessonId = 1;
         $this->nextPlacementId = 1;
@@ -397,7 +405,13 @@ class GeneratorService
     /** The lowest-order_index domain slot for $lesson within one day's own sorted, filtered id list, or null if none apply. */
     private function firstPeriodSlotForLesson(array $lesson, array $dayIds): ?array
     {
-        $filtered = array_values(array_filter($dayIds, function ($btId) use ($lesson) {
+        $cap = $lesson['type'] === 'solo' ? ($this->classLastPeriod[$lesson['class_name']] ?? null) : null;
+
+        $filtered = array_values(array_filter($dayIds, function ($btId) use ($lesson, $cap) {
+            if ($cap !== null && $this->timingMeta[$btId]['order_index'] > $cap) {
+                return false;
+            }
+
             $cs = $this->timingMeta[$btId]['class_section'];
             if ($cs === null || $cs === '') {
                 return true;
@@ -572,6 +586,11 @@ class GeneratorService
 
     private function slotAppliesToClass(int $btId, ?string $className): bool
     {
+        $cap = $this->classLastPeriod[$className] ?? null;
+        if ($cap !== null && $this->timingMeta[$btId]['order_index'] > $cap) {
+            return false;
+        }
+
         $cs = $this->timingMeta[$btId]['class_section'];
 
         return $cs === null || $cs === '' || $cs === $className;
@@ -761,8 +780,10 @@ class GeneratorService
      * isHardLegal()'s job) -- just the domain: teaching bell_timings this
      * lesson is eligible for (class_section null, or -- for a solo lesson
      * only -- matching this class's name, same convention as
-     * FeasibilityService's own class_section text match), as singles or,
-     * for a double-period lesson, as adjacent pairs within one day's own
+     * FeasibilityService's own class_section text match; also, for a solo
+     * lesson only, at or before that class's own last_teaching_period
+     * ceiling if it has one -- T6 item 3), as singles or, for a
+     * double-period lesson, as adjacent pairs within one day's own
      * filtered/sorted teaching-period list (non-teaching periods are
      * already excluded from that list, so "adjacent in the list" already
      * means "the next period a student would actually sit through").
@@ -772,9 +793,14 @@ class GeneratorService
     private function domainSlotsForLesson(array $lesson): array
     {
         $slots = [];
+        $cap = $lesson['type'] === 'solo' ? ($this->classLastPeriod[$lesson['class_name']] ?? null) : null;
 
         foreach ($this->timingsByDay as $ids) {
-            $filtered = array_values(array_filter($ids, function ($btId) use ($lesson) {
+            $filtered = array_values(array_filter($ids, function ($btId) use ($lesson, $cap) {
+                if ($cap !== null && $this->timingMeta[$btId]['order_index'] > $cap) {
+                    return false;
+                }
+
                 $cs = $this->timingMeta[$btId]['class_section'];
                 if ($cs === null || $cs === '') {
                     return true;

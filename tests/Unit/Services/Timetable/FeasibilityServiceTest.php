@@ -367,4 +367,27 @@ class FeasibilityServiceTest extends TestCase
         $this->assertSame('Monday', $rows['Combined Teacher']['busiest_day']);
         $this->assertSame(1, $rows['Combined Teacher']['busiest_day_count']);
     }
+
+    /** T6 item 3: school_classes.last_teaching_period excludes trailing periods from that class's capacity. */
+    public function test_last_teaching_period_reduces_a_classs_capacity(): void
+    {
+        $this->seedMiniTimetable();
+
+        // Class A normally has capacity 5 (4 global + 1 class-A-specific
+        // Tuesday Extra at order_index 3). Capping at order_index 2 must
+        // exclude the Tuesday Extra period, dropping capacity to... but
+        // order_index 2 also excludes Tuesday P2 (order_index 2, global) --
+        // wait, capacity counts ALL periods with order_index <= cap across
+        // both days, so cap=2 keeps Mon P1(1), Mon P2(2), Tue P1(1), Tue
+        // P2(2) = 4, and drops the Tuesday Extra (order_index 3) => 4.
+        SchoolClass::where('name', 'Class A')->update(['last_teaching_period' => 2]);
+
+        $report = (new FeasibilityService())->build(self::YEAR);
+        $rows = collect($report['grid_capacity'])->keyBy('class_name');
+
+        $this->assertSame(4, $rows['Class A']['capacity']);
+
+        // Class B is uncapped and unaffected.
+        $this->assertSame(4, $rows['Class B']['capacity']);
+    }
 }
