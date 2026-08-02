@@ -27,6 +27,7 @@ class TimetableSlot extends Model
         'bell_timing_id',
         'subject_id',
         'teacher_id',
+        'co_teacher_id',
         'combined_class_group_id',
         'room_number',
         'academic_year',
@@ -57,6 +58,12 @@ class TimetableSlot extends Model
     public function teacher()
     {
         return $this->belongsTo(Teacher::class, 'teacher_id');
+    }
+
+    /** T6 item 4: the optional second (team-teaching) teacher occupying this same slot alongside teacher_id. */
+    public function coTeacher()
+    {
+        return $this->belongsTo(Teacher::class, 'co_teacher_id');
     }
 
     public function combinedClassGroup()

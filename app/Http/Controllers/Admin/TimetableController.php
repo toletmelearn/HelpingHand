@@ -264,7 +264,7 @@ class TimetableController extends Controller
         $section = $request->filled('section_id') ? Section::find($request->section_id) : null;
         $session = AcademicSession::current()->first();
 
-        $slots = TimetableSlot::with(['bellTiming', 'subject', 'teacher'])
+        $slots = TimetableSlot::with(['bellTiming', 'subject', 'teacher', 'coTeacher'])
             ->published()
             ->where('school_class_id', $class->id)
             ->when($request->filled('section_id'), fn ($q) => $q->where('section_id', $request->section_id))
@@ -317,9 +317,11 @@ class TimetableController extends Controller
         $teacher = Teacher::findOrFail($request->teacher_id);
         $session = AcademicSession::current()->first();
 
-        $slots = TimetableSlot::with(['bellTiming', 'subject', 'schoolClass', 'section'])
+        // T6 item 4: a co-teacher's own PDF must show their team-taught
+        // periods too, not just periods where they're the primary teacher.
+        $slots = TimetableSlot::with(['bellTiming', 'subject', 'schoolClass', 'section', 'teacher', 'coTeacher'])
             ->published()
-            ->where('teacher_id', $teacher->id)
+            ->where(fn ($q) => $q->where('teacher_id', $teacher->id)->orWhere('co_teacher_id', $teacher->id))
             ->get();
 
         if ($slots->isEmpty()) {
@@ -360,7 +362,7 @@ class TimetableController extends Controller
 
         $session = AcademicSession::current()->first();
 
-        $slots = TimetableSlot::with(['bellTiming', 'subject', 'teacher', 'schoolClass', 'section'])->published()->get();
+        $slots = TimetableSlot::with(['bellTiming', 'subject', 'teacher', 'coTeacher', 'schoolClass', 'section'])->published()->get();
 
         if ($slots->isEmpty()) {
             return back()->with('error', 'No timetable slots found for any class -- nothing to print yet.');

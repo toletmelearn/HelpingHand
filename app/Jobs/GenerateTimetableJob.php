@@ -75,6 +75,7 @@ class GenerateTimetableJob implements ShouldQueue
                             'bell_timing_id' => $bellTimingId,
                             'subject_id' => $placement['subject_id'],
                             'teacher_id' => $placement['teacher_id'],
+                            'co_teacher_id' => $placement['co_teacher_id'] ?? null,
                             'combined_class_group_id' => $placement['combined_class_group_id'],
                             'academic_year' => $generation->academic_year,
                             'status' => TimetableSlot::STATUS_DRAFT,

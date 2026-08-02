@@ -199,6 +199,57 @@ class TimetableSlotUniqueConstraintsTest extends TestCase
         $this->assertSame(2, TimetableSlot::where('school_class_id', $class->id)->count());
     }
 
+    /**
+     * T6 item 4: a team-taught slot -- ONE row carrying both teacher_id
+     * and co_teacher_id -- must save cleanly. Confirms neither the
+     * existing teacher_id-keyed unique index nor the new co_teacher_id-
+     * keyed one treats "two named teachers, one slot" as a false clash.
+     */
+    public function test_db_constraint_allows_a_team_taught_slot_without_a_false_clash(): void
+    {
+        $timing = $this->makeTiming();
+
+        $slot = TimetableSlot::create([
+            'school_class_id' => $this->makeClass()->id,
+            'section_id' => null,
+            'bell_timing_id' => $timing->id,
+            'subject_id' => $this->makeSubject()->id,
+            'teacher_id' => $this->makeTeacher()->id,
+            'co_teacher_id' => $this->makeTeacher()->id,
+        ]);
+
+        $this->assertNotNull($slot->id);
+    }
+
+    /** T6 item 4: a co-teacher double-booked as a co-teacher elsewhere at the same period must still be blocked at the DB level. */
+    public function test_db_constraint_blocks_a_direct_duplicate_co_teacher_slot(): void
+    {
+        $coTeacher = $this->makeTeacher();
+        $timing = $this->makeTiming();
+
+        TimetableSlot::create([
+            'school_class_id' => $this->makeClass()->id,
+            'section_id' => null,
+            'bell_timing_id' => $timing->id,
+            'subject_id' => $this->makeSubject()->id,
+            'teacher_id' => $this->makeTeacher()->id,
+            'co_teacher_id' => $coTeacher->id,
+        ]);
+
+        $this->expectException(QueryException::class);
+
+        // A different class, primary teacher and subject -- proves it's
+        // co_teacher_id+period being enforced, not an incidental duplicate.
+        TimetableSlot::create([
+            'school_class_id' => $this->makeClass()->id,
+            'section_id' => null,
+            'bell_timing_id' => $timing->id,
+            'subject_id' => $this->makeSubject()->id,
+            'teacher_id' => $this->makeTeacher()->id,
+            'co_teacher_id' => $coTeacher->id,
+        ]);
+    }
+
     public function test_valid_slot_with_no_section_still_saves_via_the_controller(): void
     {
         $admin = $this->makeAdmin();

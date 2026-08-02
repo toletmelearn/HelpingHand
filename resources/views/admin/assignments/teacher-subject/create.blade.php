@@ -63,6 +63,27 @@
                             </div>
                         </div>
 
+                        <!-- Co-Teacher (team teaching) -->
+                        <div class="row mb-4">
+                            <div class="col-12">
+                                <label for="co_teacher_id" class="form-label fw-bold">
+                                    <i class="fas fa-user-friends"></i> Co-Teacher <small class="text-muted">(Optional -- team teaching)</small>
+                                </label>
+                                <select name="co_teacher_id" id="co_teacher_id" class="form-select @error('co_teacher_id') is-invalid @enderror">
+                                    <option value="">-- None --</option>
+                                    @foreach($teachers as $teacher)
+                                        <option value="{{ $teacher->id }}" {{ old('co_teacher_id') == $teacher->id ? 'selected' : '' }}>
+                                            {{ $teacher->name }} - {{ $teacher->designation ?? 'Teacher' }} ({{ $teacher->phone ?? 'N/A' }})
+                                        </option>
+                                    @endforeach
+                                </select>
+                                <small class="text-muted">A second teacher who co-teaches this exact class/subject/period alongside the teacher above (e.g. "CS -- Garisht Singh / Rajesh"). Both must be free for a period to be placed there.</small>
+                                @error('co_teacher_id')
+                                    <div class="invalid-feedback">{{ $message }}</div>
+                                @enderror
+                            </div>
+                        </div>
+
                         <hr class="my-4">
 
                         <!-- Class & Section -->

@@ -11,6 +11,7 @@ class TeacherClassSubjectAssignment extends Model
 
     protected $fillable = [
         'teacher_id',
+        'co_teacher_id',
         'class_id',
         'section_id',
         'subject_id',
@@ -33,6 +34,12 @@ class TeacherClassSubjectAssignment extends Model
     public function teacher()
     {
         return $this->belongsTo(Teacher::class);
+    }
+
+    /** T6 item 4: the optional second (team-teaching) teacher, same class/subject/period as teacher_id. */
+    public function coTeacher()
+    {
+        return $this->belongsTo(Teacher::class, 'co_teacher_id');
     }
 
     /**

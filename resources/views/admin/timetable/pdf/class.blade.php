@@ -99,7 +99,7 @@
                                 {{ $meta['label'] }}
                             @elseif($slot)
                                 <span class="subject">{{ $slot->subject->code ?? $slot->subject->name ?? '' }}</span>
-                                <span class="teacher">{{ $slot->teacher->short_name ?? '' }}</span>
+                                <span class="teacher">{{ $slot->teacher->short_name ?? '' }}{{ $slot->coTeacher ? ' / '.$slot->coTeacher->short_name : '' }}</span>
                             @endif
                         </td>
                     @endforeach

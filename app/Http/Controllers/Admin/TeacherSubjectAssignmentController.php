@@ -22,7 +22,7 @@ class TeacherSubjectAssignmentController extends Controller
     {
         $this->authorize('viewAny', TeacherClassSubjectAssignment::class);
 
-        $query = TeacherClassSubjectAssignment::with(['teacher', 'subject', 'schoolClass', 'section']);
+        $query = TeacherClassSubjectAssignment::with(['teacher', 'coTeacher', 'subject', 'schoolClass', 'section']);
         
         // Apply filters
         if (request()->has('teacher_id') && request('teacher_id')) {
@@ -75,6 +75,7 @@ class TeacherSubjectAssignmentController extends Controller
 
         $request->validate([
             'teacher_id' => 'required|exists:teachers,id',
+            'co_teacher_id' => 'nullable|exists:teachers,id|different:teacher_id',
             'class_id' => 'required|exists:school_classes,id',
             'section_id' => 'nullable|exists:sections,id',
             'subject_id' => 'required|exists:subjects,id',
@@ -125,6 +126,7 @@ class TeacherSubjectAssignmentController extends Controller
                     'academic_year' => $academicYear,
                 ],
                 [
+                    'co_teacher_id' => $request->co_teacher_id,
                     'is_class_teacher' => $isClassTeacher, // Only set is_class_teacher if checkbox checked // Only set if checkbox checked
                     'is_primary_subject_teacher' => $isPrimarySubjectTeacher,
                     'periods_per_week' => $request->periods_per_week,
@@ -182,6 +184,7 @@ class TeacherSubjectAssignmentController extends Controller
 
         $request->validate([
             'teacher_id' => 'required|exists:teachers,id',
+            'co_teacher_id' => 'nullable|exists:teachers,id|different:teacher_id',
             'class_id' => 'required|exists:school_classes,id',
             'section_id' => 'nullable|exists:sections,id',
             'subject_id' => 'required|exists:subjects,id',
@@ -210,6 +213,7 @@ class TeacherSubjectAssignmentController extends Controller
 
             $assignment->update([
                 'teacher_id' => $request->teacher_id,
+                'co_teacher_id' => $request->co_teacher_id,
                 'class_id' => $request->class_id,
                 'section_id' => $request->section_id,
                 'subject_id' => $request->subject_id,

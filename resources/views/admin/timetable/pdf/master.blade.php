@@ -100,7 +100,7 @@
                                     @if($isNonTeaching)
                                         {{ $meta['label'] }}
                                     @elseif($slot)
-                                        {{ $slot->subject->code ?? $slot->subject->name ?? '' }}/{{ $slot->teacher->short_name ?? '' }}
+                                        {{ $slot->subject->code ?? $slot->subject->name ?? '' }}/{{ $slot->teacher->short_name ?? '' }}{{ $slot->coTeacher ? '+'.$slot->coTeacher->short_name : '' }}
                                     @endif
                                 </td>
                             @endforeach

@@ -679,4 +679,89 @@ class GeneratorServiceTest extends TestCase
             $this->assertLessThanOrEqual(6, $orderIndex);
         }
     }
+
+    /**
+     * T6 item 4 (team teaching only, per the approved REPORT-THEN-STOP):
+     * two teachers sharing one slot must NOT be treated as a clash against
+     * EACH OTHER -- both are legitimately in that one slot together.
+     */
+    public function test_team_teaching_places_both_teachers_at_the_same_slot_without_a_false_clash(): void
+    {
+        $year = 'T6-TEAM-CLEAN';
+        $this->makeGrid(['Monday', 'Tuesday'], 2, $year);
+
+        $class = SchoolClass::create(['name' => 'CS Class', 'class_order' => 1, 'is_active' => true]);
+        $subject = Subject::create(['name' => 'Computer Science', 'code' => 'CS-T6']);
+        $primary = Teacher::create(['name' => 'Garisht Singh', 'status' => 'active']);
+        $co = Teacher::create(['name' => 'Rajesh', 'status' => 'active']);
+
+        TeacherClassSubjectAssignment::create([
+            'teacher_id' => $primary->id, 'co_teacher_id' => $co->id, 'class_id' => $class->id, 'subject_id' => $subject->id,
+            'periods_per_week' => 2, 'academic_year' => $year,
+        ]);
+
+        $result = (new GeneratorService())->generate($year, collect([$class]));
+
+        $this->assertSame(0, $result['stats']['unplaced_lessons'], 'A team-taught lesson must not be rejected as a false clash between its own two teachers.');
+        $this->assertCount(2, $result['placements']);
+
+        foreach ($result['placements'] as $p) {
+            $this->assertSame($primary->id, $p['teacher_id']);
+            $this->assertSame($co->id, $p['co_teacher_id']);
+        }
+
+        // Both teachers occupy the identical bell_timing per placement --
+        // proof this is one shared slot, not two competing bookings.
+        $this->assertNoTeacherDoubleBooked($result['placements']);
+    }
+
+    /**
+     * T6 item 4: a team-teacher is still busy that period for their OWN
+     * other classes -- they can't simultaneously co-teach one class and
+     * solo-teach another at the identical period. Grid deliberately has
+     * exactly ONE slot in the whole world, so both lessons compete for it
+     * and the solver must place one and report the other unplaced --
+     * never double-book the shared teacher.
+     */
+    public function test_team_teacher_cannot_be_double_booked_elsewhere_in_the_same_period(): void
+    {
+        $year = 'T6-TEAM-CLASH';
+        $this->makeGrid(['Monday'], 1, $year); // exactly one bell_timing exists
+
+        $classX = SchoolClass::create(['name' => 'XI Science', 'class_order' => 1, 'is_active' => true]);
+        $classY = SchoolClass::create(['name' => '9B', 'class_order' => 2, 'is_active' => true]);
+
+        $subjectCs = Subject::create(['name' => 'Computer Science', 'code' => 'CS-T6C']);
+        $subjectMaths = Subject::create(['name' => 'Maths', 'code' => 'MTH-T6C']);
+
+        $primary = Teacher::create(['name' => 'Garisht Singh', 'status' => 'active']);
+        $shared = Teacher::create(['name' => 'Rajesh', 'status' => 'active']); // co-teacher in X, solo teacher in Y
+
+        TeacherClassSubjectAssignment::create([
+            'teacher_id' => $primary->id, 'co_teacher_id' => $shared->id, 'class_id' => $classX->id, 'subject_id' => $subjectCs->id,
+            'periods_per_week' => 1, 'academic_year' => $year,
+        ]);
+        TeacherClassSubjectAssignment::create([
+            'teacher_id' => $shared->id, 'class_id' => $classY->id, 'subject_id' => $subjectMaths->id,
+            'periods_per_week' => 1, 'academic_year' => $year,
+        ]);
+
+        $result = (new GeneratorService())->generate($year, collect([$classX, $classY]));
+
+        $this->assertCount(1, $result['placements'], 'Only one of the two competing lessons can use the single available slot.');
+        $this->assertCount(1, $result['unplaced'], 'The other lesson, which needed the same shared teacher at the same instant, must go unplaced -- never double-booked.');
+
+        // Whichever lesson won, Rajesh (as primary OR co-teacher) appears
+        // at the one bell_timing at most once across every placement.
+        $sharedTeacherAppearances = 0;
+        foreach ($result['placements'] as $p) {
+            if ($p['teacher_id'] === $shared->id) {
+                $sharedTeacherAppearances++;
+            }
+            if (($p['co_teacher_id'] ?? null) === $shared->id) {
+                $sharedTeacherAppearances++;
+            }
+        }
+        $this->assertSame(1, $sharedTeacherAppearances, 'The shared teacher must never appear twice (as primary or co-teacher) at the same period.');
+    }
 }

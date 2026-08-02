@@ -64,6 +64,7 @@
         /* Free TEACHING periods are left visibly blank -- no placeholder text or shading. */
         .class-section { font-weight: bold; display: block; }
         .subject { color: #555; display: block; font-size: 9px; }
+        .co-teacher { color: #777; display: block; font-size: 8px; font-style: italic; }
     </style>
 </head>
 <body>
@@ -91,6 +92,12 @@
                             $meta = $periodMeta[$period][$day] ?? null;
                             $isNonTeaching = $meta && !$meta['is_teaching'];
                             $slot = $grid[$period][$day] ?? null;
+                            // T6 item 4: this teacher may be the slot's primary
+                            // or its co-teacher -- show whichever one they are NOT.
+                            $otherTeacher = null;
+                            if ($slot) {
+                                $otherTeacher = $slot->teacher && $slot->teacher->id === $teacher->id ? $slot->coTeacher : $slot->teacher;
+                            }
                         @endphp
                         <td class="{{ $isNonTeaching ? 'non-teaching' : '' }}">
                             @if($isNonTeaching)
@@ -98,6 +105,9 @@
                             @elseif($slot)
                                 <span class="class-section">{{ $slot->schoolClass->name ?? '' }}{{ $slot->section ? ' '.$slot->section->name : '' }}</span>
                                 <span class="subject">{{ $slot->subject->code ?? $slot->subject->name ?? '' }}</span>
+                                @if($otherTeacher)
+                                    <span class="co-teacher">with {{ $otherTeacher->short_name }}</span>
+                                @endif
                             @endif
                         </td>
                     @endforeach

@@ -35,7 +35,13 @@ use Illuminate\Support\Collection;
  *   solver just sees as already-committed state; T6 item 3 -- a class with
  *   school_classes.last_teaching_period set never gets a 'solo' lesson
  *   placed at an order_index beyond that ceiling (null = uncapped, every
- *   class's default).
+ *   class's default); T6 item 4 (team teaching only -- club/elective
+ *   blocks and the manual single-slot editor are deferred) -- an
+ *   assignment's optional co_teacher_id occupies the SAME slot as
+ *   teacher_id, one row, both teachers checked/reserved/limit-capped
+ *   identically; a co-teacher busy elsewhere (as primary OR co-teacher of
+ *   any other lesson) makes the slot illegal exactly like the primary
+ *   teacher being busy would.
  *
  *   SOFT (slot ordering only -- never rejects an otherwise-legal slot):
  *   prefer morning / avoid last period for subjects.prefer_morning,
@@ -211,8 +217,14 @@ class GeneratorService
 
             $this->commit($lesson, $scored[0]['slot']);
 
+            // T6 item 4: a co-teacher (either side) makes a pending lesson's
+            // cached domain count stale exactly like the primary teacher
+            // does -- checked in both directions so a lesson pending on the
+            // co-teacher side is invalidated too.
+            $affectedTeacherIds = array_filter([$lesson['teacher_id'], $lesson['co_teacher_id'] ?? null], fn ($id) => $id !== null);
             foreach ($pending as $id => $other) {
-                if ($other['teacher_id'] === $lesson['teacher_id'] || array_intersect($other['class_ids'], $lesson['class_ids'])) {
+                $otherTeacherIds = array_filter([$other['teacher_id'], $other['co_teacher_id'] ?? null], fn ($id) => $id !== null);
+                if (array_intersect($otherTeacherIds, $affectedTeacherIds) || array_intersect($other['class_ids'], $lesson['class_ids'])) {
                     $dirty[] = $id;
                 }
             }
@@ -226,6 +238,7 @@ class GeneratorService
                     'section_id' => $p['section_ids'][$idx] ?? null,
                     'subject_id' => $p['subject_id'],
                     'teacher_id' => $p['teacher_id'],
+                    'co_teacher_id' => $p['co_teacher_id'] ?? null,
                     'bell_timing_ids' => $p['bell_timing_ids'],
                     'combined_class_group_id' => $p['combined_class_group_id'],
                 ];
@@ -298,6 +311,15 @@ class GeneratorService
         $teacherIds = TeacherClassSubjectAssignment::whereIn('class_id', $classIds)
             ->whereNotNull('periods_per_week')
             ->pluck('teacher_id')
+            ->merge(
+                // T6 item 4: a co-teacher's own limits must be loaded too --
+                // isHardLegal() checks their day/week caps exactly like the
+                // primary teacher's.
+                TeacherClassSubjectAssignment::whereIn('class_id', $classIds)
+                    ->whereNotNull('periods_per_week')
+                    ->whereNotNull('co_teacher_id')
+                    ->pluck('co_teacher_id')
+            )
             ->merge(
                 CombinedClassGroup::whereNotNull('periods_per_week')
                     ->whereNotNull('teacher_id')
@@ -555,6 +577,7 @@ class GeneratorService
                 $lessonTemplate = [
                     'type' => 'solo',
                     'teacher_id' => $assignment->teacher_id,
+                    'co_teacher_id' => $assignment->co_teacher_id,
                     'subject_id' => $assignment->subject_id,
                     'subject_name' => $subject->name,
                     'prefer_morning' => (bool) $subject->prefer_morning,
@@ -754,6 +777,7 @@ class GeneratorService
                     'lesson_id' => $this->nextLessonId++,
                     'type' => 'solo',
                     'teacher_id' => $assignment->teacher_id,
+                    'co_teacher_id' => $assignment->co_teacher_id,
                     'subject_id' => $assignment->subject_id,
                     'subject_name' => $subject->name,
                     'prefer_morning' => $preferMorning,
@@ -882,11 +906,25 @@ class GeneratorService
     {
         $ids = $slot['bell_timing_ids'];
         $limits = $this->teacherLimits[$lesson['teacher_id']] ?? ['max_per_day' => 7, 'max_per_week' => 36];
+        // T6 item 4: a team-taught lesson's co-teacher must be exactly as
+        // free as the primary teacher -- both must be free, both get
+        // reserved, both are bound by their own day/week limits. A plain
+        // (non-team-taught) lesson simply has co_teacher_id === null and
+        // every check below is skipped, unchanged from before this item.
+        $coTeacherId = $lesson['co_teacher_id'] ?? null;
+        $coLimits = $coTeacherId !== null ? ($this->teacherLimits[$coTeacherId] ?? ['max_per_day' => 7, 'max_per_week' => 36]) : null;
 
         foreach ($ids as $btId) {
             $teacherKey = "{$lesson['teacher_id']}|{$btId}";
             if (isset($this->teacherBusy[$teacherKey]) || isset($this->teacherBlocked[$teacherKey])) {
                 return false;
+            }
+
+            if ($coTeacherId !== null) {
+                $coTeacherKey = "{$coTeacherId}|{$btId}";
+                if (isset($this->teacherBusy[$coTeacherKey]) || isset($this->teacherBlocked[$coTeacherKey])) {
+                    return false;
+                }
             }
 
             foreach ($lesson['class_ids'] as $idx => $classId) {
@@ -906,6 +944,16 @@ class GeneratorService
             return false;
         }
 
+        if ($coTeacherId !== null) {
+            $coDayKey = "{$coTeacherId}|{$dayOrder}";
+            if (($this->teacherDayCount[$coDayKey] ?? 0) + count($ids) > $coLimits['max_per_day']) {
+                return false;
+            }
+            if (($this->teacherWeekCount[$coTeacherId] ?? 0) + count($ids) > $coLimits['max_per_week']) {
+                return false;
+            }
+        }
+
         $cap = $lesson['require_consecutive'] ? 2 : 1;
         foreach ($lesson['class_ids'] as $idx => $classId) {
             $sectionId = $lesson['section_ids'][$idx] ?? null;
@@ -922,9 +970,13 @@ class GeneratorService
     {
         $ids = $slot['bell_timing_ids'];
         $dayOrder = $this->timingMeta[$ids[0]]['day_order'];
+        $coTeacherId = $lesson['co_teacher_id'] ?? null;
 
         foreach ($ids as $btId) {
             $this->teacherBusy["{$lesson['teacher_id']}|{$btId}"] = true;
+            if ($coTeacherId !== null) {
+                $this->teacherBusy["{$coTeacherId}|{$btId}"] = true;
+            }
             foreach ($lesson['class_ids'] as $idx => $classId) {
                 $sectionId = $lesson['section_ids'][$idx] ?? null;
                 $this->classBusy["{$classId}|{$sectionId}|{$btId}"] = true;
@@ -934,6 +986,12 @@ class GeneratorService
         $dayKey = "{$lesson['teacher_id']}|{$dayOrder}";
         $this->teacherDayCount[$dayKey] = ($this->teacherDayCount[$dayKey] ?? 0) + count($ids);
         $this->teacherWeekCount[$lesson['teacher_id']] = ($this->teacherWeekCount[$lesson['teacher_id']] ?? 0) + count($ids);
+
+        if ($coTeacherId !== null) {
+            $coDayKey = "{$coTeacherId}|{$dayOrder}";
+            $this->teacherDayCount[$coDayKey] = ($this->teacherDayCount[$coDayKey] ?? 0) + count($ids);
+            $this->teacherWeekCount[$coTeacherId] = ($this->teacherWeekCount[$coTeacherId] ?? 0) + count($ids);
+        }
 
         foreach ($lesson['class_ids'] as $idx => $classId) {
             $sectionId = $lesson['section_ids'][$idx] ?? null;
@@ -958,6 +1016,7 @@ class GeneratorService
             'lesson_id' => $lesson['lesson_id'],
             'type' => $lesson['type'],
             'teacher_id' => $lesson['teacher_id'],
+            'co_teacher_id' => $coTeacherId,
             'subject_id' => $lesson['subject_id'],
             'class_ids' => $lesson['class_ids'],
             'section_ids' => $lesson['section_ids'],
@@ -976,9 +1035,13 @@ class GeneratorService
         $p = $this->committed[$placementId];
         $ids = $p['bell_timing_ids'];
         $dayOrder = $this->timingMeta[$ids[0]]['day_order'];
+        $coTeacherId = $p['co_teacher_id'] ?? null;
 
         foreach ($ids as $btId) {
             unset($this->teacherBusy["{$p['teacher_id']}|{$btId}"]);
+            if ($coTeacherId !== null) {
+                unset($this->teacherBusy["{$coTeacherId}|{$btId}"]);
+            }
             foreach ($p['class_ids'] as $idx => $classId) {
                 $sectionId = $p['section_ids'][$idx] ?? null;
                 unset($this->classBusy["{$classId}|{$sectionId}|{$btId}"]);
@@ -988,6 +1051,12 @@ class GeneratorService
         $dayKey = "{$p['teacher_id']}|{$dayOrder}";
         $this->teacherDayCount[$dayKey] -= count($ids);
         $this->teacherWeekCount[$p['teacher_id']] -= count($ids);
+
+        if ($coTeacherId !== null) {
+            $coDayKey = "{$coTeacherId}|{$dayOrder}";
+            $this->teacherDayCount[$coDayKey] -= count($ids);
+            $this->teacherWeekCount[$coTeacherId] -= count($ids);
+        }
 
         foreach ($p['class_ids'] as $idx => $classId) {
             $sectionId = $p['section_ids'][$idx] ?? null;
@@ -1054,6 +1123,11 @@ class GeneratorService
                 'lesson_id' => $removed['lesson_id'],
                 'type' => 'solo',
                 'teacher_id' => $removed['teacher_id'],
+                // T6 item 4: preserve the blocker's own co-teacher (if any)
+                // through relocation -- dropping it here would silently
+                // "free" the co-teacher's busy state at the NEW slot,
+                // letting a different lesson double-book them there.
+                'co_teacher_id' => $removed['co_teacher_id'] ?? null,
                 'subject_id' => $removed['subject_id'],
                 'class_ids' => $removed['class_ids'],
                 'section_ids' => $removed['section_ids'],
