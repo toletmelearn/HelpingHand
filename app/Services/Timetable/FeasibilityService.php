@@ -27,7 +27,10 @@ use Illuminate\Support\Collection;
  *      plus (T2a) required periods (sum of periods_per_week across that
  *      teacher's assignments) vs how many periods they're actually
  *      available for (active periods minus their blocked
- *      TeacherAvailability rows).
+ *      TeacherAvailability rows). T6 item 4 fix: a team-taught slot lists
+ *      the teacher in EITHER teacher_id or co_teacher_id -- both count
+ *      toward a teacher's own placed/required periods, or a co-teacher's
+ *      load was invisible to their own row.
  *   3. Conflict scan: duplicate-key violations that predate the T1a DB
  *      constraints (should be zero -- this proves the constraints work),
  *      plus slots referencing inactive teachers/subjects/classes.
@@ -228,6 +231,13 @@ class FeasibilityService
             ->selectRaw('teacher_id, SUM(periods_per_week) as total')
             ->groupBy('teacher_id')
             ->pluck('total', 'teacher_id');
+        // T6 item 4 fix: a co-teacher's own required periods were invisible
+        // here before -- an assignment's periods_per_week was only ever
+        // summed against the PRIMARY teacher_id.
+        $requiredByCoTeacher = TeacherClassSubjectAssignment::whereIn('co_teacher_id', $teachers->pluck('id'))
+            ->selectRaw('co_teacher_id, SUM(periods_per_week) as total')
+            ->groupBy('co_teacher_id')
+            ->pluck('total', 'co_teacher_id');
         $blockedByTeacher = TeacherAvailability::whereIn('teacher_id', $teachers->pluck('id'))
             ->where('is_available', false)
             ->whereIn('bell_timing_id', $activeTimingIds)
@@ -238,7 +248,13 @@ class FeasibilityService
         $rows = [];
 
         foreach ($teachers as $teacher) {
-            $teacherSlots = $slots->where('teacher_id', $teacher->id);
+            // T6 item 4 fix: a team-taught slot lists this teacher in
+            // EITHER teacher_id or co_teacher_id -- both must count toward
+            // their own load, or a co-teacher's periods were invisible to
+            // their own row entirely.
+            $teacherSlots = $slots->filter(
+                fn (TimetableSlot $s) => $s->teacher_id === $teacher->id || $s->co_teacher_id === $teacher->id
+            );
 
             // A combined-class group writes one TimetableSlot row per
             // member class, all for the SAME period -- collapse those
@@ -274,7 +290,7 @@ class FeasibilityService
 
             $overThreshold = $placed > $threshold;
 
-            $required = (int) ($requiredByTeacher[$teacher->id] ?? 0);
+            $required = (int) ($requiredByTeacher[$teacher->id] ?? 0) + (int) ($requiredByCoTeacher[$teacher->id] ?? 0);
             $available = $activeTimingIds->count() - (int) ($blockedByTeacher[$teacher->id] ?? 0);
             $overAvailable = $required > $available;
 

@@ -118,6 +118,37 @@ class FeasibilityServiceTest extends TestCase
         $this->assertSame('Tuesday', $rows['Teacher Two']['busiest_day']);
     }
 
+    /** T6 item 4 fix: a co-teacher's team-taught periods must count toward their OWN load, not just the primary teacher's. */
+    public function test_teacher_load_counts_co_teaching_periods_toward_the_co_teachers_own_load(): void
+    {
+        $data = $this->seedMiniTimetable();
+
+        // Teacher Two co-teaches Teacher One's existing Monday P1 slot.
+        TimetableSlot::where('bell_timing_id', $data['mon1']->id)
+            ->where('teacher_id', $data['teacher1']->id)
+            ->update(['co_teacher_id' => $data['teacher2']->id]);
+
+        // Teacher Two is also the co-teacher on a fresh assignment requiring 3 periods/week.
+        TeacherClassSubjectAssignment::create([
+            'teacher_id' => $data['teacher1']->id,
+            'co_teacher_id' => $data['teacher2']->id,
+            'class_id' => $data['classA']->id,
+            'subject_id' => $data['subject']->id,
+            'periods_per_week' => 3,
+        ]);
+
+        $report = (new FeasibilityService())->build(self::YEAR);
+        $rows = collect($report['teacher_load'])->keyBy('teacher_name');
+
+        // Was 1 (Tue P1 only) before Mon P1 co-teaching was counted.
+        $this->assertSame(2, $rows['Teacher Two']['placed_periods']);
+        // Was 0 required before co_teacher_id sums were counted.
+        $this->assertSame(3, $rows['Teacher Two']['required_periods']);
+
+        // Teacher One's own count is unaffected by being co-taught.
+        $this->assertSame(2, $rows['Teacher One']['placed_periods']);
+    }
+
     public function test_teacher_over_threshold_is_flagged_in_red(): void
     {
         config(['timetable.max_periods_per_week' => 1]);

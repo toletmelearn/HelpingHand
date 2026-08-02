@@ -516,6 +516,19 @@
                             </a>
                         </li>
                         @endif
+                        {{-- T6 item 5: the guided setup wizard is the front door for a
+                             non-technical admin -- listed first, above the individual
+                             pages below (which stay reachable for edits). Same
+                             admin-only gate as Generate. --}}
+                        @if(Route::has('timetable.wizard.step1') && Auth::user()->hasRole('admin'))
+                        <li class="nav-item">
+                            <a class="nav-link text-white {{ request()->routeIs('timetable.wizard.*') ? 'active' : '' }}"
+                               href="{{ route('timetable.wizard.step1') }}">
+                                <i class="bi bi-magic me-2"></i>
+                                <span>Set Up Timetable</span>
+                            </a>
+                        </li>
+                        @endif
                         @if(Route::has('timetable.index') && (Auth::user()->hasRole('admin') || Auth::user()->hasRole('teacher')))
                         <li class="nav-item">
                             <a class="nav-link text-white {{ request()->routeIs('timetable.index') ? 'active' : '' }}"

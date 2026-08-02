@@ -28,13 +28,13 @@
         </div>
         <div class="card-body">
             <div class="form-check">
-                <input type="radio" class="form-check-input" name="style" id="styleRotating" value="rotating" checked>
+                <input type="radio" class="form-check-input" name="style" id="styleRotating" value="rotating" {{ request('style') !== 'fixed_daily' ? 'checked' : '' }}>
                 <label class="form-check-label" for="styleRotating">
                     <strong>Rotating</strong> -- each subject's periods are spread across different days of the week (the default).
                 </label>
             </div>
             <div class="form-check mt-2">
-                <input type="radio" class="form-check-input" name="style" id="styleFixedDaily" value="fixed_daily">
+                <input type="radio" class="form-check-input" name="style" id="styleFixedDaily" value="fixed_daily" {{ request('style') === 'fixed_daily' ? 'checked' : '' }}>
                 <label class="form-check-label" for="styleFixedDaily">
                     <strong>Fixed daily</strong> -- one day's pattern is repeated identically every day (e.g. Maths is always period 3, every day). A subject whose periods/week doesn't divide evenly across the running days is reported instead of guessed at.
                 </label>
@@ -79,6 +79,13 @@
     document.getElementById('selectAllClasses')?.addEventListener('change', function () {
         document.querySelectorAll('.class-checkbox').forEach(cb => { cb.checked = this.checked; });
     });
+
+    // T6 item 5: the setup wizard's final step links here with
+    // ?select_all=1 so arriving from the wizard needs no extra clicks.
+    @if(request()->boolean('select_all'))
+        document.getElementById('selectAllClasses').checked = true;
+        document.querySelectorAll('.class-checkbox').forEach(cb => { cb.checked = true; });
+    @endif
 
     document.getElementById('generateSelectedBtn')?.addEventListener('click', function () {
         const ids = Array.from(document.querySelectorAll('.class-checkbox:checked')).map(cb => cb.value);
