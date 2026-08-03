@@ -1739,15 +1739,15 @@ Route::middleware(['auth'])->group(function () {
     Route::post('/admin/timetable/generations/{generation}/discard', [\App\Http\Controllers\Admin\TimetableController::class, 'discardGeneration'])->name('timetable.generation.discard');
     Route::get('/admin/timetable/generations/{generation}', [\App\Http\Controllers\Admin\TimetableController::class, 'generationReview'])->name('timetable.generation.review');
 
-    // Guided setup wizard (T6 item 5) -- Steps 1-4 orchestrate existing
-    // tables/services; Step 5 IS the existing generate/review/publish
-    // flow above, no separate route needed.
-    Route::get('/admin/timetable/wizard', [\App\Http\Controllers\Admin\TimetableWizardController::class, 'step1'])->name('timetable.wizard.step1');
-    Route::post('/admin/timetable/wizard', [\App\Http\Controllers\Admin\TimetableWizardController::class, 'step1Store'])->name('timetable.wizard.step1.store');
-    Route::get('/admin/timetable/wizard/subjects/{class}', [\App\Http\Controllers\Admin\TimetableWizardController::class, 'step2'])->name('timetable.wizard.step2');
-    Route::post('/admin/timetable/wizard/subjects/{class}', [\App\Http\Controllers\Admin\TimetableWizardController::class, 'step2Store'])->name('timetable.wizard.step2.store');
-    Route::get('/admin/timetable/wizard/style', [\App\Http\Controllers\Admin\TimetableWizardController::class, 'step3'])->name('timetable.wizard.step3');
-    Route::get('/admin/timetable/wizard/readiness', [\App\Http\Controllers\Admin\TimetableWizardController::class, 'step4'])->name('timetable.wizard.step4');
+    // Guided setup wizard (T6 item 5, revised for per-section class
+    // teachers) -- Steps 1-3 orchestrate existing tables/services; Step 4
+    // (Generate & Publish) IS the existing generate/review/publish flow
+    // above, no separate route needed.
+    Route::get('/admin/timetable/wizard', [\App\Http\Controllers\Admin\TimetableWizardController::class, 'index'])->name('timetable.wizard.index');
+    Route::get('/admin/timetable/wizard/subjects/{class}/{section?}', [\App\Http\Controllers\Admin\TimetableWizardController::class, 'step1'])->name('timetable.wizard.step1');
+    Route::post('/admin/timetable/wizard/subjects/{class}/{section?}', [\App\Http\Controllers\Admin\TimetableWizardController::class, 'step1Store'])->name('timetable.wizard.step1.store');
+    Route::get('/admin/timetable/wizard/style', [\App\Http\Controllers\Admin\TimetableWizardController::class, 'step2'])->name('timetable.wizard.step2');
+    Route::get('/admin/timetable/wizard/readiness', [\App\Http\Controllers\Admin\TimetableWizardController::class, 'step3'])->name('timetable.wizard.step3');
 
     // Combined classes (T2b)
     Route::post('/admin/timetable/combined', [\App\Http\Controllers\Admin\TimetableController::class, 'storeCombined'])->name('timetable.combined.store');

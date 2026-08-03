@@ -520,10 +520,10 @@
                              non-technical admin -- listed first, above the individual
                              pages below (which stay reachable for edits). Same
                              admin-only gate as Generate. --}}
-                        @if(Route::has('timetable.wizard.step1') && Auth::user()->hasRole('admin'))
+                        @if(Route::has('timetable.wizard.index') && Auth::user()->hasRole('admin'))
                         <li class="nav-item">
                             <a class="nav-link text-white {{ request()->routeIs('timetable.wizard.*') ? 'active' : '' }}"
-                               href="{{ route('timetable.wizard.step1') }}">
+                               href="{{ route('timetable.wizard.index') }}">
                                 <i class="bi bi-magic me-2"></i>
                                 <span>Set Up Timetable</span>
                             </a>
