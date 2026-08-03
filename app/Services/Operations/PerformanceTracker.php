@@ -4,6 +4,7 @@ namespace App\Services\Operations;
 
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
+use Symfony\Component\Process\Process;
 
 class PerformanceTracker
 {
@@ -61,12 +62,10 @@ class PerformanceTracker
     protected function getCpuUsage(): float
     {
         if (strncasecmp(PHP_OS, 'WIN', 3) === 0) {
-            try {
-                $output = shell_exec('wmic cpu get LoadPercentage /value');
-                if (preg_match('/LoadPercentage=(\d+)/', $output, $matches)) {
-                    return (float)$matches[1];
-                }
-            } catch (\Throwable $e) {}
+            $output = $this->runWindowsCommand(['wmic', 'cpu', 'get', 'LoadPercentage', '/value']);
+            if ($output && preg_match('/LoadPercentage=(\d+)/', $output, $matches)) {
+                return (float)$matches[1];
+            }
             return 12.5; // fallback default for Windows
         } else {
             if (is_readable('/proc/loadavg')) {
@@ -93,20 +92,19 @@ class PerformanceTracker
         
         if (strncasecmp(PHP_OS, 'WIN', 3) === 0) {
             // Under Windows, fetch via shell or fallback
-            try {
-                $output = shell_exec('wmic OS get FreePhysicalMemory,TotalVisibleMemorySize /value');
-                if (preg_match('/FreePhysicalMemory=(\d+)/', $output, $matchFree) &&
-                    preg_match('/TotalVisibleMemorySize=(\d+)/', $output, $matchTotal)) {
-                    $total = (int)$matchTotal[1] * 1024; // KB to Bytes
-                    $free = (int)$matchFree[1] * 1024;
-                    $usedSys = $total - $free;
-                    return [
-                        'used_percent' => round(($usedSys / $total) * 100, 1),
-                        'used_mb' => round($usedSys / (1024 * 1024), 2),
-                        'total_mb' => round($total / (1024 * 1024), 2),
-                    ];
-                }
-            } catch (\Throwable $e) {}
+            $output = $this->runWindowsCommand(['wmic', 'OS', 'get', 'FreePhysicalMemory,TotalVisibleMemorySize', '/value']);
+            if ($output &&
+                preg_match('/FreePhysicalMemory=(\d+)/', $output, $matchFree) &&
+                preg_match('/TotalVisibleMemorySize=(\d+)/', $output, $matchTotal)) {
+                $total = (int)$matchTotal[1] * 1024; // KB to Bytes
+                $free = (int)$matchFree[1] * 1024;
+                $usedSys = $total - $free;
+                return [
+                    'used_percent' => round(($usedSys / $total) * 100, 1),
+                    'used_mb' => round($usedSys / (1024 * 1024), 2),
+                    'total_mb' => round($total / (1024 * 1024), 2),
+                ];
+            }
         } else {
             // Linux free memory parsing
             if (is_readable('/proc/meminfo')) {
@@ -157,5 +155,25 @@ class PerformanceTracker
             $dbSize = 'N/A';
         }
         return $dbSize;
+    }
+
+    /**
+     * Runs a Windows diagnostic command (wmic) with a hard timeout. wmic is
+     * deprecated/removed on newer Windows builds, and raw shell_exec() has
+     * no timeout at all -- if the binary is missing, slow, or its WMI
+     * provider stalls, this must degrade to null rather than block the
+     * request indefinitely.
+     */
+    private function runWindowsCommand(array $command): ?string
+    {
+        try {
+            $process = new Process($command);
+            $process->setTimeout(2);
+            $process->run();
+
+            return $process->isSuccessful() ? $process->getOutput() : null;
+        } catch (\Throwable $e) {
+            return null;
+        }
     }
 }
