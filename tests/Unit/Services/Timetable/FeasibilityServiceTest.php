@@ -202,6 +202,41 @@ class FeasibilityServiceTest extends TestCase
         $this->assertSame([], $report['conflicts']);
     }
 
+    /**
+     * T1a's own documented gap, closed here: a class-wide slot (section_id
+     * NULL) and a specific-section slot of the SAME class at the SAME
+     * period have different section_id_norm values, so the DB unique
+     * index (and the exact-match groupBy above it) never see them as
+     * colliding -- but they genuinely overlap (a class-wide lesson covers
+     * every section). This is reachable at the DB level (see
+     * TimetableSlotUniqueConstraintsTest's documented-gap test) so the
+     * feasibility scan must catch it instead.
+     */
+    public function test_conflict_scan_flags_a_class_wide_slot_overlapping_a_section_specific_slot(): void
+    {
+        $data = $this->seedMiniTimetable();
+        $section = Section::create(['name' => 'A']);
+
+        // Class A already has a class-wide (section_id null) slot at
+        // Monday P1 from the seeder. A section-specific slot for the SAME
+        // class at the SAME period saves cleanly at the DB level (proving
+        // the gap is real) but must now be flagged here.
+        TimetableSlot::create([
+            'school_class_id' => $data['classA']->id,
+            'section_id' => $section->id,
+            'bell_timing_id' => $data['mon1']->id,
+            'subject_id' => $data['subject']->id,
+            'teacher_id' => Teacher::create(['name' => 'Teacher Three', 'status' => 'active'])->id,
+            'academic_year' => self::YEAR,
+        ]);
+
+        $report = (new FeasibilityService())->build(self::YEAR);
+
+        $overlaps = collect($report['conflicts'])->where('type', 'class_wide_section_overlap');
+        $this->assertGreaterThan(0, $overlaps->count());
+        $this->assertStringContainsString('Class A', $overlaps->first()['sentence']);
+    }
+
     public function test_conflict_scan_flags_a_slot_referencing_an_inactive_teacher(): void
     {
         $data = $this->seedMiniTimetable();

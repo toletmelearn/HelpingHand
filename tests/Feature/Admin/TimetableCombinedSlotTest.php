@@ -185,4 +185,98 @@ class TimetableCombinedSlotTest extends TestCase
         $response->assertSessionHas('success');
         $this->assertSame(2, TimetableSlot::where('combined_class_group_id', $data['group']->id)->count());
     }
+
+    /**
+     * Combined groups' documented "not editable once placed" gap: clearing
+     * ONE member's cell via the plain per-row destroy route used to leave
+     * every OTHER member's row behind, silently orphaning a partial
+     * placement. destroy() is now combined-group-aware: clearing any one
+     * member's slot clears every sibling row for that occurrence.
+     */
+    public function test_clearing_one_members_slot_clears_every_member_of_that_occurrence(): void
+    {
+        $admin = $this->admin();
+        $data = $this->makeGroupWithTwoMembers();
+        $teacher = Teacher::create(['name' => 'Combined Teacher']);
+        $timing = BellTiming::create(['day_of_week' => 'Monday', 'period_name' => 'P1', 'start_time' => '08:00', 'end_time' => '08:45', 'is_active' => true, 'is_break' => false, 'order_index' => 1]);
+
+        $this->actingAs($admin)->post(route('timetable.combined.store'), [
+            'combined_class_group_id' => $data['group']->id,
+            'teacher_id' => $teacher->id,
+            'bell_timing_id' => $timing->id,
+        ]);
+        $this->assertSame(2, TimetableSlot::where('combined_class_group_id', $data['group']->id)->count());
+
+        $classASlot = TimetableSlot::where('combined_class_group_id', $data['group']->id)
+            ->where('school_class_id', $data['classA']->id)->firstOrFail();
+
+        $response = $this->actingAs($admin)->delete(route('timetable.destroy', $classASlot->id));
+
+        $response->assertRedirect();
+        $response->assertSessionHas('success');
+        $this->assertSame(0, TimetableSlot::where('combined_class_group_id', $data['group']->id)->count());
+    }
+
+    /** Clearing one occurrence of a group must not touch a DIFFERENT occurrence of the same group at a different period. */
+    public function test_clearing_one_occurrence_does_not_touch_a_different_occurrence_of_the_same_group(): void
+    {
+        $admin = $this->admin();
+        $data = $this->makeGroupWithTwoMembers();
+        $teacher = Teacher::create(['name' => 'Combined Teacher']);
+        $mondayTiming = BellTiming::create(['day_of_week' => 'Monday', 'period_name' => 'P1', 'start_time' => '08:00', 'end_time' => '08:45', 'is_active' => true, 'is_break' => false, 'order_index' => 1]);
+        $tuesdayTiming = BellTiming::create(['day_of_week' => 'Tuesday', 'period_name' => 'P1', 'start_time' => '08:00', 'end_time' => '08:45', 'is_active' => true, 'is_break' => false, 'order_index' => 1]);
+
+        $this->actingAs($admin)->post(route('timetable.combined.store'), [
+            'combined_class_group_id' => $data['group']->id,
+            'teacher_id' => $teacher->id,
+            'bell_timing_id' => $mondayTiming->id,
+        ]);
+        $this->actingAs($admin)->post(route('timetable.combined.store'), [
+            'combined_class_group_id' => $data['group']->id,
+            'teacher_id' => $teacher->id,
+            'bell_timing_id' => $tuesdayTiming->id,
+        ]);
+        $this->assertSame(4, TimetableSlot::where('combined_class_group_id', $data['group']->id)->count());
+
+        $mondayClassASlot = TimetableSlot::where('combined_class_group_id', $data['group']->id)
+            ->where('school_class_id', $data['classA']->id)
+            ->where('bell_timing_id', $mondayTiming->id)
+            ->firstOrFail();
+
+        $this->actingAs($admin)->delete(route('timetable.destroy', $mondayClassASlot->id));
+
+        $this->assertSame(2, TimetableSlot::where('combined_class_group_id', $data['group']->id)->count());
+        $this->assertSame(2, TimetableSlot::where('combined_class_group_id', $data['group']->id)->where('bell_timing_id', $tuesdayTiming->id)->count());
+    }
+
+    /** "Moving" a placed group: clear the occurrence, then place it fresh at a new period -- proves the two operations compose correctly. */
+    public function test_a_cleared_group_can_be_re_placed_at_a_different_period_moving_it(): void
+    {
+        $admin = $this->admin();
+        $data = $this->makeGroupWithTwoMembers();
+        $teacher = Teacher::create(['name' => 'Combined Teacher']);
+        $mondayTiming = BellTiming::create(['day_of_week' => 'Monday', 'period_name' => 'P1', 'start_time' => '08:00', 'end_time' => '08:45', 'is_active' => true, 'is_break' => false, 'order_index' => 1]);
+        $tuesdayTiming = BellTiming::create(['day_of_week' => 'Tuesday', 'period_name' => 'P1', 'start_time' => '08:00', 'end_time' => '08:45', 'is_active' => true, 'is_break' => false, 'order_index' => 1]);
+
+        $this->actingAs($admin)->post(route('timetable.combined.store'), [
+            'combined_class_group_id' => $data['group']->id,
+            'teacher_id' => $teacher->id,
+            'bell_timing_id' => $mondayTiming->id,
+        ]);
+
+        $classASlot = TimetableSlot::where('combined_class_group_id', $data['group']->id)
+            ->where('school_class_id', $data['classA']->id)->firstOrFail();
+        $this->actingAs($admin)->delete(route('timetable.destroy', $classASlot->id));
+
+        $response = $this->actingAs($admin)->post(route('timetable.combined.store'), [
+            'combined_class_group_id' => $data['group']->id,
+            'teacher_id' => $teacher->id,
+            'bell_timing_id' => $tuesdayTiming->id,
+        ]);
+
+        $response->assertSessionHas('success');
+        $this->assertSame(2, TimetableSlot::where('combined_class_group_id', $data['group']->id)->count());
+        $this->assertSame(2, TimetableSlot::where('combined_class_group_id', $data['group']->id)->where('bell_timing_id', $tuesdayTiming->id)->count());
+        $this->assertSame(0, TimetableSlot::where('combined_class_group_id', $data['group']->id)->where('bell_timing_id', $mondayTiming->id)->count());
+    }
 }

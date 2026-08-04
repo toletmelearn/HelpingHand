@@ -53,7 +53,7 @@ class TimetableController extends Controller
                 ->when($sectionId, function ($q) use ($sectionId) {
                     $q->where('section_id', $sectionId);
                 })
-                ->with(['subject', 'teacher', 'bellTiming']);
+                ->with(['subject', 'teacher', 'coTeacher', 'bellTiming', 'combinedClassGroup']);
 
             if ($view === 'draft') {
                 $slots = (clone $baseQuery)->draft()->get();
@@ -96,6 +96,7 @@ class TimetableController extends Controller
             'bell_timing_id' => 'required|exists:bell_timings,id',
             'subject_id' => 'required|exists:subjects,id',
             'teacher_id' => 'required|exists:teachers,id',
+            'co_teacher_id' => 'nullable|exists:teachers,id|different:teacher_id',
             'room_number' => 'nullable|string|max:50',
             'academic_year' => 'nullable|string|max:20',
             'status' => 'nullable|in:draft,published',
@@ -121,7 +122,7 @@ class TimetableController extends Controller
         // the check) still can't create a double-booking, it just gets the
         // same friendly error instead of a 500.
         try {
-            TimetableSlot::updateOrCreate(
+            $slot = TimetableSlot::updateOrCreate(
                 [
                     'school_class_id' => $validated['school_class_id'],
                     'section_id' => $validated['section_id'] ?? null,
@@ -137,6 +138,10 @@ class TimetableController extends Controller
 
             throw $e;
         }
+
+        activity()->causedBy(Auth::user())->performedOn($slot)
+            ->withProperties(['school_class_id' => $slot->school_class_id, 'section_id' => $slot->section_id, 'bell_timing_id' => $slot->bell_timing_id, 'status' => $slot->status])
+            ->log($slot->wasRecentlyCreated ? 'timetable_slot_created' : 'timetable_slot_updated');
 
         return back()->with('success', 'Timetable slot scheduled successfully.');
     }
@@ -223,6 +228,10 @@ class TimetableController extends Controller
 
             throw $e;
         }
+
+        activity()->causedBy(Auth::user())->performedOn($group)
+            ->withProperties(['bell_timing_id' => $validated['bell_timing_id'], 'teacher_id' => $validated['teacher_id'], 'member_count' => $group->members->count()])
+            ->log('combined_group_placed');
 
         return back()->with('success', "Combined group \"{$group->name}\" scheduled for " . $group->members->count() . ' classes.');
     }
@@ -441,10 +450,51 @@ class TimetableController extends Controller
         return "timetable_{$type}_{$safeName}_{$safeSession}.pdf";
     }
 
+    /**
+     * A combined-group placement is one shared teaching event written as
+     * one TimetableSlot row per member class (T2b item 3, storeCombined()
+     * above). Clearing only the clicked row silently orphaned every other
+     * member's row, leaving an inconsistent partial placement -- this was
+     * combined groups' documented "not editable once placed" gap. Now:
+     * clearing any one member's cell clears every sibling row for this
+     * exact occurrence (same group + same period + same draft/published
+     * status -- a group meeting several times a week has one row-set per
+     * occurrence, and only THIS one should go). "Moving" a placed group is
+     * then clear-then-storeCombined() at the new period, which already
+     * works once the old rows are gone.
+     */
     public function destroy($id)
     {
         $slot = TimetableSlot::findOrFail($id);
         $this->authorize('delete', $slot);
+
+        if ($slot->combined_class_group_id) {
+            $siblings = TimetableSlot::where('combined_class_group_id', $slot->combined_class_group_id)
+                ->where('bell_timing_id', $slot->bell_timing_id)
+                ->where('status', $slot->status)
+                ->get();
+
+            foreach ($siblings as $sibling) {
+                $this->authorize('delete', $sibling);
+            }
+
+            DB::transaction(function () use ($siblings) {
+                foreach ($siblings as $sibling) {
+                    $sibling->delete();
+                }
+            });
+
+            activity()->causedBy(Auth::user())->performedOn($slot->combinedClassGroup ?? $slot)
+                ->withProperties(['bell_timing_id' => $slot->bell_timing_id, 'status' => $slot->status, 'member_count' => $siblings->count()])
+                ->log('combined_group_cleared');
+
+            return back()->with('success', 'Combined group slot cleared for all ' . $siblings->count() . ' member classes.');
+        }
+
+        activity()->causedBy(Auth::user())->performedOn($slot)
+            ->withProperties(['school_class_id' => $slot->school_class_id, 'section_id' => $slot->section_id, 'bell_timing_id' => $slot->bell_timing_id, 'status' => $slot->status])
+            ->log('timetable_slot_cleared');
+
         $slot->delete();
 
         return back()->with('success', 'Timetable slot cleared.');
@@ -485,6 +535,10 @@ class TimetableController extends Controller
         ]);
 
         GenerateTimetableJob::dispatch($generation->id);
+
+        activity()->causedBy(Auth::user())->performedOn($generation)
+            ->withProperties(['school_class_ids' => $generation->school_class_ids, 'style' => $generation->style])
+            ->log('timetable_generation_requested');
 
         return response()->json([
             'generation_id' => $generation->id,
@@ -599,6 +653,10 @@ class TimetableController extends Controller
             $generation->update(['status' => TimetableGeneration::STATUS_PUBLISHED]);
         });
 
+        activity()->causedBy(Auth::user())->performedOn($generation)
+            ->withProperties(['school_class_ids' => $generation->school_class_ids])
+            ->log('timetable_generation_published');
+
         return $this->redirectAfterGenerationAction($generation)
             ->with('success', 'Generation published -- this is now the live timetable for the affected classes.');
     }
@@ -621,6 +679,10 @@ class TimetableController extends Controller
             TimetableSlot::draft()->where('timetable_generation_id', $generation->id)->delete();
             $generation->update(['status' => TimetableGeneration::STATUS_DISCARDED]);
         });
+
+        activity()->causedBy(Auth::user())->performedOn($generation)
+            ->withProperties(['school_class_ids' => $generation->school_class_ids])
+            ->log('timetable_generation_discarded');
 
         return $this->redirectAfterGenerationAction($generation)
             ->with('success', 'Draft discarded -- the live timetable is unchanged.');
@@ -658,6 +720,7 @@ class TimetableController extends Controller
     {
         $id = $request->get('id');
         $teacherId = $request->get('teacher_id');
+        $coTeacherId = $request->get('co_teacher_id') ?: null;
         $bellTimingId = $request->get('bell_timing_id');
         $roomNumber = $request->get('room_number');
 
@@ -677,21 +740,79 @@ class TimetableController extends Controller
             })
             ->pluck('id');
 
-        // Check Teacher overlap
-        $teacherConflict = TimetableSlot::whereIn('bell_timing_id', $overlappingTimings)
-            ->where('teacher_id', $teacherId)
-            ->where('status', $status)
-            ->when($id, function ($q) use ($id) {
-                $q->where('id', '!=', $id);
-            })
-            ->first();
+        // Check Teacher/Co-Teacher overlap. Both people on this lesson (if
+        // a co-teacher is given) must be free -- checked against BOTH the
+        // teacher_id and co_teacher_id columns on every existing row, so a
+        // person already busy elsewhere as either the primary teacher or
+        // someone else's co-teacher is caught. This mirrors the cross-case
+        // GeneratorService::isHardLegal() already enforces for auto-
+        // generation (see the T6 item 4 report): the DB's
+        // timetable_slots_co_teacher_bell_status_unique index only catches
+        // co-teacher-vs-co-teacher, not "person X is primary in one row,
+        // co-teacher in another" -- the manual editor had no guard for
+        // that at all until now.
+        foreach (array_filter([$teacherId, $coTeacherId]) as $personId) {
+            $busyConflict = TimetableSlot::whereIn('bell_timing_id', $overlappingTimings)
+                ->where('status', $status)
+                ->where(function ($q) use ($personId) {
+                    $q->where('teacher_id', $personId)->orWhere('co_teacher_id', $personId);
+                })
+                ->when($id, function ($q) use ($id) {
+                    $q->where('id', '!=', $id);
+                })
+                ->first();
 
-        if ($teacherConflict) {
-            return [
-                'conflict' => true,
-                'type' => 'teacher',
-                'message' => "Teacher is already scheduled to teach " . ($teacherConflict->schoolClass->name ?? 'another class') . " during this period."
-            ];
+            if ($busyConflict) {
+                $personName = Teacher::find($personId)->name ?? 'This teacher';
+                return [
+                    'conflict' => true,
+                    'type' => 'teacher',
+                    'message' => "{$personName} is already scheduled to teach " . ($busyConflict->schoolClass->name ?? 'another class') . " during this period."
+                ];
+            }
+        }
+
+        // Check Class/Section overlap. The T1a unique DB index can't catch
+        // this cross-case: a class-wide slot (section_id NULL) and a
+        // specific-section slot of the SAME class have different
+        // section_id_norm values, so neither the index nor an exact-match
+        // query sees them as colliding -- but a class-wide lesson covers
+        // every section, so they genuinely overlap. Only the CROSS case is
+        // flagged here: a class-wide save conflicts only with an existing
+        // section-specific row (never another class-wide row -- that's
+        // either this exact cell being updated in place, via store()'s own
+        // updateOrCreate key, or a genuine duplicate the DB unique index
+        // already blocks); a section-specific save conflicts only with an
+        // existing class-wide row (never the same section's own row --
+        // same reasoning, that's an update-in-place, not a collision).
+        $schoolClassId = $request->get('school_class_id');
+        $sectionId = $request->get('section_id') ?: null;
+
+        if ($schoolClassId) {
+            $classConflict = TimetableSlot::whereIn('bell_timing_id', $overlappingTimings)
+                ->where('school_class_id', $schoolClassId)
+                ->where('status', $status)
+                ->when($sectionId, function ($q) {
+                    $q->whereNull('section_id');
+                }, function ($q) {
+                    $q->whereNotNull('section_id');
+                })
+                ->when($id, function ($q) use ($id) {
+                    $q->where('id', '!=', $id);
+                })
+                ->first();
+
+            if ($classConflict) {
+                $message = $classConflict->section_id === null
+                    ? 'This class already has a whole-class lesson scheduled during this period -- it applies to every section.'
+                    : 'Section ' . ($classConflict->section->name ?? '') . ' of this class already has a lesson scheduled during this period.';
+
+                return [
+                    'conflict' => true,
+                    'type' => 'class',
+                    'message' => $message,
+                ];
+            }
         }
 
         // Check Room overlap

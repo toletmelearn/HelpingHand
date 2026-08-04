@@ -26,6 +26,8 @@ class TeacherSubstitutionController extends Controller
 
     public function index(Request $request)
     {
+        $this->authorize('viewAny', TeacherSubstitution::class);
+
         $query = TeacherSubstitution::with(['absentTeacher', 'substituteTeacher', 'class', 'section', 'subject', 'bellTiming']);
 
         // Filter by date
@@ -65,6 +67,8 @@ class TeacherSubstitutionController extends Controller
 
     public function create()
     {
+        $this->authorize('create', TeacherSubstitution::class);
+
         $teachers = Teacher::with('user')->orderBy('id')->get();
         $classes = SchoolClass::orderBy('name')->get();
         $sections = Section::orderBy('name')->get();
@@ -76,6 +80,8 @@ class TeacherSubstitutionController extends Controller
 
     public function store(Request $request)
     {
+        $this->authorize('create', TeacherSubstitution::class);
+
         $request->validate([
             'substitution_date' => 'required|date',
             'absent_teacher_id' => 'required|exists:teachers,id',
@@ -107,13 +113,17 @@ class TeacherSubstitutionController extends Controller
 
     public function show(TeacherSubstitution $teacherSubstitution)
     {
+        $this->authorize('view', $teacherSubstitution);
+
         $teacherSubstitution->load(['absentTeacher', 'substituteTeacher', 'class', 'section', 'subject', 'createdBy', 'updatedBy']);
-        
+
         return view('admin.teacher-substitutions.show', compact('teacherSubstitution'));
     }
 
     public function edit(TeacherSubstitution $teacherSubstitution)
     {
+        $this->authorize('update', $teacherSubstitution);
+
         $teacherSubstitution->load(['absentTeacher', 'substituteTeacher', 'class', 'section', 'subject', 'bellTiming']);
 
         $teachers = Teacher::with('user')->orderBy('id')->get();
@@ -134,6 +144,8 @@ class TeacherSubstitutionController extends Controller
 
     public function update(Request $request, TeacherSubstitution $teacherSubstitution)
     {
+        $this->authorize('update', $teacherSubstitution);
+
         $request->validate([
             'substitution_date' => 'required|date',
             'absent_teacher_id' => 'required|exists:teachers,id',
@@ -170,6 +182,8 @@ class TeacherSubstitutionController extends Controller
 
     public function destroy(TeacherSubstitution $teacherSubstitution)
     {
+        $this->authorize('delete', $teacherSubstitution);
+
         $teacherSubstitution->delete();
 
         return redirect()->route('admin.teacher-substitutions.index')
@@ -199,6 +213,8 @@ class TeacherSubstitutionController extends Controller
 
     public function assignSubstitute(Request $request, TeacherSubstitution $teacherSubstitution)
     {
+        $this->authorize('assignSubstitute', $teacherSubstitution);
+
         $request->validate([
             'substitute_teacher_id' => 'required|exists:teachers,id'
         ]);
@@ -215,6 +231,8 @@ class TeacherSubstitutionController extends Controller
 
     public function approveSubstitute(TeacherSubstitution $teacherSubstitution)
     {
+        $this->authorize('approveSubstitute', $teacherSubstitution);
+
         $teacherSubstitution->update([
             'status' => 'approved',
             'assigned_at' => now(),
@@ -226,6 +244,8 @@ class TeacherSubstitutionController extends Controller
 
     public function cancelSubstitute(TeacherSubstitution $teacherSubstitution)
     {
+        $this->authorize('cancelSubstitute', $teacherSubstitution);
+
         $teacherSubstitution->update([
             'status' => 'cancelled',
             'updated_by' => Auth::id()
@@ -236,6 +256,8 @@ class TeacherSubstitutionController extends Controller
 
     public function today()
     {
+        $this->authorize('viewTodaySubstitutions', TeacherSubstitution::class);
+
         $substitutions = TeacherSubstitution::with(['absentTeacher', 'substituteTeacher', 'class', 'section', 'subject', 'bellTiming'])
             ->forDate(now())
             ->get()
@@ -247,6 +269,8 @@ class TeacherSubstitutionController extends Controller
 
     public function absenceOverview()
     {
+        $this->authorize('viewAbsenceOverview', TeacherSubstitution::class);
+
         $absentTeachers = Teacher::whereHas('absentSubstitutions', function($query) {
             $query->forDate(now())->whereNotNull('absent_teacher_id');
         })
@@ -271,6 +295,8 @@ class TeacherSubstitutionController extends Controller
 
     public function substitutionRules()
     {
+        $this->authorize('manageRules', TeacherSubstitution::class);
+
         // Return view for managing substitution rules
         return view('admin.teacher-substitutions.rules');
     }

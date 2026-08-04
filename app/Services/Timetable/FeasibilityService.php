@@ -367,6 +367,29 @@ class FeasibilityService
             ->when($academicYear, fn ($q) => $q->where('academic_year', $academicYear))
             ->get();
 
+        // T1a's own documented gap, closed here: a class-wide slot
+        // (section_id NULL) and a specific-section slot of the SAME class
+        // at the SAME period have different section_id values, so the
+        // exact-match groupBy above (and the DB unique index it mirrors)
+        // never sees them as the same key -- they still overlap in
+        // practice (a class-wide lesson covers every section). Grouped
+        // in-memory off the already-loaded $slots rather than a second
+        // query.
+        $byClassAndPeriod = $slots->groupBy(fn ($slot) => $slot->school_class_id . '|' . $slot->bell_timing_id);
+        foreach ($byClassAndPeriod as $key => $rows) {
+            $classWide = $rows->firstWhere('section_id', null);
+            $sectionSpecific = $rows->first(fn ($r) => $r->section_id !== null);
+            if ($classWide && $sectionSpecific) {
+                [$classId, $bellTimingId] = explode('|', $key);
+                $className = $classWide->schoolClass->name ?? "Class {$classId}";
+                $sectionName = $sectionSpecific->section->name ?? 'section-specific';
+                $conflicts[] = [
+                    'type' => 'class_wide_section_overlap',
+                    'sentence' => "{$className} has both a whole-class slot and a {$sectionName} slot at the same period (bell timing {$bellTimingId}) -- these overlap even though they aren't an exact duplicate.",
+                ];
+            }
+        }
+
         foreach ($slots as $slot) {
             if (!$slot->teacher || $slot->teacher->status !== 'active') {
                 $conflicts[] = [

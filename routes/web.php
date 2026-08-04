@@ -884,8 +884,14 @@ Route::middleware(['auth'])->group(function () {
         Route::get('teacher-substitutions/absent-today', [App\Http\Controllers\Admin\TeacherSubstitutionController::class, 'absentToday'])->name('teacher-substitutions.absent-today');
         Route::post('teacher-substitutions/assign-from-slot', [App\Http\Controllers\Admin\TeacherSubstitutionController::class, 'assignFromSlot'])->name('teacher-substitutions.assign-from-slot');
         Route::get('teacher-substitutions/arrangement-sheet', [App\Http\Controllers\Admin\TeacherSubstitutionController::class, 'arrangementSheetPdf'])->name('teacher-substitutions.arrangement-sheet');
-        Route::get('teacher-substitutions/rules', [App\Http\Controllers\Admin\TeacherSubstitutionController::class, 'rules'])->name('teacher-substitutions.rules');
-        Route::post('teacher-substitutions/rules', [App\Http\Controllers\Admin\TeacherSubstitutionController::class, 'updateRules'])->name('teacher-substitutions.update-rules');
+        // Was routed to nonexistent rules()/updateRules() controller
+        // methods (a rename-drift bug -- the real, working method is
+        // substitutionRules(), unreachable by any route until now). The
+        // rules view has no submitting form yet (its checkboxes have no
+        // real backend to save to), so only the GET/display route is
+        // restored here -- inventing an update endpoint for a form that
+        // doesn't submit anything would be fabricating a feature.
+        Route::get('teacher-substitutions/rules', [App\Http\Controllers\Admin\TeacherSubstitutionController::class, 'substitutionRules'])->name('teacher-substitutions.rules');
         Route::resource('teacher-substitutions', App\Http\Controllers\Admin\TeacherSubstitutionController::class);
         
                 // Teacher Attendance Management Routes - Specific routes must come before resource route to avoid conflicts

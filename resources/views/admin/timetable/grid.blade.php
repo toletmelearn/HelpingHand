@@ -238,15 +238,22 @@
                             @if($slot)
                                 <div class="slot-card shadow-sm {{ $view === 'draft' ? 'is-draft-slot' : '' }}">
                                     <strong class="text-primary d-block">{{ $slot->subject->name }}</strong>
-                                    <span class="text-muted d-block small"><i class="fas fa-chalkboard-teacher"></i> {{ $slot->teacher->name }}</span>
+                                    <span class="text-muted d-block small">
+                                        <i class="fas fa-chalkboard-teacher"></i> {{ $slot->teacher->name }}{{ $slot->coTeacher ? ' / ' . $slot->coTeacher->name : '' }}
+                                    </span>
                                     @if($slot->room_number)
                                         <span class="badge badge-secondary mt-1">Room {{ $slot->room_number }}</span>
+                                    @endif
+                                    @if($slot->combinedClassGroup)
+                                        <span class="badge badge-info mt-1" title="Shared with the other classes in this combined group">
+                                            <i class="fas fa-users"></i> {{ $slot->combinedClassGroup->name }}
+                                        </span>
                                     @endif
                                     @if($view === 'draft')
                                         <span class="draft-badge">DRAFT</span>
                                     @endif
                                 </div>
-                                <form action="{{ route('timetable.destroy', $slot->id) }}" method="POST" onsubmit="return confirm('Clear this slot?');">
+                                <form action="{{ route('timetable.destroy', $slot->id) }}" method="POST" onsubmit="return confirm({{ $slot->combinedClassGroup ? \Illuminate\Support\Js::from('This is a combined-group lesson -- clearing it removes this period for every member class, not just this one. Continue?') : \Illuminate\Support\Js::from('Clear this slot?') }});">
                                     @csrf
                                     @method('DELETE')
                                     <button type="submit" class="delete-slot-btn" title="Clear slot">
@@ -331,6 +338,16 @@
                     </div>
 
                     <div class="form-group">
+                        <label for="modal_co_teacher_id" class="text-dark font-weight-bold">Co-Teacher (Optional, Team Teaching)</label>
+                        <select name="co_teacher_id" id="modal_co_teacher_id" class="form-control" onchange="triggerConflictCheck()">
+                            <option value="">-- None --</option>
+                            @foreach($teachers as $teacher)
+                                <option value="{{ $teacher->id }}">{{ $teacher->name }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+
+                    <div class="form-group">
                         <label for="modal_room_number" class="text-dark font-weight-bold">Room Number (Optional)</label>
                         <input type="text" name="room_number" id="modal_room_number" class="form-control" placeholder="e.g. Lab-3A" onkeyup="triggerConflictCheck()">
                     </div>
@@ -359,6 +376,7 @@
     function triggerConflictCheck() {
         const timingId = document.getElementById('modal_bell_timing_id').value;
         const teacherId = document.getElementById('modal_teacher_id').value;
+        const coTeacherId = document.getElementById('modal_co_teacher_id').value;
         const room = document.getElementById('modal_room_number').value;
 
         if (!timingId || !teacherId) {
@@ -368,8 +386,10 @@
         }
 
         const status = @json($view ?? 'published');
+        const schoolClassId = @json($schoolClassId);
+        const sectionId = @json($sectionId);
 
-        fetch(`{{ route('timetable.check-conflicts') }}?bell_timing_id=${timingId}&teacher_id=${teacherId}&room_number=${room}&status=${status}`)
+        fetch(`{{ route('timetable.check-conflicts') }}?bell_timing_id=${timingId}&teacher_id=${teacherId}&co_teacher_id=${coTeacherId}&room_number=${room}&status=${status}&school_class_id=${schoolClassId ?? ''}&section_id=${sectionId ?? ''}`)
             .then(res => res.json())
             .then(data => {
                 const alertDiv = document.getElementById('conflictAlert');
