@@ -39,6 +39,7 @@
         padding: 6px;
         border-radius: 4px;
         font-size: 0.85rem;
+        cursor: pointer;
     }
     .delete-slot-btn {
         position: absolute;
@@ -236,7 +237,20 @@
                         @endphp
                         <div class="grid-cell {{ $slot && $view === 'draft' ? 'is-draft-cell' : '' }}">
                             @if($slot)
-                                <div class="slot-card shadow-sm {{ $view === 'draft' ? 'is-draft-slot' : '' }}">
+                                <div class="slot-card shadow-sm {{ $view === 'draft' ? 'is-draft-slot' : '' }}"
+                                     role="button" tabindex="0" title="{{ $slot->combinedClassGroup ? 'Combined-group lessons can\'t be edited from here' : 'Click to edit this lesson' }}"
+                                     data-slot="{{ Illuminate\Support\Js::from([
+                                         'id' => $slot->id,
+                                         'school_class_id' => $slot->school_class_id,
+                                         'section_id' => $slot->section_id,
+                                         'bell_timing_id' => $slot->bell_timing_id,
+                                         'subject_id' => $slot->subject_id,
+                                         'teacher_id' => $slot->teacher_id,
+                                         'co_teacher_id' => $slot->co_teacher_id,
+                                         'room_number' => $slot->room_number,
+                                         'combined' => (bool) $slot->combined_class_group_id,
+                                     ]) }}"
+                                     onclick="openEditModal(this)">
                                     <strong class="text-primary d-block">{{ $slot->subject->name }}</strong>
                                     <span class="text-muted d-block small">
                                         <i class="fas fa-chalkboard-teacher"></i> {{ $slot->teacher->name }}{{ $slot->coTeacher ? ' / ' . $slot->coTeacher->name : '' }}
@@ -319,7 +333,7 @@
 
                     <div class="form-group">
                         <label for="modal_subject_id" class="text-dark font-weight-bold">Subject</label>
-                        <select name="subject_id" id="modal_subject_id" class="form-control" required>
+                        <select name="subject_id" id="modal_subject_id" class="form-control" required onchange="triggerConflictCheck()">
                             <option value="">-- Choose Subject --</option>
                             @foreach($subjects as $sub)
                                 <option value="{{ $sub->id }}">{{ $sub->name }}</option>
@@ -356,6 +370,7 @@
                     <div id="conflictAlert" class="alert alert-warning d-none font-weight-bold mt-3">
                         <i class="fas fa-exclamation-triangle mr-2"></i> <span id="conflictAlertText"></span>
                     </div>
+                    <div id="conflictSuggestions" class="mt-2"></div>
                 </div>
 
                 <div class="modal-footer">
@@ -367,6 +382,114 @@
     </div>
 </div>
 
+{{--
+    Timetable Editor Slice 1: editing an ALREADY-PLACED lesson. Same modal
+    pattern as "Add" above (same field set, same live conflict-check-as-
+    you-type behaviour against the same TimetableConflictResolver-backed
+    endpoint), plus Class/Section selects since an edit is allowed to move
+    a lesson to a different class-section, not just a different period.
+    Deliberately one combined "Period" dropdown (day + period together),
+    matching the Add modal above, rather than two separate Day/Period
+    selects -- bell_timing_id is the only thing the schema actually stores
+    (there is no separate `day` column), and this keeps the new UI
+    consistent with the existing one instead of introducing new
+    day-then-period cascading-select logic.
+--}}
+@if($schoolClassId)
+<div class="modal fade" id="editSlotModal" tabindex="-1" role="dialog" aria-labelledby="editSlotModalLabel" aria-hidden="true">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content glass-card">
+            <div class="modal-header">
+                <h5 class="modal-title font-weight-bold text-dark" id="editSlotModalLabel">Edit Lesson</h5>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <form id="editSlotForm" method="POST">
+                @csrf
+                @method('PATCH')
+
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label for="edit_school_class_id" class="text-dark font-weight-bold">Class</label>
+                        <select name="school_class_id" id="edit_school_class_id" class="form-control" required onchange="triggerEditConflictCheck()">
+                            @foreach($classes as $c)
+                                <option value="{{ $c->id }}">{{ $c->name }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="edit_section_id" class="text-dark font-weight-bold">Section (Optional)</label>
+                        <select name="section_id" id="edit_section_id" class="form-control" onchange="triggerEditConflictCheck()">
+                            <option value="">-- Whole Class --</option>
+                            @foreach($sections as $s)
+                                <option value="{{ $s->id }}">{{ $s->name }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="edit_bell_timing_id" class="text-dark font-weight-bold">Day &amp; Period</label>
+                        <select name="bell_timing_id" id="edit_bell_timing_id" class="form-control" required onchange="triggerEditConflictCheck()">
+                            @foreach($bellTimings as $t)
+                                <option value="{{ $t->id }}">
+                                    {{ $t->day_of_week }} - {{ $t->period_name }} ({{ $t->start_time->format('H:i') }} - {{ $t->end_time->format('H:i') }})
+                                </option>
+                            @endforeach
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="edit_subject_id" class="text-dark font-weight-bold">Subject</label>
+                        <select name="subject_id" id="edit_subject_id" class="form-control" required onchange="triggerEditConflictCheck()">
+                            @foreach($subjects as $sub)
+                                <option value="{{ $sub->id }}">{{ $sub->name }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="edit_teacher_id" class="text-dark font-weight-bold">Teacher</label>
+                        <select name="teacher_id" id="edit_teacher_id" class="form-control" required onchange="triggerEditConflictCheck()">
+                            @foreach($teachers as $teacher)
+                                <option value="{{ $teacher->id }}">{{ $teacher->name }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="edit_co_teacher_id" class="text-dark font-weight-bold">Co-Teacher (Optional, Team Teaching)</label>
+                        <select name="co_teacher_id" id="edit_co_teacher_id" class="form-control" onchange="triggerEditConflictCheck()">
+                            <option value="">-- None --</option>
+                            @foreach($teachers as $teacher)
+                                <option value="{{ $teacher->id }}">{{ $teacher->name }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="edit_room_number" class="text-dark font-weight-bold">Room Number (Optional)</label>
+                        <input type="text" name="room_number" id="edit_room_number" class="form-control" placeholder="e.g. Lab-3A" onkeyup="triggerEditConflictCheck()">
+                    </div>
+
+                    <!-- Conflict alert area -->
+                    <div id="editConflictAlert" class="alert alert-warning d-none font-weight-bold mt-3">
+                        <i class="fas fa-exclamation-triangle mr-2"></i> <span id="editConflictAlertText"></span>
+                    </div>
+                    <div id="editConflictSuggestions" class="mt-2"></div>
+                </div>
+
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+                    <button type="submit" id="saveEditBtn" class="btn btn-primary">Save</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+@endif
+
 <script>
     function setSlotDefaults(day, timingId) {
         document.getElementById('modal_bell_timing_id').value = timingId;
@@ -377,6 +500,7 @@
         const timingId = document.getElementById('modal_bell_timing_id').value;
         const teacherId = document.getElementById('modal_teacher_id').value;
         const coTeacherId = document.getElementById('modal_co_teacher_id').value;
+        const subjectId = document.getElementById('modal_subject_id').value;
         const room = document.getElementById('modal_room_number').value;
 
         if (!timingId || !teacherId) {
@@ -389,23 +513,169 @@
         const schoolClassId = @json($schoolClassId);
         const sectionId = @json($sectionId);
 
-        fetch(`{{ route('timetable.check-conflicts') }}?bell_timing_id=${timingId}&teacher_id=${teacherId}&co_teacher_id=${coTeacherId}&room_number=${room}&status=${status}&school_class_id=${schoolClassId ?? ''}&section_id=${sectionId ?? ''}`)
+        fetch(`{{ route('timetable.check-conflicts') }}?bell_timing_id=${timingId}&teacher_id=${teacherId}&co_teacher_id=${coTeacherId}&subject_id=${subjectId}&room_number=${room}&status=${status}&school_class_id=${schoolClassId ?? ''}&section_id=${sectionId ?? ''}`)
             .then(res => res.json())
             .then(data => {
                 const alertDiv = document.getElementById('conflictAlert');
                 const textSpan = document.getElementById('conflictAlertText');
                 const saveBtn = document.getElementById('saveSlotBtn');
+                const suggestionsDiv = document.getElementById('conflictSuggestions');
+                suggestionsDiv.innerHTML = '';
 
                 if (data.conflict) {
                     alertDiv.classList.remove('d-none');
                     textSpan.innerText = data.message;
                     saveBtn.disabled = true; // Disable scheduling if there's conflict
+                    renderSuggestions(data.suggestions, suggestionsDiv, 'modal_bell_timing_id', triggerConflictCheck);
                 } else {
                     alertDiv.classList.add('d-none');
                     saveBtn.disabled = false;
                 }
             });
     }
+
+    /**
+     * Timetable Editor Slice 1: the SAME check-conflicts endpoint the Add
+     * modal already uses, TimetableConflictResolver end to end -- no
+     * second/parallel conflict engine. Passing `id` makes the server-side
+     * resolver ignore THIS row itself (ignore_slot_id), exactly the same
+     * mechanism the controller's update() action uses for its own,
+     * authoritative, final check -- this live check is a preview only,
+     * never trusted for the actual save.
+     */
+    function triggerEditConflictCheck() {
+        const slotId = document.getElementById('editSlotForm').dataset.slotId;
+        const timingId = document.getElementById('edit_bell_timing_id').value;
+        const teacherId = document.getElementById('edit_teacher_id').value;
+        const coTeacherId = document.getElementById('edit_co_teacher_id').value;
+        const subjectId = document.getElementById('edit_subject_id').value;
+        const room = document.getElementById('edit_room_number').value;
+        const schoolClassId = document.getElementById('edit_school_class_id').value;
+        const sectionId = document.getElementById('edit_section_id').value;
+
+        const alertDiv = document.getElementById('editConflictAlert');
+        const saveBtn = document.getElementById('saveEditBtn');
+
+        if (!timingId || !teacherId || !schoolClassId) {
+            alertDiv.classList.add('d-none');
+            saveBtn.disabled = false;
+            return;
+        }
+
+        const status = @json($view ?? 'published');
+
+        fetch(`{{ route('timetable.check-conflicts') }}?bell_timing_id=${timingId}&teacher_id=${teacherId}&co_teacher_id=${coTeacherId}&subject_id=${subjectId}&room_number=${room}&status=${status}&school_class_id=${schoolClassId}&section_id=${sectionId}&id=${slotId}`)
+            .then(res => res.json())
+            .then(data => {
+                const textSpan = document.getElementById('editConflictAlertText');
+                const suggestionsDiv = document.getElementById('editConflictSuggestions');
+                suggestionsDiv.innerHTML = '';
+
+                if (data.conflict) {
+                    alertDiv.classList.remove('d-none');
+                    textSpan.innerText = data.message;
+                    saveBtn.disabled = true;
+                    renderSuggestions(data.suggestions, suggestionsDiv, 'edit_bell_timing_id', triggerEditConflictCheck);
+                } else {
+                    alertDiv.classList.add('d-none');
+                    saveBtn.disabled = false;
+                }
+            });
+    }
+
+    /**
+     * Opens the Edit modal for an occupied cell, pre-filled from the row's
+     * own data-slot attribute (real server-rendered data, not guessed).
+     * Combined-group rows are out of scope for this slice -- see
+     * TimetableController::update() -- so clicking one just explains why
+     * instead of opening a modal it would only reject.
+     */
+    function openEditModal(cardEl) {
+        const slot = JSON.parse(cardEl.dataset.slot);
+
+        if (slot.combined) {
+            alert('This lesson is part of a combined class group. Clear it and re-place it via Combined Groups to change it -- editing a combined lesson from a single cell isn\'t supported yet.');
+            return;
+        }
+
+        const form = document.getElementById('editSlotForm');
+        form.action = @json(url('/admin/timetable')) + '/' + slot.id;
+        form.dataset.slotId = slot.id;
+
+        document.getElementById('edit_school_class_id').value = slot.school_class_id;
+        document.getElementById('edit_section_id').value = slot.section_id ?? '';
+        document.getElementById('edit_bell_timing_id').value = slot.bell_timing_id;
+        document.getElementById('edit_subject_id').value = slot.subject_id;
+        document.getElementById('edit_teacher_id').value = slot.teacher_id;
+        document.getElementById('edit_co_teacher_id').value = slot.co_teacher_id ?? '';
+        document.getElementById('edit_room_number').value = slot.room_number ?? '';
+        document.getElementById('editConflictAlert').classList.add('d-none');
+        document.getElementById('editConflictSuggestions').innerHTML = '';
+        document.getElementById('saveEditBtn').disabled = false;
+
+        $('#editSlotModal').modal('show');
+    }
+
+    /**
+     * Phase 3 (Smart Suggestions): every option shown here was already
+     * validated clean by TimetableConflictResolver via
+     * TimetableSuggestionService -- clicking a "move this lesson" option
+     * just re-points the period dropdown and re-checks (still a real,
+     * server-validated check, not a client-side shortcut). "Relocate the
+     * other lesson instead" options are shown as information only for now
+     * -- actually moving someone else's lesson is an Auto-Fix action, not
+     * built yet. Shared by both the Add and Edit modals -- one rendering
+     * function, no duplicated suggestion-display logic between them.
+     */
+    function renderSuggestions(suggestions, container, targetFieldId, recheckFn) {
+        if (!suggestions) return;
+
+        (suggestions.move_lesson || []).forEach(s => {
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'btn btn-sm btn-outline-success mr-1 mb-1';
+            btn.innerText = s.description;
+            btn.addEventListener('click', function () {
+                document.getElementById(targetFieldId).value = s.bell_timing_id;
+                recheckFn();
+            });
+            container.appendChild(btn);
+        });
+
+        (suggestions.relocate_blocker || []).forEach(s => {
+            const note = document.createElement('div');
+            note.className = 'small text-muted mb-1';
+            note.innerText = 'Alternative: ' + s.description + ' (not applied automatically).';
+            container.appendChild(note);
+        });
+    }
+
+    @if(session('edit_conflict'))
+        document.addEventListener('DOMContentLoaded', function () {
+            const conflict = @json(session('edit_conflict'));
+            const old = @json(old());
+            // Re-open with whatever the user last submitted (old()), not the
+            // pre-edit values, so the rejected attempt is visible to fix.
+            const form = document.getElementById('editSlotForm');
+            if (!form) { return; }
+            form.action = @json(url('/admin/timetable')) + '/' + conflict.slot_id;
+            form.dataset.slotId = conflict.slot_id;
+            document.getElementById('edit_school_class_id').value = old.school_class_id ?? '';
+            document.getElementById('edit_section_id').value = old.section_id ?? '';
+            document.getElementById('edit_bell_timing_id').value = old.bell_timing_id ?? '';
+            document.getElementById('edit_subject_id').value = old.subject_id ?? '';
+            document.getElementById('edit_teacher_id').value = old.teacher_id ?? '';
+            document.getElementById('edit_co_teacher_id').value = old.co_teacher_id ?? '';
+            document.getElementById('edit_room_number').value = old.room_number ?? '';
+
+            const alertDiv = document.getElementById('editConflictAlert');
+            alertDiv.classList.remove('d-none');
+            document.getElementById('editConflictAlertText').innerText = conflict.message;
+            renderSuggestions({ move_lesson: conflict.suggestions }, document.getElementById('editConflictSuggestions'), 'edit_bell_timing_id', triggerEditConflictCheck);
+
+            $('#editSlotModal').modal('show');
+        });
+    @endif
 </script>
 @endif
 
