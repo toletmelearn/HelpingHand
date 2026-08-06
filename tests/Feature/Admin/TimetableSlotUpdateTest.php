@@ -394,6 +394,255 @@ class TimetableSlotUpdateTest extends TestCase
         $this->assertSame($this->timing1->id, $slotA->bell_timing_id);
     }
 
+    // --- Phase C: every TimetableConflictResolver rule, reached through the edit endpoint specifically ---
+
+    /** A co-teacher, not just the primary teacher, must block an edit -- teacherOverlapConflicts checks both columns on existing rows. */
+    public function test_edit_rejected_for_a_co_teacher_conflict(): void
+    {
+        $admin = $this->makeAdmin();
+        $slotA = $this->makeSlot(['teacher_id' => $this->teacher->id, 'bell_timing_id' => $this->timing1->id]);
+        $busyTeacher = Teacher::create(['name' => 'Busy Co-Teacher']);
+
+        $otherClass = SchoolClass::create(['name' => 'Class D ' . uniqid(), 'class_order' => random_int(1, 100000), 'is_active' => true]);
+        TimetableSlot::create([
+            'school_class_id' => $otherClass->id,
+            'bell_timing_id' => $this->timing2->id,
+            'subject_id' => $this->subject->id,
+            'teacher_id' => $busyTeacher->id,
+        ]);
+
+        $response = $this->actingAs($admin)->patch(route('timetable.update', $slotA), [
+            'school_class_id' => $this->class->id,
+            'section_id' => $this->section->id,
+            'bell_timing_id' => $this->timing2->id,
+            'subject_id' => $this->subject->id,
+            'teacher_id' => $this->teacher->id,
+            'co_teacher_id' => $busyTeacher->id,
+        ]);
+
+        $response->assertSessionHas('error');
+        $slotA->refresh();
+        $this->assertSame($this->timing1->id, $slotA->bell_timing_id);
+    }
+
+    /** A class-wide (section_id null) slot must block editing a section-specific lesson into the same period -- classSectionOverlapConflicts' cross-case. */
+    public function test_edit_rejected_for_a_class_section_conflict(): void
+    {
+        $admin = $this->makeAdmin();
+        $slotA = $this->makeSlot(['bell_timing_id' => $this->timing1->id]);
+
+        TimetableSlot::create([
+            'school_class_id' => $this->class->id,
+            'section_id' => null, // whole-class slot
+            'bell_timing_id' => $this->timing2->id,
+            'subject_id' => $this->subject->id,
+            'teacher_id' => Teacher::create(['name' => 'Whole Class Teacher'])->id,
+        ]);
+
+        $response = $this->actingAs($admin)->patch(route('timetable.update', $slotA), [
+            'school_class_id' => $this->class->id,
+            'section_id' => $this->section->id,
+            'bell_timing_id' => $this->timing2->id,
+            'subject_id' => $this->subject->id,
+            'teacher_id' => $this->teacher->id,
+        ]);
+
+        $response->assertSessionHas('error');
+        $slotA->refresh();
+        $this->assertSame($this->timing1->id, $slotA->bell_timing_id);
+    }
+
+    public function test_edit_rejected_for_a_room_conflict(): void
+    {
+        $admin = $this->makeAdmin();
+        $slotA = $this->makeSlot(['bell_timing_id' => $this->timing1->id, 'room_number' => 'Lab-1']);
+
+        $otherClass = SchoolClass::create(['name' => 'Class E ' . uniqid(), 'class_order' => random_int(1, 100000), 'is_active' => true]);
+        TimetableSlot::create([
+            'school_class_id' => $otherClass->id,
+            'bell_timing_id' => $this->timing2->id,
+            'subject_id' => $this->subject->id,
+            'teacher_id' => Teacher::create(['name' => 'Other Room Teacher'])->id,
+            'room_number' => 'Lab-1',
+        ]);
+
+        $response = $this->actingAs($admin)->patch(route('timetable.update', $slotA), [
+            'school_class_id' => $this->class->id,
+            'section_id' => $this->section->id,
+            'bell_timing_id' => $this->timing2->id,
+            'subject_id' => $this->subject->id,
+            'teacher_id' => $this->teacher->id,
+            'room_number' => 'Lab-1',
+        ]);
+
+        $response->assertSessionHas('error');
+        $slotA->refresh();
+        $this->assertSame($this->timing1->id, $slotA->bell_timing_id);
+    }
+
+    public function test_edit_rejected_for_a_teacher_availability_conflict(): void
+    {
+        $admin = $this->makeAdmin();
+        $slotA = $this->makeSlot(['bell_timing_id' => $this->timing1->id]);
+
+        \App\Models\TeacherAvailability::create([
+            'teacher_id' => $this->teacher->id,
+            'bell_timing_id' => $this->timing2->id,
+            'is_available' => false,
+        ]);
+
+        $response = $this->actingAs($admin)->patch(route('timetable.update', $slotA), [
+            'school_class_id' => $this->class->id,
+            'section_id' => $this->section->id,
+            'bell_timing_id' => $this->timing2->id,
+            'subject_id' => $this->subject->id,
+            'teacher_id' => $this->teacher->id,
+        ]);
+
+        $response->assertSessionHas('error');
+        $slotA->refresh();
+        $this->assertSame($this->timing1->id, $slotA->bell_timing_id);
+    }
+
+    /** periodTypeConflicts: a lesson cannot be edited into a non-teaching (break) period. */
+    public function test_edit_rejected_when_the_new_period_is_not_a_teaching_period(): void
+    {
+        $admin = $this->makeAdmin();
+        $slotA = $this->makeSlot(['bell_timing_id' => $this->timing1->id]);
+        $breakTiming = BellTiming::create([
+            'day_of_week' => 'Monday', 'period_name' => 'Break', 'start_time' => '11:00:00', 'end_time' => '11:15:00',
+            'is_active' => true, 'is_break' => true, 'period_type' => BellTiming::PERIOD_TYPE_BREAK, 'order_index' => 5,
+        ]);
+
+        $response = $this->actingAs($admin)->patch(route('timetable.update', $slotA), [
+            'school_class_id' => $this->class->id,
+            'section_id' => $this->section->id,
+            'bell_timing_id' => $breakTiming->id,
+            'subject_id' => $this->subject->id,
+            'teacher_id' => $this->teacher->id,
+        ]);
+
+        $response->assertSessionHas('error');
+        $conflict = session('edit_conflict');
+        $this->assertSame('period_type', $conflict['conflicts'][0]['type']);
+        $slotA->refresh();
+        $this->assertSame($this->timing1->id, $slotA->bell_timing_id);
+    }
+
+    /**
+     * A busy slot sitting on an OTHER academic year's bell timing (same
+     * day/time window, different academic_year tag) must never block an
+     * edit into the CURRENT year's equivalent period -- proves the
+     * isolation TimetableConflictResolver::overlappingBellTimingIds()
+     * already provides is actually reachable through the edit endpoint,
+     * not just the resolver's own unit tests.
+     */
+    public function test_edit_respects_academic_year_isolation(): void
+    {
+        $admin = $this->makeAdmin();
+        $slotA = $this->makeSlot(['bell_timing_id' => $this->timing1->id, 'academic_year' => '2026-2027']);
+
+        $currentYearTiming = BellTiming::create([
+            'day_of_week' => 'Monday', 'period_name' => 'Period 9', 'start_time' => '13:00:00', 'end_time' => '14:00:00',
+            'is_active' => true, 'is_break' => false, 'order_index' => 9, 'academic_year' => '2026-2027',
+        ]);
+        $otherYearTiming = BellTiming::create([
+            'day_of_week' => 'Monday', 'period_name' => 'Period 9', 'start_time' => '13:00:00', 'end_time' => '14:00:00',
+            'is_active' => true, 'is_break' => false, 'order_index' => 9, 'academic_year' => '2025-2026',
+        ]);
+
+        $otherClass = SchoolClass::create(['name' => 'Class F ' . uniqid(), 'class_order' => random_int(1, 100000), 'is_active' => true]);
+        TimetableSlot::create([
+            'school_class_id' => $otherClass->id,
+            'bell_timing_id' => $otherYearTiming->id,
+            'subject_id' => $this->subject->id,
+            'teacher_id' => $this->teacher->id,
+            'academic_year' => '2025-2026',
+        ]);
+
+        $response = $this->actingAs($admin)->patch(route('timetable.update', $slotA), [
+            'school_class_id' => $this->class->id,
+            'section_id' => $this->section->id,
+            'bell_timing_id' => $currentYearTiming->id,
+            'subject_id' => $this->subject->id,
+            'teacher_id' => $this->teacher->id,
+        ]);
+
+        $response->assertSessionHas('success');
+        $this->assertSame($currentYearTiming->id, $slotA->refresh()->bell_timing_id);
+    }
+
+    /** The backend must not collapse multiple simultaneous violations into just the first message -- the full 'conflicts' array must carry every one. */
+    public function test_conflict_response_contains_every_violation_not_just_the_first(): void
+    {
+        $admin = $this->makeAdmin();
+        $slotA = $this->makeSlot(['bell_timing_id' => $this->timing1->id]);
+        $busyTeacher = Teacher::create(['name' => 'Double Trouble Teacher']);
+
+        $otherClass = SchoolClass::create(['name' => 'Class G ' . uniqid(), 'class_order' => random_int(1, 100000), 'is_active' => true]);
+        // Two independent violations at the SAME target period: the teacher is busy, AND the room is taken.
+        TimetableSlot::create([
+            'school_class_id' => $otherClass->id,
+            'bell_timing_id' => $this->timing2->id,
+            'subject_id' => $this->subject->id,
+            'teacher_id' => $busyTeacher->id,
+            'room_number' => 'Lab-2',
+        ]);
+
+        $response = $this->actingAs($admin)->patch(route('timetable.update', $slotA), [
+            'school_class_id' => $this->class->id,
+            'section_id' => $this->section->id,
+            'bell_timing_id' => $this->timing2->id,
+            'subject_id' => $this->subject->id,
+            'teacher_id' => $busyTeacher->id,
+            'room_number' => 'Lab-2',
+        ]);
+
+        $response->assertSessionHas('error');
+        $conflicts = session('edit_conflict')['conflicts'];
+        $this->assertGreaterThanOrEqual(2, count($conflicts));
+        $types = array_column($conflicts, 'type');
+        $this->assertContains('teacher', $types);
+        $this->assertContains('room', $types);
+    }
+
+    /** A suggestion returned by a rejected edit must be genuinely applicable, not just visually present -- apply it for real and confirm it succeeds. */
+    public function test_suggested_alternative_from_a_rejected_edit_actually_succeeds_when_applied(): void
+    {
+        $admin = $this->makeAdmin();
+        $slotA = $this->makeSlot(['teacher_id' => $this->teacher->id, 'bell_timing_id' => $this->timing1->id]);
+
+        $otherClass = SchoolClass::create(['name' => 'Class H ' . uniqid(), 'class_order' => random_int(1, 100000), 'is_active' => true]);
+        TimetableSlot::create([
+            'school_class_id' => $otherClass->id,
+            'bell_timing_id' => $this->timing2->id,
+            'subject_id' => $this->subject->id,
+            'teacher_id' => $this->teacher->id,
+        ]);
+
+        $rejected = $this->actingAs($admin)->patch(route('timetable.update', $slotA), [
+            'school_class_id' => $this->class->id,
+            'section_id' => $this->section->id,
+            'bell_timing_id' => $this->timing2->id,
+            'subject_id' => $this->subject->id,
+            'teacher_id' => $this->teacher->id,
+        ]);
+        $rejected->assertSessionHas('error');
+
+        $suggestion = session('edit_conflict')['suggestions'][0];
+
+        $applied = $this->actingAs($admin)->patch(route('timetable.update', $slotA), [
+            'school_class_id' => $this->class->id,
+            'section_id' => $this->section->id,
+            'bell_timing_id' => $suggestion['bell_timing_id'],
+            'subject_id' => $this->subject->id,
+            'teacher_id' => $this->teacher->id,
+        ]);
+
+        $applied->assertSessionHas('success');
+        $this->assertSame($suggestion['bell_timing_id'], $slotA->refresh()->bell_timing_id);
+    }
+
     /** The conflict response must carry TimetableSuggestionService's own already-validated alternatives, not an empty/bare rejection. */
     public function test_conflict_response_includes_validated_suggestions_from_the_suggestion_service(): void
     {

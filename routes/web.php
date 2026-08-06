@@ -1728,6 +1728,10 @@ Route::middleware(['auth'])->group(function () {
 // Phase 6 Routes
 Route::middleware(['auth'])->group(function () {
     // Timetable Scheduler
+    // Timetable Editor Phase B: single consolidated workspace, entry point
+    // the sidebar now points to -- timetable.index (the standalone grid)
+    // stays registered and fully functional underneath it, unchanged.
+    Route::get('/admin/timetable/workspace', [\App\Http\Controllers\Admin\TimetableController::class, 'workspace'])->name('timetable.workspace');
     Route::get('/admin/timetable', [\App\Http\Controllers\Admin\TimetableController::class, 'index'])->name('timetable.index');
     Route::post('/admin/timetable', [\App\Http\Controllers\Admin\TimetableController::class, 'store'])->name('timetable.store');
     Route::patch('/admin/timetable/{slot}', [\App\Http\Controllers\Admin\TimetableController::class, 'update'])->name('timetable.update');

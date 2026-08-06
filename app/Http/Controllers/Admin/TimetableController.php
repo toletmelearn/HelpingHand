@@ -35,6 +35,17 @@ class TimetableController extends Controller
     {
         $this->authorize('viewAny', TimetableSlot::class);
 
+        return view('admin.timetable.grid', $this->buildGridViewData($request));
+    }
+
+    /**
+     * Shared by index() and workspace() -- the exact same class/section
+     * grid data, so the Timetable Workspace's "Review & Edit" section
+     * shows byte-identical data to the standalone grid page rather than a
+     * second, drifting copy of this lookup.
+     */
+    private function buildGridViewData(Request $request): array
+    {
         $schoolClassId = $request->get('school_class_id');
         $sectionId = $request->get('section_id');
         $view = $request->get('status') === 'draft' ? 'draft' : 'published';
@@ -70,7 +81,7 @@ class TimetableController extends Controller
             }
         }
 
-        return view('admin.timetable.grid', compact(
+        return compact(
             'classes',
             'sections',
             'teachers',
@@ -82,7 +93,55 @@ class TimetableController extends Controller
             'view',
             'activeGeneration',
             'hasDraft'
-        ));
+        );
+    }
+
+    /**
+     * Timetable Editor Phase B: the single consolidated workspace the
+     * sidebar's "Timetable Editor" entry now opens. Structural shell only
+     * -- every section reuses the SAME services/controllers/routes the
+     * standalone pages already use (FeasibilityService for readiness,
+     * buildGridViewData() for Review & Edit, the existing generate/wizard/
+     * publish routes for their actions). No new business rules, no
+     * duplicated conflict/suggestion/generation logic.
+     */
+    public function workspace(Request $request, FeasibilityService $service)
+    {
+        $this->authorize('viewAny', TimetableSlot::class);
+
+        $currentSession = AcademicSession::current()->first();
+        $academicYear = $currentSession?->code;
+
+        $report = $service->build($academicYear);
+
+        $timetableStatus = TimetableSlot::published()->exists()
+            ? 'published'
+            : (TimetableSlot::draft()->exists() ? 'draft' : 'none');
+
+        $counts = [
+            'classes' => SchoolClass::active()->count(),
+            'sections' => Section::count(),
+            'teachers' => Teacher::count(),
+            'subjects' => Subject::count(),
+            'bell_timings' => BellTiming::active()->count(),
+        ];
+
+        $readinessIssueCount = count($report['conflicts'] ?? [])
+            + count($report['class_teacher_readiness'] ?? []);
+        $readiness = $readinessIssueCount === 0
+            ? (empty($report['grid_capacity']) ? 'blocked' : 'ready')
+            : (count($report['conflicts'] ?? []) > 0 ? 'blocked' : 'warning');
+
+        $gridData = $this->buildGridViewData($request);
+
+        return view('admin.timetable.workspace', array_merge($gridData, [
+            'currentSession' => $currentSession,
+            'academicYear' => $academicYear,
+            'timetableStatus' => $timetableStatus,
+            'counts' => $counts,
+            'report' => $report,
+            'readiness' => $readiness,
+        ]));
     }
 
     public function store(Request $request)

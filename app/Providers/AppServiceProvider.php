@@ -75,15 +75,16 @@ class AppServiceProvider extends ServiceProvider
                 ]
             ]);
 
-            // Register Phase 6 Sidebar entries
-            $registry->registerSidebarEntry('scholastic_scheduler', [
-                'title' => 'Timetable & Scheduling',
-                'icon' => 'bi-calendar-range',
-                'roles' => ['admin', 'super-admin', 'teacher'],
-                'links' => [
-                    ['title' => 'Weekly Timetable', 'url' => '/admin/timetable', 'icon' => 'bi-grid-3x3-gap'],
-                ]
-            ]);
+            // Timetable Editor Phase B: this "scholastic_scheduler" section
+            // used to register a second, independent sidebar entry
+            // ("Weekly Timetable" -> /admin/timetable) alongside the
+            // "Timetable Editor" entry in Academic Management
+            // (sidebar.blade.php) -- a real duplicate timetable navigation
+            // entry, missed by the earlier sidebar.blade.php-only audit
+            // since it's registered dynamically here, not in that file.
+            // Removed to leave exactly one timetable entry point. The
+            // /admin/timetable route itself is untouched and still fully
+            // functional -- only this stray extra link is gone.
 
             $registry->registerSidebarEntry('library_circulations', [
                 'title' => 'Library Management',
