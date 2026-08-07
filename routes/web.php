@@ -1728,10 +1728,16 @@ Route::middleware(['auth'])->group(function () {
 // Phase 6 Routes
 Route::middleware(['auth'])->group(function () {
     // Timetable Scheduler
+    // Timetable Editor Phase B: single consolidated workspace, entry point
+    // the sidebar now points to -- timetable.index (the standalone grid)
+    // stays registered and fully functional underneath it, unchanged.
+    Route::get('/admin/timetable/workspace', [\App\Http\Controllers\Admin\TimetableController::class, 'workspace'])->name('timetable.workspace');
     Route::get('/admin/timetable', [\App\Http\Controllers\Admin\TimetableController::class, 'index'])->name('timetable.index');
     Route::post('/admin/timetable', [\App\Http\Controllers\Admin\TimetableController::class, 'store'])->name('timetable.store');
+    Route::patch('/admin/timetable/{slot}', [\App\Http\Controllers\Admin\TimetableController::class, 'update'])->name('timetable.update');
     Route::delete('/admin/timetable/{id}', [\App\Http\Controllers\Admin\TimetableController::class, 'destroy'])->name('timetable.destroy');
     Route::get('/admin/timetable/check-conflicts', [\App\Http\Controllers\Admin\TimetableController::class, 'checkConflictsApi'])->name('timetable.check-conflicts');
+    Route::post('/admin/timetable/auto-fix/relocate-blocker', [\App\Http\Controllers\Admin\TimetableController::class, 'autoFixRelocateBlocker'])->name('timetable.auto-fix.relocate-blocker');
     Route::get('/admin/timetable/feasibility', [\App\Http\Controllers\Admin\TimetableController::class, 'feasibility'])->name('timetable.feasibility');
     Route::get('/admin/timetable/pdf/class', [\App\Http\Controllers\Admin\TimetableController::class, 'classPdf'])->name('timetable.pdf.class');
     Route::get('/admin/timetable/pdf/teacher', [\App\Http\Controllers\Admin\TimetableController::class, 'teacherPdf'])->name('timetable.pdf.teacher');

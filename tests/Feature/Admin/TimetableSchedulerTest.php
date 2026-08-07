@@ -384,4 +384,32 @@ class TimetableSchedulerTest extends TestCase
             'type' => 'teacher',
         ]);
     }
+
+    /** Phase 3: a conflict response also carries validated suggestions -- move-lesson alternatives at minimum, since timing2 is free for this teacher. */
+    public function test_check_conflicts_api_includes_suggestions_when_conflicted()
+    {
+        TimetableSlot::create([
+            'school_class_id' => $this->class->id,
+            'section_id' => $this->section->id,
+            'bell_timing_id' => $this->timing1->id,
+            'subject_id' => $this->subject->id,
+            'teacher_id' => $this->teacher->id,
+        ]);
+
+        $otherClass = SchoolClass::create(['name' => 'Class Y', 'class_order' => 99]);
+
+        $response = $this->actingAs($this->adminUser)
+            ->get(route('timetable.check-conflicts', [
+                'school_class_id' => $otherClass->id,
+                'bell_timing_id' => $this->timing1->id,
+                'teacher_id' => $this->teacher->id,
+                'subject_id' => $this->subject->id,
+            ]));
+
+        $response->assertJson(['conflict' => true]);
+        $suggestions = $response->json('suggestions');
+        $this->assertNotNull($suggestions);
+        $this->assertNotEmpty($suggestions['move_lesson']);
+        $this->assertSame($this->timing2->id, $suggestions['move_lesson'][0]['bell_timing_id']);
+    }
 }

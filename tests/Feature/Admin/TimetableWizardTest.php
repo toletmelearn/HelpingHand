@@ -105,6 +105,35 @@ class TimetableWizardTest extends TestCase
         $response->assertSee('Class-section 1 of 2');
     }
 
+    /**
+     * The exact scenario found live in this project's own dev database:
+     * a retired/other-year assignment row (e.g. leftover walkthrough test
+     * data) with a section_id set must not make a class appear split into
+     * sections it doesn't actually have for the CURRENT year -- it should
+     * still show as a single, sectionless class-section entry.
+     */
+    public function test_an_other_year_assignment_does_not_falsely_split_a_sectionless_class(): void
+    {
+        $admin = $this->makeAdmin();
+        $data = $this->seedSchool();
+        $section = Section::create(['name' => 'A']);
+
+        TeacherClassSubjectAssignment::create([
+            'teacher_id' => $data['teacherA']->id,
+            'class_id' => $data['classA']->id,
+            'section_id' => $section->id,
+            'subject_id' => $data['subject']->id,
+            'academic_year' => self::YEAR . '-WALKTHROUGH-ARCHIVED',
+        ]);
+
+        $response = $this->actingAs($admin)->get(route('timetable.wizard.step1', [$data['classA']]));
+
+        $response->assertOk();
+        // Still "1 of 2" (Class A + Class B, both sectionless) -- the
+        // other-year section-A row must not add a phantom extra entry.
+        $response->assertSee('Class-section 1 of 2');
+    }
+
     public function test_step2_shows_style_options_with_the_period_1_note(): void
     {
         $admin = $this->makeAdmin();
