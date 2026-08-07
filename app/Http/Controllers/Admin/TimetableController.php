@@ -1010,6 +1010,74 @@ class TimetableController extends Controller
     }
 
     /**
+     * Phase 4 (Auto-Fix, chain repair): read-only preview of a multi-step
+     * fix -- gated the same as the live conflict-check/relocate-blocker
+     * preview (viewAny), since nothing is mutated here; applyAutoFixChain()
+     * below is where real authorization is enforced. academic_year is
+     * never client-supplied, matching store()/checkSlotConflicts() -- this
+     * preview must reflect the exact year a real placement would use.
+     */
+    public function autoFixPreviewChain(Request $request)
+    {
+        $this->authorize('viewAny', TimetableSlot::class);
+
+        $validated = $request->validate([
+            'school_class_id' => 'required|exists:school_classes,id',
+            'section_id' => 'nullable|exists:sections,id',
+            'bell_timing_id' => 'required|exists:bell_timings,id',
+            'teacher_id' => 'required|exists:teachers,id',
+            'co_teacher_id' => 'nullable|exists:teachers,id|different:teacher_id',
+            'subject_id' => 'nullable|exists:subjects,id',
+            'room_number' => 'nullable|string|max:50',
+            'status' => 'nullable|in:draft,published',
+        ]);
+
+        $newPlacement = array_merge($validated, [
+            'academic_year' => AcademicSession::current()->first()?->code,
+        ]);
+
+        $result = (new TimetableAutoFixService())->previewChainFix($newPlacement);
+
+        return response()->json($result);
+    }
+
+    /**
+     * Phase 4 (Auto-Fix, chain repair): applies a chain previously shown
+     * by autoFixPreviewChain() -- admin-only (moves class-sections the
+     * caller may have no claim over, same reasoning as autoFix() on
+     * TimetableSlotPolicy already documents for the single-hop case).
+     * Re-validates everything against live data before writing anything --
+     * see TimetableAutoFixService::applyChainFix().
+     */
+    public function autoFixApplyChain(Request $request)
+    {
+        $this->authorize('autoFix', TimetableSlot::class);
+
+        $validated = $request->validate([
+            'school_class_id' => 'required|exists:school_classes,id',
+            'section_id' => 'nullable|exists:sections,id',
+            'bell_timing_id' => 'required|exists:bell_timings,id',
+            'teacher_id' => 'required|exists:teachers,id',
+            'co_teacher_id' => 'nullable|exists:teachers,id|different:teacher_id',
+            'subject_id' => 'nullable|exists:subjects,id',
+            'room_number' => 'nullable|string|max:50',
+            'status' => 'nullable|in:draft,published',
+            'steps' => 'present|array',
+            'steps.*.slot_id' => 'required_with:steps|integer|exists:timetable_slots,id',
+            'steps.*.to_bell_timing_id' => 'required_with:steps|integer|exists:bell_timings,id',
+        ]);
+
+        $newPlacement = array_merge(
+            collect($validated)->except('steps')->all(),
+            ['academic_year' => AcademicSession::current()->first()?->code]
+        );
+
+        $result = (new TimetableAutoFixService())->applyChainFix($newPlacement, $validated['steps']);
+
+        return response()->json($result, $result['applied'] ? 200 : 422);
+    }
+
+    /**
      * Swap Engine (read-only preview): validates trading two lessons'
      * periods without writing anything -- TimetableSwapService::preview()
      * delegates straight to TimetableSuggestionService::checkSwap(), the

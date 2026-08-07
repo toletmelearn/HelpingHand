@@ -313,10 +313,14 @@
                 <div class="card-body">
                     <h6 class="font-weight-bold text-dark">Auto-Fix</h6>
                     <div class="workspace-phase-note">
-                        The backend for relocating a single blocking lesson (TimetableAutoFixService, admin-only,
-                        transactional, activity-logged) already exists and is tested, but is not yet connected to
-                        any button in this interface. Wiring it up -- along with multi-lesson/chain repair and the
-                        simulate-then-confirm flow -- is planned for a later phase, not this one.
+                        Auto-Fix is live in <strong>Review &amp; Edit</strong>: when adding or editing a lesson hits a
+                        scheduling conflict, a "Try Auto-Fix" button appears alongside the usual suggestions. It
+                        searches for a chain of relocations (moving the blocking lesson, and if necessary whatever
+                        blocks THAT lesson, up to a bounded depth) that frees the period you want, shows every step
+                        before anything changes, and only writes once you confirm -- fully transactional, re-validated
+                        against live data at apply time, and activity-logged the same way every other timetable edit
+                        is. A dedicated standalone Auto-Fix browser (scanning the whole timetable for fixable
+                        conflicts outside of an active edit) is planned for a later phase and isn't built yet.
                     </div>
                 </div>
             </div>

@@ -185,6 +185,19 @@ class TimetableSuggestionService
     }
 
     /**
+     * Public entry point onto the same candidate pool this service's own
+     * suggestion methods use -- Auto-Fix's chain-repair search (which needs
+     * to walk candidates for lessons OTHER than the one originally being
+     * placed) reuses this instead of re-querying BellTiming itself, so
+     * there's exactly one definition of "the legal candidate universe" for
+     * every interactive caller.
+     */
+    public function candidatePeriodsFor(array $placement): Collection
+    {
+        return $this->candidateBellTimings($placement);
+    }
+
+    /**
      * Active, teaching-type bell timings as the candidate pool -- the same
      * universe GeneratorService draws candidate slots from, so a
      * suggestion is never a period the generator itself would refuse to

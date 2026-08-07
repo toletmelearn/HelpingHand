@@ -201,15 +201,28 @@ class TimetableWorkspaceTest extends TestCase
         $response->assertSee('No conflicts found');
     }
 
-    public function test_suggestions_and_autofix_tabs_are_honest_placeholders_not_dead_buttons(): void
+    public function test_suggestions_tab_is_an_honest_placeholder_not_a_dead_button(): void
     {
         $response = $this->actingAs($this->adminUser)->get(route('timetable.workspace'));
 
         $response->assertOk();
-        // Explicitly NOT implemented yet in Phase B -- must say so, not
-        // pretend to work.
+        // A standalone suggestions browser is explicitly NOT implemented
+        // yet -- must say so, not pretend to work.
         $response->assertSee('planned for a later phase');
-        $response->assertSee('not yet connected');
+    }
+
+    /**
+     * Phase 4: Auto-Fix is now real (wired into Review & Edit's conflict
+     * area), so the workspace tab must describe the actual, live
+     * capability -- not the old "not yet connected" placeholder text.
+     */
+    public function test_autofix_tab_describes_the_real_wired_capability(): void
+    {
+        $response = $this->actingAs($this->adminUser)->get(route('timetable.workspace'));
+
+        $response->assertOk();
+        $response->assertSee('Try Auto-Fix');
+        $response->assertDontSee('not yet connected');
     }
 
     public function test_publish_tab_links_to_the_existing_generation_review_page_when_a_draft_exists(): void
