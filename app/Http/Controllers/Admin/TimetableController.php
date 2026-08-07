@@ -3,22 +3,38 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Jobs\GenerateTimetableJob;
+use App\Models\AcademicSession;
+use App\Models\CombinedClassGroup;
+use App\Models\TimetableGeneration;
 use App\Models\TimetableSlot;
 use App\Models\BellTiming;
 use App\Models\SchoolClass;
 use App\Models\Section;
 use App\Models\Subject;
 use App\Models\Teacher;
+use App\Services\Timetable\FeasibilityService;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 
 class TimetableController extends Controller
 {
+    /**
+     * T4b item 3-4: ?status=draft switches the grid to the active draft
+     * for the selected class (the most recent GenerateTimetableJob run
+     * that hasn't been published/discarded yet) instead of the live
+     * timetable. Default (no param, or status=published) is unchanged
+     * from pre-T4b behaviour -- the live timetable.
+     */
     public function index(Request $request)
     {
         $this->authorize('viewAny', TimetableSlot::class);
 
         $schoolClassId = $request->get('school_class_id');
         $sectionId = $request->get('section_id');
+        $view = $request->get('status') === 'draft' ? 'draft' : 'published';
 
         $classes = SchoolClass::orderBy('class_order')->get();
         $sections = Section::all();
@@ -29,13 +45,26 @@ class TimetableController extends Controller
         $bellTimings = BellTiming::active()->orderBy('order_index')->get();
 
         $slots = collect();
+        $activeGeneration = null;
+        $hasDraft = false;
+
         if ($schoolClassId) {
-            $slots = TimetableSlot::where('school_class_id', $schoolClassId)
+            $baseQuery = TimetableSlot::where('school_class_id', $schoolClassId)
                 ->when($sectionId, function ($q) use ($sectionId) {
                     $q->where('section_id', $sectionId);
                 })
-                ->with(['subject', 'teacher', 'bellTiming'])
-                ->get();
+                ->with(['subject', 'teacher', 'coTeacher', 'bellTiming', 'combinedClassGroup']);
+
+            if ($view === 'draft') {
+                $slots = (clone $baseQuery)->draft()->get();
+                $activeGeneration = $slots->isNotEmpty()
+                    ? TimetableGeneration::find($slots->first()->timetable_generation_id)
+                    : null;
+                $hasDraft = $slots->isNotEmpty();
+            } else {
+                $slots = (clone $baseQuery)->published()->get();
+                $hasDraft = TimetableSlot::draft()->where('school_class_id', $schoolClassId)->exists();
+            }
         }
 
         return view('admin.timetable.grid', compact(
@@ -46,13 +75,20 @@ class TimetableController extends Controller
             'bellTimings',
             'slots',
             'schoolClassId',
-            'sectionId'
+            'sectionId',
+            'view',
+            'activeGeneration',
+            'hasDraft'
         ));
     }
 
     public function store(Request $request)
     {
-        $this->authorize('create', TimetableSlot::class);
+        $this->authorize('create', [
+            TimetableSlot::class,
+            $request->integer('school_class_id') ?: null,
+            $request->integer('section_id') ?: null,
+        ]);
 
         $validated = $request->validate([
             'school_class_id' => 'required|exists:school_classes,id',
@@ -60,49 +96,631 @@ class TimetableController extends Controller
             'bell_timing_id' => 'required|exists:bell_timings,id',
             'subject_id' => 'required|exists:subjects,id',
             'teacher_id' => 'required|exists:teachers,id',
+            'co_teacher_id' => 'nullable|exists:teachers,id|different:teacher_id',
             'room_number' => 'nullable|string|max:50',
             'academic_year' => 'nullable|string|max:20',
+            'status' => 'nullable|in:draft,published',
         ]);
 
-        // Conflict checking logic before saving
-        $conflictCheck = $this->checkSlotConflicts($request);
+        // T4b item 4: the manual editor works on whichever grid the user
+        // is looking at -- a hidden 'status' field on the form carries the
+        // page's own Draft/Published toggle state through, so editing a
+        // draft never touches the live timetable and vice versa.
+        $status = $validated['status'] ?? TimetableSlot::STATUS_PUBLISHED;
+
+        // Conflict checking logic before saving, scoped to the same
+        // status being edited -- a draft proposal is allowed to differ
+        // from what's live, but can't conflict with itself.
+        $conflictCheck = $this->checkSlotConflicts($request, $status);
         if ($conflictCheck['conflict']) {
             return back()->with('error', 'Scheduling conflict: ' . $conflictCheck['message']);
         }
 
-        TimetableSlot::updateOrCreate(
-            [
-                'school_class_id' => $validated['school_class_id'],
-                'section_id' => $validated['section_id'] ?? null,
-                'bell_timing_id' => $validated['bell_timing_id'],
-            ],
-            $validated
-        );
+        // The app-level checkSlotConflicts() above is the primary guard;
+        // this catch is the DB-level safety net under it (T1a) -- a race
+        // between the check and the write (or any future caller that skips
+        // the check) still can't create a double-booking, it just gets the
+        // same friendly error instead of a 500.
+        try {
+            $slot = TimetableSlot::updateOrCreate(
+                [
+                    'school_class_id' => $validated['school_class_id'],
+                    'section_id' => $validated['section_id'] ?? null,
+                    'bell_timing_id' => $validated['bell_timing_id'],
+                    'status' => $status,
+                ],
+                array_merge($validated, ['status' => $status])
+            );
+        } catch (\Illuminate\Database\QueryException $e) {
+            if ((int) $e->errorInfo[1] === 1062) {
+                return back()->with('error', 'Scheduling conflict: this class or teacher already has a slot at this period.')->withInput();
+            }
+
+            throw $e;
+        }
+
+        activity()->causedBy(Auth::user())->performedOn($slot)
+            ->withProperties(['school_class_id' => $slot->school_class_id, 'section_id' => $slot->section_id, 'bell_timing_id' => $slot->bell_timing_id, 'status' => $slot->status])
+            ->log($slot->wasRecentlyCreated ? 'timetable_slot_created' : 'timetable_slot_updated');
 
         return back()->with('success', 'Timetable slot scheduled successfully.');
     }
 
+    /**
+     * T2b item 3: place one combined-group teaching event -- writes one
+     * TimetableSlot row per member class-section, all sharing the same
+     * teacher/period/subject (the group's subject). Authorization
+     * requires the acting user be allowed to write EVERY member
+     * class-section (reuses TimetableSlotPolicy::create per member --
+     * admin always passes, a teacher must be assigned to all of them).
+     *
+     * Conflict checking reuses checkSlotConflicts() exactly as store()
+     * does -- it scans by teacher_id + overlapping bell_timing without
+     * caring whether existing rows are solo or combined-group, so it
+     * already catches "teacher already committed elsewhere this period"
+     * for a NEW combined placement with zero changes needed. What it
+     * does NOT (and, out of scope this session, does not need to) handle
+     * is re-placing/editing an EXISTING combined group's own slots --
+     * only fresh placement is implemented here, matching the plan's
+     * "writes one row per member class" description.
+     */
+    public function storeCombined(Request $request)
+    {
+        $validated = $request->validate([
+            'combined_class_group_id' => 'required|exists:combined_class_groups,id',
+            'teacher_id' => 'required|exists:teachers,id',
+            'bell_timing_id' => 'required|exists:bell_timings,id',
+            'room_number' => 'nullable|string|max:50',
+            'academic_year' => 'nullable|string|max:20',
+            'status' => 'nullable|in:draft,published',
+        ]);
+
+        $status = $validated['status'] ?? TimetableSlot::STATUS_PUBLISHED;
+
+        $group = CombinedClassGroup::with('members')->findOrFail($validated['combined_class_group_id']);
+
+        if ($group->members->count() < 2) {
+            return back()->with('error', "Combined group \"{$group->name}\" has fewer than 2 member classes -- nothing to place.")->withInput();
+        }
+
+        foreach ($group->members as $member) {
+            $this->authorize('create', [TimetableSlot::class, $member->school_class_id, $member->section_id]);
+        }
+
+        $conflictCheck = $this->checkSlotConflicts($request, $status);
+        if ($conflictCheck['conflict']) {
+            return back()->with('error', 'Scheduling conflict: ' . $conflictCheck['message'])->withInput();
+        }
+
+        foreach ($group->members as $member) {
+            $alreadyBooked = TimetableSlot::where('school_class_id', $member->school_class_id)
+                ->where('section_id', $member->section_id)
+                ->where('bell_timing_id', $validated['bell_timing_id'])
+                ->where('status', $status)
+                ->exists();
+
+            if ($alreadyBooked) {
+                $label = $member->schoolClass->name . ($member->section ? " {$member->section->name}" : '');
+                return back()->with('error', "Scheduling conflict: {$label} already has a slot at this period.")->withInput();
+            }
+        }
+
+        try {
+            DB::transaction(function () use ($group, $validated, $status) {
+                foreach ($group->members as $member) {
+                    TimetableSlot::create([
+                        'school_class_id' => $member->school_class_id,
+                        'section_id' => $member->section_id,
+                        'bell_timing_id' => $validated['bell_timing_id'],
+                        'subject_id' => $group->subject_id,
+                        'teacher_id' => $validated['teacher_id'],
+                        'combined_class_group_id' => $group->id,
+                        'room_number' => $validated['room_number'] ?? null,
+                        'academic_year' => $validated['academic_year'] ?? null,
+                        'status' => $status,
+                    ]);
+                }
+            });
+        } catch (\Illuminate\Database\QueryException $e) {
+            if ((int) $e->errorInfo[1] === 1062) {
+                return back()->with('error', 'Scheduling conflict: this combined group could not be placed -- a member class or the teacher already has a slot at this period.')->withInput();
+            }
+
+            throw $e;
+        }
+
+        activity()->causedBy(Auth::user())->performedOn($group)
+            ->withProperties(['bell_timing_id' => $validated['bell_timing_id'], 'teacher_id' => $validated['teacher_id'], 'member_count' => $group->members->count()])
+            ->log('combined_group_placed');
+
+        return back()->with('success', "Combined group \"{$group->name}\" scheduled for " . $group->members->count() . ' classes.');
+    }
+
+    /**
+     * T1b: read-only feasibility report -- policy-gated the same as
+     * timetable viewing (viewAny on TimetableSlot).
+     */
+    public function feasibility(Request $request, FeasibilityService $service)
+    {
+        $this->authorize('viewAny', TimetableSlot::class);
+
+        $sessions = AcademicSession::orderByDesc('id')->get();
+        $selectedSession = $request->filled('academic_session_id')
+            ? $sessions->firstWhere('id', (int) $request->get('academic_session_id'))
+            : $sessions->firstWhere('is_current', true);
+
+        $academicYear = $selectedSession?->code;
+
+        $report = $service->build($academicYear);
+
+        return view('admin.timetable.feasibility', compact('sessions', 'selectedSession', 'report'));
+    }
+
+    /**
+     * T1c: A4 landscape grid PDF for one class(-section) -- days across,
+     * periods down. Policy-gated identically to timetable viewing.
+     */
+    public function classPdf(Request $request)
+    {
+        $this->authorize('viewAny', TimetableSlot::class);
+
+        $request->validate([
+            'school_class_id' => 'required|exists:school_classes,id',
+            'section_id' => 'nullable|exists:sections,id',
+        ]);
+
+        $class = SchoolClass::findOrFail($request->school_class_id);
+        $section = $request->filled('section_id') ? Section::find($request->section_id) : null;
+        $session = AcademicSession::current()->first();
+
+        $slots = TimetableSlot::with(['bellTiming', 'subject', 'teacher', 'coTeacher'])
+            ->published()
+            ->where('school_class_id', $class->id)
+            ->when($request->filled('section_id'), fn ($q) => $q->where('section_id', $request->section_id))
+            ->get();
+
+        if ($slots->isEmpty()) {
+            $label = $section ? "{$class->name} {$section->name}" : $class->name;
+            return back()->with('error', "No timetable slots found for {$label} -- nothing to print yet.");
+        }
+
+        [$periods, $days, $periodMeta] = $this->buildPeriodDayAxes($session?->code);
+
+        $grid = [];
+        foreach ($slots as $slot) {
+            $timing = $slot->bellTiming;
+            if (!$timing) {
+                continue;
+            }
+            $grid[$timing->period_name][$timing->day_of_week] = $slot;
+        }
+
+        $title = $section ? "{$class->name} - {$section->name}" : $class->name;
+
+        $pdf = Pdf::loadView('admin.timetable.pdf.class', [
+            'title' => $title,
+            'session' => $session,
+            'periods' => $periods,
+            'days' => $days,
+            'periodMeta' => $periodMeta,
+            'grid' => $grid,
+            'lastTeachingPeriod' => $class->last_teaching_period,
+        ]);
+        $pdf->setPaper('A4', 'landscape');
+
+        return $pdf->download($this->pdfFilename('class', $title, $session));
+    }
+
+    /**
+     * T1c: A4 landscape grid PDF for one teacher -- days across, periods
+     * down, class-section + subject per cell, free periods left blank.
+     */
+    public function teacherPdf(Request $request)
+    {
+        $this->authorize('viewAny', TimetableSlot::class);
+
+        $request->validate([
+            'teacher_id' => 'required|exists:teachers,id',
+        ]);
+
+        $teacher = Teacher::findOrFail($request->teacher_id);
+        $session = AcademicSession::current()->first();
+
+        // T6 item 4: a co-teacher's own PDF must show their team-taught
+        // periods too, not just periods where they're the primary teacher.
+        $slots = TimetableSlot::with(['bellTiming', 'subject', 'schoolClass', 'section', 'teacher', 'coTeacher'])
+            ->published()
+            ->where(fn ($q) => $q->where('teacher_id', $teacher->id)->orWhere('co_teacher_id', $teacher->id))
+            ->get();
+
+        if ($slots->isEmpty()) {
+            return back()->with('error', "No timetable slots found for {$teacher->name} -- nothing to print yet.");
+        }
+
+        [$periods, $days, $periodMeta] = $this->buildPeriodDayAxes($session?->code);
+
+        $grid = [];
+        foreach ($slots as $slot) {
+            $timing = $slot->bellTiming;
+            if (!$timing) {
+                continue;
+            }
+            $grid[$timing->period_name][$timing->day_of_week] = $slot;
+        }
+
+        $pdf = Pdf::loadView('admin.timetable.pdf.teacher', [
+            'teacher' => $teacher,
+            'session' => $session,
+            'periods' => $periods,
+            'days' => $days,
+            'periodMeta' => $periodMeta,
+            'grid' => $grid,
+        ]);
+        $pdf->setPaper('A4', 'landscape');
+
+        return $pdf->download($this->pdfFilename('teacher', $teacher->name, $session));
+    }
+
+    /**
+     * T1c: master timetable -- all active classes x periods, one page per
+     * operating day, compact (subject/teacher-short-name per cell).
+     */
+    public function masterPdf(Request $request)
+    {
+        $this->authorize('viewAny', TimetableSlot::class);
+
+        $session = AcademicSession::current()->first();
+
+        $slots = TimetableSlot::with(['bellTiming', 'subject', 'teacher', 'coTeacher', 'schoolClass', 'section'])->published()->get();
+
+        if ($slots->isEmpty()) {
+            return back()->with('error', 'No timetable slots found for any class -- nothing to print yet.');
+        }
+
+        [$periods, $days, $periodMeta] = $this->buildPeriodDayAxes($session?->code);
+        $classes = SchoolClass::active()->orderByOrder()->get();
+
+        // [day][class_id][period_name] => slot
+        $byDay = [];
+        foreach ($slots as $slot) {
+            $timing = $slot->bellTiming;
+            if (!$timing) {
+                continue;
+            }
+            $byDay[$timing->day_of_week][$slot->school_class_id][$timing->period_name] = $slot;
+        }
+
+        $pdf = Pdf::loadView('admin.timetable.pdf.master', [
+            'session' => $session,
+            'periods' => $periods,
+            'days' => $days,
+            'periodMeta' => $periodMeta,
+            'classes' => $classes,
+            'byDay' => $byDay,
+        ]);
+        $pdf->setPaper('A4', 'landscape');
+
+        return $pdf->download($this->pdfFilename('master', 'all-classes', $session));
+    }
+
+    /**
+     * Active periods (rows) -- teaching AND non-teaching -- and the days
+     * they occur on (columns), ordered consistently: periods by
+     * bell_timings.order_index, days by BellTiming's own canonical
+     * day_order accessor (Mon..Sun), not a hardcoded list, so this
+     * doesn't assume which days the school runs.
+     *
+     * T2b: also returns $periodMeta[$periodName][$day] describing
+     * whether that specific (period, day) cell is a teaching period --
+     * non-teaching cells (assembly/prayer/break/zero/dispersal) still
+     * print in the PDF grids, just shaded with a label instead of
+     * waiting for a TimetableSlot that will never exist there. Looked up
+     * per (period, day) rather than per period name alone, since two
+     * different days can use the same period_name for different things
+     * (confirmed possible by T2b item 2's finding that each bell_timings
+     * row is independently keyed by day).
+     */
+    private function buildPeriodDayAxes(?string $academicYear): array
+    {
+        $activeTimings = BellTiming::active()
+            ->when($academicYear, fn ($q) => $q->where('academic_year', $academicYear))
+            ->orderBy('order_index')
+            ->get();
+
+        $periods = $activeTimings->pluck('period_name')->unique()->values()->all();
+        $days = $activeTimings->sortBy('day_order')->pluck('day_of_week')->unique()->values()->all();
+
+        $periodMeta = [];
+        foreach ($activeTimings as $timing) {
+            $periodMeta[$timing->period_name][$timing->day_of_week] = [
+                'is_teaching' => $timing->period_type === BellTiming::PERIOD_TYPE_TEACHING,
+                'label' => $timing->custom_label ?: ucfirst($timing->period_type),
+                'order_index' => (int) $timing->order_index,
+            ];
+        }
+
+        return [$periods, $days, $periodMeta];
+    }
+
+    private function pdfFilename(string $type, string $name, ?AcademicSession $session): string
+    {
+        $safeName = preg_replace('/[^A-Za-z0-9_-]+/', '_', $name);
+        $safeSession = preg_replace('/[^A-Za-z0-9_-]+/', '_', $session->code ?? 'na');
+
+        return "timetable_{$type}_{$safeName}_{$safeSession}.pdf";
+    }
+
+    /**
+     * A combined-group placement is one shared teaching event written as
+     * one TimetableSlot row per member class (T2b item 3, storeCombined()
+     * above). Clearing only the clicked row silently orphaned every other
+     * member's row, leaving an inconsistent partial placement -- this was
+     * combined groups' documented "not editable once placed" gap. Now:
+     * clearing any one member's cell clears every sibling row for this
+     * exact occurrence (same group + same period + same draft/published
+     * status -- a group meeting several times a week has one row-set per
+     * occurrence, and only THIS one should go). "Moving" a placed group is
+     * then clear-then-storeCombined() at the new period, which already
+     * works once the old rows are gone.
+     */
     public function destroy($id)
     {
         $slot = TimetableSlot::findOrFail($id);
         $this->authorize('delete', $slot);
+
+        if ($slot->combined_class_group_id) {
+            $siblings = TimetableSlot::where('combined_class_group_id', $slot->combined_class_group_id)
+                ->where('bell_timing_id', $slot->bell_timing_id)
+                ->where('status', $slot->status)
+                ->get();
+
+            foreach ($siblings as $sibling) {
+                $this->authorize('delete', $sibling);
+            }
+
+            DB::transaction(function () use ($siblings) {
+                foreach ($siblings as $sibling) {
+                    $sibling->delete();
+                }
+            });
+
+            activity()->causedBy(Auth::user())->performedOn($slot->combinedClassGroup ?? $slot)
+                ->withProperties(['bell_timing_id' => $slot->bell_timing_id, 'status' => $slot->status, 'member_count' => $siblings->count()])
+                ->log('combined_group_cleared');
+
+            return back()->with('success', 'Combined group slot cleared for all ' . $siblings->count() . ' member classes.');
+        }
+
+        activity()->causedBy(Auth::user())->performedOn($slot)
+            ->withProperties(['school_class_id' => $slot->school_class_id, 'section_id' => $slot->section_id, 'bell_timing_id' => $slot->bell_timing_id, 'status' => $slot->status])
+            ->log('timetable_slot_cleared');
+
         $slot->delete();
 
         return back()->with('success', 'Timetable slot cleared.');
+    }
+
+    /**
+     * "Generate (Beta)" -- dispatches GenerateTimetableJob for one or more
+     * classes' current academic session in a single solver run (a teacher
+     * who teaches several of the selected classes gets one globally-
+     * consistent schedule, not several independently-solved ones that
+     * could silently double-book them). The TimetableGeneration row is
+     * created here, synchronously, before dispatch, so the UI has an id to
+     * poll immediately regardless of queue latency (same pattern as
+     * FinancialYearClosing/StageYearClosingJob). Called from both the
+     * per-class grid's Generate button (a one-element array) and the
+     * whole-school scope-selection screen (many) -- same endpoint, same
+     * validation, no duplicated generation-row logic between the two.
+     */
+    public function generate(Request $request)
+    {
+        $this->authorize('generate', TimetableSlot::class);
+
+        $validated = $request->validate([
+            'school_class_ids' => 'required|array|min:1',
+            'school_class_ids.*' => 'integer|exists:school_classes,id',
+            'style' => 'nullable|in:rotating,fixed_daily',
+        ]);
+
+        $session = AcademicSession::current()->first();
+
+        $generation = TimetableGeneration::create([
+            'academic_year' => $session?->code,
+            'academic_session_id' => $session?->id,
+            'school_class_ids' => array_values(array_unique(array_map('intval', $validated['school_class_ids']))),
+            'style' => $validated['style'] ?? TimetableGeneration::STYLE_ROTATING,
+            'status' => TimetableGeneration::STATUS_QUEUED,
+            'requested_by' => Auth::id(),
+        ]);
+
+        GenerateTimetableJob::dispatch($generation->id);
+
+        activity()->causedBy(Auth::user())->performedOn($generation)
+            ->withProperties(['school_class_ids' => $generation->school_class_ids, 'style' => $generation->style])
+            ->log('timetable_generation_requested');
+
+        return response()->json([
+            'generation_id' => $generation->id,
+            'status_url' => route('timetable.generation.status', $generation),
+            'review_url' => route('timetable.generation.review', $generation),
+        ]);
+    }
+
+    /**
+     * Scope-selection screen for a whole-school (or any multi-class)
+     * generation -- the single-class Generate button on the grid page
+     * skips straight to generate(); this is the entry point for picking
+     * more than one class at a time.
+     */
+    public function showGenerateForm()
+    {
+        $this->authorize('generate', TimetableSlot::class);
+
+        $classes = SchoolClass::active()->orderByOrder()->get();
+
+        return view('admin.timetable.generate', compact('classes'));
+    }
+
+    /**
+     * Batch review for a (possibly multi-class) generation: overall stats,
+     * a per-class placed/unplaced breakdown (from the generation's own
+     * stored report -- no new queries needed), and all unplaced-lesson
+     * sentences grouped in one place, since a whole-school run's cell-
+     * level detail still lives on each class's own draft grid
+     * (?school_class_id=X&status=draft), not here.
+     */
+    public function generationReview(TimetableGeneration $generation)
+    {
+        $this->authorize('viewAny', TimetableSlot::class);
+
+        $classes = SchoolClass::whereIn('id', $generation->school_class_ids)->orderByOrder()->get()->keyBy('id');
+
+        $placementsByClass = collect($generation->report['placements'] ?? [])->groupBy('school_class_id');
+        $unplacedByClass = collect($generation->report['unplaced'] ?? [])
+            ->flatMap(fn ($u) => collect($u['class_ids'] ?? [])->map(fn ($classId) => ['class_id' => $classId, 'reason' => $u['reason']]))
+            ->groupBy('class_id');
+
+        $perClass = collect($generation->school_class_ids)->map(function ($classId) use ($classes, $placementsByClass, $unplacedByClass) {
+            return [
+                'class_id' => $classId,
+                'class_name' => $classes->get($classId)?->name ?? "Class #{$classId}",
+                'placed' => $placementsByClass->get($classId, collect())->count(),
+                'unplaced' => $unplacedByClass->get($classId, collect())->count(),
+            ];
+        })->sortBy('class_name')->values();
+
+        $unplacedSentences = collect($generation->report['unplaced'] ?? [])->pluck('reason')->values();
+
+        // T6 items 1-2: class-teacher clashes and fixed-daily-incompatible
+        // assignments are reported here, not as ordinary unplaced lessons.
+        $warnings = collect($generation->report['warnings'] ?? [])->values();
+
+        return view('admin.timetable.generation-review', compact('generation', 'perClass', 'unplacedSentences', 'warnings'));
+    }
+
+    /**
+     * T4b item 3: polled by the "Generate (Beta)" confirm-dialog flow.
+     * The unplaced-lesson sentences are only included once the run has
+     * actually completed, keeping the payload small while it's still
+     * queued/running.
+     */
+    public function generationStatus(TimetableGeneration $generation)
+    {
+        $this->authorize('viewAny', TimetableSlot::class);
+
+        return response()->json([
+            'id' => $generation->id,
+            'status' => $generation->status,
+            'placed_count' => $generation->placed_count,
+            'unplaced_count' => $generation->unplaced_count,
+            'placement_percent' => $generation->placement_percent,
+            'error' => $generation->error,
+            'unplaced' => $generation->status === TimetableGeneration::STATUS_COMPLETED
+                ? ($generation->report['unplaced'] ?? [])
+                : [],
+            'warnings' => $generation->status === TimetableGeneration::STATUS_COMPLETED
+                ? ($generation->report['warnings'] ?? [])
+                : [],
+        ]);
+    }
+
+    /**
+     * T4b item 5: PUBLISH -- admin-only, atomic. Archives every currently-
+     * published slot for the generation's class-section set (a full-class
+     * regeneration replaces the whole set, not a partial patch -- matches
+     * GeneratorService building its lesson list from ALL of a class's
+     * assignments) and flips this generation's own draft rows to
+     * published, in one transaction.
+     */
+    public function publishGeneration(TimetableGeneration $generation)
+    {
+        $this->authorize('publish', TimetableSlot::class);
+
+        if ($generation->status !== TimetableGeneration::STATUS_COMPLETED) {
+            return back()->with('error', 'Only a completed generation can be published.');
+        }
+
+        DB::transaction(function () use ($generation) {
+            TimetableSlot::published()
+                ->whereIn('school_class_id', $generation->school_class_ids)
+                ->update(['status' => TimetableSlot::STATUS_ARCHIVED]);
+
+            TimetableSlot::draft()
+                ->where('timetable_generation_id', $generation->id)
+                ->update(['status' => TimetableSlot::STATUS_PUBLISHED]);
+
+            $generation->update(['status' => TimetableGeneration::STATUS_PUBLISHED]);
+        });
+
+        activity()->causedBy(Auth::user())->performedOn($generation)
+            ->withProperties(['school_class_ids' => $generation->school_class_ids])
+            ->log('timetable_generation_published');
+
+        return $this->redirectAfterGenerationAction($generation)
+            ->with('success', 'Generation published -- this is now the live timetable for the affected classes.');
+    }
+
+    /**
+     * T4b item 5: DISCARD -- deletes only this generation's own draft
+     * rows. Never touches published/archived slots, so the live timetable
+     * is byte-identical before and after (see
+     * GenerateTimetableJobPublishDiscardTest::test_generate_then_discard_leaves_published_slots_byte_identical).
+     */
+    public function discardGeneration(TimetableGeneration $generation)
+    {
+        $this->authorize('publish', TimetableSlot::class);
+
+        if ($generation->status !== TimetableGeneration::STATUS_COMPLETED) {
+            return back()->with('error', 'Only a completed generation can be discarded.');
+        }
+
+        DB::transaction(function () use ($generation) {
+            TimetableSlot::draft()->where('timetable_generation_id', $generation->id)->delete();
+            $generation->update(['status' => TimetableGeneration::STATUS_DISCARDED]);
+        });
+
+        activity()->causedBy(Auth::user())->performedOn($generation)
+            ->withProperties(['school_class_ids' => $generation->school_class_ids])
+            ->log('timetable_generation_discarded');
+
+        return $this->redirectAfterGenerationAction($generation)
+            ->with('success', 'Draft discarded -- the live timetable is unchanged.');
+    }
+
+    /**
+     * A single-class generation goes straight back to that class's grid
+     * (unchanged behaviour from before whole-school generation existed);
+     * a multi-class one goes to the review page, which still shows the
+     * final per-class outcome after publish/discard.
+     */
+    private function redirectAfterGenerationAction(TimetableGeneration $generation)
+    {
+        if (count($generation->school_class_ids) === 1) {
+            return redirect()->route('timetable.index', ['school_class_id' => $generation->school_class_ids[0]]);
+        }
+
+        return redirect()->route('timetable.generation.review', $generation);
     }
 
     public function checkConflictsApi(Request $request)
     {
         $this->authorize('viewAny', TimetableSlot::class);
 
-        $result = $this->checkSlotConflicts($request);
+        $status = $request->get('status') === 'draft' ? TimetableSlot::STATUS_DRAFT : TimetableSlot::STATUS_PUBLISHED;
+        $result = $this->checkSlotConflicts($request, $status);
         return response()->json($result);
     }
 
-    private function checkSlotConflicts(Request $request): array
+    /**
+     * T4b item 4: scoped to a single status so a draft proposal is free
+     * to differ from what's live, but still can't conflict with itself.
+     */
+    private function checkSlotConflicts(Request $request, string $status = TimetableSlot::STATUS_PUBLISHED): array
     {
         $id = $request->get('id');
         $teacherId = $request->get('teacher_id');
+        $coTeacherId = $request->get('co_teacher_id') ?: null;
         $bellTimingId = $request->get('bell_timing_id');
         $roomNumber = $request->get('room_number');
 
@@ -122,26 +740,86 @@ class TimetableController extends Controller
             })
             ->pluck('id');
 
-        // Check Teacher overlap
-        $teacherConflict = TimetableSlot::whereIn('bell_timing_id', $overlappingTimings)
-            ->where('teacher_id', $teacherId)
-            ->when($id, function ($q) use ($id) {
-                $q->where('id', '!=', $id);
-            })
-            ->first();
+        // Check Teacher/Co-Teacher overlap. Both people on this lesson (if
+        // a co-teacher is given) must be free -- checked against BOTH the
+        // teacher_id and co_teacher_id columns on every existing row, so a
+        // person already busy elsewhere as either the primary teacher or
+        // someone else's co-teacher is caught. This mirrors the cross-case
+        // GeneratorService::isHardLegal() already enforces for auto-
+        // generation (see the T6 item 4 report): the DB's
+        // timetable_slots_co_teacher_bell_status_unique index only catches
+        // co-teacher-vs-co-teacher, not "person X is primary in one row,
+        // co-teacher in another" -- the manual editor had no guard for
+        // that at all until now.
+        foreach (array_filter([$teacherId, $coTeacherId]) as $personId) {
+            $busyConflict = TimetableSlot::whereIn('bell_timing_id', $overlappingTimings)
+                ->where('status', $status)
+                ->where(function ($q) use ($personId) {
+                    $q->where('teacher_id', $personId)->orWhere('co_teacher_id', $personId);
+                })
+                ->when($id, function ($q) use ($id) {
+                    $q->where('id', '!=', $id);
+                })
+                ->first();
 
-        if ($teacherConflict) {
-            return [
-                'conflict' => true,
-                'type' => 'teacher',
-                'message' => "Teacher is already scheduled to teach " . ($teacherConflict->schoolClass->name ?? 'another class') . " during this period."
-            ];
+            if ($busyConflict) {
+                $personName = Teacher::find($personId)->name ?? 'This teacher';
+                return [
+                    'conflict' => true,
+                    'type' => 'teacher',
+                    'message' => "{$personName} is already scheduled to teach " . ($busyConflict->schoolClass->name ?? 'another class') . " during this period."
+                ];
+            }
+        }
+
+        // Check Class/Section overlap. The T1a unique DB index can't catch
+        // this cross-case: a class-wide slot (section_id NULL) and a
+        // specific-section slot of the SAME class have different
+        // section_id_norm values, so neither the index nor an exact-match
+        // query sees them as colliding -- but a class-wide lesson covers
+        // every section, so they genuinely overlap. Only the CROSS case is
+        // flagged here: a class-wide save conflicts only with an existing
+        // section-specific row (never another class-wide row -- that's
+        // either this exact cell being updated in place, via store()'s own
+        // updateOrCreate key, or a genuine duplicate the DB unique index
+        // already blocks); a section-specific save conflicts only with an
+        // existing class-wide row (never the same section's own row --
+        // same reasoning, that's an update-in-place, not a collision).
+        $schoolClassId = $request->get('school_class_id');
+        $sectionId = $request->get('section_id') ?: null;
+
+        if ($schoolClassId) {
+            $classConflict = TimetableSlot::whereIn('bell_timing_id', $overlappingTimings)
+                ->where('school_class_id', $schoolClassId)
+                ->where('status', $status)
+                ->when($sectionId, function ($q) {
+                    $q->whereNull('section_id');
+                }, function ($q) {
+                    $q->whereNotNull('section_id');
+                })
+                ->when($id, function ($q) use ($id) {
+                    $q->where('id', '!=', $id);
+                })
+                ->first();
+
+            if ($classConflict) {
+                $message = $classConflict->section_id === null
+                    ? 'This class already has a whole-class lesson scheduled during this period -- it applies to every section.'
+                    : 'Section ' . ($classConflict->section->name ?? '') . ' of this class already has a lesson scheduled during this period.';
+
+                return [
+                    'conflict' => true,
+                    'type' => 'class',
+                    'message' => $message,
+                ];
+            }
         }
 
         // Check Room overlap
         if ($roomNumber) {
             $roomConflict = TimetableSlot::whereIn('bell_timing_id', $overlappingTimings)
                 ->where('room_number', $roomNumber)
+                ->where('status', $status)
                 ->when($id, function ($q) use ($id) {
                     $q->where('id', '!=', $id);
                 })

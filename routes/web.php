@@ -875,11 +875,24 @@ Route::middleware(['auth'])->group(function () {
         Route::resource('special-day-overrides', App\Http\Controllers\SpecialDayOverrideController::class);
         
         // Teacher Substitution Management Routes
-        Route::resource('teacher-substitutions', App\Http\Controllers\Admin\TeacherSubstitutionController::class);
+        // Literal-path routes registered BEFORE the resource() call so
+        // they don't get swallowed by its GET {teacher_substitution} show
+        // route (same class of ordering bug fixed for bell-timing routes
+        // during remediation).
         Route::get('teacher-substitutions/today', [App\Http\Controllers\Admin\TeacherSubstitutionController::class, 'today'])->name('teacher-substitutions.today');
         Route::get('teacher-substitutions/absence-overview', [App\Http\Controllers\Admin\TeacherSubstitutionController::class, 'absenceOverview'])->name('teacher-substitutions.absence-overview');
-        Route::get('teacher-substitutions/rules', [App\Http\Controllers\Admin\TeacherSubstitutionController::class, 'rules'])->name('teacher-substitutions.rules');
-        Route::post('teacher-substitutions/rules', [App\Http\Controllers\Admin\TeacherSubstitutionController::class, 'updateRules'])->name('teacher-substitutions.update-rules');
+        Route::get('teacher-substitutions/absent-today', [App\Http\Controllers\Admin\TeacherSubstitutionController::class, 'absentToday'])->name('teacher-substitutions.absent-today');
+        Route::post('teacher-substitutions/assign-from-slot', [App\Http\Controllers\Admin\TeacherSubstitutionController::class, 'assignFromSlot'])->name('teacher-substitutions.assign-from-slot');
+        Route::get('teacher-substitutions/arrangement-sheet', [App\Http\Controllers\Admin\TeacherSubstitutionController::class, 'arrangementSheetPdf'])->name('teacher-substitutions.arrangement-sheet');
+        // Was routed to nonexistent rules()/updateRules() controller
+        // methods (a rename-drift bug -- the real, working method is
+        // substitutionRules(), unreachable by any route until now). The
+        // rules view has no submitting form yet (its checkboxes have no
+        // real backend to save to), so only the GET/display route is
+        // restored here -- inventing an update endpoint for a form that
+        // doesn't submit anything would be fabricating a feature.
+        Route::get('teacher-substitutions/rules', [App\Http\Controllers\Admin\TeacherSubstitutionController::class, 'substitutionRules'])->name('teacher-substitutions.rules');
+        Route::resource('teacher-substitutions', App\Http\Controllers\Admin\TeacherSubstitutionController::class);
         
                 // Teacher Attendance Management Routes - Specific routes must come before resource route to avoid conflicts
         Route::get('teacher-attendance/reports', [App\Http\Controllers\Admin\TeacherAttendanceController::class, 'reports'])->name('teacher-attendance.reports');
@@ -1165,9 +1178,14 @@ Route::middleware(['auth'])->group(function () {
         Route::put('admit-cards/{admit_card}/revoke', [App\Http\Controllers\Admin\AdmitCardController::class, 'revoke'])->name('admit-cards.revoke');
         
         // Teacher Substitutions Additional Routes
-        Route::post('teacher-substitutions/{substitution}/assign', [App\Http\Controllers\Admin\TeacherSubstitutionController::class, 'assignSubstitute'])->name('teacher-substitutions.assign');
-        Route::post('teacher-substitutions/{substitution}/approve', [App\Http\Controllers\Admin\TeacherSubstitutionController::class, 'approveSubstitute'])->name('teacher-substitutions.approve');
-        Route::post('teacher-substitutions/{substitution}/cancel', [App\Http\Controllers\Admin\TeacherSubstitutionController::class, 'cancelSubstitute'])->name('teacher-substitutions.cancel');
+        // Wildcard renamed teacher_substitution to match the controller's
+        // $teacherSubstitution parameter (implicit binding only matches by
+        // exact name or its snake_case form -- {substitution} silently
+        // failed to bind, same class of bug fixed in ClassTeacherAssignmentController
+        // during the remediation phase).
+        Route::post('teacher-substitutions/{teacher_substitution}/assign', [App\Http\Controllers\Admin\TeacherSubstitutionController::class, 'assignSubstitute'])->name('teacher-substitutions.assign');
+        Route::post('teacher-substitutions/{teacher_substitution}/approve', [App\Http\Controllers\Admin\TeacherSubstitutionController::class, 'approveSubstitute'])->name('teacher-substitutions.approve');
+        Route::post('teacher-substitutions/{teacher_substitution}/cancel', [App\Http\Controllers\Admin\TeacherSubstitutionController::class, 'cancelSubstitute'])->name('teacher-substitutions.cancel');
         
         // User Roles Management
         Route::put('user-roles/{user}', [App\Http\Controllers\RolePermissionController::class, 'update'])->name('user-roles.update');
@@ -1429,6 +1447,9 @@ Route::get('/admin/results/final-result/{studentId}/{examId}', [App\Http\Control
             // Parent Homework Routes
             Route::get('/homework', [App\Http\Controllers\Parent\HomeworkController::class, 'index'])->name('homework.index');
             Route::get('/homework/{homeworkNotice}', [App\Http\Controllers\Parent\HomeworkController::class, 'show'])->name('homework.show');
+
+            // T5 item 1: today's periods (published timetable + substitutions)
+            Route::get('/timetable/today', [App\Http\Controllers\Parent\TimetableController::class, 'today'])->name('timetable.today');
         });
     });
     
@@ -1711,6 +1732,40 @@ Route::middleware(['auth'])->group(function () {
     Route::post('/admin/timetable', [\App\Http\Controllers\Admin\TimetableController::class, 'store'])->name('timetable.store');
     Route::delete('/admin/timetable/{id}', [\App\Http\Controllers\Admin\TimetableController::class, 'destroy'])->name('timetable.destroy');
     Route::get('/admin/timetable/check-conflicts', [\App\Http\Controllers\Admin\TimetableController::class, 'checkConflictsApi'])->name('timetable.check-conflicts');
+    Route::get('/admin/timetable/feasibility', [\App\Http\Controllers\Admin\TimetableController::class, 'feasibility'])->name('timetable.feasibility');
+    Route::get('/admin/timetable/pdf/class', [\App\Http\Controllers\Admin\TimetableController::class, 'classPdf'])->name('timetable.pdf.class');
+    Route::get('/admin/timetable/pdf/teacher', [\App\Http\Controllers\Admin\TimetableController::class, 'teacherPdf'])->name('timetable.pdf.teacher');
+    Route::get('/admin/timetable/pdf/master', [\App\Http\Controllers\Admin\TimetableController::class, 'masterPdf'])->name('timetable.pdf.master');
+
+    // Auto-generation, draft/publish workflow (T4b)
+    Route::get('/admin/timetable/generate', [\App\Http\Controllers\Admin\TimetableController::class, 'showGenerateForm'])->name('timetable.generate.form');
+    Route::post('/admin/timetable/generate', [\App\Http\Controllers\Admin\TimetableController::class, 'generate'])->name('timetable.generate');
+    Route::get('/admin/timetable/generations/{generation}/status', [\App\Http\Controllers\Admin\TimetableController::class, 'generationStatus'])->name('timetable.generation.status');
+    Route::post('/admin/timetable/generations/{generation}/publish', [\App\Http\Controllers\Admin\TimetableController::class, 'publishGeneration'])->name('timetable.generation.publish');
+    Route::post('/admin/timetable/generations/{generation}/discard', [\App\Http\Controllers\Admin\TimetableController::class, 'discardGeneration'])->name('timetable.generation.discard');
+    Route::get('/admin/timetable/generations/{generation}', [\App\Http\Controllers\Admin\TimetableController::class, 'generationReview'])->name('timetable.generation.review');
+
+    // Guided setup wizard (T6 item 5, revised for per-section class
+    // teachers) -- Steps 1-3 orchestrate existing tables/services; Step 4
+    // (Generate & Publish) IS the existing generate/review/publish flow
+    // above, no separate route needed.
+    Route::get('/admin/timetable/wizard', [\App\Http\Controllers\Admin\TimetableWizardController::class, 'index'])->name('timetable.wizard.index');
+    Route::get('/admin/timetable/wizard/subjects/{class}/{section?}', [\App\Http\Controllers\Admin\TimetableWizardController::class, 'step1'])->name('timetable.wizard.step1');
+    Route::post('/admin/timetable/wizard/subjects/{class}/{section?}', [\App\Http\Controllers\Admin\TimetableWizardController::class, 'step1Store'])->name('timetable.wizard.step1.store');
+    Route::get('/admin/timetable/wizard/style', [\App\Http\Controllers\Admin\TimetableWizardController::class, 'step2'])->name('timetable.wizard.step2');
+    Route::get('/admin/timetable/wizard/readiness', [\App\Http\Controllers\Admin\TimetableWizardController::class, 'step3'])->name('timetable.wizard.step3');
+
+    // Combined classes (T2b)
+    Route::post('/admin/timetable/combined', [\App\Http\Controllers\Admin\TimetableController::class, 'storeCombined'])->name('timetable.combined.store');
+    Route::get('/admin/combined-class-groups', [\App\Http\Controllers\Admin\CombinedClassGroupController::class, 'index'])->name('combined-class-groups.index');
+    Route::get('/admin/combined-class-groups/create', [\App\Http\Controllers\Admin\CombinedClassGroupController::class, 'create'])->name('combined-class-groups.create');
+    Route::post('/admin/combined-class-groups', [\App\Http\Controllers\Admin\CombinedClassGroupController::class, 'store'])->name('combined-class-groups.store');
+    Route::delete('/admin/combined-class-groups/{combinedClassGroup}', [\App\Http\Controllers\Admin\CombinedClassGroupController::class, 'destroy'])->name('combined-class-groups.destroy');
+
+    // Teacher availability grid (T2a)
+    Route::get('/admin/teacher-availability', [\App\Http\Controllers\Admin\TeacherAvailabilityController::class, 'index'])->name('teacher-availability.index');
+    Route::get('/admin/teacher-availability/{teacher}', [\App\Http\Controllers\Admin\TeacherAvailabilityController::class, 'edit'])->name('teacher-availability.edit');
+    Route::post('/admin/teacher-availability/{teacher}', [\App\Http\Controllers\Admin\TeacherAvailabilityController::class, 'update'])->name('teacher-availability.update');
 
     // Library circulations & OPAC
     Route::get('/admin/library', [\App\Http\Controllers\Admin\LibraryController::class, 'index'])->name('library.index');

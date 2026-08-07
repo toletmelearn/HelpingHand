@@ -6,6 +6,8 @@ use App\Models\AcademicEvent;
 use App\Models\Attendance;
 use App\Models\Student;
 use App\Models\Teacher;
+use App\Models\TeacherSubstitution;
+use App\Models\TimetableSlot;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -165,8 +167,73 @@ class AttendanceController extends Controller
             
         // Get subjects taught by teachers
         $subjects = Teacher::pluck('subject_specialization')->filter()->unique()->values();
-        
-        return view('attendance.create', compact('students', 'class', 'date', 'subjects'));
+
+        // T5 item 3: read-only reference panel -- today's PUBLISHED
+        // timetable for this class, so whoever is marking attendance can
+        // see what's actually scheduled without it changing anything
+        // about how attendance itself is marked (subject/period stay
+        // manually chosen, exactly as before). Never allowed to break
+        // this screen: any failure here (unresolvable class, missing
+        // timetable data, whatever) just means an empty panel.
+        $timetableToday = collect();
+        try {
+            $timetableToday = $this->todaysTimetableForClass($students->first(), $date);
+        } catch (\Throwable $e) {
+            Log::error('Failed to load timetable reference panel for attendance marking: ' . $e->getMessage());
+        }
+
+        return view('attendance.create', compact('students', 'class', 'date', 'subjects', 'timetableToday'));
+    }
+
+    /**
+     * T5 item 3: today's (well, $date's) PUBLISHED timetable for the class
+     * one of its own students canonically resolves to -- resolveCanonicalSchoolClass()
+     * is more reliable than string-matching the free-text $class group
+     * value directly against SchoolClass::name, since it uses the same
+     * school_class_id-is-master resolution the rest of the app already
+     * relies on (Phase A closure). Substitutions for the date are applied
+     * the same way the parent view does: substitute teacher shown, marked
+     * as an arrangement.
+     */
+    private function todaysTimetableForClass(?Student $sampleStudent, string $date): \Illuminate\Support\Collection
+    {
+        if (!$sampleStudent) {
+            return collect();
+        }
+
+        $schoolClass = $sampleStudent->resolveCanonicalSchoolClass();
+        if (!$schoolClass) {
+            return collect();
+        }
+
+        $dayOfWeek = \Carbon\Carbon::parse($date)->format('l');
+
+        $slots = TimetableSlot::published()
+            ->where('school_class_id', $schoolClass->id)
+            ->whereHas('bellTiming', fn ($q) => $q->where('day_of_week', $dayOfWeek))
+            ->with(['subject', 'teacher', 'bellTiming'])
+            ->get()
+            ->filter(fn (TimetableSlot $s) => $s->bellTiming !== null)
+            ->sortBy(fn (TimetableSlot $s) => $s->bellTiming->order_index)
+            ->values();
+
+        $substitutions = TeacherSubstitution::where('class_id', $schoolClass->id)
+            ->whereDate('substitution_date', $date)
+            ->where('status', '!=', 'cancelled')
+            ->get()
+            ->keyBy('bell_timing_id');
+
+        return $slots->map(function (TimetableSlot $slot) use ($substitutions) {
+            $sub = $substitutions->get($slot->bell_timing_id);
+            $isArrangement = (bool) ($sub && $sub->substitute_teacher_id);
+
+            return (object) [
+                'period_name' => $slot->bellTiming->period_name,
+                'subject_name' => $slot->subject->name ?? 'N/A',
+                'teacher_name' => $isArrangement ? ($sub->substituteTeacher->name ?? 'N/A') : ($slot->teacher->name ?? 'N/A'),
+                'is_arrangement' => $isArrangement,
+            ];
+        })->values();
     }
 
     /**

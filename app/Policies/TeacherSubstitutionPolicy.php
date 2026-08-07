@@ -29,7 +29,7 @@ class TeacherSubstitutionPolicy
      */
     public function create(User $user): bool
     {
-        return $user->hasRole('admin');
+        return $user->hasRole('admin') || $user->hasPermission('manage-substitutions');
     }
 
     /**
@@ -37,7 +37,7 @@ class TeacherSubstitutionPolicy
      */
     public function update(User $user, TeacherSubstitution $teacherSubstitution): bool
     {
-        return $user->hasRole('admin');
+        return $user->hasRole('admin') || $user->hasPermission('manage-substitutions');
     }
 
     /**
@@ -53,7 +53,7 @@ class TeacherSubstitutionPolicy
      */
     public function assignSubstitute(User $user, TeacherSubstitution $teacherSubstitution): bool
     {
-        return $user->hasRole('admin');
+        return $user->hasRole('admin') || $user->hasPermission('manage-substitutions');
     }
 
     /**
@@ -61,7 +61,7 @@ class TeacherSubstitutionPolicy
      */
     public function approveSubstitute(User $user, TeacherSubstitution $teacherSubstitution): bool
     {
-        return $user->hasRole('admin');
+        return $user->hasRole('admin') || $user->hasPermission('manage-substitutions');
     }
 
     /**
@@ -69,7 +69,17 @@ class TeacherSubstitutionPolicy
      */
     public function cancelSubstitute(User $user, TeacherSubstitution $teacherSubstitution): bool
     {
-        return $user->hasRole('admin');
+        return $user->hasRole('admin') || $user->hasPermission('manage-substitutions');
+    }
+
+    /**
+     * T3 item 3: the "teacher absent today" flow -- view the day's slots
+     * and ranked suggestions, and one-click assign. Same admin +
+     * manage-substitutions gate as the rest of the write actions above.
+     */
+    public function manageAbsentToday(User $user): bool
+    {
+        return $user->hasRole('admin') || $user->hasPermission('manage-substitutions');
     }
 
     /**

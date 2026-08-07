@@ -63,6 +63,27 @@
                             </div>
                         </div>
 
+                        <!-- Co-Teacher (team teaching) -->
+                        <div class="row mb-4">
+                            <div class="col-12">
+                                <label for="co_teacher_id" class="form-label fw-bold">
+                                    <i class="fas fa-user-friends"></i> Co-Teacher <small class="text-muted">(Optional -- team teaching)</small>
+                                </label>
+                                <select name="co_teacher_id" id="co_teacher_id" class="form-select @error('co_teacher_id') is-invalid @enderror">
+                                    <option value="">-- None --</option>
+                                    @foreach($teachers as $teacher)
+                                        <option value="{{ $teacher->id }}" {{ old('co_teacher_id') == $teacher->id ? 'selected' : '' }}>
+                                            {{ $teacher->name }} - {{ $teacher->designation ?? 'Teacher' }} ({{ $teacher->phone ?? 'N/A' }})
+                                        </option>
+                                    @endforeach
+                                </select>
+                                <small class="text-muted">A second teacher who co-teaches this exact class/subject/period alongside the teacher above (e.g. "CS -- Garisht Singh / Rajesh"). Both must be free for a period to be placed there.</small>
+                                @error('co_teacher_id')
+                                    <div class="invalid-feedback">{{ $message }}</div>
+                                @enderror
+                            </div>
+                        </div>
+
                         <hr class="my-4">
 
                         <!-- Class & Section -->
@@ -127,13 +148,40 @@
                                 <label for="academic_year" class="form-label fw-bold">
                                     <i class="fas fa-calendar-alt"></i> Academic Year
                                 </label>
-                                <input type="text" name="academic_year" id="academic_year" 
-                                       class="form-control @error('academic_year') is-invalid @enderror" 
-                                       value="{{ old('academic_year', date('Y') . '-' . (date('Y') + 1)) }}" 
+                                <input type="text" name="academic_year" id="academic_year"
+                                       class="form-control @error('academic_year') is-invalid @enderror"
+                                       value="{{ old('academic_year', date('Y') . '-' . (date('Y') + 1)) }}"
                                        placeholder="e.g., 2025-2026">
                                 @error('academic_year')
                                     <div class="invalid-feedback">{{ $message }}</div>
                                 @enderror
+                            </div>
+                        </div>
+
+                        <!-- Timetable requirements (T2a) -->
+                        <div class="row mb-4">
+                            <div class="col-md-6">
+                                <label for="periods_per_week" class="form-label fw-bold">
+                                    <i class="fas fa-clock"></i> Periods Per Week <small class="text-muted">(Optional)</small>
+                                </label>
+                                <input type="number" name="periods_per_week" id="periods_per_week"
+                                       class="form-control @error('periods_per_week') is-invalid @enderror"
+                                       value="{{ old('periods_per_week') }}" min="1" max="12"
+                                       placeholder="e.g., 6">
+                                <small class="text-muted">How many periods a week this teacher needs for this subject/class -- used by the feasibility report and the future auto-generator.</small>
+                                @error('periods_per_week')
+                                    <div class="invalid-feedback">{{ $message }}</div>
+                                @enderror
+                            </div>
+                            <div class="col-md-6 d-flex align-items-center">
+                                <div class="form-check mt-4">
+                                    <input type="checkbox" name="require_consecutive" id="require_consecutive"
+                                           class="form-check-input" value="1" {{ old('require_consecutive') ? 'checked' : '' }}>
+                                    <label class="form-check-label fw-bold" for="require_consecutive">
+                                        Require Consecutive Periods
+                                    </label>
+                                    <p class="text-muted small mb-0">e.g. a double period for labs.</p>
+                                </div>
                             </div>
                         </div>
 

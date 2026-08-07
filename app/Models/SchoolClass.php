@@ -20,13 +20,15 @@ class SchoolClass extends Model
         'description',
         'capacity',
         'stream',
-        'is_active'
+        'is_active',
+        'last_teaching_period',
     ];
 
     protected $casts = [
         'class_order' => 'integer',
         'capacity' => 'integer',
         'is_active' => 'boolean',
+        'last_teaching_period' => 'integer',
     ];
 
     public function scopeActive($query)

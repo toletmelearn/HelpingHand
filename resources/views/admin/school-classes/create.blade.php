@@ -58,6 +58,20 @@
                     </div>
                 </div>
 
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label for="last_teaching_period" class="form-label">Last Teaching Period</label>
+                            <input type="number" class="form-control @error('last_teaching_period') is-invalid @enderror"
+                                   id="last_teaching_period" name="last_teaching_period" value="{{ old('last_teaching_period') }}" min="1">
+                            <div class="form-text">Leave blank for a full day. Set this if this class's teaching day ends earlier than the school's full period grid (e.g. period 6 of 8).</div>
+                            @error('last_teaching_period')
+                                <div class="invalid-feedback">{{ $message }}</div>
+                            @enderror
+                        </div>
+                    </div>
+                </div>
+
                 <div class="mb-3">
                     <label for="description" class="form-label">Description</label>
                     <textarea class="form-control @error('description') is-invalid @enderror"

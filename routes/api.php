@@ -11,6 +11,7 @@ use App\Http\Controllers\API\BellTimingController;
 use App\Http\Controllers\API\GuardianController;
 use App\Http\Controllers\API\LessonPlanController;
 use App\Http\Controllers\API\NotificationController;
+use App\Http\Controllers\API\ParentTimetableController;
 
 /*
 |--------------------------------------------------------------------------
@@ -99,6 +100,9 @@ Route::prefix('v1')->name('api.v1.')->group(function () {
         Route::apiResource('guardians', GuardianController::class);
         Route::get('/guardians/{id}/children', [GuardianController::class, 'children'])->name('guardians.children');
         Route::get('/guardians/{id}/notifications', [GuardianController::class, 'notifications'])->name('guardians.notifications');
+
+        // T5 item 2: parent's today's-periods, mobile/app context
+        Route::get('/students/{studentId}/timetable-today', [ParentTimetableController::class, 'today'])->name('students.timetable-today');
     });
 });
 

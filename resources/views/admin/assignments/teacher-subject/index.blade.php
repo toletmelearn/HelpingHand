@@ -164,6 +164,9 @@
                                         <td>{{ $assignments->firstItem() + $index }}</td>
                                         <td>
                                             <strong>{{ $assignment->teacher->name ?? 'N/A' }}</strong>
+                                            @if($assignment->coTeacher)
+                                                <span class="text-muted">/ {{ $assignment->coTeacher->name }}</span>
+                                            @endif
                                             <br><small class="text-muted">{{ $assignment->teacher->designation ?? 'Teacher' }}</small>
                                         </td>
                                         <td>

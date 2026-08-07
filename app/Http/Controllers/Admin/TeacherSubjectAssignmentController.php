@@ -22,7 +22,7 @@ class TeacherSubjectAssignmentController extends Controller
     {
         $this->authorize('viewAny', TeacherClassSubjectAssignment::class);
 
-        $query = TeacherClassSubjectAssignment::with(['teacher', 'subject', 'schoolClass', 'section']);
+        $query = TeacherClassSubjectAssignment::with(['teacher', 'coTeacher', 'subject', 'schoolClass', 'section']);
         
         // Apply filters
         if (request()->has('teacher_id') && request('teacher_id')) {
@@ -75,17 +75,21 @@ class TeacherSubjectAssignmentController extends Controller
 
         $request->validate([
             'teacher_id' => 'required|exists:teachers,id',
+            'co_teacher_id' => 'nullable|exists:teachers,id|different:teacher_id',
             'class_id' => 'required|exists:school_classes,id',
             'section_id' => 'nullable|exists:sections,id',
             'subject_id' => 'required|exists:subjects,id',
             'academic_year' => 'nullable|string|max:20',
             'is_class_teacher' => 'boolean',
             'is_primary_subject_teacher' => 'boolean',
+            'periods_per_week' => 'nullable|integer|min:1|max:12',
+            'require_consecutive' => 'boolean',
         ]);
 
         $academicYear = $request->academic_year ?? date('Y') . '-' . (date('Y') + 1);
         $isClassTeacher = $request->has('is_class_teacher');
         $isPrimarySubjectTeacher = $request->has('is_primary_subject_teacher');
+        $requireConsecutive = $request->has('require_consecutive');
 
         DB::beginTransaction();
         try {
@@ -122,8 +126,11 @@ class TeacherSubjectAssignmentController extends Controller
                     'academic_year' => $academicYear,
                 ],
                 [
+                    'co_teacher_id' => $request->co_teacher_id,
                     'is_class_teacher' => $isClassTeacher, // Only set is_class_teacher if checkbox checked // Only set if checkbox checked
                     'is_primary_subject_teacher' => $isPrimarySubjectTeacher,
+                    'periods_per_week' => $request->periods_per_week,
+                    'require_consecutive' => $requireConsecutive,
                 ]
             );
 
@@ -177,16 +184,20 @@ class TeacherSubjectAssignmentController extends Controller
 
         $request->validate([
             'teacher_id' => 'required|exists:teachers,id',
+            'co_teacher_id' => 'nullable|exists:teachers,id|different:teacher_id',
             'class_id' => 'required|exists:school_classes,id',
             'section_id' => 'nullable|exists:sections,id',
             'subject_id' => 'required|exists:subjects,id',
             'academic_year' => 'nullable|string|max:20',
             'is_class_teacher' => 'boolean',
             'is_primary_subject_teacher' => 'boolean',
+            'periods_per_week' => 'nullable|integer|min:1|max:12',
+            'require_consecutive' => 'boolean',
         ]);
 
         $isClassTeacher = $request->has('is_class_teacher');
         $isPrimarySubjectTeacher = $request->has('is_primary_subject_teacher');
+        $requireConsecutive = $request->has('require_consecutive');
 
         DB::beginTransaction();
         try {
@@ -202,12 +213,15 @@ class TeacherSubjectAssignmentController extends Controller
 
             $assignment->update([
                 'teacher_id' => $request->teacher_id,
+                'co_teacher_id' => $request->co_teacher_id,
                 'class_id' => $request->class_id,
                 'section_id' => $request->section_id,
                 'subject_id' => $request->subject_id,
                 'academic_year' => $request->academic_year,
                 'is_class_teacher' => $isClassTeacher, // Only set is_class_teacher if checkbox checked
                 'is_primary_subject_teacher' => $isPrimarySubjectTeacher,
+                'periods_per_week' => $request->periods_per_week,
+                'require_consecutive' => $requireConsecutive,
             ]);
 
             DB::commit();

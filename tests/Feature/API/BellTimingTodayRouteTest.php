@@ -138,6 +138,7 @@ class BellTimingTodayRouteTest extends TestCase
             $table->string('class_section')->nullable();
             $table->boolean('is_active')->default(true);
             $table->boolean('is_break')->default(false);
+            $table->string('period_type')->default('teaching');
             $table->integer('order_index')->default(0);
             $table->string('academic_year')->nullable();
             $table->string('semester')->nullable();

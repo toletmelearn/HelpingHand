@@ -50,6 +50,25 @@
         cursor: pointer;
         font-size: 0.8rem;
     }
+    /* T4b item 4: draft cells must read as visibly not-live at a glance. */
+    .grid-cell.is-draft-cell {
+        border: 1px dashed #f6c23e;
+        background: #fffaf0;
+    }
+    .slot-card.is-draft-slot {
+        background: #fff3cd;
+        border-left: 4px solid #f6c23e;
+    }
+    .draft-badge {
+        display: inline-block;
+        background: #f6c23e;
+        color: #4a3800;
+        font-weight: bold;
+        font-size: 0.7rem;
+        padding: 1px 6px;
+        border-radius: 3px;
+        margin-left: 6px;
+    }
 </style>
 
 <div class="container-fluid">
@@ -57,11 +76,80 @@
     <div class="d-sm-flex align-items-center justify-content-between mb-4">
         <h1 class="h3 mb-0 text-gray-800">Academic Timetable Scheduler</h1>
         @if($schoolClassId)
-        <button class="btn btn-primary shadow-sm" data-toggle="modal" data-target="#addSlotModal">
-            <i class="fas fa-plus fa-sm text-white-50"></i> Schedule Class Period
-        </button>
+        <div>
+            <a href="{{ route('timetable.pdf.class', ['school_class_id' => $schoolClassId, 'section_id' => $sectionId]) }}" class="btn btn-outline-secondary shadow-sm">
+                <i class="fas fa-file-pdf"></i> Download Class Timetable PDF
+            </a>
+            <button class="btn btn-primary shadow-sm" data-toggle="modal" data-target="#addSlotModal">
+                <i class="fas fa-plus fa-sm text-white-50"></i> Schedule Class Period
+            </button>
+        </div>
         @endif
     </div>
+
+    @if($schoolClassId)
+    <!-- T4b: Draft/Published toggle + Generate (Beta) -->
+    <div class="d-sm-flex align-items-center justify-content-between mb-3">
+        <div class="btn-group" role="group">
+            <a href="{{ route('timetable.index', ['school_class_id' => $schoolClassId, 'section_id' => $sectionId, 'status' => 'published']) }}"
+               class="btn btn-sm {{ $view === 'published' ? 'btn-primary' : 'btn-outline-primary' }}">Published</a>
+            <a href="{{ route('timetable.index', ['school_class_id' => $schoolClassId, 'section_id' => $sectionId, 'status' => 'draft']) }}"
+               class="btn btn-sm {{ $view === 'draft' ? 'btn-warning' : 'btn-outline-warning' }}">
+                Draft @if($hasDraft)<span class="badge badge-light">●</span>@endif
+            </a>
+        </div>
+        @can('generate', \App\Models\TimetableSlot::class)
+        <div>
+            @if($view === 'published' && $hasDraft)
+                <span class="text-warning font-weight-bold mr-2"><i class="fas fa-exclamation-circle"></i> A draft is waiting for review.</span>
+            @endif
+            <button type="button" class="btn btn-sm btn-warning shadow-sm" id="generateBetaBtn" data-class-id="{{ $schoolClassId }}">
+                <i class="fas fa-magic"></i> Generate (Beta)
+            </button>
+        </div>
+        @endcan
+    </div>
+
+    @if($view === 'draft' && $activeGeneration)
+        <div class="card shadow mb-3 border-left-warning">
+            <div class="card-body">
+                <h6 class="font-weight-bold text-dark">
+                    Draft review -- generation #{{ $activeGeneration->id }}
+                    ({{ $activeGeneration->placed_count }} placed, {{ $activeGeneration->unplaced_count }} unplaced
+                    @if($activeGeneration->placement_percent !== null)
+                        , {{ $activeGeneration->placement_percent }}%
+                    @endif
+                    )
+                </h6>
+
+                @php $unplacedSentences = collect($activeGeneration->report['unplaced'] ?? [])->pluck('reason'); @endphp
+                @if($unplacedSentences->isNotEmpty())
+                    <div class="alert alert-warning">
+                        <strong>Could not place everything:</strong>
+                        <ul class="mb-0">
+                            @foreach($unplacedSentences as $sentence)
+                                <li>{{ $sentence }}</li>
+                            @endforeach
+                        </ul>
+                    </div>
+                @endif
+
+                @can('publish', \App\Models\TimetableSlot::class)
+                <form action="{{ route('timetable.generation.publish', $activeGeneration) }}" method="POST" class="d-inline" onsubmit="return confirm('Publish this draft? It will archive the current live timetable for this class and make the draft live.');">
+                    @csrf
+                    <button type="submit" class="btn btn-success"><i class="fas fa-check"></i> Publish</button>
+                </form>
+                <form action="{{ route('timetable.generation.discard', $activeGeneration) }}" method="POST" class="d-inline" onsubmit="return confirm('Discard this draft? The live timetable will be untouched.');">
+                    @csrf
+                    <button type="submit" class="btn btn-outline-danger"><i class="fas fa-trash"></i> Discard draft</button>
+                </form>
+                @endcan
+            </div>
+        </div>
+    @elseif($view === 'draft')
+        <div class="alert alert-secondary">No draft exists yet for this class. Use "Generate (Beta)" to create one.</div>
+    @endif
+    @endif
 
     <!-- Notifications -->
     @if(session('success'))
@@ -146,16 +234,26 @@
                             $timing = $timings->where('day_of_week', $day)->first();
                             $slot = $timing ? $slots->where('bell_timing_id', $timing->id)->first() : null;
                         @endphp
-                        <div class="grid-cell">
+                        <div class="grid-cell {{ $slot && $view === 'draft' ? 'is-draft-cell' : '' }}">
                             @if($slot)
-                                <div class="slot-card shadow-sm">
+                                <div class="slot-card shadow-sm {{ $view === 'draft' ? 'is-draft-slot' : '' }}">
                                     <strong class="text-primary d-block">{{ $slot->subject->name }}</strong>
-                                    <span class="text-muted d-block small"><i class="fas fa-chalkboard-teacher"></i> {{ $slot->teacher->name }}</span>
+                                    <span class="text-muted d-block small">
+                                        <i class="fas fa-chalkboard-teacher"></i> {{ $slot->teacher->name }}{{ $slot->coTeacher ? ' / ' . $slot->coTeacher->name : '' }}
+                                    </span>
                                     @if($slot->room_number)
                                         <span class="badge badge-secondary mt-1">Room {{ $slot->room_number }}</span>
                                     @endif
+                                    @if($slot->combinedClassGroup)
+                                        <span class="badge badge-info mt-1" title="Shared with the other classes in this combined group">
+                                            <i class="fas fa-users"></i> {{ $slot->combinedClassGroup->name }}
+                                        </span>
+                                    @endif
+                                    @if($view === 'draft')
+                                        <span class="draft-badge">DRAFT</span>
+                                    @endif
                                 </div>
-                                <form action="{{ route('timetable.destroy', $slot->id) }}" method="POST" onsubmit="return confirm('Clear this slot?');">
+                                <form action="{{ route('timetable.destroy', $slot->id) }}" method="POST" onsubmit="return confirm({{ $slot->combinedClassGroup ? \Illuminate\Support\Js::from('This is a combined-group lesson -- clearing it removes this period for every member class, not just this one. Continue?') : \Illuminate\Support\Js::from('Clear this slot?') }});">
                                     @csrf
                                     @method('DELETE')
                                     <button type="submit" class="delete-slot-btn" title="Clear slot">
@@ -202,6 +300,9 @@
                 @csrf
                 <input type="hidden" name="school_class_id" value="{{ $schoolClassId }}">
                 <input type="hidden" name="section_id" value="{{ $sectionId }}">
+                {{-- T4b item 4: the manual editor writes to whichever grid is
+                     currently open, so editing a draft never touches the live timetable. --}}
+                <input type="hidden" name="status" value="{{ $view }}">
 
                 <div class="modal-body">
                     <div class="form-group">
@@ -237,6 +338,16 @@
                     </div>
 
                     <div class="form-group">
+                        <label for="modal_co_teacher_id" class="text-dark font-weight-bold">Co-Teacher (Optional, Team Teaching)</label>
+                        <select name="co_teacher_id" id="modal_co_teacher_id" class="form-control" onchange="triggerConflictCheck()">
+                            <option value="">-- None --</option>
+                            @foreach($teachers as $teacher)
+                                <option value="{{ $teacher->id }}">{{ $teacher->name }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+
+                    <div class="form-group">
                         <label for="modal_room_number" class="text-dark font-weight-bold">Room Number (Optional)</label>
                         <input type="text" name="room_number" id="modal_room_number" class="form-control" placeholder="e.g. Lab-3A" onkeyup="triggerConflictCheck()">
                     </div>
@@ -265,6 +376,7 @@
     function triggerConflictCheck() {
         const timingId = document.getElementById('modal_bell_timing_id').value;
         const teacherId = document.getElementById('modal_teacher_id').value;
+        const coTeacherId = document.getElementById('modal_co_teacher_id').value;
         const room = document.getElementById('modal_room_number').value;
 
         if (!timingId || !teacherId) {
@@ -273,7 +385,11 @@
             return;
         }
 
-        fetch(`{{ route('timetable.check-conflicts') }}?bell_timing_id=${timingId}&teacher_id=${teacherId}&room_number=${room}`)
+        const status = @json($view ?? 'published');
+        const schoolClassId = @json($schoolClassId);
+        const sectionId = @json($sectionId);
+
+        fetch(`{{ route('timetable.check-conflicts') }}?bell_timing_id=${timingId}&teacher_id=${teacherId}&co_teacher_id=${coTeacherId}&room_number=${room}&status=${status}&school_class_id=${schoolClassId ?? ''}&section_id=${sectionId ?? ''}`)
             .then(res => res.json())
             .then(data => {
                 const alertDiv = document.getElementById('conflictAlert');
@@ -292,4 +408,62 @@
     }
 </script>
 @endif
+
+@can('generate', \App\Models\TimetableSlot::class)
+@if($schoolClassId)
+<script>
+    document.getElementById('generateBetaBtn')?.addEventListener('click', function () {
+        // T4b item 3: the confirm dialog must say, in plain words, that
+        // this creates a DRAFT and touches nothing live.
+        if (!confirm('Generate (Beta) will create a DRAFT timetable proposal for this class. It does NOT change the live, published timetable -- nothing goes live until you review and Publish it. Continue?')) {
+            return;
+        }
+
+        const btn = this;
+        const classId = btn.dataset.classId;
+        btn.disabled = true;
+        btn.innerText = 'Generating...';
+
+        fetch(@json(route('timetable.generate')), {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || '{{ csrf_token() }}',
+            },
+            body: JSON.stringify({ school_class_ids: [classId] }),
+        })
+        .then(res => res.json())
+        .then(data => pollGenerationStatus(data.status_url, btn))
+        .catch(() => {
+            btn.disabled = false;
+            btn.innerText = 'Generate (Beta)';
+            alert('Could not start generation. Please try again.');
+        });
+    });
+
+    function pollGenerationStatus(statusUrl, btn) {
+        const poll = setInterval(() => {
+            fetch(statusUrl)
+                .then(res => res.json())
+                .then(data => {
+                    if (data.status === 'completed') {
+                        clearInterval(poll);
+                        const pct = data.placement_percent !== null ? `${data.placement_percent}%` : 'n/a';
+                        const unplacedList = (data.unplaced || []).map(u => u.reason).join('\n');
+                        alert(`Generation complete: ${data.placed_count} placed, ${data.unplaced_count} unplaced (${pct}).` + (unplacedList ? `\n\nCould not place:\n${unplacedList}` : ''));
+                        window.location = @json(route('timetable.index')) + `?school_class_id=${btn.dataset.classId}&status=draft`;
+                    } else if (data.status === 'failed') {
+                        clearInterval(poll);
+                        btn.disabled = false;
+                        btn.innerText = 'Generate (Beta)';
+                        alert('Generation failed: ' + (data.error || 'unknown error'));
+                    }
+                    // queued/running: keep polling
+                })
+                .catch(() => clearInterval(poll));
+        }, 2000);
+    }
+</script>
+@endif
+@endcan
 @endsection

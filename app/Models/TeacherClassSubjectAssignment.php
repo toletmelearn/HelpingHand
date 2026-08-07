@@ -11,17 +11,21 @@ class TeacherClassSubjectAssignment extends Model
 
     protected $fillable = [
         'teacher_id',
+        'co_teacher_id',
         'class_id',
         'section_id',
         'subject_id',
         'is_class_teacher',
         'is_primary_subject_teacher',
         'academic_year',
+        'periods_per_week',
+        'require_consecutive',
     ];
 
     protected $casts = [
         'is_class_teacher' => 'boolean',
         'is_primary_subject_teacher' => 'boolean',
+        'require_consecutive' => 'boolean',
     ];
 
     /**
@@ -30,6 +34,12 @@ class TeacherClassSubjectAssignment extends Model
     public function teacher()
     {
         return $this->belongsTo(Teacher::class);
+    }
+
+    /** T6 item 4: the optional second (team-teaching) teacher, same class/subject/period as teacher_id. */
+    public function coTeacher()
+    {
+        return $this->belongsTo(Teacher::class, 'co_teacher_id');
     }
 
     /**

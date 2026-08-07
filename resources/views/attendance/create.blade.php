@@ -101,6 +101,40 @@
                 </div>
             </div>
 
+            @if(isset($timetableToday) && $timetableToday->isNotEmpty())
+            <!-- T5 item 3: read-only reference -- today's published timetable for this class -->
+            <div class="card mb-4">
+                <div class="card-header bg-light">
+                    <h6 class="mb-0"><i class="bi bi-calendar-week"></i> Today's Timetable (reference only)</h6>
+                </div>
+                <div class="card-body p-0">
+                    <table class="table table-sm mb-0">
+                        <thead>
+                            <tr>
+                                <th>Period</th>
+                                <th>Subject</th>
+                                <th>Teacher</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach($timetableToday as $row)
+                                <tr>
+                                    <td>{{ $row->period_name }}</td>
+                                    <td>{{ $row->subject_name }}</td>
+                                    <td>
+                                        {{ $row->teacher_name }}
+                                        @if($row->is_arrangement)
+                                            <span class="badge bg-warning text-dark">Arrangement</span>
+                                        @endif
+                                    </td>
+                                </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            @endif
+
             <!-- Quick Actions -->
             <div class="card mb-4">
                 <div class="card-header">

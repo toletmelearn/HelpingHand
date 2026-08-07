@@ -144,6 +144,20 @@
                     </div>
                 </div>
                 @endif
+                @if(Auth::user()->hasRole('admin') || Auth::user()->hasRole('teacher'))
+                <div class="col-md-2 mb-3">
+                    <div class="card {{ ($unfilledArrangements ?? 0) > 0 ? 'bg-danger' : 'bg-secondary' }} text-white">
+                        <div class="card-body text-center">
+                            <i class="fas fa-people-arrows fa-2x mb-2"></i>
+                            <h5 class="card-title">Substitutions Today</h5>
+                            <h2 class="mb-0">{{ number_format($substitutionsToday ?? 0) }}</h2>
+                            @if(($unfilledArrangements ?? 0) > 0)
+                                <small>{{ $unfilledArrangements }} unfilled</small>
+                            @endif
+                        </div>
+                    </div>
+                </div>
+                @endif
                 @if(Auth::user()->hasRole('admin') || Auth::user()->hasPermission('view-fees') || Auth::user()->hasPermission('can-manage-fees'))
                 <div class="col-md-2 mb-3">
                     <div class="card bg-warning text-dark">
