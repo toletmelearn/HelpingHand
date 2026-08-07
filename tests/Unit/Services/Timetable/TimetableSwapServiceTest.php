@@ -432,4 +432,71 @@ class TimetableSwapServiceTest extends TestCase
 
         $this->assertFalse($result['applied'], 'apply() must not trust a stale preview -- it must see the newly-created conflict.');
     }
+
+    // --- Atomicity ------------------------------------------------------------
+
+    /**
+     * Pre-Auto-Fix hardening: apply()'s write is three sequential updates
+     * inside one DB::transaction() (archive A, move B, restore+move A --
+     * see the archived-parking trick documented on TimetableSwapService).
+     * A failure between the first and second update -- forced here via an
+     * Eloquent::updating listener, the same technique
+     * TimetableSlotUpdateTest already uses for the same purpose -- must
+     * roll back the ENTIRE transaction, not leave slot A stuck in
+     * 'archived' status with B never having moved.
+     */
+    public function test_a_failure_mid_transaction_rolls_back_the_entire_swap(): void
+    {
+        $this->withoutExceptionHandling();
+        $a = $this->slotA()->fresh();
+        $b = $this->slotB()->fresh();
+        $aOriginalStatus = $a->status;
+        $aOriginalTiming = $a->bell_timing_id;
+        $bOriginalTiming = $b->bell_timing_id;
+
+        $updateCount = 0;
+        TimetableSlot::updating(function () use (&$updateCount) {
+            $updateCount++;
+            // Let the FIRST update (archiving A) go through, then fail on
+            // the second (moving B) -- proving a failure genuinely mid-
+            // transaction, after a real mutation has already happened,
+            // still rolls everything back together.
+            if ($updateCount === 2) {
+                throw new \RuntimeException('Simulated failure after the swap transaction has begun mutating rows');
+            }
+        });
+
+        try {
+            $threw = false;
+
+            try {
+                (new TimetableSwapService())->apply($a->id, $b->id);
+            } catch (\RuntimeException $e) {
+                $threw = true;
+            }
+
+            $this->assertTrue($threw, 'Expected the simulated failure to propagate out of the transaction.');
+        } finally {
+            \Illuminate\Support\Facades\Event::forget('eloquent.updating: ' . TimetableSlot::class);
+        }
+
+        $a->refresh();
+        $b->refresh();
+
+        // No partial swap: neither row ended up parked in 'archived', and
+        // both are exactly where they started.
+        $this->assertSame($aOriginalStatus, $a->status, 'Slot A must not be left archived by a rolled-back swap.');
+        $this->assertSame($aOriginalTiming, $a->bell_timing_id, 'Slot A must retain its original period.');
+        $this->assertSame($bOriginalTiming, $b->bell_timing_id, 'Slot B must retain its original period.');
+        $this->assertSame($this->classA->id, $a->school_class_id, 'Slot A must retain its original class relationship.');
+        $this->assertSame($this->classB->id, $b->school_class_id, 'Slot B must retain its original class relationship.');
+
+        // Consistent activity logging: the log calls sit after all three
+        // updates in apply()'s transaction, so a rollback this early must
+        // leave no log entry for either slot -- not a log for one slot
+        // with no matching data change.
+        $this->assertDatabaseMissing('activity_log', [
+            'description' => 'timetable_slot_swapped',
+        ]);
+    }
 }

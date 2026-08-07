@@ -161,7 +161,6 @@ class TimetableController extends Controller
             'teacher_id' => 'required|exists:teachers,id',
             'co_teacher_id' => 'nullable|exists:teachers,id|different:teacher_id',
             'room_number' => 'nullable|string|max:50',
-            'academic_year' => 'nullable|string|max:20',
             'status' => 'nullable|in:draft,published',
         ]);
 
@@ -170,6 +169,15 @@ class TimetableController extends Controller
         // page's own Draft/Published toggle state through, so editing a
         // draft never touches the live timetable and vice versa.
         $status = $validated['status'] ?? TimetableSlot::STATUS_PUBLISHED;
+
+        // academic_year is never client-supplied -- it's resolved the same
+        // way every other timetable read/write in this controller resolves
+        // "the current year" (AcademicSession::current(), the same source
+        // GenerateTimetableJob stamps onto generator-created slots), so a
+        // manually-placed slot is tagged consistently with generated ones
+        // instead of silently landing on null and becoming invisible to
+        // any future academic-year-scoped check.
+        $validated['academic_year'] = AcademicSession::current()->first()?->code;
 
         // Conflict checking logic before saving, scoped to the same
         // status being edited -- a draft proposal is allowed to differ
@@ -185,15 +193,23 @@ class TimetableController extends Controller
         // the check) still can't create a double-booking, it just gets the
         // same friendly error instead of a 500.
         try {
-            $slot = TimetableSlot::updateOrCreate(
-                [
-                    'school_class_id' => $validated['school_class_id'],
-                    'section_id' => $validated['section_id'] ?? null,
-                    'bell_timing_id' => $validated['bell_timing_id'],
-                    'status' => $status,
-                ],
-                array_merge($validated, ['status' => $status])
-            );
+            $slot = DB::transaction(function () use ($validated, $status) {
+                $slot = TimetableSlot::updateOrCreate(
+                    [
+                        'school_class_id' => $validated['school_class_id'],
+                        'section_id' => $validated['section_id'] ?? null,
+                        'bell_timing_id' => $validated['bell_timing_id'],
+                        'status' => $status,
+                    ],
+                    array_merge($validated, ['status' => $status])
+                );
+
+                activity()->causedBy(Auth::user())->performedOn($slot)
+                    ->withProperties(['school_class_id' => $slot->school_class_id, 'section_id' => $slot->section_id, 'bell_timing_id' => $slot->bell_timing_id, 'status' => $slot->status])
+                    ->log($slot->wasRecentlyCreated ? 'timetable_slot_created' : 'timetable_slot_updated');
+
+                return $slot;
+            });
         } catch (\Illuminate\Database\QueryException $e) {
             if ((int) $e->errorInfo[1] === 1062) {
                 return back()->with('error', 'Scheduling conflict: this class or teacher already has a slot at this period.')->withInput();
@@ -201,10 +217,6 @@ class TimetableController extends Controller
 
             throw $e;
         }
-
-        activity()->causedBy(Auth::user())->performedOn($slot)
-            ->withProperties(['school_class_id' => $slot->school_class_id, 'section_id' => $slot->section_id, 'bell_timing_id' => $slot->bell_timing_id, 'status' => $slot->status])
-            ->log($slot->wasRecentlyCreated ? 'timetable_slot_created' : 'timetable_slot_updated');
 
         return back()->with('success', 'Timetable slot scheduled successfully.');
     }
@@ -377,11 +389,13 @@ class TimetableController extends Controller
             'teacher_id' => 'required|exists:teachers,id',
             'bell_timing_id' => 'required|exists:bell_timings,id',
             'room_number' => 'nullable|string|max:50',
-            'academic_year' => 'nullable|string|max:20',
             'status' => 'nullable|in:draft,published',
         ]);
 
         $status = $validated['status'] ?? TimetableSlot::STATUS_PUBLISHED;
+
+        // Same reasoning as store(): academic_year is never client-supplied.
+        $validated['academic_year'] = AcademicSession::current()->first()?->code;
 
         $group = CombinedClassGroup::with('members')->findOrFail($validated['combined_class_group_id']);
 
@@ -426,6 +440,10 @@ class TimetableController extends Controller
                         'status' => $status,
                     ]);
                 }
+
+                activity()->causedBy(Auth::user())->performedOn($group)
+                    ->withProperties(['bell_timing_id' => $validated['bell_timing_id'], 'teacher_id' => $validated['teacher_id'], 'member_count' => $group->members->count()])
+                    ->log('combined_group_placed');
             });
         } catch (\Illuminate\Database\QueryException $e) {
             if ((int) $e->errorInfo[1] === 1062) {
@@ -434,10 +452,6 @@ class TimetableController extends Controller
 
             throw $e;
         }
-
-        activity()->causedBy(Auth::user())->performedOn($group)
-            ->withProperties(['bell_timing_id' => $validated['bell_timing_id'], 'teacher_id' => $validated['teacher_id'], 'member_count' => $group->members->count()])
-            ->log('combined_group_placed');
 
         return back()->with('success', "Combined group \"{$group->name}\" scheduled for " . $group->members->count() . ' classes.');
     }
@@ -924,6 +938,20 @@ class TimetableController extends Controller
         $result = $this->checkSlotConflicts($request, $status);
 
         if ($result['conflict']) {
+            // Deliberately no ignore_slot_id here -- unchanged from before:
+            // a suggestion trial is evaluated against a DIFFERENT
+            // bell_timing_id each time, a different natural key, so
+            // whatever row the initial check excluded doesn't apply and
+            // must be independently re-resolved per candidate (both
+            // suggestion methods already do this internally).
+            //
+            // academic_year IS included, resolved once here rather than
+            // inside TimetableConflictResolver::check() on every single
+            // candidate evaluation -- it's invariant for the whole
+            // request (same AcademicSession::current() value regardless
+            // of which candidate period is being tried), so this removes
+            // one repeated, identical query per candidate without
+            // changing what value is ever used.
             $placement = [
                 'school_class_id' => $request->get('school_class_id'),
                 'section_id' => $request->get('section_id') ?: null,
@@ -933,6 +961,7 @@ class TimetableController extends Controller
                 'subject_id' => $request->get('subject_id'),
                 'room_number' => $request->get('room_number'),
                 'status' => $status,
+                'academic_year' => AcademicSession::current()->first()?->code,
             ];
 
             $suggestions = new TimetableSuggestionService();
@@ -1075,7 +1104,11 @@ class TimetableController extends Controller
             'subject_id' => $request->get('subject_id'),
             'room_number' => $request->get('room_number'),
             'status' => $status,
-            'academic_year' => $request->get('academic_year') ?: null,
+            // Never client-supplied, same reasoning as store()/storeCombined():
+            // this is also what actually gets persisted (see store()), so the
+            // preview must be checked against the exact year that will be
+            // saved, not whatever the client happens to send.
+            'academic_year' => AcademicSession::current()->first()?->code,
             'ignore_slot_id' => $request->get('id'),
         ]);
     }
