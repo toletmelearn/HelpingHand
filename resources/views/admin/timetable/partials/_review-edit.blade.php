@@ -58,6 +58,11 @@
         cursor: pointer;
         font-size: 0.8rem;
     }
+    /* Swap Engine: the first lesson picked, waiting for the second click. */
+    .slot-card.swap-selected {
+        outline: 3px solid #f6c23e;
+        outline-offset: 1px;
+    }
     /* T4b item 4: draft cells must read as visibly not-live at a glance. */
     .grid-cell.is-draft-cell {
         border: 1px dashed #f6c23e;
@@ -91,9 +96,19 @@
             <button class="btn btn-primary shadow-sm" data-bs-toggle="modal" data-bs-target="#addSlotModal">
                 <i class="fas fa-plus fa-sm text-white-50"></i> Schedule Class Period
             </button>
+            <button type="button" class="btn btn-outline-warning shadow-sm" id="swapModeToggleBtn">
+                <i class="fas fa-random"></i> Swap Lessons
+            </button>
         </div>
         @endif
     </div>
+    @if($schoolClassId)
+    <div id="swapModeBanner" class="alert alert-warning d-none mb-3">
+        <i class="fas fa-random me-1"></i>
+        <span id="swapModeBannerText">Swap mode: click the first lesson to swap.</span>
+        <button type="button" class="btn btn-sm btn-outline-secondary ms-2" id="swapModeCancelBtn">Cancel</button>
+    </div>
+    @endif
 
     @if($schoolClassId)
     <!-- T4b: Draft/Published toggle + Generate (Beta) -->
@@ -257,7 +272,7 @@
                                          'room_number' => $slot->room_number,
                                          'combined' => (bool) $slot->combined_class_group_id,
                                      ]) }}"
-                                     onclick="openEditModal(this)">
+                                     onclick="handleSlotCardClick(this)">
                                     <strong class="text-primary d-block">{{ $slot->subject->name }}</strong>
                                     <span class="text-muted d-block small">
                                         <i class="fas fa-chalkboard-teacher"></i> {{ $slot->teacher->name }}{{ $slot->coTeacher ? ' / ' . $slot->coTeacher->name : '' }}
@@ -497,6 +512,60 @@
 </div>
 @endif
 
+{{--
+    Swap Engine: read-only preview, then an explicit confirm before the
+    real POST. Every conflict shown here comes straight from
+    TimetableConflictResolver via TimetableSwapService::preview() -- never
+    fabricated client-side. The Confirm button is disabled whenever the
+    preview reports a conflict; the server re-validates independently at
+    apply-time regardless (see TimetableController::swapSlots()), so this
+    is a UX guard, not the actual authorization boundary.
+--}}
+@if($schoolClassId)
+<div class="modal fade" id="swapPreviewModal" tabindex="-1" role="dialog" aria-labelledby="swapPreviewModalLabel" aria-hidden="true">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content glass-card">
+            <div class="modal-header">
+                <h5 class="modal-title font-weight-bold text-dark" id="swapPreviewModalLabel">Swap Preview</h5>
+                <button type="button" class="close" data-bs-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div id="swapPreviewLoading" class="text-center text-muted py-3">
+                    <i class="fas fa-spinner fa-spin"></i> Checking...
+                </div>
+                <div id="swapPreviewContent" class="d-none">
+                    <div class="row">
+                        <div class="col-6 border-right">
+                            <h6 class="font-weight-bold">Lesson A</h6>
+                            <div id="swapPreviewA" class="small"></div>
+                        </div>
+                        <div class="col-6">
+                            <h6 class="font-weight-bold">Lesson B</h6>
+                            <div id="swapPreviewB" class="small"></div>
+                        </div>
+                    </div>
+                    <div id="swapPreviewOkNote" class="alert alert-success mt-3 d-none">
+                        <i class="fas fa-check-circle mr-1"></i> Both lessons are valid at each other's period. Ready to swap.
+                    </div>
+                    <div id="swapPreviewConflictAlert" class="alert alert-warning mt-3 d-none">
+                        <strong>Swap cannot be completed.</strong>
+                        <ul id="swapPreviewConflictList" class="mb-0 mt-1"></ul>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" id="swapConfirmBtn" class="btn btn-warning" disabled>
+                    <i class="fas fa-random"></i> Confirm Swap
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+@endif
+
 <script>
     function setSlotDefaults(day, timingId) {
         document.getElementById('modal_bell_timing_id').value = timingId;
@@ -622,6 +691,184 @@
 
         bootstrap.Modal.getOrCreateInstance(document.getElementById('editSlotModal')).show();
     }
+
+    // --- Swap Engine -------------------------------------------------
+    // Two-click selection (click lesson A, click lesson B) rather than
+    // drag-and-drop -- that's a later phase. Every conflict shown comes
+    // from TimetableConflictResolver via TimetableSwapService; nothing
+    // here fabricates a conflict or a suggestion.
+    let swapModeActive = false;
+    let swapSelectedSlotId = null;
+
+    document.getElementById('swapModeToggleBtn')?.addEventListener('click', function () {
+        swapModeActive = !swapModeActive;
+        swapSelectedSlotId = null;
+        updateSwapModeUi();
+    });
+
+    document.getElementById('swapModeCancelBtn')?.addEventListener('click', function () {
+        swapModeActive = false;
+        swapSelectedSlotId = null;
+        updateSwapModeUi();
+    });
+
+    function updateSwapModeUi() {
+        const banner = document.getElementById('swapModeBanner');
+        const toggleBtn = document.getElementById('swapModeToggleBtn');
+        document.querySelectorAll('.slot-card.swap-selected').forEach(el => el.classList.remove('swap-selected'));
+
+        if (!swapModeActive) {
+            banner?.classList.add('d-none');
+            toggleBtn?.classList.remove('active');
+            return;
+        }
+
+        banner?.classList.remove('d-none');
+        toggleBtn?.classList.add('active');
+        const bannerText = document.getElementById('swapModeBannerText');
+        if (bannerText) {
+            bannerText.innerText = swapSelectedSlotId
+                ? 'Swap mode: click the second lesson to swap with.'
+                : 'Swap mode: click the first lesson to swap.';
+        }
+    }
+
+    /**
+     * Dispatches a slot-card click to the normal Edit flow, or, while Swap
+     * mode is active, the two-click swap-selection flow -- one click
+     * handler, so there's no second, competing click-target mechanism.
+     */
+    function handleSlotCardClick(cardEl) {
+        if (!swapModeActive) {
+            openEditModal(cardEl);
+            return;
+        }
+
+        const slot = JSON.parse(cardEl.dataset.slot);
+
+        if (slot.combined) {
+            alert('This lesson is part of a combined class group and can\'t be swapped from a single cell. Clear it and re-place it via Combined Groups instead.');
+            return;
+        }
+
+        if (swapSelectedSlotId === null) {
+            swapSelectedSlotId = slot.id;
+            cardEl.classList.add('swap-selected');
+            updateSwapModeUi();
+            return;
+        }
+
+        if (swapSelectedSlotId === slot.id) {
+            // Same lesson clicked twice -- deselect, not a self-swap attempt.
+            swapSelectedSlotId = null;
+            updateSwapModeUi();
+            return;
+        }
+
+        const slotAId = swapSelectedSlotId;
+        const slotBId = slot.id;
+        swapModeActive = false;
+        swapSelectedSlotId = null;
+        updateSwapModeUi();
+
+        openSwapPreview(slotAId, slotBId);
+    }
+
+    function describeSwapSlot(desc) {
+        if (!desc) return '<span class="text-muted">Unknown</span>';
+        const parts = [];
+        parts.push(`<strong>${desc.class ?? ''}${desc.section ? ' ' + desc.section : ''}</strong>`);
+        parts.push(desc.subject ?? '');
+        parts.push(`<i class="fas fa-chalkboard-teacher"></i> ${desc.teacher ?? ''}${desc.co_teacher ? ' / ' + desc.co_teacher : ''}`);
+        if (desc.room_number) { parts.push(`Room ${desc.room_number}`); }
+        parts.push(`<span class="text-muted">${desc.day_of_week ?? ''} ${desc.period_name ?? ''}</span>`);
+        return parts.join('<br>');
+    }
+
+    /** Read-only preview -- calls timetable.swap-preview, never mutates anything. */
+    function openSwapPreview(slotAId, slotBId) {
+        const modalEl = document.getElementById('swapPreviewModal');
+        document.getElementById('swapPreviewLoading').classList.remove('d-none');
+        document.getElementById('swapPreviewContent').classList.add('d-none');
+        document.getElementById('swapPreviewOkNote').classList.add('d-none');
+        document.getElementById('swapPreviewConflictAlert').classList.add('d-none');
+        document.getElementById('swapConfirmBtn').disabled = true;
+
+        bootstrap.Modal.getOrCreateInstance(modalEl).show();
+
+        fetch(`{{ route('timetable.swap-preview') }}?slot_a_id=${slotAId}&slot_b_id=${slotBId}`)
+            .then(res => res.json())
+            .then(data => {
+                document.getElementById('swapPreviewLoading').classList.add('d-none');
+                document.getElementById('swapPreviewContent').classList.remove('d-none');
+                document.getElementById('swapPreviewA').innerHTML = describeSwapSlot(data.slot_a);
+                document.getElementById('swapPreviewB').innerHTML = describeSwapSlot(data.slot_b);
+
+                if (data.ok) {
+                    document.getElementById('swapPreviewOkNote').classList.remove('d-none');
+                    document.getElementById('swapConfirmBtn').disabled = false;
+                } else {
+                    const list = document.getElementById('swapPreviewConflictList');
+                    list.innerHTML = '';
+                    const conflicts = data.conflicts || [];
+                    if (conflicts.length) {
+                        conflicts.forEach(c => {
+                            const li = document.createElement('li');
+                            li.innerText = c.message;
+                            list.appendChild(li);
+                        });
+                    } else {
+                        const li = document.createElement('li');
+                        li.innerText = data.message || 'This swap is not valid.';
+                        list.appendChild(li);
+                    }
+                    document.getElementById('swapPreviewConflictAlert').classList.remove('d-none');
+                    document.getElementById('swapConfirmBtn').disabled = true;
+                }
+
+                document.getElementById('swapConfirmBtn').dataset.slotAId = slotAId;
+                document.getElementById('swapConfirmBtn').dataset.slotBId = slotBId;
+            })
+            .catch(() => {
+                document.getElementById('swapPreviewLoading').classList.add('d-none');
+                document.getElementById('swapPreviewContent').classList.remove('d-none');
+                document.getElementById('swapPreviewConflictAlert').classList.remove('d-none');
+                document.getElementById('swapPreviewConflictList').innerHTML = '<li>Could not check this swap. Please try again.</li>';
+            });
+    }
+
+    document.getElementById('swapConfirmBtn')?.addEventListener('click', function () {
+        const btn = this;
+        const slotAId = btn.dataset.slotAId;
+        const slotBId = btn.dataset.slotBId;
+        btn.disabled = true;
+        btn.innerText = 'Swapping...';
+
+        fetch(@json(route('timetable.swap')), {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || '{{ csrf_token() }}',
+            },
+            body: JSON.stringify({ slot_a_id: slotAId, slot_b_id: slotBId }),
+        })
+            .then(res => res.json().then(data => ({ status: res.status, data })))
+            .then(({ status, data }) => {
+                if (status === 200 && data.applied) {
+                    window.location.reload();
+                } else {
+                    const conflictText = (data.conflicts || []).map(c => c.message).join('\n');
+                    alert('Swap failed: ' + (data.message || 'Unknown error') + (conflictText ? '\n\n' + conflictText : ''));
+                    btn.disabled = false;
+                    btn.innerHTML = '<i class="fas fa-random"></i> Confirm Swap';
+                }
+            })
+            .catch(() => {
+                alert('Swap failed: could not reach the server. Please try again.');
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fas fa-random"></i> Confirm Swap';
+            });
+    });
 
     /**
      * Phase 3 (Smart Suggestions): every option shown here was already

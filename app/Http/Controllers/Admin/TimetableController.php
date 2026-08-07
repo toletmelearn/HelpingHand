@@ -17,6 +17,7 @@ use App\Services\Timetable\FeasibilityService;
 use App\Services\Timetable\TimetableAutoFixService;
 use App\Services\Timetable\TimetableConflictResolver;
 use App\Services\Timetable\TimetableSuggestionService;
+use App\Services\Timetable\TimetableSwapService;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -977,6 +978,79 @@ class TimetableController extends Controller
         );
 
         return response()->json($result, $result['applied'] ? 200 : 422);
+    }
+
+    /**
+     * Swap Engine (read-only preview): validates trading two lessons'
+     * periods without writing anything -- TimetableSwapService::preview()
+     * delegates straight to TimetableSuggestionService::checkSwap(), the
+     * one authoritative TimetableConflictResolver underneath it all.
+     * Gated the same as the live conflict-check AJAX endpoint (viewAny)
+     * since nothing is mutated here; the apply action below is where real
+     * per-slot authorization is enforced.
+     */
+    public function swapPreviewApi(Request $request)
+    {
+        $this->authorize('viewAny', TimetableSlot::class);
+
+        $validated = $request->validate([
+            'slot_a_id' => 'required|integer|exists:timetable_slots,id',
+            'slot_b_id' => 'required|integer|exists:timetable_slots,id',
+        ]);
+
+        $result = (new TimetableSwapService())->preview((int) $validated['slot_a_id'], (int) $validated['slot_b_id']);
+
+        return response()->json([
+            'ok' => $result['ok'],
+            'message' => $result['message'],
+            'conflicts' => $result['conflicts'],
+            'slot_a' => $result['slot_a'] ? $this->describeSlotForSwap($result['slot_a']) : null,
+            'slot_b' => $result['slot_b'] ? $this->describeSlotForSwap($result['slot_b']) : null,
+        ]);
+    }
+
+    /**
+     * Swap Engine (apply): a swap is, from an authorization standpoint, an
+     * update to both rows at once -- the same TimetableSlotPolicy::update()
+     * gate a normal edit requires must pass for EACH side individually
+     * (an admin always passes both; a teacher must be assigned to both
+     * slots' class-sections). Re-validated from scratch against live,
+     * row-locked data inside TimetableSwapService -- the preview above is
+     * only ever a hint, never trusted for the actual write.
+     */
+    public function swapSlots(Request $request)
+    {
+        $validated = $request->validate([
+            'slot_a_id' => 'required|integer|exists:timetable_slots,id',
+            'slot_b_id' => 'required|integer|exists:timetable_slots,id',
+        ]);
+
+        $slotA = TimetableSlot::findOrFail($validated['slot_a_id']);
+        $slotB = TimetableSlot::findOrFail($validated['slot_b_id']);
+
+        $this->authorize('update', $slotA);
+        $this->authorize('update', $slotB);
+
+        $result = (new TimetableSwapService())->apply($slotA->id, $slotB->id);
+
+        return response()->json($result, $result['applied'] ? 200 : 422);
+    }
+
+    /** Small, swap-preview-only view model -- avoids leaking full model internals into the JSON response. */
+    private function describeSlotForSwap(TimetableSlot $slot): array
+    {
+        return [
+            'id' => $slot->id,
+            'class' => $slot->schoolClass->name ?? null,
+            'section' => $slot->section->name ?? null,
+            'subject' => $slot->subject->name ?? null,
+            'teacher' => $slot->teacher->name ?? null,
+            'co_teacher' => $slot->coTeacher->name ?? null,
+            'room_number' => $slot->room_number,
+            'day_of_week' => $slot->bellTiming->day_of_week ?? null,
+            'period_name' => $slot->bellTiming->period_name ?? null,
+            'bell_timing_id' => $slot->bell_timing_id,
+        ];
     }
 
     /**
