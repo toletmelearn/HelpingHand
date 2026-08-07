@@ -1738,6 +1738,10 @@ Route::middleware(['auth'])->group(function () {
     Route::delete('/admin/timetable/{id}', [\App\Http\Controllers\Admin\TimetableController::class, 'destroy'])->name('timetable.destroy');
     Route::get('/admin/timetable/check-conflicts', [\App\Http\Controllers\Admin\TimetableController::class, 'checkConflictsApi'])->name('timetable.check-conflicts');
     Route::post('/admin/timetable/auto-fix/relocate-blocker', [\App\Http\Controllers\Admin\TimetableController::class, 'autoFixRelocateBlocker'])->name('timetable.auto-fix.relocate-blocker');
+    // Swap Engine: preview is read-only (viewAny-gated, like check-conflicts);
+    // the actual swap re-validates and authorizes both slots individually.
+    Route::get('/admin/timetable/swap-preview', [\App\Http\Controllers\Admin\TimetableController::class, 'swapPreviewApi'])->name('timetable.swap-preview');
+    Route::post('/admin/timetable/swap', [\App\Http\Controllers\Admin\TimetableController::class, 'swapSlots'])->name('timetable.swap');
     Route::get('/admin/timetable/feasibility', [\App\Http\Controllers\Admin\TimetableController::class, 'feasibility'])->name('timetable.feasibility');
     Route::get('/admin/timetable/pdf/class', [\App\Http\Controllers\Admin\TimetableController::class, 'classPdf'])->name('timetable.pdf.class');
     Route::get('/admin/timetable/pdf/teacher', [\App\Http\Controllers\Admin\TimetableController::class, 'teacherPdf'])->name('timetable.pdf.teacher');

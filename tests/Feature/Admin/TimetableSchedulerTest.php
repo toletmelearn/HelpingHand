@@ -3,6 +3,7 @@
 namespace Tests\Feature\Admin;
 
 use Tests\TestCase;
+use App\Models\AcademicSession;
 use App\Models\User;
 use App\Models\Role;
 use App\Models\SchoolClass;
@@ -108,6 +109,131 @@ class TimetableSchedulerTest extends TestCase
             'subject_id' => $this->subject->id,
             'teacher_id' => $this->teacher->id,
             'room_number' => 'Room 101',
+        ]);
+    }
+
+    public function test_manual_slot_creation_uses_the_current_academic_year_not_a_client_supplied_one(): void
+    {
+        AcademicSession::create([
+            'name' => '2026-2027', 'code' => '2026-2027',
+            'start_date' => '2026-04-01', 'end_date' => '2027-03-31', 'is_current' => true,
+        ]);
+
+        // The real Add-Slot form never sends academic_year at all -- this
+        // is the exact request shape that used to leave the row's
+        // academic_year null.
+        $response = $this->actingAs($this->adminUser)
+            ->post(route('timetable.store'), [
+                'school_class_id' => $this->class->id,
+                'section_id' => $this->section->id,
+                'bell_timing_id' => $this->timing1->id,
+                'subject_id' => $this->subject->id,
+                'teacher_id' => $this->teacher->id,
+            ]);
+
+        $response->assertRedirect();
+        $this->assertDatabaseHas('timetable_slots', [
+            'school_class_id' => $this->class->id,
+            'bell_timing_id' => $this->timing1->id,
+            'academic_year' => '2026-2027',
+        ]);
+    }
+
+    public function test_manual_slot_creation_ignores_a_client_supplied_academic_year(): void
+    {
+        AcademicSession::create([
+            'name' => '2026-2027', 'code' => '2026-2027',
+            'start_date' => '2026-04-01', 'end_date' => '2027-03-31', 'is_current' => true,
+        ]);
+
+        // A malicious or stale client claiming a different year must not
+        // be able to tag the row with it -- the server always resolves
+        // its own authoritative value.
+        $response = $this->actingAs($this->adminUser)
+            ->post(route('timetable.store'), [
+                'school_class_id' => $this->class->id,
+                'section_id' => $this->section->id,
+                'bell_timing_id' => $this->timing1->id,
+                'subject_id' => $this->subject->id,
+                'teacher_id' => $this->teacher->id,
+                'academic_year' => '1999-2000',
+            ]);
+
+        $response->assertRedirect();
+        $this->assertDatabaseHas('timetable_slots', [
+            'school_class_id' => $this->class->id,
+            'bell_timing_id' => $this->timing1->id,
+            'academic_year' => '2026-2027',
+        ]);
+        $this->assertDatabaseMissing('timetable_slots', [
+            'school_class_id' => $this->class->id,
+            'bell_timing_id' => $this->timing1->id,
+            'academic_year' => '1999-2000',
+        ]);
+    }
+
+    public function test_manual_slot_creation_writes_an_activity_log_entry(): void
+    {
+        $this->actingAs($this->adminUser)->post(route('timetable.store'), [
+            'school_class_id' => $this->class->id,
+            'section_id' => $this->section->id,
+            'bell_timing_id' => $this->timing1->id,
+            'subject_id' => $this->subject->id,
+            'teacher_id' => $this->teacher->id,
+        ]);
+
+        $slot = TimetableSlot::where('school_class_id', $this->class->id)->where('bell_timing_id', $this->timing1->id)->firstOrFail();
+
+        $this->assertDatabaseHas('activity_log', [
+            'subject_type' => TimetableSlot::class,
+            'subject_id' => $slot->id,
+            'description' => 'timetable_slot_created',
+        ]);
+    }
+
+    /**
+     * Pre-Auto-Fix hardening: store()'s write and its activity-log entry
+     * are now one DB::transaction() (previously two separate statements --
+     * see the class docblock reasoning already established by update()'s
+     * own equivalent test). A failure between them must roll back BOTH
+     * halves together, never leaving a persisted slot with no log entry
+     * or vice versa.
+     */
+    public function test_a_failure_during_manual_slot_creation_rolls_back_both_the_slot_and_the_activity_log(): void
+    {
+        $this->withoutExceptionHandling();
+
+        TimetableSlot::creating(function () {
+            throw new \RuntimeException('Simulated failure after the proposed create begins');
+        });
+
+        try {
+            $threw = false;
+
+            try {
+                $this->actingAs($this->adminUser)->post(route('timetable.store'), [
+                    'school_class_id' => $this->class->id,
+                    'section_id' => $this->section->id,
+                    'bell_timing_id' => $this->timing1->id,
+                    'subject_id' => $this->subject->id,
+                    'teacher_id' => $this->teacher->id,
+                ]);
+            } catch (\RuntimeException $e) {
+                $threw = true;
+            }
+
+            $this->assertTrue($threw, 'Expected the simulated failure to propagate out of the transaction.');
+        } finally {
+            \Illuminate\Support\Facades\Event::forget('eloquent.creating: ' . TimetableSlot::class);
+        }
+
+        $this->assertDatabaseMissing('timetable_slots', [
+            'school_class_id' => $this->class->id,
+            'bell_timing_id' => $this->timing1->id,
+        ]);
+        $this->assertDatabaseMissing('activity_log', [
+            'subject_type' => TimetableSlot::class,
+            'description' => 'timetable_slot_created',
         ]);
     }
 

@@ -80,6 +80,78 @@ class TimetableCombinedSlotTest extends TestCase
         $this->assertSame(2, TimetableSlot::where('combined_class_group_id', $data['group']->id)->count());
     }
 
+    public function test_combined_slot_placement_uses_the_current_academic_year_not_a_client_supplied_one(): void
+    {
+        $admin = $this->admin();
+        $data = $this->makeGroupWithTwoMembers();
+        $data['session']->update(['is_current' => true]);
+        $teacher = Teacher::create(['name' => 'Combined Teacher']);
+        $timing = BellTiming::create(['day_of_week' => 'Monday', 'period_name' => 'P1', 'start_time' => '08:00', 'end_time' => '08:45', 'is_active' => true, 'is_break' => false, 'order_index' => 1]);
+
+        $response = $this->actingAs($admin)->post(route('timetable.combined.store'), [
+            'combined_class_group_id' => $data['group']->id,
+            'teacher_id' => $teacher->id,
+            'bell_timing_id' => $timing->id,
+            'academic_year' => '1999-2000',
+        ]);
+
+        $response->assertRedirect();
+        $this->assertDatabaseHas('timetable_slots', [
+            'school_class_id' => $data['classA']->id,
+            'combined_class_group_id' => $data['group']->id,
+            'academic_year' => '2026-2027',
+        ]);
+        $this->assertDatabaseMissing('timetable_slots', [
+            'combined_class_group_id' => $data['group']->id,
+            'academic_year' => '1999-2000',
+        ]);
+    }
+
+    /**
+     * Pre-Auto-Fix hardening: storeCombined()'s per-member creates and its
+     * activity-log entry are now one DB::transaction() (previously the
+     * writes were transactional but the log call happened after the
+     * transaction closed). A failure partway through must roll back EVERY
+     * member row already written this request, not leave a partial
+     * combined occurrence with only some classes booked.
+     */
+    public function test_a_failure_during_combined_placement_rolls_back_every_member_row_and_the_activity_log(): void
+    {
+        $this->withoutExceptionHandling();
+        $admin = $this->admin();
+        $data = $this->makeGroupWithTwoMembers();
+        $data['session']->update(['is_current' => true]);
+        $teacher = Teacher::create(['name' => 'Combined Teacher']);
+        $timing = BellTiming::create(['day_of_week' => 'Monday', 'period_name' => 'P1', 'start_time' => '08:00', 'end_time' => '08:45', 'is_active' => true, 'is_break' => false, 'order_index' => 1]);
+
+        TimetableSlot::creating(function () {
+            throw new \RuntimeException('Simulated failure after the proposed create begins');
+        });
+
+        try {
+            $threw = false;
+
+            try {
+                $this->actingAs($admin)->post(route('timetable.combined.store'), [
+                    'combined_class_group_id' => $data['group']->id,
+                    'teacher_id' => $teacher->id,
+                    'bell_timing_id' => $timing->id,
+                ]);
+            } catch (\RuntimeException $e) {
+                $threw = true;
+            }
+
+            $this->assertTrue($threw, 'Expected the simulated failure to propagate out of the transaction.');
+        } finally {
+            \Illuminate\Support\Facades\Event::forget('eloquent.creating: ' . TimetableSlot::class);
+        }
+
+        $this->assertSame(0, TimetableSlot::where('combined_class_group_id', $data['group']->id)->count());
+        $this->assertDatabaseMissing('activity_log', [
+            'description' => 'combined_group_placed',
+        ]);
+    }
+
     public function test_placement_rejected_when_teacher_already_booked_elsewhere_that_period(): void
     {
         $admin = $this->admin();

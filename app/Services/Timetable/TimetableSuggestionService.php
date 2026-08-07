@@ -28,6 +28,20 @@ class TimetableSuggestionService
 {
     private TimetableConflictResolver $resolver;
 
+    /**
+     * candidateBellTimings() memoized per academic_year within THIS
+     * instance's lifetime only -- checkConflictsApi() creates one instance
+     * per request and calls both suggestForNewPlacement() and
+     * suggestBlockerRelocation() on it back to back with the same
+     * academic_year, which previously re-ran the identical query twice.
+     * Never shared across requests/instances, so it can't go stale across
+     * a mutation -- this service and its caller are read-only; nothing
+     * here ever writes a TimetableSlot.
+     *
+     * @var array<string, Collection>
+     */
+    private array $candidateBellTimingsCache = [];
+
     public function __construct(?TimetableConflictResolver $resolver = null)
     {
         $this->resolver = $resolver ?? new TimetableConflictResolver();
@@ -178,12 +192,23 @@ class TimetableSuggestionService
      */
     private function candidateBellTimings(array $placement): Collection
     {
-        return BellTiming::active()
-            ->teachingType()
-            ->when($placement['academic_year'] ?? null, fn ($q, $year) => $q->where('academic_year', $year))
-            ->orderBy('day_of_week')
-            ->orderBy('order_index')
-            ->get();
+        // Keyed on the academic_year value alone: that's the only part of
+        // $placement this query's WHERE clauses depend on (see the query
+        // below), so two calls with the same year -- even for otherwise
+        // different placements/candidates -- always return the identical
+        // result set.
+        $cacheKey = (string) ($placement['academic_year'] ?? '');
+
+        if (!array_key_exists($cacheKey, $this->candidateBellTimingsCache)) {
+            $this->candidateBellTimingsCache[$cacheKey] = BellTiming::active()
+                ->teachingType()
+                ->when($placement['academic_year'] ?? null, fn ($q, $year) => $q->where('academic_year', $year))
+                ->orderBy('day_of_week')
+                ->orderBy('order_index')
+                ->get();
+        }
+
+        return $this->candidateBellTimingsCache[$cacheKey];
     }
 
     private function describe(BellTiming $candidate, string $description): array
