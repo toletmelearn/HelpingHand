@@ -38,4 +38,26 @@ return [
         // not the solver's own search budget.
         'job_timeout_seconds' => env('TIMETABLE_GENERATOR_JOB_TIMEOUT', 300),
     ],
+
+    /*
+    |--------------------------------------------------------------------
+    | Auto-Fix chain repair (Phase 4)
+    |--------------------------------------------------------------------
+    |
+    | max_chain_depth: how many lessons deep a repair chain is allowed to
+    | go (1 = exactly the pre-existing single-blocker-relocation case; 2+
+    | means the blocker's own blocker also has to move, and so on).
+    |
+    | search_budget: total TimetableConflictResolver::check() calls the
+    | chain search may spend across the whole attempt before giving up and
+    | reporting "no fix found" -- each call costs roughly 14-19 queries
+    | (see TimetableConflictResolver), so this bounds worst-case query
+    | volume for one interactive Auto-Fix preview the same way
+    | backtrack_budget_per_lesson bounds the generator's search.
+    |
+    */
+    'autofix' => [
+        'max_chain_depth' => env('TIMETABLE_AUTOFIX_MAX_CHAIN_DEPTH', 3),
+        'search_budget' => env('TIMETABLE_AUTOFIX_SEARCH_BUDGET', 150),
+    ],
 ];

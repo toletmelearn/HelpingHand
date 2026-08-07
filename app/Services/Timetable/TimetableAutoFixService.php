@@ -2,6 +2,9 @@
 
 namespace App\Services\Timetable;
 
+use App\Models\BellTiming;
+use App\Models\Subject;
+use App\Models\Teacher;
 use App\Models\TimetableSlot;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -17,14 +20,26 @@ use Illuminate\Support\Facades\DB;
  * in between. Never applied silently: the caller must name both a
  * specific blocking_slot_id and a specific destination period, there is
  * no "just pick something" mode.
+ *
+ * previewChainFix()/applyChainFix() below generalise this to N hops: when
+ * the single blocker itself has nowhere clean to go, they look for a
+ * chain of relocations (the blocker's blocker, and so on, up to
+ * config('timetable.autofix.max_chain_depth')) that collectively frees
+ * the requested period. Every step is still validated exclusively through
+ * TimetableConflictResolver::check() and TimetableSuggestionService's own
+ * candidate pool -- no parallel conflict or candidate logic is
+ * introduced, only the search over what those two already know how to
+ * judge.
  */
 class TimetableAutoFixService
 {
     private TimetableConflictResolver $resolver;
+    private TimetableSuggestionService $suggestions;
 
-    public function __construct(?TimetableConflictResolver $resolver = null)
+    public function __construct(?TimetableConflictResolver $resolver = null, ?TimetableSuggestionService $suggestions = null)
     {
         $this->resolver = $resolver ?? new TimetableConflictResolver();
+        $this->suggestions = $suggestions ?? new TimetableSuggestionService($this->resolver);
     }
 
     /**
@@ -89,5 +104,315 @@ class TimetableAutoFixService
         });
 
         return ['applied' => true, 'message' => 'Fix applied -- the other lesson was moved and your lesson is now scheduled.'];
+    }
+
+    /**
+     * Attempts to find a chain of relocations that would let $newPlacement
+     * be placed cleanly at its requested bell_timing_id, moving up to
+     * max_chain_depth other lessons out of the way. Read-only -- writes
+     * nothing; applyChainFix() re-validates and performs the actual moves.
+     *
+     * Only conflicts that name a single blocking_slot_id (teacher,
+     * co-teacher, class/section, room) are chain-repairable -- a
+     * constraint-only violation (daily/weekly load limit, subject-per-day
+     * cap, non-teaching period) has no single row whose relocation would
+     * fix it, so those are reported as unfixable the same way
+     * TimetableSuggestionService::suggestBlockerRelocation() already
+     * treats them.
+     *
+     * @param array $newPlacement Same shape TimetableConflictResolver::check() takes.
+     * @return array{ok: bool, message: string, steps: array, final_placement: ?array}
+     */
+    public function previewChainFix(array $newPlacement, ?int $maxDepth = null): array
+    {
+        $maxDepth = $maxDepth ?? (int) config('timetable.autofix.max_chain_depth', 3);
+        $budget = (int) config('timetable.autofix.search_budget', 150);
+
+        $rootBellTimingId = (int) ($newPlacement['bell_timing_id'] ?? 0);
+        if (!$rootBellTimingId) {
+            return ['ok' => false, 'message' => 'No target period given.', 'steps' => [], 'final_placement' => null];
+        }
+
+        $movedSlotIds = [];
+        $claimedBellTimingIds = [$rootBellTimingId];
+
+        $steps = $this->discoverChain($newPlacement, $maxDepth, $movedSlotIds, $claimedBellTimingIds, $budget);
+
+        if ($steps === null) {
+            return [
+                'ok' => false,
+                'message' => $budget <= 0
+                    ? 'Could not find a fix within the search budget -- the timetable may be too tightly packed, or this needs a manual move.'
+                    : "Could not find a chain of moves that resolves this conflict within {$maxDepth} step(s).",
+                'steps' => [],
+                'final_placement' => null,
+            ];
+        }
+
+        return [
+            'ok' => true,
+            'message' => empty($steps)
+                ? 'No conflict -- this can be placed directly.'
+                : 'Found a fix: ' . count($steps) . ' lesson(s) need to move first.',
+            'steps' => array_map(fn ($step) => $this->describeStep($step), $steps),
+            'final_placement' => $this->describePlacement($newPlacement),
+        ];
+    }
+
+    /**
+     * Re-validates and applies a chain previously returned by
+     * previewChainFix() -- never trusts the preview itself, since another
+     * admin could have changed something in the meantime. $steps must be
+     * in EXECUTION order (deepest move first, exactly as previewChainFix()
+     * returns them): each step's target period is vacated by the
+     * PRECEDING step (or was already free), so applying them in that
+     * order is naturally collision-free -- unlike a swap, a chain never
+     * needs the archived-parking trick, because no two rows ever trade
+     * places simultaneously.
+     *
+     * @param array $newPlacement Same shape as passed to previewChainFix().
+     * @param array<int, array{slot_id: int, to_bell_timing_id: int}> $steps
+     * @return array{applied: bool, message: string}
+     */
+    public function applyChainFix(array $newPlacement, array $steps): array
+    {
+        $rootBellTimingId = (int) ($newPlacement['bell_timing_id'] ?? 0);
+        if (!$rootBellTimingId) {
+            return ['applied' => false, 'message' => 'No target period given.'];
+        }
+
+        $slotIds = array_map(fn ($step) => (int) $step['slot_id'], $steps);
+        if (count($slotIds) !== count(array_unique($slotIds))) {
+            return ['applied' => false, 'message' => 'This fix is no longer valid -- it referenced the same lesson twice.'];
+        }
+
+        $allTargets = array_merge(array_map(fn ($step) => (int) $step['to_bell_timing_id'], $steps), [$rootBellTimingId]);
+        if (count($allTargets) !== count(array_unique($allTargets))) {
+            return ['applied' => false, 'message' => 'This fix is no longer valid -- two lessons in the chain would land on the same period.'];
+        }
+
+        return DB::transaction(function () use ($newPlacement, $steps, $slotIds, $rootBellTimingId) {
+            // Lock every row this chain touches, in a fixed ascending-id
+            // order, so two concurrent Auto-Fix runs sharing a row can
+            // never deadlock against each other -- same reasoning as
+            // TimetableSwapService::apply().
+            sort($slotIds);
+            $slots = TimetableSlot::whereIn('id', $slotIds)->lockForUpdate()->get()->keyBy('id');
+
+            if ($slots->count() !== count($steps)) {
+                return ['applied' => false, 'message' => 'This fix is no longer valid -- one or more of the lessons it planned to move no longer exist.'];
+            }
+
+            foreach ($slots as $slot) {
+                if ($slot->combined_class_group_id) {
+                    return ['applied' => false, 'message' => 'This fix is no longer valid -- a combined-group lesson is now in the way and can\'t be auto-moved.'];
+                }
+                if ($slot->status === TimetableSlot::STATUS_ARCHIVED) {
+                    return ['applied' => false, 'message' => 'This fix is no longer valid -- one of the lessons it planned to move is now archived history.'];
+                }
+            }
+
+            // Re-validate every step against LIVE data, each ignoring
+            // every OTHER slot in the chain (they're all moving in this
+            // same transaction, so none of their current positions should
+            // count as a real collision against each other).
+            foreach ($steps as $step) {
+                $slot = $slots->get((int) $step['slot_id']);
+
+                $trial = [
+                    'school_class_id' => $slot->school_class_id,
+                    'section_id' => $slot->section_id,
+                    'teacher_id' => $slot->teacher_id,
+                    'co_teacher_id' => $slot->co_teacher_id,
+                    'subject_id' => $slot->subject_id,
+                    'room_number' => $slot->room_number,
+                    'status' => $slot->status,
+                    'academic_year' => $slot->academic_year,
+                    'bell_timing_id' => (int) $step['to_bell_timing_id'],
+                    'ignore_slot_id' => $slotIds,
+                ];
+
+                $check = $this->resolver->check($trial);
+                if ($check['conflict']) {
+                    return ['applied' => false, 'message' => "This fix is no longer valid -- moving one of the lessons would now conflict: {$check['message']}"];
+                }
+            }
+
+            $newPlacementCheck = $this->resolver->check(array_merge($newPlacement, ['ignore_slot_id' => $slotIds]));
+            if ($newPlacementCheck['conflict']) {
+                return ['applied' => false, 'message' => "This fix is no longer valid -- your lesson would still conflict: {$newPlacementCheck['message']}"];
+            }
+
+            $before = [];
+            foreach ($steps as $step) {
+                $slot = $slots->get((int) $step['slot_id']);
+                $before[$slot->id] = $slot->bell_timing_id;
+                $slot->update(['bell_timing_id' => (int) $step['to_bell_timing_id']]);
+            }
+
+            $newSlot = TimetableSlot::updateOrCreate(
+                [
+                    'school_class_id' => $newPlacement['school_class_id'],
+                    'section_id' => $newPlacement['section_id'] ?? null,
+                    'bell_timing_id' => $rootBellTimingId,
+                    'status' => $newPlacement['status'] ?? TimetableSlot::STATUS_PUBLISHED,
+                ],
+                array_merge($newPlacement, ['status' => $newPlacement['status'] ?? TimetableSlot::STATUS_PUBLISHED])
+            );
+
+            foreach ($steps as $step) {
+                $slot = $slots->get((int) $step['slot_id']);
+                activity()->causedBy(Auth::user())->performedOn($slot)
+                    ->withProperties([
+                        'moved_from_bell_timing_id' => $before[$slot->id],
+                        'moved_to_bell_timing_id' => $step['to_bell_timing_id'],
+                        'chain_length' => count($steps),
+                        'freed_for' => $newPlacement,
+                    ])
+                    ->log('timetable_autofix_chain_applied');
+            }
+
+            activity()->causedBy(Auth::user())->performedOn($newSlot)
+                ->withProperties(['chain_length' => count($steps), 'moved_slot_ids' => $slotIds])
+                ->log('timetable_autofix_chain_placed');
+
+            return [
+                'applied' => true,
+                'message' => empty($steps)
+                    ? 'Lesson scheduled -- no other lessons needed to move.'
+                    : 'Fix applied -- ' . count($steps) . ' lesson(s) moved and your lesson is now scheduled.',
+            ];
+        });
+    }
+
+    /**
+     * Recursive, budgeted, greedy search: is $placement (at its given
+     * bell_timing_id) already clean, or can it be MADE clean by relocating
+     * whatever blocks it (and, if that in turn is blocked, whatever
+     * blocks THAT, up to $depth levels)? Returns the list of moves needed
+     * in EXECUTION order (deepest first), an empty array if nothing needs
+     * to move, or null if no fix was found (either genuinely impossible
+     * within $depth, or the search ran out of budget).
+     *
+     * $movedSlotIds and $claimedBellTimingIds are threaded by reference
+     * and mutated as the search commits to and backtracks from candidate
+     * moves -- every check() call ignores every slot already committed to
+     * move in this attempt (their old positions don't count as real
+     * occupants once they've been relocated), and every candidate search
+     * skips every bell_timing_id already claimed by an earlier step in
+     * the SAME chain (so two steps never target the same period).
+     */
+    private function discoverChain(array $placement, int $depth, array &$movedSlotIds, array &$claimedBellTimingIds, int &$budget): ?array
+    {
+        if ($budget <= 0) {
+            return null;
+        }
+        $budget--;
+
+        $check = $this->resolver->check(array_merge($placement, ['ignore_slot_id' => $movedSlotIds]));
+        if (!$check['conflict']) {
+            return [];
+        }
+
+        if ($depth <= 0) {
+            return null;
+        }
+
+        $blockerId = null;
+        foreach ($check['conflicts'] as $conflict) {
+            if (!empty($conflict['blocking_slot_id']) && !in_array((int) $conflict['blocking_slot_id'], $movedSlotIds, true)) {
+                $blockerId = (int) $conflict['blocking_slot_id'];
+                break;
+            }
+        }
+
+        if (!$blockerId) {
+            return null; // constraint-only violation (load limit, subject-per-day, period type) -- no row to move.
+        }
+
+        $blocker = TimetableSlot::find($blockerId);
+        if (!$blocker || $blocker->combined_class_group_id || $blocker->status === TimetableSlot::STATUS_ARCHIVED) {
+            return null;
+        }
+
+        $movedSlotIds[] = $blockerId;
+
+        $blockerPlacement = [
+            'school_class_id' => $blocker->school_class_id,
+            'section_id' => $blocker->section_id,
+            'teacher_id' => $blocker->teacher_id,
+            'co_teacher_id' => $blocker->co_teacher_id,
+            'subject_id' => $blocker->subject_id,
+            'room_number' => $blocker->room_number,
+            'status' => $blocker->status,
+            'academic_year' => $blocker->academic_year,
+        ];
+
+        foreach ($this->suggestions->candidatePeriodsFor($blockerPlacement) as $candidate) {
+            if ($budget <= 0) {
+                break;
+            }
+            $candidateId = (int) $candidate->id;
+            if ($candidateId === (int) $blocker->bell_timing_id || in_array($candidateId, $claimedBellTimingIds, true)) {
+                continue;
+            }
+
+            $claimedBellTimingIds[] = $candidateId;
+
+            $trial = array_merge($blockerPlacement, ['bell_timing_id' => $candidateId]);
+            $subMoves = $this->discoverChain($trial, $depth - 1, $movedSlotIds, $claimedBellTimingIds, $budget);
+
+            if ($subMoves !== null) {
+                $subMoves[] = ['slot_id' => $blockerId, 'to_bell_timing_id' => $candidateId, 'from_bell_timing_id' => (int) $blocker->bell_timing_id];
+
+                return $subMoves;
+            }
+
+            array_pop($claimedBellTimingIds); // backtrack: this candidate didn't pan out.
+        }
+
+        // No candidate worked for this blocker within budget/depth -- back out of committing to move it.
+        array_splice($movedSlotIds, array_search($blockerId, $movedSlotIds, true), 1);
+
+        return null;
+    }
+
+    private function describeStep(array $step): array
+    {
+        $slot = TimetableSlot::with(['subject', 'teacher', 'schoolClass', 'section', 'bellTiming'])->find($step['slot_id']);
+        $toTiming = BellTiming::find($step['to_bell_timing_id']);
+
+        return [
+            'slot_id' => $step['slot_id'],
+            'to_bell_timing_id' => $step['to_bell_timing_id'],
+            'class' => $slot?->schoolClass?->name,
+            'section' => $slot?->section?->name,
+            'subject' => $slot?->subject?->name,
+            'teacher' => $slot?->teacher?->name,
+            'description' => sprintf(
+                'Move %s (%s) from %s %s to %s %s',
+                $slot?->subject?->name ?? 'this lesson',
+                $slot?->teacher?->name ?? '',
+                $slot?->bellTiming?->day_of_week ?? '?',
+                $slot?->bellTiming?->period_name ?? '?',
+                $toTiming?->day_of_week ?? '?',
+                $toTiming?->period_name ?? '?'
+            ),
+        ];
+    }
+
+    private function describePlacement(array $placement): array
+    {
+        $timing = BellTiming::find($placement['bell_timing_id'] ?? null);
+        $subject = Subject::find($placement['subject_id'] ?? null);
+        $teacher = Teacher::find($placement['teacher_id'] ?? null);
+
+        return [
+            'bell_timing_id' => $placement['bell_timing_id'] ?? null,
+            'day' => $timing?->day_of_week,
+            'period' => $timing?->period_name,
+            'subject' => $subject?->name,
+            'teacher' => $teacher?->name,
+        ];
     }
 }

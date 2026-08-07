@@ -393,6 +393,9 @@
                         <i class="fas fa-exclamation-triangle mr-2"></i> <span id="conflictAlertText"></span>
                     </div>
                     <div id="conflictSuggestions" class="mt-2"></div>
+                    <button type="button" id="autoFixTryBtn" class="btn btn-sm btn-outline-warning d-none mb-1" onclick="openAutoFixPreview('modal')">
+                        <i class="fas fa-magic"></i> Try Auto-Fix
+                    </button>
                 </div>
 
                 <div class="modal-footer">
@@ -500,6 +503,9 @@
                         <i class="fas fa-exclamation-triangle mr-2"></i> <span id="editConflictAlertText"></span>
                     </div>
                     <div id="editConflictSuggestions" class="mt-2"></div>
+                    <button type="button" id="editAutoFixTryBtn" class="btn btn-sm btn-outline-warning d-none mb-1" onclick="openAutoFixPreview('edit')">
+                        <i class="fas fa-magic"></i> Try Auto-Fix
+                    </button>
                 </div>
 
                 <div class="modal-footer">
@@ -566,6 +572,50 @@
 </div>
 @endif
 
+{{--
+    Phase 4 (Auto-Fix, chain repair): read-only preview, then an explicit
+    confirm before the real POST -- same preview-then-confirm shape as the
+    Swap Engine modal above. Every step shown here comes straight from
+    TimetableAutoFixService::previewChainFix() (itself built entirely on
+    TimetableConflictResolver + TimetableSuggestionService's candidate
+    pool) -- never fabricated client-side. The Confirm button is disabled
+    whenever no fix was found; the server re-validates every step
+    independently at apply-time regardless, so this is a UX guard, not the
+    actual authorization/validation boundary.
+--}}
+@if($schoolClassId)
+<div class="modal fade" id="autoFixPreviewModal" tabindex="-1" role="dialog" aria-labelledby="autoFixPreviewModalLabel" aria-hidden="true">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content glass-card">
+            <div class="modal-header">
+                <h5 class="modal-title font-weight-bold text-dark" id="autoFixPreviewModalLabel">Auto-Fix Preview</h5>
+                <button type="button" class="close" data-bs-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div id="autoFixPreviewLoading" class="text-center text-muted py-3">
+                    <i class="fas fa-spinner fa-spin"></i> Searching for a fix...
+                </div>
+                <div id="autoFixPreviewContent" class="d-none">
+                    <div id="autoFixPreviewOkNote" class="alert alert-success d-none">
+                        <i class="fas fa-check-circle mr-1"></i> <span id="autoFixPreviewOkText"></span>
+                    </div>
+                    <div id="autoFixPreviewFailNote" class="alert alert-warning d-none"></div>
+                    <ol id="autoFixPreviewSteps" class="mb-0"></ol>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" id="autoFixConfirmBtn" class="btn btn-warning" disabled>
+                    <i class="fas fa-magic"></i> Apply Fix
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+@endif
+
 <script>
     function setSlotDefaults(day, timingId) {
         document.getElementById('modal_bell_timing_id').value = timingId;
@@ -603,9 +653,11 @@
                     textSpan.innerText = data.message;
                     saveBtn.disabled = true; // Disable scheduling if there's conflict
                     renderSuggestions(data.suggestions, suggestionsDiv, 'modal_bell_timing_id', triggerConflictCheck);
+                    document.getElementById('autoFixTryBtn').classList.remove('d-none');
                 } else {
                     alertDiv.classList.add('d-none');
                     saveBtn.disabled = false;
+                    document.getElementById('autoFixTryBtn').classList.add('d-none');
                 }
             });
     }
@@ -652,9 +704,11 @@
                     textSpan.innerText = data.message;
                     saveBtn.disabled = true;
                     renderSuggestions(data.suggestions, suggestionsDiv, 'edit_bell_timing_id', triggerEditConflictCheck);
+                    document.getElementById('editAutoFixTryBtn').classList.remove('d-none');
                 } else {
                     alertDiv.classList.add('d-none');
                     saveBtn.disabled = false;
+                    document.getElementById('editAutoFixTryBtn').classList.add('d-none');
                 }
             });
     }
@@ -687,6 +741,7 @@
         document.getElementById('edit_room_number').value = slot.room_number ?? '';
         document.getElementById('editConflictAlert').classList.add('d-none');
         document.getElementById('editConflictSuggestions').innerHTML = '';
+        document.getElementById('editAutoFixTryBtn').classList.add('d-none');
         document.getElementById('saveEditBtn').disabled = false;
 
         bootstrap.Modal.getOrCreateInstance(document.getElementById('editSlotModal')).show();
@@ -870,16 +925,138 @@
             });
     });
 
+    // --- Auto-Fix (chain repair) --------------------------------------
+    // Reads whichever modal (Add or Edit) is currently open, previews a
+    // chain fix via TimetableAutoFixService::previewChainFix(), and on
+    // confirm POSTs the exact previewed steps to applyChainFix() -- the
+    // server re-validates every step against live data regardless (see
+    // TimetableController::autoFixApplyChain()), this is a UX guard only.
+    let autoFixCurrentSteps = [];
+
+    function autoFixReadFields(context) {
+        const prefix = context === 'edit' ? 'edit_' : 'modal_';
+        const schoolClassId = context === 'edit'
+            ? document.getElementById('edit_school_class_id').value
+            : @json($schoolClassId);
+        const sectionId = context === 'edit'
+            ? document.getElementById('edit_section_id').value
+            : @json($sectionId);
+
+        return {
+            school_class_id: schoolClassId ?? '',
+            // URLSearchParams stringifies JS null as the literal text
+            // "null", which would fail the section_id exists: validation --
+            // an empty string is correctly treated as "no section" instead.
+            section_id: sectionId ?? '',
+            bell_timing_id: document.getElementById(prefix + 'bell_timing_id').value,
+            teacher_id: document.getElementById(prefix + 'teacher_id').value,
+            co_teacher_id: document.getElementById(prefix + 'co_teacher_id').value,
+            subject_id: document.getElementById(prefix + 'subject_id').value,
+            room_number: document.getElementById(prefix + 'room_number').value,
+            // Whichever grid (draft/published) is currently open -- without
+            // this, the server-side check defaults to 'published' and a
+            // conflict against draft data would be silently missed. Same
+            // hidden-state pattern triggerConflictCheck() already uses.
+            status: @json($view ?? 'published'),
+        };
+    }
+
+    function openAutoFixPreview(context) {
+        const fields = autoFixReadFields(context);
+        const modalEl = document.getElementById('autoFixPreviewModal');
+
+        document.getElementById('autoFixPreviewLoading').classList.remove('d-none');
+        document.getElementById('autoFixPreviewContent').classList.add('d-none');
+        document.getElementById('autoFixPreviewOkNote').classList.add('d-none');
+        document.getElementById('autoFixPreviewFailNote').classList.add('d-none');
+        document.getElementById('autoFixPreviewSteps').innerHTML = '';
+        document.getElementById('autoFixConfirmBtn').disabled = true;
+
+        bootstrap.Modal.getOrCreateInstance(modalEl).show();
+
+        const params = new URLSearchParams(fields).toString();
+
+        fetch(`{{ route('timetable.auto-fix.preview-chain') }}?${params}`, {
+            headers: { 'Accept': 'application/json' },
+        })
+            .then(res => res.json())
+            .then(data => {
+                document.getElementById('autoFixPreviewLoading').classList.add('d-none');
+                document.getElementById('autoFixPreviewContent').classList.remove('d-none');
+
+                const stepsList = document.getElementById('autoFixPreviewSteps');
+                (data.steps || []).forEach(step => {
+                    const li = document.createElement('li');
+                    li.innerText = step.description;
+                    stepsList.appendChild(li);
+                });
+
+                if (data.ok) {
+                    autoFixCurrentSteps = (data.steps || []).map(s => ({ slot_id: s.slot_id, to_bell_timing_id: s.to_bell_timing_id }));
+                    document.getElementById('autoFixPreviewOkText').innerText = data.message;
+                    document.getElementById('autoFixPreviewOkNote').classList.remove('d-none');
+                    document.getElementById('autoFixConfirmBtn').disabled = false;
+                } else {
+                    autoFixCurrentSteps = [];
+                    document.getElementById('autoFixPreviewFailNote').innerText = data.message || 'No fix could be found.';
+                    document.getElementById('autoFixPreviewFailNote').classList.remove('d-none');
+                    document.getElementById('autoFixConfirmBtn').disabled = true;
+                }
+
+                document.getElementById('autoFixConfirmBtn').dataset.context = context;
+            })
+            .catch(() => {
+                document.getElementById('autoFixPreviewLoading').classList.add('d-none');
+                document.getElementById('autoFixPreviewContent').classList.remove('d-none');
+                document.getElementById('autoFixPreviewFailNote').innerText = 'Could not check for a fix. Please try again.';
+                document.getElementById('autoFixPreviewFailNote').classList.remove('d-none');
+            });
+    }
+
+    document.getElementById('autoFixConfirmBtn')?.addEventListener('click', function () {
+        const btn = this;
+        const context = btn.dataset.context;
+        const fields = autoFixReadFields(context);
+        btn.disabled = true;
+        btn.innerText = 'Applying...';
+
+        fetch(@json(route('timetable.auto-fix.apply-chain')), {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || '{{ csrf_token() }}',
+            },
+            body: JSON.stringify({ ...fields, steps: autoFixCurrentSteps }),
+        })
+            .then(res => res.json().then(data => ({ status: res.status, data })))
+            .then(({ status, data }) => {
+                if (status === 200 && data.applied) {
+                    window.location.reload();
+                } else {
+                    alert('Auto-Fix failed: ' + (data.message || 'Unknown error'));
+                    btn.disabled = false;
+                    btn.innerHTML = '<i class="fas fa-magic"></i> Apply Fix';
+                }
+            })
+            .catch(() => {
+                alert('Auto-Fix failed: could not reach the server. Please try again.');
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fas fa-magic"></i> Apply Fix';
+            });
+    });
+
     /**
      * Phase 3 (Smart Suggestions): every option shown here was already
      * validated clean by TimetableConflictResolver via
      * TimetableSuggestionService -- clicking a "move this lesson" option
      * just re-points the period dropdown and re-checks (still a real,
      * server-validated check, not a client-side shortcut). "Relocate the
-     * other lesson instead" options are shown as information only for now
-     * -- actually moving someone else's lesson is an Auto-Fix action, not
-     * built yet. Shared by both the Add and Edit modals -- one rendering
-     * function, no duplicated suggestion-display logic between them.
+     * other lesson instead" options are shown as information only --
+     * actually moving someone else's lesson is the Auto-Fix "Try Auto-Fix"
+     * button above, a separate preview-then-confirm flow of its own.
+     * Shared by both the Add and Edit modals -- one rendering function,
+     * no duplicated suggestion-display logic between them.
      */
     function renderSuggestions(suggestions, container, targetFieldId, recheckFn) {
         if (!suggestions) return;

@@ -2,7 +2,9 @@
 
 namespace Tests\Unit\Services\Timetable;
 
+use App\Models\AcademicSession;
 use App\Models\BellTiming;
+use App\Models\CombinedClassGroup;
 use App\Models\SchoolClass;
 use App\Models\Subject;
 use App\Models\Teacher;
@@ -129,5 +131,329 @@ class TimetableAutoFixServiceTest extends TestCase
         $result = (new TimetableAutoFixService())->applyBlockerRelocation($newPlacement, 999999, $timings['Monday2']->id);
 
         $this->assertFalse($result['applied']);
+    }
+
+    // --- Chain repair --------------------------------------------------------
+
+    /** Three same-day periods, ordered, so candidate search order is deterministic for chain tests. */
+    private function makeLinearGrid(int $count = 3, ?string $academicYear = null): array
+    {
+        $timings = [];
+        for ($p = 1; $p <= $count; $p++) {
+            $timings[] = BellTiming::create([
+                'day_of_week' => 'Monday', 'period_name' => "P{$p}",
+                'start_time' => sprintf('%02d:00', 7 + $p), 'end_time' => sprintf('%02d:45', 7 + $p),
+                'is_active' => true, 'is_break' => false, 'order_index' => $p,
+                'period_type' => BellTiming::PERIOD_TYPE_TEACHING,
+                'academic_year' => $academicYear,
+            ]);
+        }
+
+        return $timings;
+    }
+
+    public function test_preview_reports_a_direct_placement_needs_no_moves_when_already_clean(): void
+    {
+        [$t1] = $this->makeLinearGrid(1);
+        $class = SchoolClass::create(['name' => 'Class', 'class_order' => 1, 'is_active' => true]);
+        $subject = Subject::create(['name' => 'Science', 'code' => 'AF' . uniqid()]);
+        $teacher = Teacher::create(['name' => 'Teacher', 'status' => 'active']);
+
+        $result = (new TimetableAutoFixService())->previewChainFix([
+            'school_class_id' => $class->id, 'bell_timing_id' => $t1->id,
+            'teacher_id' => $teacher->id, 'subject_id' => $subject->id,
+        ]);
+
+        $this->assertTrue($result['ok']);
+        $this->assertSame([], $result['steps']);
+    }
+
+    public function test_preview_and_apply_a_single_hop_chain(): void
+    {
+        [$t1, $t2] = $this->makeLinearGrid(2);
+        $newClass = SchoolClass::create(['name' => 'New', 'class_order' => 1, 'is_active' => true]);
+        $blockerClass = SchoolClass::create(['name' => 'Blocker', 'class_order' => 2, 'is_active' => true]);
+        $subject = Subject::create(['name' => 'Science', 'code' => 'AF' . uniqid()]);
+        $teacher = Teacher::create(['name' => 'Shared Teacher', 'status' => 'active']);
+
+        $blocker = TimetableSlot::create([
+            'school_class_id' => $blockerClass->id, 'bell_timing_id' => $t1->id,
+            'subject_id' => $subject->id, 'teacher_id' => $teacher->id,
+        ]);
+
+        $newPlacement = [
+            'school_class_id' => $newClass->id, 'bell_timing_id' => $t1->id,
+            'teacher_id' => $teacher->id, 'subject_id' => $subject->id,
+        ];
+
+        $service = new TimetableAutoFixService();
+        $preview = $service->previewChainFix($newPlacement);
+
+        $this->assertTrue($preview['ok']);
+        $this->assertCount(1, $preview['steps']);
+        $this->assertSame($blocker->id, $preview['steps'][0]['slot_id']);
+        $this->assertSame($t2->id, $preview['steps'][0]['to_bell_timing_id']);
+
+        $steps = array_map(fn ($s) => ['slot_id' => $s['slot_id'], 'to_bell_timing_id' => $s['to_bell_timing_id']], $preview['steps']);
+        $applied = $service->applyChainFix($newPlacement, $steps);
+
+        $this->assertTrue($applied['applied']);
+        $this->assertSame($t2->id, $blocker->fresh()->bell_timing_id);
+        $this->assertDatabaseHas('timetable_slots', [
+            'school_class_id' => $newClass->id, 'bell_timing_id' => $t1->id, 'teacher_id' => $teacher->id,
+        ]);
+    }
+
+    /**
+     * The scenario this whole feature exists for: A blocks the wanted
+     * period, A's only real alternative is blocked by B, and B has a
+     * genuinely free period. Neither a plain suggestion nor a single
+     * blocker relocation (depth 1) could solve this -- it requires
+     * discovering and applying BOTH moves together.
+     */
+    public function test_discovers_and_applies_a_two_hop_chain(): void
+    {
+        [$t1, $t2, $t3] = $this->makeLinearGrid(3);
+        $newClass = SchoolClass::create(['name' => 'New', 'class_order' => 1, 'is_active' => true]);
+        $classA = SchoolClass::create(['name' => 'A', 'class_order' => 2, 'is_active' => true]);
+        $classB = SchoolClass::create(['name' => 'B', 'class_order' => 3, 'is_active' => true]);
+        $subject = Subject::create(['name' => 'Science', 'code' => 'AF' . uniqid()]);
+        $teacher = Teacher::create(['name' => 'Shared Teacher', 'status' => 'active']);
+
+        $slotA = TimetableSlot::create([
+            'school_class_id' => $classA->id, 'bell_timing_id' => $t1->id,
+            'subject_id' => $subject->id, 'teacher_id' => $teacher->id,
+        ]);
+        $slotB = TimetableSlot::create([
+            'school_class_id' => $classB->id, 'bell_timing_id' => $t2->id,
+            'subject_id' => $subject->id, 'teacher_id' => $teacher->id,
+        ]);
+        // t3 is deliberately left free.
+
+        $newPlacement = [
+            'school_class_id' => $newClass->id, 'bell_timing_id' => $t1->id,
+            'teacher_id' => $teacher->id, 'subject_id' => $subject->id,
+        ];
+
+        $service = new TimetableAutoFixService();
+        $preview = $service->previewChainFix($newPlacement, maxDepth: 3);
+
+        $this->assertTrue($preview['ok'], $preview['message']);
+        $this->assertCount(2, $preview['steps']);
+        // Execution order: deepest (B) first, then A.
+        $this->assertSame($slotB->id, $preview['steps'][0]['slot_id']);
+        $this->assertSame($t3->id, $preview['steps'][0]['to_bell_timing_id']);
+        $this->assertSame($slotA->id, $preview['steps'][1]['slot_id']);
+        $this->assertSame($t2->id, $preview['steps'][1]['to_bell_timing_id']);
+
+        $steps = array_map(fn ($s) => ['slot_id' => $s['slot_id'], 'to_bell_timing_id' => $s['to_bell_timing_id']], $preview['steps']);
+        $applied = $service->applyChainFix($newPlacement, $steps);
+
+        $this->assertTrue($applied['applied'], $applied['message']);
+        $this->assertSame($t3->id, $slotB->fresh()->bell_timing_id);
+        $this->assertSame($t2->id, $slotA->fresh()->bell_timing_id);
+        $this->assertDatabaseHas('timetable_slots', [
+            'school_class_id' => $newClass->id, 'bell_timing_id' => $t1->id, 'teacher_id' => $teacher->id,
+        ]);
+        // Nothing was duplicated -- still exactly 3 rows (A, B, the new lesson).
+        $this->assertSame(3, TimetableSlot::count());
+    }
+
+    /**
+     * A conflict that a depth-1 search would resolve trivially (the
+     * blocker has a genuinely free alternative period) must still be
+     * reported unfixable when the caller caps the search at depth 0 --
+     * proves the depth parameter actually bounds the search rather than
+     * being silently ignored.
+     */
+    public function test_a_trivially_fixable_conflict_is_reported_unfixable_when_depth_is_capped_at_zero(): void
+    {
+        [$t1, $t2] = $this->makeLinearGrid(2);
+        $newClass = SchoolClass::create(['name' => 'New', 'class_order' => 1, 'is_active' => true]);
+        $blockerClass = SchoolClass::create(['name' => 'Blocker', 'class_order' => 2, 'is_active' => true]);
+        $subject = Subject::create(['name' => 'Science', 'code' => 'AF' . uniqid()]);
+        $teacher = Teacher::create(['name' => 'Shared Teacher', 'status' => 'active']);
+
+        TimetableSlot::create(['school_class_id' => $blockerClass->id, 'bell_timing_id' => $t1->id, 'subject_id' => $subject->id, 'teacher_id' => $teacher->id]);
+
+        $newPlacement = [
+            'school_class_id' => $newClass->id, 'bell_timing_id' => $t1->id,
+            'teacher_id' => $teacher->id, 'subject_id' => $subject->id,
+        ];
+
+        $result = (new TimetableAutoFixService())->previewChainFix($newPlacement, maxDepth: 0);
+
+        $this->assertFalse($result['ok']);
+        $this->assertSame([], $result['steps']);
+        $this->assertSame(1, TimetableSlot::count(), 'Nothing should have been touched by a preview.');
+    }
+
+    public function test_no_fix_exists_when_every_period_is_genuinely_occupied(): void
+    {
+        [$t1, $t2] = $this->makeLinearGrid(2);
+        $newClass = SchoolClass::create(['name' => 'New', 'class_order' => 1, 'is_active' => true]);
+        $classA = SchoolClass::create(['name' => 'A', 'class_order' => 2, 'is_active' => true]);
+        $classB = SchoolClass::create(['name' => 'B', 'class_order' => 3, 'is_active' => true]);
+        $subject = Subject::create(['name' => 'Science', 'code' => 'AF' . uniqid()]);
+        $teacher = Teacher::create(['name' => 'Shared Teacher', 'status' => 'active']);
+
+        // Teacher is busy at BOTH periods -- there is no free period to chain into.
+        TimetableSlot::create(['school_class_id' => $classA->id, 'bell_timing_id' => $t1->id, 'subject_id' => $subject->id, 'teacher_id' => $teacher->id]);
+        TimetableSlot::create(['school_class_id' => $classB->id, 'bell_timing_id' => $t2->id, 'subject_id' => $subject->id, 'teacher_id' => $teacher->id]);
+
+        $newPlacement = [
+            'school_class_id' => $newClass->id, 'bell_timing_id' => $t1->id,
+            'teacher_id' => $teacher->id, 'subject_id' => $subject->id,
+        ];
+
+        $result = (new TimetableAutoFixService())->previewChainFix($newPlacement, maxDepth: 3);
+
+        $this->assertFalse($result['ok']);
+    }
+
+    public function test_constraint_only_conflict_has_no_blocker_to_chain_through(): void
+    {
+        [$t1] = $this->makeLinearGrid(1);
+        $class = SchoolClass::create(['name' => 'Class', 'class_order' => 1, 'is_active' => true]);
+        $subject = Subject::create(['name' => 'Science', 'code' => 'AF' . uniqid()]);
+        // A non-teaching period type has no single blocking row -- unfixable by relocating anything.
+        $breakTiming = BellTiming::create([
+            'day_of_week' => 'Monday', 'period_name' => 'Break', 'start_time' => '10:00', 'end_time' => '10:15',
+            'is_active' => true, 'is_break' => true, 'order_index' => 99, 'period_type' => BellTiming::PERIOD_TYPE_BREAK,
+        ]);
+        $teacher = Teacher::create(['name' => 'Teacher', 'status' => 'active']);
+
+        $result = (new TimetableAutoFixService())->previewChainFix([
+            'school_class_id' => $class->id, 'bell_timing_id' => $breakTiming->id,
+            'teacher_id' => $teacher->id, 'subject_id' => $subject->id,
+        ]);
+
+        $this->assertFalse($result['ok']);
+    }
+
+    public function test_apply_rejects_a_stale_chain_when_a_step_target_is_no_longer_free(): void
+    {
+        [$t1, $t2] = $this->makeLinearGrid(2);
+        $newClass = SchoolClass::create(['name' => 'New', 'class_order' => 1, 'is_active' => true]);
+        $blockerClass = SchoolClass::create(['name' => 'Blocker', 'class_order' => 2, 'is_active' => true]);
+        $otherClass = SchoolClass::create(['name' => 'Other', 'class_order' => 3, 'is_active' => true]);
+        $subject = Subject::create(['name' => 'Science', 'code' => 'AF' . uniqid()]);
+        $teacher = Teacher::create(['name' => 'Shared Teacher', 'status' => 'active']);
+        $otherTeacher = Teacher::create(['name' => 'Other Teacher', 'status' => 'active']);
+
+        $blocker = TimetableSlot::create(['school_class_id' => $blockerClass->id, 'bell_timing_id' => $t1->id, 'subject_id' => $subject->id, 'teacher_id' => $teacher->id]);
+
+        $newPlacement = ['school_class_id' => $newClass->id, 'bell_timing_id' => $t1->id, 'teacher_id' => $teacher->id, 'subject_id' => $subject->id];
+
+        $service = new TimetableAutoFixService();
+        $preview = $service->previewChainFix($newPlacement);
+        $this->assertTrue($preview['ok']);
+        $steps = array_map(fn ($s) => ['slot_id' => $s['slot_id'], 'to_bell_timing_id' => $s['to_bell_timing_id']], $preview['steps']);
+
+        // Something else takes the planned destination between preview and apply.
+        TimetableSlot::create(['school_class_id' => $otherClass->id, 'bell_timing_id' => $t2->id, 'subject_id' => $subject->id, 'teacher_id' => $teacher->id]);
+
+        $applied = $service->applyChainFix($newPlacement, $steps);
+
+        $this->assertFalse($applied['applied']);
+        $this->assertSame($t1->id, $blocker->fresh()->bell_timing_id, 'The blocker must not have moved -- the whole chain rolls back together.');
+        $this->assertDatabaseMissing('timetable_slots', ['school_class_id' => $newClass->id, 'bell_timing_id' => $t1->id]);
+        $this->assertDatabaseMissing('activity_log', ['description' => 'timetable_autofix_chain_applied']);
+        $this->assertDatabaseMissing('activity_log', ['description' => 'timetable_autofix_chain_placed']);
+    }
+
+    public function test_apply_rejects_a_chain_step_that_now_targets_a_combined_group_slot(): void
+    {
+        [$t1, $t2] = $this->makeLinearGrid(2);
+        $newClass = SchoolClass::create(['name' => 'New', 'class_order' => 1, 'is_active' => true]);
+        $blockerClass = SchoolClass::create(['name' => 'Blocker', 'class_order' => 2, 'is_active' => true]);
+        $subject = Subject::create(['name' => 'Science', 'code' => 'AF' . uniqid()]);
+        $teacher = Teacher::create(['name' => 'Shared Teacher', 'status' => 'active']);
+        $session = AcademicSession::create(['name' => '2026-2027', 'code' => '2026-2027', 'start_date' => '2026-04-01', 'end_date' => '2027-03-31']);
+        $group = CombinedClassGroup::create(['name' => 'Combined', 'subject_id' => $subject->id, 'academic_session_id' => $session->id]);
+
+        // The blocker's own row got turned into a combined-group slot by someone else after preview.
+        $blocker = TimetableSlot::create(['school_class_id' => $blockerClass->id, 'bell_timing_id' => $t1->id, 'subject_id' => $subject->id, 'teacher_id' => $teacher->id, 'combined_class_group_id' => $group->id]);
+
+        $newPlacement = ['school_class_id' => $newClass->id, 'bell_timing_id' => $t1->id, 'teacher_id' => $teacher->id, 'subject_id' => $subject->id];
+
+        $applied = (new TimetableAutoFixService())->applyChainFix($newPlacement, [
+            ['slot_id' => $blocker->id, 'to_bell_timing_id' => $t2->id],
+        ]);
+
+        $this->assertFalse($applied['applied']);
+        $this->assertSame($t1->id, $blocker->fresh()->bell_timing_id);
+    }
+
+    public function test_successful_apply_logs_activity_for_every_moved_slot_and_the_new_placement(): void
+    {
+        [$t1, $t2, $t3] = $this->makeLinearGrid(3);
+        $newClass = SchoolClass::create(['name' => 'New', 'class_order' => 1, 'is_active' => true]);
+        $classA = SchoolClass::create(['name' => 'A', 'class_order' => 2, 'is_active' => true]);
+        $classB = SchoolClass::create(['name' => 'B', 'class_order' => 3, 'is_active' => true]);
+        $subject = Subject::create(['name' => 'Science', 'code' => 'AF' . uniqid()]);
+        $teacher = Teacher::create(['name' => 'Shared Teacher', 'status' => 'active']);
+
+        TimetableSlot::create(['school_class_id' => $classA->id, 'bell_timing_id' => $t1->id, 'subject_id' => $subject->id, 'teacher_id' => $teacher->id]);
+        TimetableSlot::create(['school_class_id' => $classB->id, 'bell_timing_id' => $t2->id, 'subject_id' => $subject->id, 'teacher_id' => $teacher->id]);
+
+        $newPlacement = ['school_class_id' => $newClass->id, 'bell_timing_id' => $t1->id, 'teacher_id' => $teacher->id, 'subject_id' => $subject->id];
+
+        $service = new TimetableAutoFixService();
+        $preview = $service->previewChainFix($newPlacement);
+        $steps = array_map(fn ($s) => ['slot_id' => $s['slot_id'], 'to_bell_timing_id' => $s['to_bell_timing_id']], $preview['steps']);
+        $service->applyChainFix($newPlacement, $steps);
+
+        $this->assertSame(2, \Spatie\Activitylog\Models\Activity::where('description', 'timetable_autofix_chain_applied')->count());
+        $this->assertSame(1, \Spatie\Activitylog\Models\Activity::where('description', 'timetable_autofix_chain_placed')->count());
+    }
+
+    public function test_moved_blockers_preserve_their_academic_year_and_every_other_relationship(): void
+    {
+        [$t1, $t2] = $this->makeLinearGrid(2, '2026-2027');
+        $newClass = SchoolClass::create(['name' => 'New', 'class_order' => 1, 'is_active' => true]);
+        $blockerClass = SchoolClass::create(['name' => 'Blocker', 'class_order' => 2, 'is_active' => true]);
+        $subject = Subject::create(['name' => 'Science', 'code' => 'AF' . uniqid()]);
+        $teacher = Teacher::create(['name' => 'Shared Teacher', 'status' => 'active']);
+
+        $blocker = TimetableSlot::create([
+            'school_class_id' => $blockerClass->id, 'bell_timing_id' => $t1->id,
+            'subject_id' => $subject->id, 'teacher_id' => $teacher->id,
+            'academic_year' => '2026-2027', 'room_number' => 'Room 9',
+        ]);
+
+        $newPlacement = ['school_class_id' => $newClass->id, 'bell_timing_id' => $t1->id, 'teacher_id' => $teacher->id, 'subject_id' => $subject->id, 'academic_year' => '2026-2027'];
+
+        $service = new TimetableAutoFixService();
+        $preview = $service->previewChainFix($newPlacement);
+        $steps = array_map(fn ($s) => ['slot_id' => $s['slot_id'], 'to_bell_timing_id' => $s['to_bell_timing_id']], $preview['steps']);
+        $service->applyChainFix($newPlacement, $steps);
+
+        $fresh = $blocker->fresh();
+        $this->assertSame($t2->id, $fresh->bell_timing_id, 'Only the period should have changed.');
+        $this->assertSame('2026-2027', $fresh->academic_year, 'A moved blocker must keep its own academic_year, never inherit the new lesson\'s.');
+        $this->assertSame($blockerClass->id, $fresh->school_class_id);
+        $this->assertSame($subject->id, $fresh->subject_id);
+        $this->assertSame($teacher->id, $fresh->teacher_id);
+        $this->assertSame('Room 9', $fresh->room_number);
+    }
+
+    public function test_apply_rejects_a_chain_that_names_the_same_slot_twice(): void
+    {
+        [$t1, $t2] = $this->makeLinearGrid(2);
+        $newClass = SchoolClass::create(['name' => 'New', 'class_order' => 1, 'is_active' => true]);
+        $blockerClass = SchoolClass::create(['name' => 'Blocker', 'class_order' => 2, 'is_active' => true]);
+        $subject = Subject::create(['name' => 'Science', 'code' => 'AF' . uniqid()]);
+        $teacher = Teacher::create(['name' => 'Teacher', 'status' => 'active']);
+        $blocker = TimetableSlot::create(['school_class_id' => $blockerClass->id, 'bell_timing_id' => $t1->id, 'subject_id' => $subject->id, 'teacher_id' => $teacher->id]);
+
+        $newPlacement = ['school_class_id' => $newClass->id, 'bell_timing_id' => $t1->id, 'teacher_id' => $teacher->id, 'subject_id' => $subject->id];
+
+        $applied = (new TimetableAutoFixService())->applyChainFix($newPlacement, [
+            ['slot_id' => $blocker->id, 'to_bell_timing_id' => $t2->id],
+            ['slot_id' => $blocker->id, 'to_bell_timing_id' => $t2->id],
+        ]);
+
+        $this->assertFalse($applied['applied']);
     }
 }
