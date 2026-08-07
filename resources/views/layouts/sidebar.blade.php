@@ -516,46 +516,24 @@
                             </a>
                         </li>
                         @endif
-                        {{-- T6 item 5: the guided setup wizard is the front door for a
-                             non-technical admin -- listed first, above the individual
-                             pages below (which stay reachable for edits). Same
-                             admin-only gate as Generate. --}}
-                        @if(Route::has('timetable.wizard.index') && Auth::user()->hasRole('admin'))
+                        {{-- Timetable Editor: single consolidated entry point,
+                             replacing the four separate tabs that used to live here
+                             (Set Up Timetable / Timetable / Generate Timetable (Beta)
+                             / Timetable Feasibility). None of those routes,
+                             controllers, or views were removed -- they're reused
+                             inside the Timetable Workspace this link opens (Phase
+                             B), which embeds the grid page's own content directly
+                             and links out to the wizard/generate/feasibility pages.
+                             Gate matches timetable.workspace's own policy (same as
+                             timetable.index's -- viewAny). Active-state covers the
+                             whole timetable.* route family so it highlights from
+                             any timetable page, not just the workspace itself. --}}
+                        @if(Route::has('timetable.workspace') && (Auth::user()->hasRole('admin') || Auth::user()->hasRole('teacher')))
                         <li class="nav-item">
-                            <a class="nav-link text-white {{ request()->routeIs('timetable.wizard.*') ? 'active' : '' }}"
-                               href="{{ route('timetable.wizard.index') }}">
-                                <i class="bi bi-magic me-2"></i>
-                                <span>Set Up Timetable</span>
-                            </a>
-                        </li>
-                        @endif
-                        @if(Route::has('timetable.index') && (Auth::user()->hasRole('admin') || Auth::user()->hasRole('teacher')))
-                        <li class="nav-item">
-                            <a class="nav-link text-white {{ request()->routeIs('timetable.index') ? 'active' : '' }}"
-                               href="{{ route('timetable.index') }}">
-                                <i class="bi bi-calendar3 me-2"></i>
-                                <span>Timetable</span>
-                            </a>
-                        </li>
-                        @endif
-                        {{-- TimetableSlotPolicy::generate() is admin-only -- whole-school
-                             Generate (Beta) entry point, matches the existing per-class
-                             Generate button's own gate on the grid page. --}}
-                        @if(Route::has('timetable.generate.form') && Auth::user()->hasRole('admin'))
-                        <li class="nav-item">
-                            <a class="nav-link text-white {{ request()->routeIs('timetable.generate.form') || request()->routeIs('timetable.generation.review') ? 'active' : '' }}"
-                               href="{{ route('timetable.generate.form') }}">
-                                <i class="bi bi-magic me-2"></i>
-                                <span>Generate Timetable (Beta)</span>
-                            </a>
-                        </li>
-                        @endif
-                        @if(Route::has('timetable.feasibility') && (Auth::user()->hasRole('admin') || Auth::user()->hasRole('teacher')))
-                        <li class="nav-item">
-                            <a class="nav-link text-white {{ request()->routeIs('timetable.feasibility') ? 'active' : '' }}"
-                               href="{{ route('timetable.feasibility') }}">
-                                <i class="bi bi-clipboard-data me-2"></i>
-                                <span>Timetable Feasibility</span>
+                            <a class="nav-link text-white {{ request()->routeIs('timetable.*') ? 'active' : '' }}"
+                               href="{{ route('timetable.workspace') }}">
+                                <i class="bi bi-grid-3x3-gap me-2"></i>
+                                <span>Timetable Editor</span>
                             </a>
                         </li>
                         @endif

@@ -94,6 +94,19 @@ class TimetableSlotPolicy
     }
 
     /**
+     * Phase 4 (Auto-Fix): applying a suggested fix moves ANOTHER
+     * class-section's lesson (the blocker) as well as the caller's own --
+     * a teacher fixing their own class's clash has no particular claim
+     * over the blocker's class, so this is gated the same as generate()/
+     * publish() rather than the narrower per-class-section create()/
+     * update() checks.
+     */
+    public function autoFix(User $user): bool
+    {
+        return $user->hasRole('admin');
+    }
+
+    /**
      * A teacher may write a slot for a class-section they hold any
      * assignment for. Assignments with a null section_id are treated as
      * covering the whole class (matches any requested section, including

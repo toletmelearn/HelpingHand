@@ -239,11 +239,21 @@ class TimetableWizardController extends Controller
             ->values();
     }
 
-    /** @return Collection<int, int> section_ids actually in use for this class, ordered by section name. */
+    /**
+     * @return Collection<int, int> section_ids actually in use for this
+     *   class, ordered by section name. Scoped to the current academic
+     *   year (tolerant -- only applied when a current session exists) so
+     *   a retired/other-year assignment (e.g. leftover test/walkthrough
+     *   data) can't make a class appear split into sections it doesn't
+     *   actually have this year.
+     */
     private function sectionIdsForClass(SchoolClass $class): Collection
     {
+        $academicYear = $this->currentAcademicYear();
+
         $ids = TeacherClassSubjectAssignment::where('class_id', $class->id)
             ->whereNotNull('section_id')
+            ->when($academicYear, fn ($q) => $q->where('academic_year', $academicYear))
             ->distinct()
             ->pluck('section_id')
             ->merge(

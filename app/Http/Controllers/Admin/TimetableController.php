@@ -14,6 +14,9 @@ use App\Models\Section;
 use App\Models\Subject;
 use App\Models\Teacher;
 use App\Services\Timetable\FeasibilityService;
+use App\Services\Timetable\TimetableAutoFixService;
+use App\Services\Timetable\TimetableConflictResolver;
+use App\Services\Timetable\TimetableSuggestionService;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -32,6 +35,17 @@ class TimetableController extends Controller
     {
         $this->authorize('viewAny', TimetableSlot::class);
 
+        return view('admin.timetable.grid', $this->buildGridViewData($request));
+    }
+
+    /**
+     * Shared by index() and workspace() -- the exact same class/section
+     * grid data, so the Timetable Workspace's "Review & Edit" section
+     * shows byte-identical data to the standalone grid page rather than a
+     * second, drifting copy of this lookup.
+     */
+    private function buildGridViewData(Request $request): array
+    {
         $schoolClassId = $request->get('school_class_id');
         $sectionId = $request->get('section_id');
         $view = $request->get('status') === 'draft' ? 'draft' : 'published';
@@ -67,7 +81,7 @@ class TimetableController extends Controller
             }
         }
 
-        return view('admin.timetable.grid', compact(
+        return compact(
             'classes',
             'sections',
             'teachers',
@@ -79,7 +93,55 @@ class TimetableController extends Controller
             'view',
             'activeGeneration',
             'hasDraft'
-        ));
+        );
+    }
+
+    /**
+     * Timetable Editor Phase B: the single consolidated workspace the
+     * sidebar's "Timetable Editor" entry now opens. Structural shell only
+     * -- every section reuses the SAME services/controllers/routes the
+     * standalone pages already use (FeasibilityService for readiness,
+     * buildGridViewData() for Review & Edit, the existing generate/wizard/
+     * publish routes for their actions). No new business rules, no
+     * duplicated conflict/suggestion/generation logic.
+     */
+    public function workspace(Request $request, FeasibilityService $service)
+    {
+        $this->authorize('viewAny', TimetableSlot::class);
+
+        $currentSession = AcademicSession::current()->first();
+        $academicYear = $currentSession?->code;
+
+        $report = $service->build($academicYear);
+
+        $timetableStatus = TimetableSlot::published()->exists()
+            ? 'published'
+            : (TimetableSlot::draft()->exists() ? 'draft' : 'none');
+
+        $counts = [
+            'classes' => SchoolClass::active()->count(),
+            'sections' => Section::count(),
+            'teachers' => Teacher::count(),
+            'subjects' => Subject::count(),
+            'bell_timings' => BellTiming::active()->count(),
+        ];
+
+        $readinessIssueCount = count($report['conflicts'] ?? [])
+            + count($report['class_teacher_readiness'] ?? []);
+        $readiness = $readinessIssueCount === 0
+            ? (empty($report['grid_capacity']) ? 'blocked' : 'ready')
+            : (count($report['conflicts'] ?? []) > 0 ? 'blocked' : 'warning');
+
+        $gridData = $this->buildGridViewData($request);
+
+        return view('admin.timetable.workspace', array_merge($gridData, [
+            'currentSession' => $currentSession,
+            'academicYear' => $academicYear,
+            'timetableStatus' => $timetableStatus,
+            'counts' => $counts,
+            'report' => $report,
+            'readiness' => $readiness,
+        ]));
     }
 
     public function store(Request $request)
@@ -144,6 +206,149 @@ class TimetableController extends Controller
             ->log($slot->wasRecentlyCreated ? 'timetable_slot_created' : 'timetable_slot_updated');
 
         return back()->with('success', 'Timetable slot scheduled successfully.');
+    }
+
+    /**
+     * Timetable Editor Slice 1: edit an ALREADY-PLACED lesson in place, by
+     * row id -- deliberately NOT store()'s updateOrCreate-by-natural-key,
+     * because that upserts on (school_class_id, section_id, bell_timing_id,
+     * status): changing the class, section, or period (the whole point of
+     * an edit) changes that natural key, so updateOrCreate would silently
+     * CREATE a second row and leave the original sitting there, duplicating
+     * the lesson instead of moving it. Editing by $slot->update() touches
+     * only the columns this action explicitly sets -- status, academic_year,
+     * timetable_generation_id, and combined_class_group_id are never part
+     * of that array, so they survive an edit completely untouched, exactly
+     * preserving which draft/generation/version this row belongs to.
+     *
+     * Combined-group rows are rejected outright: a combined placement is
+     * several rows (one per member class) that must change together, and
+     * synchronising that is out of scope for this slice (existing,
+     * documented pattern for a combined-group move is clear-then-
+     * storeCombined() again, unchanged). Archived rows are historical
+     * snapshots from a past PUBLISH and are never meant to change after
+     * the fact -- rejected the same way.
+     *
+     * Authorization is two-fold, mirroring store()/storeCombined(): 'update'
+     * on the slot itself (TimetableSlotPolicy -- admin, or a teacher
+     * assigned to the slot's CURRENT class-section) guards against touching
+     * a row you have no claim over at all; 'create' against the requested
+     * DESTINATION class/section guards against a tampered school_class_id
+     * moving the lesson into a class/section you have no claim over
+     * either -- both checks run against real, server-resolved data, never
+     * whatever the client merely claims.
+     *
+     * TimetableConflictResolver is the only rule engine consulted (no
+     * parallel validation here or in JS): the full proposed row -- as it
+     * would exist after the edit -- is checked with ignore_slot_id set to
+     * this row's own id, so it never conflicts with the very occurrence
+     * being replaced. A rejected edit returns the resolver's full
+     * conflicts[] plus TimetableSuggestionService's already-validated
+     * alternative periods for the SAME proposed placement -- no separate
+     * suggestion logic, no unvalidated alternatives.
+     *
+     * The update + activity log are one DB transaction: if anything throws
+     * after the row has been written but before the log entry commits (or
+     * vice versa), the whole thing rolls back and the row is left exactly
+     * as it was before this request, never partially changed.
+     */
+    public function update(Request $request, TimetableSlot $slot)
+    {
+        $this->authorize('update', $slot);
+
+        if ($slot->combined_class_group_id) {
+            return back()->with('error', 'This is a combined-group lesson -- it can\'t be edited from a single cell. Clear it and re-place it via Combined Groups instead.');
+        }
+
+        if ($slot->status === TimetableSlot::STATUS_ARCHIVED) {
+            return back()->with('error', 'This slot is archived history from a past publish -- it can no longer be edited.');
+        }
+
+        $validated = $request->validate([
+            'school_class_id' => 'required|exists:school_classes,id',
+            'section_id' => 'nullable|exists:sections,id',
+            'bell_timing_id' => 'required|exists:bell_timings,id',
+            'subject_id' => 'required|exists:subjects,id',
+            'teacher_id' => 'required|exists:teachers,id',
+            'co_teacher_id' => 'nullable|exists:teachers,id|different:teacher_id',
+            'room_number' => 'nullable|string|max:50',
+        ]);
+
+        $destinationClassId = (int) $validated['school_class_id'];
+        $destinationSectionId = ! empty($validated['section_id']) ? (int) $validated['section_id'] : null;
+        $destinationCoTeacherId = ! empty($validated['co_teacher_id']) ? (int) $validated['co_teacher_id'] : null;
+
+        $this->authorize('create', [TimetableSlot::class, $destinationClassId, $destinationSectionId]);
+
+        $proposedPlacement = [
+            'school_class_id' => $destinationClassId,
+            'section_id' => $destinationSectionId,
+            'bell_timing_id' => (int) $validated['bell_timing_id'],
+            'subject_id' => (int) $validated['subject_id'],
+            'teacher_id' => (int) $validated['teacher_id'],
+            'co_teacher_id' => $destinationCoTeacherId,
+            'room_number' => $validated['room_number'] ?? null,
+            // Preserved, never taken from the request -- an edit can move
+            // WHERE/WHO/WHAT a lesson is, never which draft/version or
+            // academic year it belongs to.
+            'status' => $slot->status,
+            'academic_year' => $slot->academic_year,
+            'ignore_slot_id' => $slot->id,
+        ];
+
+        $conflictCheck = (new TimetableConflictResolver())->check($proposedPlacement);
+
+        if ($conflictCheck['conflict']) {
+            $suggestions = (new TimetableSuggestionService())->suggestForNewPlacement($proposedPlacement);
+
+            // suggestForNewPlacement() has no concept of "this row's own
+            // CURRENT period" -- for a fresh add that never arises, but for
+            // an edit its own pre-edit period is naturally conflict-free
+            // against itself (see resolveSelfId()) and would otherwise be
+            // offered back as a no-op "alternative": move it to exactly
+            // where it already is. Filtered out here, at the orchestration
+            // layer -- TimetableSuggestionService itself is untouched.
+            $suggestions = array_values(array_filter(
+                $suggestions,
+                fn ($s) => (int) $s['bell_timing_id'] !== (int) $slot->bell_timing_id
+            ));
+
+            return back()->withInput()->with('error', 'Scheduling conflict: ' . $conflictCheck['message'])->with('edit_conflict', [
+                'slot_id' => $slot->id,
+                'message' => $conflictCheck['message'],
+                'conflicts' => $conflictCheck['conflicts'],
+                'suggestions' => $suggestions,
+            ]);
+        }
+
+        $before = $slot->only(['school_class_id', 'section_id', 'bell_timing_id', 'subject_id', 'teacher_id', 'co_teacher_id', 'room_number']);
+        $after = [
+            'school_class_id' => $proposedPlacement['school_class_id'],
+            'section_id' => $proposedPlacement['section_id'],
+            'bell_timing_id' => $proposedPlacement['bell_timing_id'],
+            'subject_id' => $proposedPlacement['subject_id'],
+            'teacher_id' => $proposedPlacement['teacher_id'],
+            'co_teacher_id' => $proposedPlacement['co_teacher_id'],
+            'room_number' => $proposedPlacement['room_number'],
+        ];
+
+        try {
+            DB::transaction(function () use ($slot, $after, $before) {
+                $slot->update($after);
+
+                activity()->causedBy(Auth::user())->performedOn($slot)
+                    ->withProperties(['before' => $before, 'after' => $after, 'status' => $slot->status, 'timetable_generation_id' => $slot->timetable_generation_id])
+                    ->log('timetable_slot_edited');
+            });
+        } catch (\Illuminate\Database\QueryException $e) {
+            if ((int) $e->errorInfo[1] === 1062) {
+                return back()->with('error', 'Scheduling conflict: this class or teacher already has a slot at this period.')->withInput();
+            }
+
+            throw $e;
+        }
+
+        return back()->with('success', 'Lesson updated.');
     }
 
     /**
@@ -703,137 +908,101 @@ class TimetableController extends Controller
         return redirect()->route('timetable.generation.review', $generation);
     }
 
+    /**
+     * Phase 3 (Smart Suggestions): a conflict is never returned bare --
+     * when one is found, this also asks TimetableSuggestionService for
+     * concrete, already-validated alternatives (move the new lesson, or
+     * move whatever's blocking it), so the manual editor's conflict alert
+     * can offer real options instead of just naming the problem.
+     */
     public function checkConflictsApi(Request $request)
     {
         $this->authorize('viewAny', TimetableSlot::class);
 
         $status = $request->get('status') === 'draft' ? TimetableSlot::STATUS_DRAFT : TimetableSlot::STATUS_PUBLISHED;
         $result = $this->checkSlotConflicts($request, $status);
+
+        if ($result['conflict']) {
+            $placement = [
+                'school_class_id' => $request->get('school_class_id'),
+                'section_id' => $request->get('section_id') ?: null,
+                'bell_timing_id' => $request->get('bell_timing_id'),
+                'teacher_id' => $request->get('teacher_id'),
+                'co_teacher_id' => $request->get('co_teacher_id') ?: null,
+                'subject_id' => $request->get('subject_id'),
+                'room_number' => $request->get('room_number'),
+                'status' => $status,
+            ];
+
+            $suggestions = new TimetableSuggestionService();
+            $result['suggestions'] = [
+                'move_lesson' => $suggestions->suggestForNewPlacement($placement),
+                'relocate_blocker' => $suggestions->suggestBlockerRelocation($placement),
+            ];
+        }
+
         return response()->json($result);
+    }
+
+    /**
+     * Phase 4 (Auto-Fix): applies one relocate_blocker suggestion from
+     * checkConflictsApi as a single atomic action. Admin-only (moves a
+     * class-section the caller may have no claim over); re-validates
+     * everything against live data before writing anything -- see
+     * TimetableAutoFixService.
+     */
+    public function autoFixRelocateBlocker(Request $request)
+    {
+        $this->authorize('autoFix', TimetableSlot::class);
+
+        $validated = $request->validate([
+            'school_class_id' => 'required|exists:school_classes,id',
+            'section_id' => 'nullable|exists:sections,id',
+            'bell_timing_id' => 'required|exists:bell_timings,id',
+            'teacher_id' => 'required|exists:teachers,id',
+            'co_teacher_id' => 'nullable|exists:teachers,id|different:teacher_id',
+            'subject_id' => 'nullable|exists:subjects,id',
+            'room_number' => 'nullable|string|max:50',
+            'status' => 'nullable|in:draft,published',
+            'blocking_slot_id' => 'required|integer|exists:timetable_slots,id',
+            'blocker_new_bell_timing_id' => 'required|integer|exists:bell_timings,id',
+        ]);
+
+        $newPlacement = collect($validated)->except(['blocking_slot_id', 'blocker_new_bell_timing_id'])->all();
+
+        $result = (new TimetableAutoFixService())->applyBlockerRelocation(
+            $newPlacement,
+            $validated['blocking_slot_id'],
+            $validated['blocker_new_bell_timing_id']
+        );
+
+        return response()->json($result, $result['applied'] ? 200 : 422);
     }
 
     /**
      * T4b item 4: scoped to a single status so a draft proposal is free
      * to differ from what's live, but still can't conflict with itself.
+     *
+     * Phase 2 (Conflict Resolver): this is now a thin adapter from the
+     * HTTP request shape to TimetableConflictResolver -- the actual rule
+     * evaluation lives there so manual editing, the check-conflicts AJAX
+     * endpoint, and any future caller (drag/drop, Auto-Fix, Rebalance,
+     * API) all go through the same one authoritative implementation
+     * instead of each re-deriving their own conflict logic.
      */
     private function checkSlotConflicts(Request $request, string $status = TimetableSlot::STATUS_PUBLISHED): array
     {
-        $id = $request->get('id');
-        $teacherId = $request->get('teacher_id');
-        $coTeacherId = $request->get('co_teacher_id') ?: null;
-        $bellTimingId = $request->get('bell_timing_id');
-        $roomNumber = $request->get('room_number');
-
-        if (!$teacherId || !$bellTimingId) {
-            return ['conflict' => false];
-        }
-
-        $bellTiming = BellTiming::findOrFail($bellTimingId);
-        $startTime = $bellTiming->start_time->format('H:i:s');
-        $endTime = $bellTiming->end_time->format('H:i:s');
-
-        // Find overlapping bell timings on the same day_of_week
-        $overlappingTimings = BellTiming::where('day_of_week', $bellTiming->day_of_week)
-            ->where(function ($query) use ($startTime, $endTime) {
-                $query->where('start_time', '<', $endTime)
-                      ->where('end_time', '>', $startTime);
-            })
-            ->pluck('id');
-
-        // Check Teacher/Co-Teacher overlap. Both people on this lesson (if
-        // a co-teacher is given) must be free -- checked against BOTH the
-        // teacher_id and co_teacher_id columns on every existing row, so a
-        // person already busy elsewhere as either the primary teacher or
-        // someone else's co-teacher is caught. This mirrors the cross-case
-        // GeneratorService::isHardLegal() already enforces for auto-
-        // generation (see the T6 item 4 report): the DB's
-        // timetable_slots_co_teacher_bell_status_unique index only catches
-        // co-teacher-vs-co-teacher, not "person X is primary in one row,
-        // co-teacher in another" -- the manual editor had no guard for
-        // that at all until now.
-        foreach (array_filter([$teacherId, $coTeacherId]) as $personId) {
-            $busyConflict = TimetableSlot::whereIn('bell_timing_id', $overlappingTimings)
-                ->where('status', $status)
-                ->where(function ($q) use ($personId) {
-                    $q->where('teacher_id', $personId)->orWhere('co_teacher_id', $personId);
-                })
-                ->when($id, function ($q) use ($id) {
-                    $q->where('id', '!=', $id);
-                })
-                ->first();
-
-            if ($busyConflict) {
-                $personName = Teacher::find($personId)->name ?? 'This teacher';
-                return [
-                    'conflict' => true,
-                    'type' => 'teacher',
-                    'message' => "{$personName} is already scheduled to teach " . ($busyConflict->schoolClass->name ?? 'another class') . " during this period."
-                ];
-            }
-        }
-
-        // Check Class/Section overlap. The T1a unique DB index can't catch
-        // this cross-case: a class-wide slot (section_id NULL) and a
-        // specific-section slot of the SAME class have different
-        // section_id_norm values, so neither the index nor an exact-match
-        // query sees them as colliding -- but a class-wide lesson covers
-        // every section, so they genuinely overlap. Only the CROSS case is
-        // flagged here: a class-wide save conflicts only with an existing
-        // section-specific row (never another class-wide row -- that's
-        // either this exact cell being updated in place, via store()'s own
-        // updateOrCreate key, or a genuine duplicate the DB unique index
-        // already blocks); a section-specific save conflicts only with an
-        // existing class-wide row (never the same section's own row --
-        // same reasoning, that's an update-in-place, not a collision).
-        $schoolClassId = $request->get('school_class_id');
-        $sectionId = $request->get('section_id') ?: null;
-
-        if ($schoolClassId) {
-            $classConflict = TimetableSlot::whereIn('bell_timing_id', $overlappingTimings)
-                ->where('school_class_id', $schoolClassId)
-                ->where('status', $status)
-                ->when($sectionId, function ($q) {
-                    $q->whereNull('section_id');
-                }, function ($q) {
-                    $q->whereNotNull('section_id');
-                })
-                ->when($id, function ($q) use ($id) {
-                    $q->where('id', '!=', $id);
-                })
-                ->first();
-
-            if ($classConflict) {
-                $message = $classConflict->section_id === null
-                    ? 'This class already has a whole-class lesson scheduled during this period -- it applies to every section.'
-                    : 'Section ' . ($classConflict->section->name ?? '') . ' of this class already has a lesson scheduled during this period.';
-
-                return [
-                    'conflict' => true,
-                    'type' => 'class',
-                    'message' => $message,
-                ];
-            }
-        }
-
-        // Check Room overlap
-        if ($roomNumber) {
-            $roomConflict = TimetableSlot::whereIn('bell_timing_id', $overlappingTimings)
-                ->where('room_number', $roomNumber)
-                ->where('status', $status)
-                ->when($id, function ($q) use ($id) {
-                    $q->where('id', '!=', $id);
-                })
-                ->first();
-
-            if ($roomConflict) {
-                return [
-                    'conflict' => true,
-                    'type' => 'room',
-                    'message' => "Room {$roomNumber} is already occupied by Class " . ($roomConflict->schoolClass->name ?? 'another class') . " during this period."
-                ];
-            }
-        }
-
-        return ['conflict' => false];
+        return (new TimetableConflictResolver())->check([
+            'school_class_id' => $request->get('school_class_id'),
+            'section_id' => $request->get('section_id') ?: null,
+            'bell_timing_id' => $request->get('bell_timing_id'),
+            'teacher_id' => $request->get('teacher_id'),
+            'co_teacher_id' => $request->get('co_teacher_id') ?: null,
+            'subject_id' => $request->get('subject_id'),
+            'room_number' => $request->get('room_number'),
+            'status' => $status,
+            'academic_year' => $request->get('academic_year') ?: null,
+            'ignore_slot_id' => $request->get('id'),
+        ]);
     }
 }
