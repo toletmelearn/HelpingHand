@@ -104,6 +104,34 @@ class TimetableViewsAndExportsTest extends TestCase
         $response->assertRedirect(route('login'));
     }
 
+    /**
+     * Cheap test gap closed by the Lock Integrity hardening pass: the day
+     * filter itself is client-side JS (toggling display:none on
+     * `data-day="..."` cells/columns per the day picked in #tt-day-filter
+     * -- see filterTeacherGrid() in teacher-view.blade.php), which no
+     * PHPUnit test can execute. What IS server-rendered, and therefore
+     * testable here, is the DATA the filter operates on: every day the
+     * teacher actually teaches must appear as both a `data-day="..."`
+     * cell attribute AND a `<option>` in the filter `<select>`, or the
+     * filter would have nothing correct to show/hide. Verified live in
+     * the browser separately (see the Lock Integrity hardening report).
+     */
+    public function test_teacher_view_renders_a_day_filter_option_and_matching_cell_for_every_day_taught(): void
+    {
+        $admin = $this->makeAdmin();
+        $tuesday = BellTiming::create(['day_of_week' => 'Tuesday', 'period_name' => 'Period 1', 'start_time' => '08:00:00', 'end_time' => '09:00:00', 'is_active' => true, 'is_break' => false, 'order_index' => 2]);
+        $this->makeSlot();
+        $this->makeSlot(['bell_timing_id' => $tuesday->id]);
+
+        $response = $this->actingAs($admin)->get(route('timetable.view.teacher', ['teacher_id' => $this->teacher->id]));
+
+        $response->assertOk();
+        $response->assertSee('<option value="Monday">Monday</option>', false);
+        $response->assertSee('<option value="Tuesday">Tuesday</option>', false);
+        $response->assertSee('data-day="Monday"', false);
+        $response->assertSee('data-day="Tuesday"', false);
+    }
+
     // ---- Room view ----
 
     public function test_room_view_renders_the_picker_with_no_room_selected(): void
@@ -128,6 +156,18 @@ class TimetableViewsAndExportsTest extends TestCase
         $response->assertSee($this->subject->name);
     }
 
+    /** Cheap test gap closed by the Lock Integrity hardening pass: mirrors test_teacher_view_only_shows_published_slots() -- the room view had no equivalent assertion that a draft slot is excluded. */
+    public function test_room_view_only_shows_published_slots(): void
+    {
+        $admin = $this->makeAdmin();
+        $this->makeSlot(['room_number' => '101', 'status' => 'draft']);
+
+        $response = $this->actingAs($admin)->get(route('timetable.view.room', ['room' => '101']));
+
+        $response->assertOk();
+        $response->assertSee('No published timetable slots found');
+    }
+
     public function test_room_picker_only_lists_distinct_rooms_from_published_slots(): void
     {
         $admin = $this->makeAdmin();
@@ -137,6 +177,23 @@ class TimetableViewsAndExportsTest extends TestCase
 
         $response->assertOk();
         $response->assertSee('101', false);
+    }
+
+    /** Room-view equivalent of test_teacher_view_renders_a_day_filter_option_and_matching_cell_for_every_day_taught() -- same reasoning (filterRoomGrid() is client-side JS; this proves the server-rendered data it operates on is correct). */
+    public function test_room_view_renders_a_day_filter_option_and_matching_cell_for_every_day_used(): void
+    {
+        $admin = $this->makeAdmin();
+        $tuesday = BellTiming::create(['day_of_week' => 'Tuesday', 'period_name' => 'Period 1', 'start_time' => '08:00:00', 'end_time' => '09:00:00', 'is_active' => true, 'is_break' => false, 'order_index' => 2]);
+        $this->makeSlot(['room_number' => '101']);
+        $this->makeSlot(['room_number' => '101', 'bell_timing_id' => $tuesday->id]);
+
+        $response = $this->actingAs($admin)->get(route('timetable.view.room', ['room' => '101']));
+
+        $response->assertOk();
+        $response->assertSee('<option value="Monday">Monday</option>', false);
+        $response->assertSee('<option value="Tuesday">Tuesday</option>', false);
+        $response->assertSee('data-day="Monday"', false);
+        $response->assertSee('data-day="Tuesday"', false);
     }
 
     // ---- Excel exports ----
@@ -176,6 +233,11 @@ class TimetableViewsAndExportsTest extends TestCase
 
         $response->assertOk();
         $response->assertHeader('content-type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+
+        $rows = $this->readXlsxRows($response);
+        $this->assertSame(['Period', 'Monday'], $rows[0]);
+        $this->assertStringContainsString($this->class->name, $rows[1][1]);
+        $this->assertStringContainsString($this->subject->name, $rows[1][1]);
     }
 
     public function test_room_excel_export_downloads_a_spreadsheet(): void
@@ -187,6 +249,12 @@ class TimetableViewsAndExportsTest extends TestCase
 
         $response->assertOk();
         $response->assertHeader('content-type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+
+        $rows = $this->readXlsxRows($response);
+        $this->assertSame(['Period', 'Monday'], $rows[0]);
+        $this->assertStringContainsString($this->class->name, $rows[1][1]);
+        $this->assertStringContainsString($this->subject->name, $rows[1][1]);
+        $this->assertStringContainsString($this->teacher->name, $rows[1][1]);
     }
 
     public function test_room_excel_export_with_no_slots_redirects_with_error(): void

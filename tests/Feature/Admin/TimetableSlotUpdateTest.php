@@ -221,6 +221,60 @@ class TimetableSlotUpdateTest extends TestCase
         $this->assertSame($this->timing1->id, $slot->bell_timing_id);
     }
 
+    /**
+     * Lock Integrity hardening: locking a slot (Phase 5) previously only
+     * protected it from the Generator and chain Auto-Fix -- this endpoint
+     * had no is_locked check at all, so a locked lesson could be freely
+     * retargeted to a new class/section/period/teacher/subject/room from
+     * the ordinary edit modal. Proves nothing about the row changes and
+     * no false 'timetable_slot_edited' log is written on rejection.
+     */
+    public function test_editing_a_locked_slot_is_rejected(): void
+    {
+        $admin = $this->makeAdmin();
+        $otherTeacher = Teacher::create(['name' => 'Other Teacher']);
+        $slot = $this->makeSlot(['is_locked' => true]);
+
+        $response = $this->actingAs($admin)->patch(route('timetable.update', $slot), [
+            'school_class_id' => $this->class->id,
+            'section_id' => $this->section->id,
+            'bell_timing_id' => $this->timing2->id,
+            'subject_id' => $this->subject->id,
+            'teacher_id' => $otherTeacher->id,
+        ]);
+
+        $response->assertSessionHas('error');
+        $this->assertStringContainsString('locked', strtolower(session('error')));
+
+        $slot->refresh();
+        $this->assertSame($this->timing1->id, $slot->bell_timing_id);
+        $this->assertSame($this->teacher->id, $slot->teacher_id);
+
+        $this->assertDatabaseMissing('activity_log', [
+            'subject_type' => TimetableSlot::class,
+            'subject_id' => $slot->id,
+            'description' => 'timetable_slot_edited',
+        ]);
+    }
+
+    /** Regression guard: the new is_locked check must never affect a normal (unlocked) edit. */
+    public function test_editing_an_unlocked_slot_still_works_normally(): void
+    {
+        $admin = $this->makeAdmin();
+        $slot = $this->makeSlot(['is_locked' => false]);
+
+        $response = $this->actingAs($admin)->patch(route('timetable.update', $slot), [
+            'school_class_id' => $this->class->id,
+            'section_id' => $this->section->id,
+            'bell_timing_id' => $this->timing2->id,
+            'subject_id' => $this->subject->id,
+            'teacher_id' => $this->teacher->id,
+        ]);
+
+        $response->assertSessionHas('success');
+        $this->assertSame($this->timing2->id, $slot->refresh()->bell_timing_id);
+    }
+
     public function test_editing_a_draft_slot_is_permitted_same_as_published(): void
     {
         $admin = $this->makeAdmin();

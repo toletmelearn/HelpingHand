@@ -245,7 +245,12 @@ class TimetableController extends Controller
      * documented pattern for a combined-group move is clear-then-
      * storeCombined() again, unchanged). Archived rows are historical
      * snapshots from a past PUBLISH and are never meant to change after
-     * the fact -- rejected the same way.
+     * the fact -- rejected the same way. Locked rows (Phase 5) are
+     * rejected the same way too -- a lock's entire purpose is to survive
+     * everything except an explicit unlock, and this was one of the write
+     * paths that didn't actually enforce that yet (Generator and chain
+     * Auto-Fix already did; this closes the gap found by the Lock
+     * Integrity audit).
      *
      * Authorization is two-fold, mirroring store()/storeCombined(): 'update'
      * on the slot itself (TimetableSlotPolicy -- admin, or a teacher
@@ -280,6 +285,10 @@ class TimetableController extends Controller
 
         if ($slot->status === TimetableSlot::STATUS_ARCHIVED) {
             return back()->with('error', 'This slot is archived history from a past publish -- it can no longer be edited.');
+        }
+
+        if ($slot->is_locked) {
+            return back()->with('error', 'This lesson is locked -- unlock it first to edit it.');
         }
 
         $validated = $request->validate([
@@ -884,11 +893,23 @@ class TimetableController extends Controller
      * occurrence, and only THIS one should go). "Moving" a placed group is
      * then clear-then-storeCombined() at the new period, which already
      * works once the old rows are gone.
+     *
+     * Locked rows (Phase 5) are rejected outright too -- lockSlot() itself
+     * already refuses to lock a combined-group row, so the sibling check
+     * below is defense-in-depth rather than a reachable-today case, but a
+     * lock's whole point is "nothing deletes this but an explicit unlock,"
+     * so both the clicked row and every sibling are checked before any
+     * write happens (found by the Lock Integrity audit: this endpoint
+     * previously deleted a locked slot with no resistance at all).
      */
     public function destroy($id)
     {
         $slot = TimetableSlot::findOrFail($id);
         $this->authorize('delete', $slot);
+
+        if ($slot->is_locked) {
+            return back()->with('error', 'This lesson is locked -- unlock it first to clear it.');
+        }
 
         if ($slot->combined_class_group_id) {
             $siblings = TimetableSlot::where('combined_class_group_id', $slot->combined_class_group_id)
@@ -898,6 +919,9 @@ class TimetableController extends Controller
 
             foreach ($siblings as $sibling) {
                 $this->authorize('delete', $sibling);
+                if ($sibling->is_locked) {
+                    return back()->with('error', 'This lesson is locked -- unlock it first to clear it.');
+                }
             }
 
             DB::transaction(function () use ($siblings) {

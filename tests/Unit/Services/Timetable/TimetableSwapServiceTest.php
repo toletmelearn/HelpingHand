@@ -346,6 +346,63 @@ class TimetableSwapServiceTest extends TestCase
         $this->assertStringContainsString('archived', $result['message']);
     }
 
+    // --- Lock Integrity hardening: locked slots can never be swapped, from either side ---
+
+    public function test_locked_slot_a_cannot_be_swapped(): void
+    {
+        $a = $this->slotA(['is_locked' => true]);
+        $b = $this->slotB();
+
+        $result = (new TimetableSwapService())->apply($a->id, $b->id);
+
+        $this->assertFalse($result['applied']);
+        $this->assertStringContainsString('locked', strtolower($result['message']));
+        $this->assertSame($this->timing1->id, $a->fresh()->bell_timing_id);
+        $this->assertSame($this->timing2->id, $b->fresh()->bell_timing_id);
+    }
+
+    public function test_locked_slot_b_cannot_be_swapped(): void
+    {
+        $a = $this->slotA();
+        $b = $this->slotB(['is_locked' => true]);
+
+        $result = (new TimetableSwapService())->apply($a->id, $b->id);
+
+        $this->assertFalse($result['applied']);
+        $this->assertStringContainsString('locked', strtolower($result['message']));
+        $this->assertSame($this->timing1->id, $a->fresh()->bell_timing_id);
+        $this->assertSame($this->timing2->id, $b->fresh()->bell_timing_id);
+    }
+
+    public function test_preview_of_a_locked_pair_reports_not_ok(): void
+    {
+        $a = $this->slotA(['is_locked' => true]);
+        $b = $this->slotB();
+
+        $result = (new TimetableSwapService())->preview($a->id, $b->id);
+
+        $this->assertFalse($result['ok']);
+        $this->assertStringContainsString('locked', strtolower($result['message']));
+    }
+
+    /** A slot locked AFTER a clean preview must still be caught by apply()'s own re-validation, same guarantee as test_apply_revalidates_independently_even_after_an_earlier_clean_preview. */
+    public function test_apply_rejects_a_swap_locked_since_an_earlier_clean_preview(): void
+    {
+        $a = $this->slotA();
+        $b = $this->slotB();
+        $service = new TimetableSwapService();
+
+        $preview = $service->preview($a->id, $b->id);
+        $this->assertTrue($preview['ok']);
+
+        $a->update(['is_locked' => true]);
+
+        $result = $service->apply($a->id, $b->id);
+
+        $this->assertFalse($result['applied']);
+        $this->assertStringContainsString('locked', strtolower($result['message']));
+    }
+
     // --- Same-teacher / same-room / same-subject edge cases (must NOT be auto-rejected) ---
 
     public function test_swapping_two_lessons_taught_by_the_same_teacher_is_allowed_when_otherwise_clean(): void

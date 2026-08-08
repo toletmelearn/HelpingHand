@@ -175,12 +175,19 @@ class TimetableSwapService
 
     /**
      * Guardrails checkSwap() deliberately doesn't own -- mirrors
-     * TimetableController::update()'s existing combined-group/archived
-     * rules exactly (same messages, same reasoning), plus two swap-only
-     * additions: two rows only make sense to trade periods if they're in
-     * the same lifecycle bucket (both draft or both published -- swapping
-     * a live lesson's period with an unrelated draft proposal is not a
-     * real operation), and never across academic years.
+     * TimetableController::update()'s existing combined-group/archived/
+     * locked rules exactly (same messages, same reasoning), plus two
+     * swap-only additions: two rows only make sense to trade periods if
+     * they're in the same lifecycle bucket (both draft or both published
+     * -- swapping a live lesson's period with an unrelated draft proposal
+     * is not a real operation), and never across academic years.
+     *
+     * Called from both preview() (read-only) and apply() (on the freshly
+     * lockForUpdate()'d rows, immediately before writing) -- a locked slot
+     * is rejected the same way regardless of which side of the pair it's
+     * on, and regardless of which of the two callers is asking (Lock
+     * Integrity audit: this was the one guardrail set that didn't check
+     * is_locked at all, so a locked lesson could be freely swapped).
      */
     private function rejectIfIneligible(?TimetableSlot $a, ?TimetableSlot $b): ?array
     {
@@ -195,6 +202,10 @@ class TimetableSwapService
 
             if ($slot->status === TimetableSlot::STATUS_ARCHIVED) {
                 return ['ok' => false, 'message' => 'This slot is archived history from a past publish -- it can no longer be swapped.', 'conflicts' => [], 'slot_a' => null, 'slot_b' => null];
+            }
+
+            if ($slot->is_locked) {
+                return ['ok' => false, 'message' => 'This lesson is locked -- unlock it first to swap it.', 'conflicts' => [], 'slot_a' => null, 'slot_b' => null];
             }
         }
 
