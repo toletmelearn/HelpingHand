@@ -190,4 +190,93 @@ class TimetableLockTest extends TestCase
         $response->assertOk();
         $response->assertSee('is_locked', false);
     }
+
+    // --- Lock Integrity hardening -------------------------------------------
+
+    public function test_teacher_without_assignment_cannot_unlock_a_slot(): void
+    {
+        [$user] = $this->makeTeacherUser();
+        $slot = $this->makeSlot(['is_locked' => true]);
+
+        $response = $this->actingAs($user)->post(route('timetable.unlock', $slot));
+
+        $response->assertForbidden();
+        $this->assertTrue($slot->fresh()->is_locked);
+    }
+
+    /**
+     * destroy() previously had no is_locked check at all -- the "Clear
+     * this slot" button sits right next to the lock toggle in the grid
+     * and worked on a locked slot with zero resistance. No false
+     * 'timetable_slot_cleared' log on the rejected attempt.
+     */
+    public function test_a_locked_slot_cannot_be_deleted(): void
+    {
+        $admin = $this->makeAdmin();
+        $slot = $this->makeSlot(['is_locked' => true]);
+
+        $response = $this->actingAs($admin)->delete(route('timetable.destroy', $slot->id));
+
+        $response->assertRedirect();
+        $response->assertSessionHas('error');
+        $this->assertStringContainsString('locked', strtolower(session('error')));
+        $this->assertDatabaseHas('timetable_slots', ['id' => $slot->id]);
+
+        $this->assertDatabaseMissing('activity_log', [
+            'subject_type' => TimetableSlot::class,
+            'subject_id' => $slot->id,
+            'description' => 'timetable_slot_cleared',
+        ]);
+    }
+
+    /** Regression guard: the new is_locked check must never affect a normal (unlocked) delete. */
+    public function test_an_unlocked_slot_can_still_be_deleted_normally(): void
+    {
+        $admin = $this->makeAdmin();
+        $slot = $this->makeSlot(['is_locked' => false]);
+
+        $response = $this->actingAs($admin)->delete(route('timetable.destroy', $slot->id));
+
+        $response->assertRedirect();
+        $response->assertSessionHas('success');
+        $this->assertDatabaseMissing('timetable_slots', ['id' => $slot->id]);
+    }
+
+    /**
+     * Defense-in-depth for the combined-group branch of destroy(): a
+     * combined slot can never actually be locked via lockSlot() itself
+     * (it rejects combined rows outright), so this exercises the sibling
+     * check directly against the database rather than through the UI --
+     * clicking clear on an UNLOCKED member of a group must still be
+     * blocked if a DIFFERENT sibling row in that same occurrence has
+     * somehow ended up locked (e.g. a future generator change), proving
+     * the per-sibling check inside destroy()'s combined branch, not just
+     * the top-level check on the clicked row itself.
+     */
+    public function test_a_locked_combined_group_sibling_blocks_the_whole_group_clear(): void
+    {
+        $admin = $this->makeAdmin();
+        $otherClass = SchoolClass::create(['name' => 'Combined Sibling Class ' . uniqid(), 'class_order' => random_int(1, 100000), 'is_active' => true]);
+        $session = AcademicSession::create(['name' => '2026-2027', 'code' => '2026-2027', 'start_date' => '2026-04-01', 'end_date' => '2027-03-31']);
+        $group = CombinedClassGroup::create(['name' => 'Combined', 'subject_id' => $this->subject->id, 'academic_session_id' => $session->id]);
+        CombinedClassGroupMember::create(['combined_class_group_id' => $group->id, 'school_class_id' => $this->class->id]);
+        CombinedClassGroupMember::create(['combined_class_group_id' => $group->id, 'school_class_id' => $otherClass->id]);
+
+        $clickedSlot = $this->makeSlot(['combined_class_group_id' => $group->id, 'is_locked' => false]);
+        $lockedSibling = TimetableSlot::create([
+            'school_class_id' => $otherClass->id,
+            'bell_timing_id' => $this->timing1->id,
+            'subject_id' => $this->subject->id,
+            'teacher_id' => $this->teacher->id,
+            'combined_class_group_id' => $group->id,
+            'is_locked' => true,
+        ]);
+
+        $response = $this->actingAs($admin)->delete(route('timetable.destroy', $clickedSlot->id));
+
+        $response->assertRedirect();
+        $response->assertSessionHas('error');
+        $this->assertDatabaseHas('timetable_slots', ['id' => $clickedSlot->id]);
+        $this->assertDatabaseHas('timetable_slots', ['id' => $lockedSibling->id]);
+    }
 }

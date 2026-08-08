@@ -53,6 +53,17 @@ class TimetableAutoFixService
             return ['applied' => false, 'message' => 'The lesson this fix was supposed to move no longer exists -- someone may have already changed it.'];
         }
 
+        // Phase 5 (Locked Lessons) / Lock Integrity audit: this single-hop
+        // path had no lock awareness at all -- unlike discoverChain(),
+        // which already treats a locked blocker as an immovable wall, this
+        // re-check runs on live data immediately before the write, exactly
+        // like every other guard in this method (blocker/new-placement
+        // conflict checks), so a lock set after the suggestion was
+        // generated (or a stale/direct API call) still can't move it.
+        if ($blocker->is_locked) {
+            return ['applied' => false, 'message' => 'This fix is no longer valid -- the lesson it planned to move has since been locked.'];
+        }
+
         $blockerAtNewPeriod = [
             'school_class_id' => $blocker->school_class_id,
             'section_id' => $blocker->section_id,

@@ -554,4 +554,94 @@ class TimetableAutoFixServiceTest extends TestCase
         $this->assertFalse($applied['applied']);
         $this->assertSame($t1->id, $blocker->fresh()->bell_timing_id);
     }
+
+    // --- Lock Integrity hardening: the single-hop relocate-blocker path -----------
+
+    /**
+     * applyBlockerRelocation() (single-hop Auto-Fix, distinct from the
+     * chain search above) had no is_locked awareness at all before this
+     * fix -- unlike discoverChain()/applyChainFix(), which already
+     * treated a locked blocker as an immovable wall. A locked blocker
+     * must be rejected here too, on live data, immediately before any
+     * write -- and no activity log entry may exist for either side.
+     */
+    public function test_a_locked_blocker_is_never_relocated_by_the_single_hop_fix(): void
+    {
+        $timings = $this->makeGrid();
+        $newClass = SchoolClass::create(['name' => 'New Class', 'class_order' => 1, 'is_active' => true]);
+        $blockerClass = SchoolClass::create(['name' => 'Blocker Class', 'class_order' => 2, 'is_active' => true]);
+        $subject = Subject::create(['name' => 'Science', 'code' => 'AF' . uniqid()]);
+        $sharedTeacher = Teacher::create(['name' => 'Shared Teacher', 'status' => 'active']);
+
+        $blocker = TimetableSlot::create([
+            'school_class_id' => $blockerClass->id, 'bell_timing_id' => $timings['Monday1']->id,
+            'subject_id' => $subject->id, 'teacher_id' => $sharedTeacher->id, 'is_locked' => true,
+        ]);
+
+        $newPlacement = [
+            'school_class_id' => $newClass->id,
+            'bell_timing_id' => $timings['Monday1']->id,
+            'teacher_id' => $sharedTeacher->id,
+            'subject_id' => $subject->id,
+        ];
+
+        $result = (new TimetableAutoFixService())->applyBlockerRelocation(
+            $newPlacement, $blocker->id, $timings['Monday2']->id
+        );
+
+        $this->assertFalse($result['applied']);
+        $this->assertStringContainsString('locked', strtolower($result['message']));
+        $this->assertSame($timings['Monday1']->id, $blocker->fresh()->bell_timing_id, 'The locked blocker must not have moved.');
+        $this->assertDatabaseMissing('timetable_slots', [
+            'school_class_id' => $newClass->id,
+            'bell_timing_id' => $timings['Monday1']->id,
+        ]);
+        $this->assertDatabaseMissing('activity_log', [
+            'subject_type' => TimetableSlot::class,
+            'subject_id' => $blocker->id,
+            'description' => 'timetable_autofix_applied',
+        ]);
+    }
+
+    /**
+     * A blocker locked AFTER a suggestion was generated (the interactive
+     * flow re-validates on live data at apply time regardless of when the
+     * suggestion itself was computed) must still be caught -- same
+     * "never trust anything but live data at write time" guarantee the
+     * chain path already proves in
+     * test_apply_rejects_a_step_that_targets_a_slot_locked_since_preview().
+     */
+    public function test_a_blocker_locked_after_the_suggestion_was_computed_is_still_rejected(): void
+    {
+        $timings = $this->makeGrid();
+        $newClass = SchoolClass::create(['name' => 'New Class', 'class_order' => 1, 'is_active' => true]);
+        $blockerClass = SchoolClass::create(['name' => 'Blocker Class', 'class_order' => 2, 'is_active' => true]);
+        $subject = Subject::create(['name' => 'Science', 'code' => 'AF' . uniqid()]);
+        $sharedTeacher = Teacher::create(['name' => 'Shared Teacher', 'status' => 'active']);
+
+        $blocker = TimetableSlot::create([
+            'school_class_id' => $blockerClass->id, 'bell_timing_id' => $timings['Monday1']->id,
+            'subject_id' => $subject->id, 'teacher_id' => $sharedTeacher->id,
+        ]);
+
+        // The suggestion (blocking_slot_id + destination period) is
+        // decided while the blocker is still unlocked -- exactly what an
+        // earlier checkConflictsApi() response would have handed back.
+        $newPlacement = [
+            'school_class_id' => $newClass->id,
+            'bell_timing_id' => $timings['Monday1']->id,
+            'teacher_id' => $sharedTeacher->id,
+            'subject_id' => $subject->id,
+        ];
+
+        // Locked before the fix is actually applied.
+        $blocker->update(['is_locked' => true]);
+
+        $result = (new TimetableAutoFixService())->applyBlockerRelocation(
+            $newPlacement, $blocker->id, $timings['Monday2']->id
+        );
+
+        $this->assertFalse($result['applied']);
+        $this->assertSame($timings['Monday1']->id, $blocker->fresh()->bell_timing_id);
+    }
 }

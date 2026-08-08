@@ -413,4 +413,96 @@ class TimetableSwapTest extends TestCase
             'description' => 'timetable_slot_swapped',
         ]);
     }
+
+    // --- Lock Integrity hardening ------------------------------------------
+
+    public function test_swap_is_rejected_when_slot_a_is_locked(): void
+    {
+        $admin = $this->makeAdmin();
+        $slotA = $this->makeSlotA(['is_locked' => true]);
+        $slotB = $this->makeSlotB();
+
+        $response = $this->actingAs($admin)->postJson(route('timetable.swap'), [
+            'slot_a_id' => $slotA->id,
+            'slot_b_id' => $slotB->id,
+        ]);
+
+        $response->assertStatus(422);
+        $response->assertJson(['applied' => false]);
+        $this->assertStringContainsString('locked', strtolower($response->json('message')));
+        $this->assertSame($this->timing1->id, $slotA->refresh()->bell_timing_id);
+        $this->assertSame($this->timing2->id, $slotB->refresh()->bell_timing_id);
+    }
+
+    public function test_swap_is_rejected_when_slot_b_is_locked(): void
+    {
+        $admin = $this->makeAdmin();
+        $slotA = $this->makeSlotA();
+        $slotB = $this->makeSlotB(['is_locked' => true]);
+
+        $response = $this->actingAs($admin)->postJson(route('timetable.swap'), [
+            'slot_a_id' => $slotA->id,
+            'slot_b_id' => $slotB->id,
+        ]);
+
+        $response->assertStatus(422);
+        $response->assertJson(['applied' => false]);
+        $this->assertStringContainsString('locked', strtolower($response->json('message')));
+        $this->assertSame($this->timing1->id, $slotA->refresh()->bell_timing_id);
+        $this->assertSame($this->timing2->id, $slotB->refresh()->bell_timing_id);
+    }
+
+    public function test_preview_reports_locked_swap_as_not_ok(): void
+    {
+        $admin = $this->makeAdmin();
+        $slotA = $this->makeSlotA(['is_locked' => true]);
+        $slotB = $this->makeSlotB();
+
+        $response = $this->actingAs($admin)->getJson(route('timetable.swap-preview', [
+            'slot_a_id' => $slotA->id,
+            'slot_b_id' => $slotB->id,
+        ]));
+
+        $response->assertOk();
+        $response->assertJson(['ok' => false]);
+        $this->assertStringContainsString('locked', strtolower($response->json('message')));
+    }
+
+    public function test_rejected_locked_swap_does_not_create_a_false_activity_log(): void
+    {
+        $admin = $this->makeAdmin();
+        $slotA = $this->makeSlotA(['is_locked' => true]);
+        $slotB = $this->makeSlotB();
+
+        $this->actingAs($admin)->postJson(route('timetable.swap'), [
+            'slot_a_id' => $slotA->id,
+            'slot_b_id' => $slotB->id,
+        ])->assertStatus(422);
+
+        $this->assertDatabaseMissing('activity_log', [
+            'subject_type' => TimetableSlot::class,
+            'subject_id' => $slotA->id,
+            'description' => 'timetable_slot_swapped',
+        ]);
+        $this->assertDatabaseMissing('activity_log', [
+            'subject_type' => TimetableSlot::class,
+            'subject_id' => $slotB->id,
+            'description' => 'timetable_slot_swapped',
+        ]);
+    }
+
+    public function test_unlocked_slots_can_still_be_swapped_normally(): void
+    {
+        $admin = $this->makeAdmin();
+        $slotA = $this->makeSlotA(['is_locked' => false]);
+        $slotB = $this->makeSlotB(['is_locked' => false]);
+
+        $response = $this->actingAs($admin)->postJson(route('timetable.swap'), [
+            'slot_a_id' => $slotA->id,
+            'slot_b_id' => $slotB->id,
+        ]);
+
+        $response->assertOk();
+        $response->assertJson(['applied' => true]);
+    }
 }

@@ -103,4 +103,37 @@ class TimetableAutoFixEndpointTest extends TestCase
             'description' => 'timetable_autofix_applied',
         ]);
     }
+
+    /** Lock Integrity hardening, HTTP level: mirrors the service-level test in TimetableAutoFixServiceTest.php, proving the route wires the new guard through end to end. */
+    public function test_admin_cannot_relocate_a_locked_blocker(): void
+    {
+        $timings = $this->makeGrid();
+        $newClass = SchoolClass::create(['name' => 'New Class', 'class_order' => 1, 'is_active' => true]);
+        $blockerClass = SchoolClass::create(['name' => 'Blocker Class', 'class_order' => 2, 'is_active' => true]);
+        $subject = Subject::create(['name' => 'Science', 'code' => 'AFE' . uniqid()]);
+        $teacher = Teacher::create(['name' => 'Teacher', 'status' => 'active']);
+
+        $blocker = TimetableSlot::create([
+            'school_class_id' => $blockerClass->id, 'bell_timing_id' => $timings['Monday1']->id,
+            'subject_id' => $subject->id, 'teacher_id' => $teacher->id, 'is_locked' => true,
+        ]);
+
+        $response = $this->actingAs($this->admin())->post(route('timetable.auto-fix.relocate-blocker'), [
+            'school_class_id' => $newClass->id,
+            'bell_timing_id' => $timings['Monday1']->id,
+            'teacher_id' => $teacher->id,
+            'subject_id' => $subject->id,
+            'blocking_slot_id' => $blocker->id,
+            'blocker_new_bell_timing_id' => $timings['Monday2']->id,
+        ]);
+
+        $response->assertStatus(422);
+        $response->assertJson(['applied' => false]);
+        $this->assertSame($timings['Monday1']->id, $blocker->fresh()->bell_timing_id);
+        $this->assertDatabaseMissing('activity_log', [
+            'subject_type' => TimetableSlot::class,
+            'subject_id' => $blocker->id,
+            'description' => 'timetable_autofix_applied',
+        ]);
+    }
 }
