@@ -16,6 +16,7 @@ use App\Models\Teacher;
 use App\Services\Timetable\FeasibilityService;
 use App\Services\Timetable\TimetableAutoFixService;
 use App\Services\Timetable\TimetableConflictResolver;
+use App\Services\Timetable\TimetableRebalanceService;
 use App\Services\Timetable\TimetableSuggestionService;
 use App\Services\Timetable\TimetableSwapService;
 use App\Exports\ClassTimetableExport;
@@ -1344,6 +1345,60 @@ class TimetableController extends Controller
         );
 
         $result = (new TimetableAutoFixService())->applyChainFix($newPlacement, $validated['steps']);
+
+        return response()->json($result, $result['applied'] ? 200 : 422);
+    }
+
+    /**
+     * Rebalancing Engine (read-only preview): scores the selected
+     * class-section's current lesson placement and proposes a small,
+     * bounded set of legal swaps/relocations that would improve it.
+     * Writes nothing -- gated the same as every other read-only
+     * preview/scan in this controller (viewAny). academic_year is never
+     * client-supplied, matching every other write/preview path.
+     */
+    public function rebalancePreview(Request $request)
+    {
+        $this->authorize('viewAny', TimetableSlot::class);
+
+        $validated = $request->validate([
+            'school_class_id' => 'required|exists:school_classes,id',
+            'section_id' => 'nullable|exists:sections,id',
+            'status' => 'nullable|in:draft,published',
+        ]);
+
+        $status = $validated['status'] ?? TimetableSlot::STATUS_PUBLISHED;
+        $academicYear = AcademicSession::current()->first()?->code;
+
+        $result = (new TimetableRebalanceService())->analyze(
+            (int) $validated['school_class_id'],
+            $validated['section_id'] ?? null,
+            $academicYear,
+            $status
+        );
+
+        return response()->json($result);
+    }
+
+    /**
+     * Rebalancing Engine (apply): admin-only, same reasoning as autoFix()
+     * on TimetableSlotPolicy -- a rebalance can move a lesson taught by a
+     * teacher the caller has no particular claim over. Re-validates every
+     * movement against live data before writing anything (see
+     * TimetableRebalanceService::apply()); the whole batch is one
+     * transaction, so a stale movement aborts everything, nothing partial.
+     */
+    public function rebalanceApply(Request $request)
+    {
+        $this->authorize('autoFix', TimetableSlot::class);
+
+        $validated = $request->validate([
+            'movements' => 'required|array|min:1',
+        ]);
+
+        $academicYear = AcademicSession::current()->first()?->code;
+
+        $result = (new TimetableRebalanceService())->apply($validated['movements'], $academicYear);
 
         return response()->json($result, $result['applied'] ? 200 : 422);
     }

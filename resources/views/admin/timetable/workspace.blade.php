@@ -73,6 +73,7 @@
         <li class="nav-item"><a class="nav-link" id="tab-conflicts-link" data-bs-toggle="tab" href="#tab-conflicts" role="tab">Conflicts</a></li>
         <li class="nav-item"><a class="nav-link" id="tab-suggestions-link" data-bs-toggle="tab" href="#tab-suggestions" role="tab">Suggestions</a></li>
         <li class="nav-item"><a class="nav-link" id="tab-autofix-link" data-bs-toggle="tab" href="#tab-autofix" role="tab">Auto-Fix</a></li>
+        <li class="nav-item"><a class="nav-link" id="tab-rebalance-link" data-bs-toggle="tab" href="#tab-rebalance" role="tab">Rebalance</a></li>
         <li class="nav-item"><a class="nav-link" id="tab-publish-link" data-bs-toggle="tab" href="#tab-publish" role="tab">Publish</a></li>
     </ul>
 
@@ -344,6 +345,80 @@
             </div>
         </div>
 
+        {{-- ============ REBALANCE ============ --}}
+        <div class="tab-pane fade" id="tab-rebalance" role="tabpanel">
+            <div class="card glass-card mb-4">
+                <div class="card-body">
+                    <h6 class="font-weight-bold text-dark">Rebalance</h6>
+                    <p class="text-muted small">
+                        Scans <strong>this class-section's</strong> current lesson placement for teacher gaps, uneven
+                        daily workload, prefer-morning violations, excessive back-to-back periods, and (where room
+                        data exists) room switching -- then proposes the smallest set of swaps/relocations that would
+                        measurably improve it. Every proposed movement is validated by the same
+                        TimetableConflictResolver / Swap Engine every other edit already goes through, so nothing
+                        proposed can ever violate a hard constraint or move a locked lesson. Nothing changes until you
+                        confirm.
+                    </p>
+
+                    @if(!$schoolClassId)
+                        <div class="alert alert-secondary mb-0">Select a class (and optionally a section) in <strong>Review &amp; Edit</strong> first, then come back to this tab.</div>
+                    @else
+                        <p class="mb-3">
+                            Scope: <strong>{{ $classes->firstWhere('id', (int) $schoolClassId)?->name }}</strong>
+                            @if($sectionId) / {{ $sections->firstWhere('id', (int) $sectionId)?->name }} @endif
+                            &mdash; {{ ucfirst($view) }} timetable
+                        </p>
+
+                        <button type="button" id="rebalanceAnalyzeBtn" class="btn btn-primary shadow-sm" onclick="runRebalanceAnalysis()">
+                            <i class="fas fa-balance-scale"></i> Analyze / Preview Rebalance
+                        </button>
+
+                        <div id="rebalanceFeedback" class="mt-3"></div>
+
+                        <div id="rebalanceResults" class="mt-3 d-none">
+                            <div class="row mb-3">
+                                <div class="col-md-4 mb-2">
+                                    <div class="workspace-stat-card text-center">
+                                        <div class="text-muted small font-weight-bold text-uppercase">Current Issue Score</div>
+                                        <div class="stat-value" id="rebalanceBaselineScore">-</div>
+                                        <div class="small text-muted">lower is better</div>
+                                    </div>
+                                </div>
+                                <div class="col-md-4 mb-2">
+                                    <div class="workspace-stat-card text-center">
+                                        <div class="text-muted small font-weight-bold text-uppercase">Proposed Issue Score</div>
+                                        <div class="stat-value" id="rebalanceProposedScore">-</div>
+                                        <div class="small text-muted" id="rebalanceImprovementSummary"></div>
+                                    </div>
+                                </div>
+                                <div class="col-md-4 mb-2">
+                                    <div class="workspace-stat-card text-center">
+                                        <div class="text-muted small font-weight-bold text-uppercase">Movements Proposed</div>
+                                        <div class="stat-value" id="rebalanceMovementCount">0</div>
+                                        <div class="small text-muted" id="rebalanceLockedNote"></div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div id="rebalanceMovementListWrap" class="mb-3 d-none">
+                                <h6 class="font-weight-bold text-dark">Proposed movements</h6>
+                                <ul class="list-group" id="rebalanceMovementList"></ul>
+                            </div>
+
+                            <div id="rebalanceActions" class="d-none">
+                                <button type="button" id="rebalanceConfirmBtn" class="btn btn-success shadow-sm" onclick="confirmRebalance()">
+                                    <i class="fas fa-check"></i> Confirm Rebalance
+                                </button>
+                                <button type="button" class="btn btn-outline-secondary shadow-sm" onclick="cancelRebalancePreview()">
+                                    <i class="fas fa-times"></i> Cancel
+                                </button>
+                            </div>
+                        </div>
+                    @endif
+                </div>
+            </div>
+        </div>
+
         {{-- ============ PUBLISH ============ --}}
         <div class="tab-pane fade" id="tab-publish" role="tabpanel">
             <div class="card glass-card mb-4">
@@ -380,4 +455,139 @@
 
     </div>
 </div>
+
+@if($schoolClassId)
+<script>
+    let rebalanceLastMovements = [];
+
+    function runRebalanceAnalysis() {
+        const btn = document.getElementById('rebalanceAnalyzeBtn');
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Analyzing...';
+        document.getElementById('rebalanceFeedback').innerHTML = '';
+        document.getElementById('rebalanceResults').classList.add('d-none');
+
+        const params = new URLSearchParams({
+            school_class_id: '{{ $schoolClassId }}',
+            status: '{{ $view }}',
+        });
+        @if($sectionId)
+        params.set('section_id', '{{ $sectionId }}');
+        @endif
+
+        fetch(`{{ route('timetable.rebalance.preview') }}?${params.toString()}`, {
+            headers: { 'Accept': 'application/json' },
+        })
+            .then(res => res.json())
+            .then(data => {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fas fa-balance-scale"></i> Analyze / Preview Rebalance';
+                renderRebalanceResults(data);
+            })
+            .catch(() => {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fas fa-balance-scale"></i> Analyze / Preview Rebalance';
+                document.getElementById('rebalanceFeedback').innerHTML = '<div class="alert alert-danger">Could not reach the server. Please try again.</div>';
+            });
+    }
+
+    function renderRebalanceResults(data) {
+        if (!data.ok) {
+            document.getElementById('rebalanceFeedback').innerHTML = `<div class="alert alert-secondary">${data.message}</div>`;
+            document.getElementById('rebalanceResults').classList.add('d-none');
+            rebalanceLastMovements = [];
+            return;
+        }
+
+        rebalanceLastMovements = data.movements || [];
+
+        document.getElementById('rebalanceResults').classList.remove('d-none');
+        document.getElementById('rebalanceBaselineScore').innerText = data.baseline_score.total;
+        document.getElementById('rebalanceProposedScore').innerText = data.proposed_score.total;
+
+        const improvement = data.baseline_score.total - data.proposed_score.total;
+        document.getElementById('rebalanceImprovementSummary').innerText = improvement > 0
+            ? `-${improvement} point(s)`
+            : (rebalanceLastMovements.length ? 'no net change' : 'already balanced');
+
+        document.getElementById('rebalanceMovementCount').innerText = rebalanceLastMovements.length;
+        document.getElementById('rebalanceLockedNote').innerText = data.locked_excluded_count > 0
+            ? `${data.locked_excluded_count} locked lesson(s) protected, never proposed`
+            : '';
+
+        const listWrap = document.getElementById('rebalanceMovementListWrap');
+        const list = document.getElementById('rebalanceMovementList');
+        list.innerHTML = '';
+
+        if (rebalanceLastMovements.length === 0) {
+            listWrap.classList.add('d-none');
+            document.getElementById('rebalanceActions').classList.add('d-none');
+            document.getElementById('rebalanceFeedback').innerHTML = `<div class="alert alert-success">${data.message}</div>`;
+            return;
+        }
+
+        listWrap.classList.remove('d-none');
+        document.getElementById('rebalanceActions').classList.remove('d-none');
+
+        rebalanceLastMovements.forEach(m => {
+            const li = document.createElement('li');
+            li.className = 'list-group-item';
+            if (m.type === 'swap') {
+                li.innerHTML = `<strong>Swap:</strong> ${m.a_subject} (${m.a_teacher}) ${m.a_from} &harr; ${m.b_subject} (${m.b_teacher}) ${m.b_from}<br><span class="small text-muted">${m.reason}</span>`;
+            } else {
+                li.innerHTML = `<strong>Relocate:</strong> ${m.subject} (${m.teacher}) from ${m.from} to ${m.to}<br><span class="small text-muted">${m.reason}</span>`;
+            }
+            list.appendChild(li);
+        });
+
+        document.getElementById('rebalanceFeedback').innerHTML = data.budget_exhausted
+            ? '<div class="alert alert-warning">Search budget reached -- there may be further improvements beyond what is shown here.</div>'
+            : '';
+    }
+
+    function confirmRebalance() {
+        if (!rebalanceLastMovements.length) {
+            return;
+        }
+        const btn = document.getElementById('rebalanceConfirmBtn');
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Applying...';
+
+        const payload = rebalanceLastMovements.map(m => m.type === 'swap'
+            ? { type: 'swap', slot_a_id: m.slot_a_id, slot_b_id: m.slot_b_id }
+            : { type: 'relocate', slot_id: m.slot_id, to_bell_timing_id: m.to_bell_timing_id });
+
+        fetch(@json(route('timetable.rebalance.apply')), {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || '{{ csrf_token() }}',
+            },
+            body: JSON.stringify({ movements: payload }),
+        })
+            .then(res => res.json().then(data => ({ status: res.status, data })))
+            .then(({ status, data }) => {
+                if (status === 200 && data.applied) {
+                    window.location.reload();
+                } else {
+                    document.getElementById('rebalanceFeedback').innerHTML = `<div class="alert alert-danger">Rebalance failed: ${data.message || 'Unknown error'}</div>`;
+                    btn.disabled = false;
+                    btn.innerHTML = '<i class="fas fa-check"></i> Confirm Rebalance';
+                }
+            })
+            .catch(() => {
+                document.getElementById('rebalanceFeedback').innerHTML = '<div class="alert alert-danger">Rebalance failed: could not reach the server.</div>';
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fas fa-check"></i> Confirm Rebalance';
+            });
+    }
+
+    function cancelRebalancePreview() {
+        rebalanceLastMovements = [];
+        document.getElementById('rebalanceResults').classList.add('d-none');
+        document.getElementById('rebalanceFeedback').innerHTML = '';
+    }
+</script>
+@endif
 @endsection

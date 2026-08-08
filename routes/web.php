@@ -1745,6 +1745,11 @@ Route::middleware(['auth'])->group(function () {
     // check-conflicts); apply re-validates and is admin-only (autoFix ability).
     Route::get('/admin/timetable/auto-fix/preview-chain', [\App\Http\Controllers\Admin\TimetableController::class, 'autoFixPreviewChain'])->name('timetable.auto-fix.preview-chain');
     Route::post('/admin/timetable/auto-fix/apply-chain', [\App\Http\Controllers\Admin\TimetableController::class, 'autoFixApplyChain'])->name('timetable.auto-fix.apply-chain');
+    // Rebalancing Engine: preview is read-only (viewAny-gated, like every
+    // other preview above); apply re-validates live data and is
+    // admin-only (autoFix ability), same reasoning as chain repair's apply.
+    Route::get('/admin/timetable/rebalance/preview', [\App\Http\Controllers\Admin\TimetableController::class, 'rebalancePreview'])->name('timetable.rebalance.preview');
+    Route::post('/admin/timetable/rebalance/apply', [\App\Http\Controllers\Admin\TimetableController::class, 'rebalanceApply'])->name('timetable.rebalance.apply');
     // Swap Engine: preview is read-only (viewAny-gated, like check-conflicts);
     // the actual swap re-validates and authorizes both slots individually.
     Route::get('/admin/timetable/swap-preview', [\App\Http\Controllers\Admin\TimetableController::class, 'swapPreviewApi'])->name('timetable.swap-preview');
