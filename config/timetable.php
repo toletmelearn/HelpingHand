@@ -60,4 +60,50 @@ return [
         'max_chain_depth' => env('TIMETABLE_AUTOFIX_MAX_CHAIN_DEPTH', 3),
         'search_budget' => env('TIMETABLE_AUTOFIX_SEARCH_BUDGET', 150),
     ],
+
+    /*
+    |--------------------------------------------------------------------
+    | Rebalancing Engine
+    |--------------------------------------------------------------------
+    |
+    | A bounded, greedy hill-climbing search over ONE class-section's own
+    | slots: each accepted movement is the single best-scoring legal swap
+    | or relocation found this iteration, repeated until no movement
+    | improves the score, or one of the limits below is hit -- never an
+    | unbounded search.
+    |
+    | max_candidate_evaluations: total TimetableConflictResolver::check()/
+    | TimetableSuggestionService::checkSwap() CALLS the whole analyze()
+    | pass may spend before giving up on finding further improvements --
+    | NOT total queries: each checkSwap() is itself ~2 check() calls
+    | (~14-19 queries apiece), so 100 evaluations already costs on the
+    | order of 1,000-2,000 real queries (measured:
+    | TimetableRebalanceQueryCountTest). This default is deliberately
+    | lower than autofix.search_budget for exactly that reason -- a
+    | rebalance evaluates candidate SWAPS (2 checks each), autofix's chain
+    | search mostly evaluates single relocations (1 check each), so the
+    | same nominal budget costs roughly twice as much here.
+    |
+    | max_movements: the largest number of movements a single preview may
+    | propose -- keeps "prefer the smallest number of changes" enforced by
+    | more than just the greedy stopping condition.
+    |
+    | max_iterations: safety cap on the outer greedy loop itself (one
+    | iteration = one accepted movement, so in practice this rarely binds
+    | before max_movements does -- kept as an independent, explicit limit
+    | rather than relying on max_movements alone). Lowered alongside
+    | max_candidate_evaluations for the same query-cost reason: each
+    | iteration re-scans the (shrinking) remaining candidate pool from
+    | scratch, so iteration count is a direct multiplier on total cost.
+    |
+    | time_budget_seconds: wall-clock cap on one analyze() call, same
+    | reasoning as generator.time_budget_seconds.
+    |
+    */
+    'rebalance' => [
+        'max_candidate_evaluations' => env('TIMETABLE_REBALANCE_MAX_CANDIDATES', 100),
+        'max_movements' => env('TIMETABLE_REBALANCE_MAX_MOVEMENTS', 6),
+        'max_iterations' => env('TIMETABLE_REBALANCE_MAX_ITERATIONS', 6),
+        'time_budget_seconds' => env('TIMETABLE_REBALANCE_TIME_BUDGET', 10),
+    ],
 ];
