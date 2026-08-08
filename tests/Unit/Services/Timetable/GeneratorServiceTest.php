@@ -832,4 +832,161 @@ class GeneratorServiceTest extends TestCase
         }
         $this->assertSame(1, $sharedTeacherAppearances, 'The shared teacher must never appear twice (as primary or co-teacher) at the same period.');
     }
+
+    // --- Phase 5: Locked Lessons -----------------------------------------------------
+
+    /**
+     * A locked, PUBLISHED slot must be carried into the next draft at the
+     * exact period it already occupies, and the rest of its assignment's
+     * periods_per_week (not the whole assignment) must still be freshly
+     * placed around it -- proves both halves of reserveLockedSlots()'s
+     * contract in one realistic scenario.
+     */
+    public function test_a_locked_published_slot_is_carried_forward_and_the_rest_of_its_periods_are_placed_fresh(): void
+    {
+        $year = 'T5-LOCK-CARRY';
+        [$mon, $tue] = $this->makeGrid(['Monday', 'Tuesday'], 1, $year);
+
+        $class = SchoolClass::create(['name' => 'Locked Class', 'class_order' => 1, 'is_active' => true]);
+        $subject = Subject::create(['name' => 'Maths', 'code' => 'LOCK-T5-1']);
+        $teacher = Teacher::create(['name' => 'Locked Teacher', 'status' => 'active']);
+
+        TeacherClassSubjectAssignment::create([
+            'teacher_id' => $teacher->id, 'class_id' => $class->id, 'subject_id' => $subject->id,
+            'periods_per_week' => 2, 'academic_year' => $year,
+        ]);
+
+        // The "already-live" published slot for Monday, locked.
+        \App\Models\TimetableSlot::create([
+            'school_class_id' => $class->id, 'bell_timing_id' => $mon,
+            'subject_id' => $subject->id, 'teacher_id' => $teacher->id,
+            'status' => 'published', 'academic_year' => $year, 'is_locked' => true,
+            'room_number' => 'Room 7',
+        ]);
+
+        $result = (new GeneratorService())->generate($year, collect([$class]));
+
+        $this->assertSame(0, $result['stats']['unplaced_lessons']);
+        $this->assertCount(2, $result['placements'], 'Both the carried-forward lock and the freshly-placed 2nd period must appear.');
+
+        $mondayPlacement = collect($result['placements'])->firstWhere('bell_timing_ids.0', $mon);
+        $this->assertNotNull($mondayPlacement, 'The locked Monday slot must be carried forward at its own period.');
+        $this->assertTrue($mondayPlacement['is_locked']);
+        $this->assertSame('Room 7', $mondayPlacement['room_number']);
+        $this->assertSame($teacher->id, $mondayPlacement['teacher_id']);
+
+        $tuesdayPlacement = collect($result['placements'])->firstWhere('bell_timing_ids.0', $tue);
+        $this->assertNotNull($tuesdayPlacement, 'The 2nd, still-unlocked period must be freshly placed on the only other free day.');
+        $this->assertFalse($tuesdayPlacement['is_locked']);
+    }
+
+    /**
+     * Mirrors test_backtracking_never_relocates_a_class_teachers_period_1_reservation
+     * exactly, but for a locked slot instead of a class-teacher reservation --
+     * proves attemptBacktrack() treats a lock with the same immunity.
+     */
+    public function test_backtracking_never_relocates_a_locked_slot(): void
+    {
+        $year = 'T5-LOCK-BACKTRACK';
+        [$monP1, $monP2, $monP3, $tueP1, $tueP2, $tueP3] = $this->makeGrid(['Monday', 'Tuesday'], 3, $year);
+
+        $class = SchoolClass::create(['name' => 'Backtrack Lock Class', 'class_order' => 1, 'is_active' => true]);
+        $lockedSubject = Subject::create(['name' => 'Locked Subject', 'code' => 'LOCK-T5-BT']);
+        $lockedTeacher = Teacher::create(['name' => 'Locked Teacher', 'status' => 'active']);
+        $otherSubject = Subject::create(['name' => 'Science', 'code' => 'LOCK-T5-SCI']);
+        $otherTeacher = Teacher::create(['name' => 'Science Teacher', 'status' => 'active']);
+
+        // Locked at Monday period 1 -- an assignment covers it so the count
+        // math is realistic, but the lock itself is what must survive.
+        TeacherClassSubjectAssignment::create([
+            'teacher_id' => $lockedTeacher->id, 'class_id' => $class->id, 'subject_id' => $lockedSubject->id,
+            'periods_per_week' => 1, 'academic_year' => $year,
+        ]);
+        \App\Models\TimetableSlot::create([
+            'school_class_id' => $class->id, 'bell_timing_id' => $monP1,
+            'subject_id' => $lockedSubject->id, 'teacher_id' => $lockedTeacher->id,
+            'status' => 'published', 'academic_year' => $year, 'is_locked' => true,
+        ]);
+
+        // Same pressure as the class-teacher backtrack test: a 3rd
+        // same-subject period that can't legally place (per-day cap),
+        // tempting the solver to look at already-committed single-period
+        // placements -- including the lock -- for relocation.
+        TeacherClassSubjectAssignment::create([
+            'teacher_id' => $otherTeacher->id, 'class_id' => $class->id, 'subject_id' => $otherSubject->id,
+            'periods_per_week' => 3, 'academic_year' => $year,
+        ]);
+
+        $result = (new GeneratorService())->generate($year, collect([$class]));
+
+        $lockedPlacement = collect($result['placements'])->firstWhere('teacher_id', $lockedTeacher->id);
+        $this->assertNotNull($lockedPlacement);
+        $this->assertSame($monP1, $lockedPlacement['bell_timing_ids'][0], 'The lock must still be at Monday period 1 -- backtracking must never touch it.');
+
+        foreach (collect($result['placements'])->where('teacher_id', $otherTeacher->id) as $p) {
+            $this->assertNotSame($monP1, $p['bell_timing_ids'][0], 'Science must never have stolen the locked period.');
+        }
+    }
+
+    public function test_a_locked_slot_whose_period_is_no_longer_active_is_skipped_with_a_warning_not_a_crash(): void
+    {
+        $year = 'T5-LOCK-DEAD-PERIOD';
+        $this->makeGrid(['Monday'], 1, $year);
+
+        $class = SchoolClass::create(['name' => 'Dead Period Class', 'class_order' => 1, 'is_active' => true]);
+        $subject = Subject::create(['name' => 'Maths', 'code' => 'LOCK-T5-DEAD']);
+        $teacher = Teacher::create(['name' => 'Teacher', 'status' => 'active']);
+
+        // Locked at a period that is NOT active -- simulates the bell
+        // timing having been retired since the lock was set.
+        $deadTiming = BellTiming::create([
+            'day_of_week' => 'Wednesday', 'period_name' => 'P1', 'start_time' => '08:00:00', 'end_time' => '08:45:00',
+            'is_active' => false, 'is_break' => false, 'order_index' => 1, 'academic_year' => $year,
+        ]);
+        \App\Models\TimetableSlot::create([
+            'school_class_id' => $class->id, 'bell_timing_id' => $deadTiming->id,
+            'subject_id' => $subject->id, 'teacher_id' => $teacher->id,
+            'status' => 'published', 'academic_year' => $year, 'is_locked' => true,
+        ]);
+
+        TeacherClassSubjectAssignment::create([
+            'teacher_id' => $teacher->id, 'class_id' => $class->id, 'subject_id' => $subject->id,
+            'periods_per_week' => 1, 'academic_year' => $year,
+        ]);
+
+        $result = (new GeneratorService())->generate($year, collect([$class]));
+
+        $this->assertSame(0, $result['stats']['unplaced_lessons']);
+        $this->assertCount(1, $result['placements'], 'The 1 period must be freshly placed on the active Monday slot -- the dead-period lock contributes nothing.');
+        $this->assertStringContainsString('no longer active', implode(' ', $result['warnings']));
+    }
+
+    public function test_a_locked_draft_slot_is_not_specially_preserved_across_regeneration(): void
+    {
+        $year = 'T5-LOCK-DRAFT-NOT-CARRIED';
+        [$mon] = $this->makeGrid(['Monday'], 1, $year);
+
+        $class = SchoolClass::create(['name' => 'Draft Lock Class', 'class_order' => 1, 'is_active' => true]);
+        $subject = Subject::create(['name' => 'Maths', 'code' => 'LOCK-T5-DRAFT']);
+        $teacher = Teacher::create(['name' => 'Teacher', 'status' => 'active']);
+
+        // A locked DRAFT (not published) slot -- documented scope boundary:
+        // only published locks are honoured by the generator, since a
+        // draft is regenerated fresh by design every time.
+        \App\Models\TimetableSlot::create([
+            'school_class_id' => $class->id, 'bell_timing_id' => $mon,
+            'subject_id' => $subject->id, 'teacher_id' => $teacher->id,
+            'status' => 'draft', 'academic_year' => $year, 'is_locked' => true,
+        ]);
+
+        TeacherClassSubjectAssignment::create([
+            'teacher_id' => $teacher->id, 'class_id' => $class->id, 'subject_id' => $subject->id,
+            'periods_per_week' => 1, 'academic_year' => $year,
+        ]);
+
+        $result = (new GeneratorService())->generate($year, collect([$class]));
+
+        $this->assertCount(1, $result['placements']);
+        $this->assertFalse($result['placements'][0]['is_locked'], 'A locked DRAFT slot is not carried forward as a lock -- only published locks are.');
+    }
 }

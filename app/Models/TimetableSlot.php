@@ -33,6 +33,11 @@ class TimetableSlot extends Model
         'academic_year',
         'status',
         'timetable_generation_id',
+        'is_locked',
+    ];
+
+    protected $casts = [
+        'is_locked' => 'boolean',
     ];
 
     public function schoolClass()
@@ -95,5 +100,11 @@ class TimetableSlot extends Model
     public function scopeArchived($query)
     {
         return $query->where('status', self::STATUS_ARCHIVED);
+    }
+
+    /** Phase 5 (Locked Lessons): rows Auto-Fix, a future Rebalance pass, and the generator must never move. */
+    public function scopeLocked($query)
+    {
+        return $query->where('is_locked', true);
     }
 }

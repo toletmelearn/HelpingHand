@@ -80,6 +80,12 @@ class GenerateTimetableJob implements ShouldQueue
                             'academic_year' => $generation->academic_year,
                             'status' => TimetableSlot::STATUS_DRAFT,
                             'timetable_generation_id' => $generation->id,
+                            // Phase 5 (Locked Lessons): a locked slot carried
+                            // forward by GeneratorService::reserveLockedSlots()
+                            // stays locked in the new draft too -- the lock
+                            // survives regeneration, it isn't a one-time pin.
+                            'is_locked' => $placement['is_locked'] ?? false,
+                            'room_number' => $placement['room_number'] ?? null,
                         ]);
                     }
                 }

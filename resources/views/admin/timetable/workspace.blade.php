@@ -169,6 +169,24 @@
                     @endcan
                 </div>
             </div>
+
+            <div class="card glass-card mb-4">
+                <div class="card-body">
+                    <h6 class="font-weight-bold text-dark mb-3">Views &amp; Export</h6>
+                    <a href="{{ route('timetable.view.teacher') }}" class="btn btn-outline-primary shadow-sm mr-2 mb-2">
+                        <i class="fas fa-chalkboard-teacher"></i> Teacher Timetable
+                    </a>
+                    <a href="{{ route('timetable.view.room') }}" class="btn btn-outline-primary shadow-sm mr-2 mb-2">
+                        <i class="fas fa-door-open"></i> Room Timetable
+                    </a>
+                    <a href="{{ route('timetable.index') }}" class="btn btn-outline-primary shadow-sm mr-2 mb-2">
+                        <i class="fas fa-table"></i> Class Timetable
+                    </a>
+                    <a href="{{ route('timetable.export.master') }}" class="btn btn-outline-success shadow-sm mb-2">
+                        <i class="fas fa-file-excel"></i> Master Timetable (Excel)
+                    </a>
+                </div>
+            </div>
         </div>
 
         {{-- ============ SETUP ============ --}}

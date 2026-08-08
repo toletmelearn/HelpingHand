@@ -9,6 +9,7 @@ use App\Models\Section;
 use App\Models\Teacher;
 use App\Models\TeacherAvailability;
 use App\Models\TeacherClassSubjectAssignment;
+use App\Models\TimetableSlot;
 use Illuminate\Support\Collection;
 
 /**
@@ -175,13 +176,25 @@ class GeneratorService
 
         $excludedAssignmentIds = [];
         $warnings = [];
-        $forcedLessonAttempts = $this->reserveClassTeacherPeriod1($classIds, $classesById, $academicYear, $excludedAssignmentIds, $warnings);
+
+        // Phase 5 (Locked Lessons): locked PUBLISHED slots are existing,
+        // committed reality -- reserved first, before anything else claims
+        // a period, exactly like the class-teacher period-1 reservation
+        // below claims its own periods first. If a lock happens to collide
+        // with what would otherwise be a period-1 reservation or a
+        // fixed-daily slot, isHardLegal() catches it the same way it
+        // catches every other reservation conflict, producing a warning
+        // instead of a double-booking.
+        $lockedCountsByAssignmentId = [];
+        $forcedLessonAttempts = $this->reserveLockedSlots($classIds, $classesById, $academicYear, $lockedCountsByAssignmentId, $warnings);
+
+        $forcedLessonAttempts += $this->reserveClassTeacherPeriod1($classIds, $classesById, $academicYear, $excludedAssignmentIds, $warnings);
 
         if ($style === self::STYLE_FIXED_DAILY) {
             $forcedLessonAttempts += $this->reserveFixedDailyLessons($classIds, $classesById, $academicYear, $excludedAssignmentIds, $warnings);
         }
 
-        $lessons = $this->buildLessons($academicYear, $academicSessionId, $classIds, $classesById, $excludedAssignmentIds);
+        $lessons = $this->buildLessons($academicYear, $academicSessionId, $classIds, $classesById, $excludedAssignmentIds, $lockedCountsByAssignmentId);
 
         $pending = collect($lessons)->keyBy('lesson_id');
         $dirty = $pending->keys()->all();
@@ -248,6 +261,8 @@ class GeneratorService
                     'co_teacher_id' => $p['co_teacher_id'] ?? null,
                     'bell_timing_ids' => $p['bell_timing_ids'],
                     'combined_class_group_id' => $p['combined_class_group_id'],
+                    'is_locked' => $p['is_locked'],
+                    'room_number' => $p['room_number'],
                 ];
             }
         }
@@ -341,6 +356,90 @@ class GeneratorService
                 'max_per_week' => (int) $t->max_periods_per_week,
             ]])
             ->all();
+    }
+
+    /**
+     * Phase 5 (Locked Lessons): a locked, currently-PUBLISHED slot must be
+     * carried into the next draft unchanged, at the exact period it
+     * already occupies -- committed directly like the class-teacher
+     * period-1 reservation below, with the same 'protected' treatment
+     * (see commit()) so nothing later, including this same run's own
+     * local backtrack, can bump it.
+     *
+     * Only published locks are considered: a draft is regenerated fresh
+     * each time by design (GenerateTimetableJob deletes the old draft
+     * before inserting the new one), so a lock only has something stable
+     * to protect once it's live. If a locked slot's own period is no
+     * longer part of this run's active teaching-timing set (e.g. it was
+     * deactivated since the lock was set), or it now collides with an
+     * earlier, higher-priority reservation, it's reported as a warning
+     * and skipped rather than crashing or silently dropping the lock.
+     *
+     * @param array<int,int> $lockedCountsByAssignmentId Filled in here:
+     *   assignment_id => how many of its periods_per_week this locked slot
+     *   already accounts for, so buildLessons() doesn't also place a fresh
+     *   occurrence on top of it.
+     * @return int total locked-slot attempts, placed or not -- for the stats.total_lessons count
+     */
+    private function reserveLockedSlots(Collection $classIds, Collection $classesById, ?string $academicYear, array &$lockedCountsByAssignmentId, array &$warnings): int
+    {
+        $lockedSlots = TimetableSlot::with(['subject', 'teacher'])
+            ->published()
+            ->locked()
+            ->whereIn('school_class_id', $classIds)
+            ->when($academicYear, fn ($q) => $q->where('academic_year', $academicYear))
+            ->get();
+
+        $attempts = 0;
+
+        foreach ($lockedSlots as $slot) {
+            $class = $classesById->get($slot->school_class_id);
+            if (!$class) {
+                continue;
+            }
+
+            if (!isset($this->timingMeta[$slot->bell_timing_id])) {
+                $warnings[] = "Locked lesson for {$class->name} (slot #{$slot->id}) could not be carried into this draft -- its period is no longer active.";
+                continue;
+            }
+
+            $attempts++;
+
+            $lesson = [
+                'lesson_id' => $this->nextLessonId++,
+                'type' => 'solo',
+                'teacher_id' => $slot->teacher_id,
+                'co_teacher_id' => $slot->co_teacher_id,
+                'subject_id' => $slot->subject_id,
+                'class_ids' => [$slot->school_class_id],
+                'section_ids' => [$slot->section_id],
+                'class_name' => $class->name,
+                'room_number' => $slot->room_number,
+                'require_consecutive' => false,
+                'source' => ['locked' => true],
+            ];
+            $slotChoice = ['bell_timing_ids' => [$slot->bell_timing_id]];
+
+            if ($this->isHardLegal($lesson, $slotChoice)) {
+                $this->commit($lesson, $slotChoice);
+
+                $assignmentId = TeacherClassSubjectAssignment::where('teacher_id', $slot->teacher_id)
+                    ->where('class_id', $slot->school_class_id)
+                    ->where('section_id', $slot->section_id)
+                    ->where('subject_id', $slot->subject_id)
+                    ->when($academicYear, fn ($q) => $q->where('academic_year', $academicYear))
+                    ->value('id');
+
+                if ($assignmentId) {
+                    $lockedCountsByAssignmentId[$assignmentId] = ($lockedCountsByAssignmentId[$assignmentId] ?? 0) + 1;
+                }
+            } else {
+                $teacherName = optional($slot->teacher)->name ?? 'This teacher';
+                $warnings[] = "Locked lesson for {$class->name} (slot #{$slot->id}, {$teacherName}) could not be carried into this draft -- it now conflicts with an already-reserved period. Unlock it or resolve the conflict manually.";
+            }
+        }
+
+        return $attempts;
     }
 
     /**
@@ -748,7 +847,17 @@ class GeneratorService
      * splitIntoPairs()) so adjacency is guaranteed by domain generation
      * rather than checked after the fact.
      */
-    private function buildLessons(?string $academicYear, ?int $academicSessionId, Collection $classIds, Collection $classesById, array $excludedAssignmentIds = []): array
+    /**
+     * @param array<int,int> $lockedCountsByAssignmentId Phase 5 (Locked
+     *   Lessons): assignment_id => how many of its periods_per_week are
+     *   already accounted for by a locked slot reserveLockedSlots() pinned
+     *   before this ran. Subtracted from periods_per_week here rather than
+     *   excluding the whole assignment (excludedAssignmentIds' approach) --
+     *   a locked slot is normally ONE occurrence of a multi-period-per-week
+     *   subject, not the assignment's entire requirement, so the rest still
+     *   needs freshly placing around it.
+     */
+    private function buildLessons(?string $academicYear, ?int $academicSessionId, Collection $classIds, Collection $classesById, array $excludedAssignmentIds = [], array $lockedCountsByAssignmentId = []): array
     {
         $lessons = [];
 
@@ -773,7 +882,7 @@ class GeneratorService
 
             $preferMorning = (bool) $subject->prefer_morning;
             $requireConsecutive = (bool) $assignment->require_consecutive;
-            $periodsPerWeek = (int) $assignment->periods_per_week;
+            $periodsPerWeek = max(0, (int) $assignment->periods_per_week - ($lockedCountsByAssignmentId[$assignment->id] ?? 0));
             $section = $assignment->section_id ? $sectionsById->get($assignment->section_id) : null;
             $label = $section ? "{$class->name}{$section->name}" : $class->name;
 
@@ -1031,6 +1140,11 @@ class GeneratorService
             'require_consecutive' => $lesson['require_consecutive'],
             'bell_timing_ids' => $ids,
             'combined_class_group_id' => $lesson['type'] === 'combined' ? $lesson['source']['group_id'] : null,
+            // Phase 5 (Locked Lessons): carried through to the placements
+            // list and on into the newly-written draft row -- a lock
+            // survives regeneration, it isn't a one-time pin.
+            'is_locked' => !empty($lesson['source']['locked'] ?? false),
+            'room_number' => $lesson['room_number'] ?? null,
             // Bugfix (found by the T6 real-data walkthrough): a class-
             // teacher's period-1 reservation is committed BEFORE the normal
             // solve as a permanent fact, but until this flag existed
@@ -1038,8 +1152,9 @@ class GeneratorService
             // relocatable lesson once it was sitting in $this->committed --
             // an unrelated overloaded lesson elsewhere in the same class
             // could silently bump it to make room for itself. See
-            // attemptBacktrack()'s protected-blocker check.
-            'protected' => !empty($lesson['source']['class_teacher_period1'] ?? false),
+            // attemptBacktrack()'s protected-blocker check. A locked slot
+            // gets the exact same protection, for the exact same reason.
+            'protected' => !empty($lesson['source']['class_teacher_period1'] ?? false) || !empty($lesson['source']['locked'] ?? false),
         ];
 
         return $placementId;
