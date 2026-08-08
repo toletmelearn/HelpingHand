@@ -58,6 +58,24 @@
         cursor: pointer;
         font-size: 0.8rem;
     }
+    /* Phase 5 (Locked Lessons): mirrors .delete-slot-btn's positioning, opposite corner so the two never overlap. */
+    .lock-toggle-form {
+        position: absolute;
+        top: 5px;
+        left: 5px;
+    }
+    .lock-toggle-btn {
+        color: #b58105;
+        background: transparent;
+        border: none;
+        cursor: pointer;
+        font-size: 0.8rem;
+        padding: 0;
+    }
+    .slot-card.is-locked-slot {
+        border-left-color: #f6c23e;
+        box-shadow: inset 0 0 0 1px #f6c23e;
+    }
     /* Swap Engine: the first lesson picked, waiting for the second click. */
     .slot-card.swap-selected {
         outline: 3px solid #f6c23e;
@@ -92,6 +110,9 @@
         <div>
             <a href="{{ route('timetable.pdf.class', ['school_class_id' => $schoolClassId, 'section_id' => $sectionId]) }}" class="btn btn-outline-secondary shadow-sm">
                 <i class="fas fa-file-pdf"></i> Download Class Timetable PDF
+            </a>
+            <a href="{{ route('timetable.export.class', ['school_class_id' => $schoolClassId, 'section_id' => $sectionId]) }}" class="btn btn-outline-success shadow-sm">
+                <i class="fas fa-file-excel"></i> Download Class Timetable Excel
             </a>
             <button class="btn btn-primary shadow-sm" data-bs-toggle="modal" data-bs-target="#addSlotModal">
                 <i class="fas fa-plus fa-sm text-white-50"></i> Schedule Class Period
@@ -259,7 +280,7 @@
                         @endphp
                         <div class="grid-cell {{ $slot && $view === 'draft' ? 'is-draft-cell' : '' }}">
                             @if($slot)
-                                <div class="slot-card shadow-sm {{ $view === 'draft' ? 'is-draft-slot' : '' }}"
+                                <div class="slot-card shadow-sm {{ $view === 'draft' ? 'is-draft-slot' : '' }} {{ $slot->is_locked ? 'is-locked-slot' : '' }}"
                                      role="button" tabindex="0" title="{{ $slot->combinedClassGroup ? 'Combined-group lessons can\'t be edited from here' : 'Click to edit this lesson' }}"
                                      data-slot="{{ json_encode([
                                          'id' => $slot->id,
@@ -271,6 +292,7 @@
                                          'co_teacher_id' => $slot->co_teacher_id,
                                          'room_number' => $slot->room_number,
                                          'combined' => (bool) $slot->combined_class_group_id,
+                                         'is_locked' => (bool) $slot->is_locked,
                                      ]) }}"
                                      onclick="handleSlotCardClick(this)">
                                     <strong class="text-primary d-block">{{ $slot->subject->name }}</strong>
@@ -285,10 +307,21 @@
                                             <i class="fas fa-users"></i> {{ $slot->combinedClassGroup->name }}
                                         </span>
                                     @endif
+                                    @if($slot->is_locked)
+                                        <span class="badge badge-warning mt-1" title="Locked -- Auto-Fix and Rebalance will never move this, and it survives regeneration">
+                                            <i class="fas fa-lock"></i> Locked
+                                        </span>
+                                    @endif
                                     @if($view === 'draft')
                                         <span class="draft-badge">DRAFT</span>
                                     @endif
                                 </div>
+                                <form action="{{ route($slot->is_locked ? 'timetable.unlock' : 'timetable.lock', $slot->id) }}" method="POST" class="lock-toggle-form">
+                                    @csrf
+                                    <button type="submit" class="lock-toggle-btn" title="{{ $slot->is_locked ? 'Unlock this lesson' : 'Lock this lesson (Auto-Fix/Rebalance will never move it)' }}">
+                                        <i class="fas {{ $slot->is_locked ? 'fa-lock' : 'fa-lock-open' }}"></i>
+                                    </button>
+                                </form>
                                 <form action="{{ route('timetable.destroy', $slot->id) }}" method="POST" onsubmit="return confirm({{ $slot->combinedClassGroup ? \Illuminate\Support\Js::from('This is a combined-group lesson -- clearing it removes this period for every member class, not just this one. Continue?') : \Illuminate\Support\Js::from('Clear this slot?') }});">
                                     @csrf
                                     @method('DELETE')

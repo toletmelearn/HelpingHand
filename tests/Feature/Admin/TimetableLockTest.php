@@ -1,0 +1,193 @@
+<?php
+
+namespace Tests\Feature\Admin;
+
+use App\Models\AcademicSession;
+use App\Models\BellTiming;
+use App\Models\CombinedClassGroup;
+use App\Models\CombinedClassGroupMember;
+use App\Models\Role;
+use App\Models\SchoolClass;
+use App\Models\Section;
+use App\Models\Subject;
+use App\Models\Teacher;
+use App\Models\TeacherClassSubjectAssignment;
+use App\Models\TimetableSlot;
+use App\Models\User;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Tests\TestCase;
+
+/**
+ * Phase 5 (Locked Lessons): lock/unlock a slot -- gated the same as editing
+ * it (TimetableSlotPolicy::update()), since locking is a property of the
+ * row an editor already has a claim over, not a new administrative
+ * capability of its own.
+ */
+class TimetableLockTest extends TestCase
+{
+    use RefreshDatabase;
+
+    protected SchoolClass $class;
+    protected Section $section;
+    protected Subject $subject;
+    protected Teacher $teacher;
+    protected BellTiming $timing1;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        $this->class = SchoolClass::create(['name' => 'Lock Class ' . uniqid(), 'class_order' => random_int(1, 100000), 'is_active' => true]);
+        $this->section = Section::create(['name' => 'A', 'class_id' => $this->class->id]);
+        $this->subject = Subject::create(['name' => 'Mathematics', 'code' => 'LOCKT5' . uniqid()]);
+        $this->teacher = Teacher::create(['name' => 'Original Teacher']);
+        $this->timing1 = BellTiming::create(['day_of_week' => 'Monday', 'period_name' => 'Period 1', 'start_time' => '08:00:00', 'end_time' => '09:00:00', 'is_active' => true, 'is_break' => false, 'order_index' => 1]);
+    }
+
+    private function makeAdmin(): User
+    {
+        $user = User::factory()->create();
+        $role = Role::firstOrCreate(['name' => 'admin'], ['display_name' => 'Admin']);
+        $user->roles()->attach($role->id);
+
+        return $user;
+    }
+
+    private function makeTeacherUser(): array
+    {
+        $user = User::factory()->create();
+        $role = Role::firstOrCreate(['name' => 'teacher'], ['display_name' => 'Teacher']);
+        $user->roles()->attach($role->id);
+        $teacher = Teacher::create(['name' => 'Test Teacher ' . uniqid()]);
+        $teacher->update(['user_id' => $user->id]);
+
+        return [$user, $teacher];
+    }
+
+    private function makeSlot(array $overrides = []): TimetableSlot
+    {
+        return TimetableSlot::create(array_merge([
+            'school_class_id' => $this->class->id,
+            'section_id' => $this->section->id,
+            'bell_timing_id' => $this->timing1->id,
+            'subject_id' => $this->subject->id,
+            'teacher_id' => $this->teacher->id,
+        ], $overrides));
+    }
+
+    public function test_admin_can_lock_and_unlock_a_slot(): void
+    {
+        $admin = $this->makeAdmin();
+        $slot = $this->makeSlot();
+
+        $lockResponse = $this->actingAs($admin)->post(route('timetable.lock', $slot));
+        $lockResponse->assertRedirect();
+        $lockResponse->assertSessionHas('success');
+        $this->assertTrue($slot->fresh()->is_locked);
+
+        $unlockResponse = $this->actingAs($admin)->post(route('timetable.unlock', $slot));
+        $unlockResponse->assertRedirect();
+        $this->assertFalse($slot->fresh()->is_locked);
+    }
+
+    public function test_teacher_assigned_to_the_class_section_can_lock_a_slot(): void
+    {
+        [$user, $teacher] = $this->makeTeacherUser();
+        $slot = $this->makeSlot(['teacher_id' => $teacher->id]);
+        TeacherClassSubjectAssignment::create([
+            'teacher_id' => $teacher->id, 'class_id' => $this->class->id, 'section_id' => $this->section->id, 'subject_id' => $this->subject->id,
+        ]);
+
+        $response = $this->actingAs($user)->post(route('timetable.lock', $slot));
+
+        $response->assertRedirect();
+        $this->assertTrue($slot->fresh()->is_locked);
+    }
+
+    public function test_teacher_without_assignment_cannot_lock_a_slot(): void
+    {
+        [$user] = $this->makeTeacherUser();
+        $slot = $this->makeSlot();
+
+        $response = $this->actingAs($user)->post(route('timetable.lock', $slot));
+
+        $response->assertForbidden();
+        $this->assertFalse($slot->fresh()->is_locked);
+    }
+
+    public function test_guest_cannot_lock_a_slot(): void
+    {
+        $slot = $this->makeSlot();
+
+        $response = $this->post(route('timetable.lock', $slot));
+
+        $response->assertRedirect(route('login'));
+        $this->assertFalse($slot->fresh()->is_locked);
+    }
+
+    public function test_locking_writes_an_activity_log_entry(): void
+    {
+        $admin = $this->makeAdmin();
+        $slot = $this->makeSlot();
+
+        $this->actingAs($admin)->post(route('timetable.lock', $slot));
+
+        $this->assertDatabaseHas('activity_log', [
+            'subject_type' => TimetableSlot::class,
+            'subject_id' => $slot->id,
+            'description' => 'timetable_slot_locked',
+        ]);
+    }
+
+    public function test_unlocking_writes_an_activity_log_entry(): void
+    {
+        $admin = $this->makeAdmin();
+        $slot = $this->makeSlot(['is_locked' => true]);
+
+        $this->actingAs($admin)->post(route('timetable.unlock', $slot));
+
+        $this->assertDatabaseHas('activity_log', [
+            'subject_type' => TimetableSlot::class,
+            'subject_id' => $slot->id,
+            'description' => 'timetable_slot_unlocked',
+        ]);
+    }
+
+    public function test_a_combined_group_slot_cannot_be_locked_from_a_single_cell(): void
+    {
+        $admin = $this->makeAdmin();
+        $session = AcademicSession::create(['name' => '2026-2027', 'code' => '2026-2027', 'start_date' => '2026-04-01', 'end_date' => '2027-03-31']);
+        $group = CombinedClassGroup::create(['name' => 'Combined', 'subject_id' => $this->subject->id, 'academic_session_id' => $session->id]);
+        CombinedClassGroupMember::create(['combined_class_group_id' => $group->id, 'school_class_id' => $this->class->id]);
+        $slot = $this->makeSlot(['combined_class_group_id' => $group->id]);
+
+        $response = $this->actingAs($admin)->post(route('timetable.lock', $slot));
+
+        $response->assertRedirect();
+        $response->assertSessionHas('error');
+        $this->assertFalse($slot->fresh()->is_locked);
+    }
+
+    public function test_an_archived_slot_cannot_be_locked(): void
+    {
+        $admin = $this->makeAdmin();
+        $slot = $this->makeSlot(['status' => 'archived']);
+
+        $response = $this->actingAs($admin)->post(route('timetable.lock', $slot));
+
+        $response->assertRedirect();
+        $response->assertSessionHas('error');
+        $this->assertFalse($slot->fresh()->is_locked);
+    }
+
+    public function test_locked_state_is_visible_on_the_grid_page(): void
+    {
+        $admin = $this->makeAdmin();
+        $this->makeSlot(['is_locked' => true]);
+
+        $response = $this->actingAs($admin)->get(route('timetable.index', ['school_class_id' => $this->class->id]));
+
+        $response->assertOk();
+        $response->assertSee('is_locked', false);
+    }
+}

@@ -1736,6 +1736,9 @@ Route::middleware(['auth'])->group(function () {
     Route::post('/admin/timetable', [\App\Http\Controllers\Admin\TimetableController::class, 'store'])->name('timetable.store');
     Route::patch('/admin/timetable/{slot}', [\App\Http\Controllers\Admin\TimetableController::class, 'update'])->name('timetable.update');
     Route::delete('/admin/timetable/{id}', [\App\Http\Controllers\Admin\TimetableController::class, 'destroy'])->name('timetable.destroy');
+    // Phase 5 (Locked Lessons): gated the same as editing the slot (TimetableSlotPolicy::update()).
+    Route::post('/admin/timetable/{slot}/lock', [\App\Http\Controllers\Admin\TimetableController::class, 'lockSlot'])->name('timetable.lock');
+    Route::post('/admin/timetable/{slot}/unlock', [\App\Http\Controllers\Admin\TimetableController::class, 'unlockSlot'])->name('timetable.unlock');
     Route::get('/admin/timetable/check-conflicts', [\App\Http\Controllers\Admin\TimetableController::class, 'checkConflictsApi'])->name('timetable.check-conflicts');
     Route::post('/admin/timetable/auto-fix/relocate-blocker', [\App\Http\Controllers\Admin\TimetableController::class, 'autoFixRelocateBlocker'])->name('timetable.auto-fix.relocate-blocker');
     // Chain repair (Phase 4): preview is read-only (viewAny-gated, like
@@ -1750,6 +1753,17 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/admin/timetable/pdf/class', [\App\Http\Controllers\Admin\TimetableController::class, 'classPdf'])->name('timetable.pdf.class');
     Route::get('/admin/timetable/pdf/teacher', [\App\Http\Controllers\Admin\TimetableController::class, 'teacherPdf'])->name('timetable.pdf.teacher');
     Route::get('/admin/timetable/pdf/master', [\App\Http\Controllers\Admin\TimetableController::class, 'masterPdf'])->name('timetable.pdf.master');
+
+    // Phase 5: Interactive Teacher/Room views (Class view already exists
+    // above via timetable.index / the Review & Edit grid).
+    Route::get('/admin/timetable/view/teacher', [\App\Http\Controllers\Admin\TimetableController::class, 'teacherView'])->name('timetable.view.teacher');
+    Route::get('/admin/timetable/view/room', [\App\Http\Controllers\Admin\TimetableController::class, 'roomView'])->name('timetable.view.room');
+
+    // Phase 5: Excel exports -- reuse the same grid data as the PDF exports above.
+    Route::get('/admin/timetable/export/class', [\App\Http\Controllers\Admin\TimetableController::class, 'classExcelExport'])->name('timetable.export.class');
+    Route::get('/admin/timetable/export/teacher', [\App\Http\Controllers\Admin\TimetableController::class, 'teacherExcelExport'])->name('timetable.export.teacher');
+    Route::get('/admin/timetable/export/master', [\App\Http\Controllers\Admin\TimetableController::class, 'masterExcelExport'])->name('timetable.export.master');
+    Route::get('/admin/timetable/export/room', [\App\Http\Controllers\Admin\TimetableController::class, 'roomExcelExport'])->name('timetable.export.room');
 
     // Auto-generation, draft/publish workflow (T4b)
     Route::get('/admin/timetable/generate', [\App\Http\Controllers\Admin\TimetableController::class, 'showGenerateForm'])->name('timetable.generate.form');

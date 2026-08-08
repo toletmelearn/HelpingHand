@@ -18,10 +18,15 @@ use App\Services\Timetable\TimetableAutoFixService;
 use App\Services\Timetable\TimetableConflictResolver;
 use App\Services\Timetable\TimetableSuggestionService;
 use App\Services\Timetable\TimetableSwapService;
+use App\Exports\ClassTimetableExport;
+use App\Exports\MasterTimetableExport;
+use App\Exports\RoomTimetableExport;
+use App\Exports\TeacherTimetableExport;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Maatwebsite\Excel\Facades\Excel;
 
 class TimetableController extends Controller
 {
@@ -493,27 +498,17 @@ class TimetableController extends Controller
         $section = $request->filled('section_id') ? Section::find($request->section_id) : null;
         $session = AcademicSession::current()->first();
 
-        $slots = TimetableSlot::with(['bellTiming', 'subject', 'teacher', 'coTeacher'])
+        $slotsQuery = TimetableSlot::with(['bellTiming', 'subject', 'teacher', 'coTeacher'])
             ->published()
             ->where('school_class_id', $class->id)
-            ->when($request->filled('section_id'), fn ($q) => $q->where('section_id', $request->section_id))
-            ->get();
+            ->when($request->filled('section_id'), fn ($q) => $q->where('section_id', $request->section_id));
 
-        if ($slots->isEmpty()) {
+        if ((clone $slotsQuery)->doesntExist()) {
             $label = $section ? "{$class->name} {$section->name}" : $class->name;
             return back()->with('error', "No timetable slots found for {$label} -- nothing to print yet.");
         }
 
-        [$periods, $days, $periodMeta] = $this->buildPeriodDayAxes($session?->code);
-
-        $grid = [];
-        foreach ($slots as $slot) {
-            $timing = $slot->bellTiming;
-            if (!$timing) {
-                continue;
-            }
-            $grid[$timing->period_name][$timing->day_of_week] = $slot;
-        }
+        [, $periods, $days, $periodMeta, $grid] = $this->buildTimetableGrid($slotsQuery, $session?->code);
 
         $title = $section ? "{$class->name} - {$section->name}" : $class->name;
 
@@ -548,25 +543,15 @@ class TimetableController extends Controller
 
         // T6 item 4: a co-teacher's own PDF must show their team-taught
         // periods too, not just periods where they're the primary teacher.
-        $slots = TimetableSlot::with(['bellTiming', 'subject', 'schoolClass', 'section', 'teacher', 'coTeacher'])
+        $slotsQuery = TimetableSlot::with(['bellTiming', 'subject', 'schoolClass', 'section', 'teacher', 'coTeacher'])
             ->published()
-            ->where(fn ($q) => $q->where('teacher_id', $teacher->id)->orWhere('co_teacher_id', $teacher->id))
-            ->get();
+            ->where(fn ($q) => $q->where('teacher_id', $teacher->id)->orWhere('co_teacher_id', $teacher->id));
 
-        if ($slots->isEmpty()) {
+        if ((clone $slotsQuery)->doesntExist()) {
             return back()->with('error', "No timetable slots found for {$teacher->name} -- nothing to print yet.");
         }
 
-        [$periods, $days, $periodMeta] = $this->buildPeriodDayAxes($session?->code);
-
-        $grid = [];
-        foreach ($slots as $slot) {
-            $timing = $slot->bellTiming;
-            if (!$timing) {
-                continue;
-            }
-            $grid[$timing->period_name][$timing->day_of_week] = $slot;
-        }
+        [, $periods, $days, $periodMeta, $grid] = $this->buildTimetableGrid($slotsQuery, $session?->code);
 
         $pdf = Pdf::loadView('admin.timetable.pdf.teacher', [
             'teacher' => $teacher,
@@ -589,18 +574,39 @@ class TimetableController extends Controller
     {
         $this->authorize('viewAny', TimetableSlot::class);
 
+        $data = $this->masterTimetableData();
+        if ($data === null) {
+            return back()->with('error', 'No timetable slots found for any class -- nothing to print yet.');
+        }
+
+        $pdf = Pdf::loadView('admin.timetable.pdf.master', $data);
+        $pdf->setPaper('A4', 'landscape');
+
+        return $pdf->download($this->pdfFilename('master', 'all-classes', $data['session']));
+    }
+
+    /**
+     * Shared by masterPdf() and the Excel master export (Phase 5) -- same
+     * query, same [day][class_id][period_name] aggregation (distinct from
+     * buildTimetableGrid()'s [period][day] shape, since the master view
+     * groups by day first to paginate one page per operating day), one
+     * definition either consumer reads from.
+     *
+     * @return ?array{session: ?AcademicSession, periods: array, days: array, periodMeta: array, classes: \Illuminate\Support\Collection, byDay: array}
+     */
+    private function masterTimetableData(): ?array
+    {
         $session = AcademicSession::current()->first();
 
         $slots = TimetableSlot::with(['bellTiming', 'subject', 'teacher', 'coTeacher', 'schoolClass', 'section'])->published()->get();
 
         if ($slots->isEmpty()) {
-            return back()->with('error', 'No timetable slots found for any class -- nothing to print yet.');
+            return null;
         }
 
         [$periods, $days, $periodMeta] = $this->buildPeriodDayAxes($session?->code);
         $classes = SchoolClass::active()->orderByOrder()->get();
 
-        // [day][class_id][period_name] => slot
         $byDay = [];
         foreach ($slots as $slot) {
             $timing = $slot->bellTiming;
@@ -610,17 +616,185 @@ class TimetableController extends Controller
             $byDay[$timing->day_of_week][$slot->school_class_id][$timing->period_name] = $slot;
         }
 
-        $pdf = Pdf::loadView('admin.timetable.pdf.master', [
-            'session' => $session,
-            'periods' => $periods,
-            'days' => $days,
-            'periodMeta' => $periodMeta,
-            'classes' => $classes,
-            'byDay' => $byDay,
-        ]);
-        $pdf->setPaper('A4', 'landscape');
+        return compact('session', 'periods', 'days', 'periodMeta', 'classes', 'byDay');
+    }
 
-        return $pdf->download($this->pdfFilename('master', 'all-classes', $session));
+    /**
+     * Phase 5: Class timetable Excel export -- identical query/grid to
+     * classPdf() above (buildTimetableGrid()), just a different renderer.
+     */
+    public function classExcelExport(Request $request)
+    {
+        $this->authorize('viewAny', TimetableSlot::class);
+
+        $request->validate([
+            'school_class_id' => 'required|exists:school_classes,id',
+            'section_id' => 'nullable|exists:sections,id',
+        ]);
+
+        $class = SchoolClass::findOrFail($request->school_class_id);
+        $section = $request->filled('section_id') ? Section::find($request->section_id) : null;
+        $session = AcademicSession::current()->first();
+
+        $slotsQuery = TimetableSlot::with(['bellTiming', 'subject', 'teacher', 'coTeacher'])
+            ->published()
+            ->where('school_class_id', $class->id)
+            ->when($request->filled('section_id'), fn ($q) => $q->where('section_id', $request->section_id));
+
+        if ((clone $slotsQuery)->doesntExist()) {
+            $label = $section ? "{$class->name} {$section->name}" : $class->name;
+            return back()->with('error', "No timetable slots found for {$label} -- nothing to export yet.");
+        }
+
+        [, $periods, $days, $periodMeta, $grid] = $this->buildTimetableGrid($slotsQuery, $session?->code);
+        $title = $section ? "{$class->name} - {$section->name}" : $class->name;
+
+        return Excel::download(
+            new ClassTimetableExport($title, $session, $periods, $days, $periodMeta, $grid, $class->last_teaching_period),
+            $this->excelFilename('class', $title, $session)
+        );
+    }
+
+    /**
+     * Phase 5: Teacher timetable Excel export -- identical query/grid to
+     * teacherPdf() above (primary teacher OR co-teacher, published only).
+     */
+    public function teacherExcelExport(Request $request)
+    {
+        $this->authorize('viewAny', TimetableSlot::class);
+
+        $request->validate(['teacher_id' => 'required|exists:teachers,id']);
+
+        $teacher = Teacher::findOrFail($request->teacher_id);
+        $session = AcademicSession::current()->first();
+
+        $slotsQuery = TimetableSlot::with(['bellTiming', 'subject', 'schoolClass', 'section', 'teacher', 'coTeacher'])
+            ->published()
+            ->where(fn ($q) => $q->where('teacher_id', $teacher->id)->orWhere('co_teacher_id', $teacher->id));
+
+        if ((clone $slotsQuery)->doesntExist()) {
+            return back()->with('error', "No timetable slots found for {$teacher->name} -- nothing to export yet.");
+        }
+
+        [, $periods, $days, $periodMeta, $grid] = $this->buildTimetableGrid($slotsQuery, $session?->code);
+
+        return Excel::download(
+            new TeacherTimetableExport($teacher->name, $session, $periods, $days, $periodMeta, $grid),
+            $this->excelFilename('teacher', $teacher->name, $session)
+        );
+    }
+
+    /**
+     * Phase 5: Master timetable Excel export -- identical data to
+     * masterPdf() above (masterTimetableData()), one sheet per day.
+     */
+    public function masterExcelExport(Request $request)
+    {
+        $this->authorize('viewAny', TimetableSlot::class);
+
+        $data = $this->masterTimetableData();
+        if ($data === null) {
+            return back()->with('error', 'No timetable slots found for any class -- nothing to export yet.');
+        }
+
+        return Excel::download(new MasterTimetableExport($data), $this->excelFilename('master', 'all-classes', $data['session']));
+    }
+
+    /**
+     * Phase 5: Room timetable Excel export -- identical query/grid to
+     * roomView() above.
+     */
+    public function roomExcelExport(Request $request)
+    {
+        $this->authorize('viewAny', TimetableSlot::class);
+
+        $request->validate(['room' => 'required|string']);
+        $room = $request->string('room')->toString();
+        $session = AcademicSession::current()->first();
+
+        $slotsQuery = TimetableSlot::with(['bellTiming', 'subject', 'teacher', 'coTeacher', 'schoolClass', 'section'])
+            ->published()
+            ->where('room_number', $room);
+
+        if ((clone $slotsQuery)->doesntExist()) {
+            return back()->with('error', "No timetable slots found for Room {$room} -- nothing to export yet.");
+        }
+
+        [, $periods, $days, $periodMeta, $grid] = $this->buildTimetableGrid($slotsQuery, $session?->code);
+
+        return Excel::download(
+            new RoomTimetableExport($room, $session, $periods, $days, $periodMeta, $grid),
+            $this->excelFilename('room', $room, $session)
+        );
+    }
+
+    private function excelFilename(string $type, string $name, ?AcademicSession $session): string
+    {
+        $safeName = preg_replace('/[^A-Za-z0-9_-]+/', '_', $name);
+        $safeSession = preg_replace('/[^A-Za-z0-9_-]+/', '_', $session->code ?? 'na');
+
+        return "timetable_{$type}_{$safeName}_{$safeSession}.xlsx";
+    }
+
+    /**
+     * Phase 5: interactive, read-only Teacher timetable -- reuses
+     * buildTimetableGrid() (the SAME query shape teacherPdf() already
+     * uses: primary teacher OR co-teacher, published only) so the
+     * interactive view and the PDF/Excel exports can never drift apart.
+     * Search/filter is the teacher picker itself; day/subject filtering
+     * happens client-side over the already-rendered grid (small, fixed-
+     * size dataset -- a week's timetable -- no server round-trip needed).
+     */
+    public function teacherView(Request $request)
+    {
+        $this->authorize('viewAny', TimetableSlot::class);
+
+        $teachers = Teacher::orderBy('name')->get();
+        $selectedTeacher = null;
+        $periods = $days = $periodMeta = $grid = [];
+        $session = AcademicSession::current()->first();
+
+        if ($request->filled('teacher_id')) {
+            $request->validate(['teacher_id' => 'exists:teachers,id']);
+            $selectedTeacher = Teacher::find($request->teacher_id);
+
+            $slotsQuery = TimetableSlot::with(['bellTiming', 'subject', 'schoolClass', 'section', 'teacher', 'coTeacher'])
+                ->published()
+                ->where(fn ($q) => $q->where('teacher_id', $selectedTeacher->id)->orWhere('co_teacher_id', $selectedTeacher->id));
+
+            [, $periods, $days, $periodMeta, $grid] = $this->buildTimetableGrid($slotsQuery, $session?->code);
+        }
+
+        return view('admin.timetable.teacher-view', compact('teachers', 'selectedTeacher', 'periods', 'days', 'periodMeta', 'grid', 'session'));
+    }
+
+    /**
+     * Phase 5: interactive, read-only Room timetable -- "basic" because
+     * rooms aren't a modeled entity yet (room_number is a free-text field
+     * on TimetableSlot, per the earlier module audit's documented gap);
+     * the room picker is simply every DISTINCT room_number value already
+     * in use. Same buildTimetableGrid() reuse as the teacher view above.
+     */
+    public function roomView(Request $request)
+    {
+        $this->authorize('viewAny', TimetableSlot::class);
+
+        $rooms = TimetableSlot::published()->whereNotNull('room_number')->distinct()->orderBy('room_number')->pluck('room_number');
+        $selectedRoom = null;
+        $periods = $days = $periodMeta = $grid = [];
+        $session = AcademicSession::current()->first();
+
+        if ($request->filled('room')) {
+            $selectedRoom = $request->string('room')->toString();
+
+            $slotsQuery = TimetableSlot::with(['bellTiming', 'subject', 'teacher', 'coTeacher', 'schoolClass', 'section'])
+                ->published()
+                ->where('room_number', $selectedRoom);
+
+            [, $periods, $days, $periodMeta, $grid] = $this->buildTimetableGrid($slotsQuery, $session?->code);
+        }
+
+        return view('admin.timetable.room-view', compact('rooms', 'selectedRoom', 'periods', 'days', 'periodMeta', 'grid', 'session'));
     }
 
     /**
@@ -660,6 +834,34 @@ class TimetableController extends Controller
         }
 
         return [$periods, $days, $periodMeta];
+    }
+
+    /**
+     * Shared by classPdf(), teacherPdf(), the new interactive Teacher/
+     * Class/Room views, and their Excel exports (Phase 5) -- runs the
+     * given (already-scoped) query, then indexes every returned slot into
+     * a [period_name][day_of_week] grid, exactly the shape every one of
+     * those consumers renders. One definition of "fetch + grid" instead of
+     * a copy in each caller.
+     *
+     * @return array{0: \Illuminate\Support\Collection, 1: array, 2: array, 3: array, 4: array}
+     */
+    private function buildTimetableGrid(\Illuminate\Database\Eloquent\Builder $slotsQuery, ?string $academicYear): array
+    {
+        $slots = $slotsQuery->get();
+
+        [$periods, $days, $periodMeta] = $this->buildPeriodDayAxes($academicYear);
+
+        $grid = [];
+        foreach ($slots as $slot) {
+            $timing = $slot->bellTiming;
+            if (!$timing) {
+                continue;
+            }
+            $grid[$timing->period_name][$timing->day_of_week] = $slot;
+        }
+
+        return [$slots, $periods, $days, $periodMeta, $grid];
     }
 
     private function pdfFilename(string $type, string $name, ?AcademicSession $session): string
@@ -718,6 +920,51 @@ class TimetableController extends Controller
         $slot->delete();
 
         return back()->with('success', 'Timetable slot cleared.');
+    }
+
+    /**
+     * Phase 5 (Locked Lessons): pins a slot so Auto-Fix's chain search will
+     * never select it as a blocker to relocate, and the generator will
+     * carry it forward unchanged into the next draft it builds for this
+     * class rather than treating its period as available. Gated the same
+     * as editing the slot (TimetableSlotPolicy::update()) -- locking is a
+     * property of the row, not a new administrative capability; whoever
+     * could already move this lesson can also decide it shouldn't move.
+     * Combined-group and archived rows are rejected the same way update()
+     * already rejects them -- neither makes sense to lock.
+     */
+    public function lockSlot(TimetableSlot $slot)
+    {
+        $this->authorize('update', $slot);
+
+        if ($slot->combined_class_group_id) {
+            return back()->with('error', 'This is a combined-group lesson -- it can\'t be locked from a single cell.');
+        }
+
+        if ($slot->status === TimetableSlot::STATUS_ARCHIVED) {
+            return back()->with('error', 'This slot is archived history from a past publish -- it can no longer be locked.');
+        }
+
+        $slot->update(['is_locked' => true]);
+
+        activity()->causedBy(Auth::user())->performedOn($slot)
+            ->withProperties(['school_class_id' => $slot->school_class_id, 'section_id' => $slot->section_id, 'bell_timing_id' => $slot->bell_timing_id])
+            ->log('timetable_slot_locked');
+
+        return back()->with('success', 'Lesson locked -- Auto-Fix and future Rebalance will never move it, and it will be carried forward when this class is regenerated.');
+    }
+
+    public function unlockSlot(TimetableSlot $slot)
+    {
+        $this->authorize('update', $slot);
+
+        $slot->update(['is_locked' => false]);
+
+        activity()->causedBy(Auth::user())->performedOn($slot)
+            ->withProperties(['school_class_id' => $slot->school_class_id, 'section_id' => $slot->section_id, 'bell_timing_id' => $slot->bell_timing_id])
+            ->log('timetable_slot_unlocked');
+
+        return back()->with('success', 'Lesson unlocked.');
     }
 
     /**

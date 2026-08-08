@@ -456,4 +456,102 @@ class TimetableAutoFixServiceTest extends TestCase
 
         $this->assertFalse($applied['applied']);
     }
+
+    // --- Phase 5: Locked Lessons -----------------------------------------------------
+
+    /**
+     * A locked blocker must never be offered as something the chain search
+     * can move -- even when relocating it would otherwise be the only
+     * available fix, the search must report "no fix found" rather than
+     * touching it.
+     */
+    public function test_a_locked_blocker_is_never_offered_as_part_of_a_fix(): void
+    {
+        [$t1, $t2] = $this->makeLinearGrid(2);
+        $newClass = SchoolClass::create(['name' => 'New', 'class_order' => 1, 'is_active' => true]);
+        $blockerClass = SchoolClass::create(['name' => 'Blocker', 'class_order' => 2, 'is_active' => true]);
+        $subject = Subject::create(['name' => 'Science', 'code' => 'AF' . uniqid()]);
+        $teacher = Teacher::create(['name' => 'Shared Teacher', 'status' => 'active']);
+
+        $blocker = TimetableSlot::create([
+            'school_class_id' => $blockerClass->id, 'bell_timing_id' => $t1->id,
+            'subject_id' => $subject->id, 'teacher_id' => $teacher->id, 'is_locked' => true,
+        ]);
+
+        $newPlacement = ['school_class_id' => $newClass->id, 'bell_timing_id' => $t1->id, 'teacher_id' => $teacher->id, 'subject_id' => $subject->id];
+
+        $result = (new TimetableAutoFixService())->previewChainFix($newPlacement);
+
+        $this->assertFalse($result['ok']);
+        $this->assertSame($t1->id, $blocker->fresh()->bell_timing_id, 'The locked blocker must not have moved.');
+    }
+
+    /**
+     * When a locked slot blocks the direct path but an UNLOCKED lesson
+     * further down the chain can move instead, the search must find that
+     * alternative rather than giving up -- proves locks constrain the
+     * search space without breaking it entirely.
+     */
+    public function test_chain_search_finds_an_alternative_path_around_a_locked_slot(): void
+    {
+        [$t1, $t2, $t3] = $this->makeLinearGrid(3);
+        $newClass = SchoolClass::create(['name' => 'New', 'class_order' => 1, 'is_active' => true]);
+        $classA = SchoolClass::create(['name' => 'A', 'class_order' => 2, 'is_active' => true]);
+        $teacherFree = Teacher::create(['name' => 'Free Teacher', 'status' => 'active']);
+        $subject = Subject::create(['name' => 'Science', 'code' => 'AF' . uniqid()]);
+        // A distinct subject on the locked slot -- shares the blocker's own
+        // subject here and the "once per day" cap would block every
+        // candidate regardless of the lock, which isn't what this test is
+        // about.
+        $lockedSubject = Subject::create(['name' => 'History', 'code' => 'AFH' . uniqid()]);
+
+        // The blocker at t1 -- unlocked, it can move.
+        $blocker = TimetableSlot::create([
+            'school_class_id' => $classA->id, 'bell_timing_id' => $t1->id,
+            'subject_id' => $subject->id, 'teacher_id' => $teacherFree->id,
+        ]);
+        // t2 is occupied by a LOCKED slot for the SAME teacher (so moving
+        // the blocker there is a genuine teacher-overlap conflict, with the
+        // locked slot as the blocking row) -- the search must recognise it
+        // can't relocate that blocker and skip to the next candidate.
+        TimetableSlot::create([
+            'school_class_id' => $classA->id, 'bell_timing_id' => $t2->id,
+            'subject_id' => $lockedSubject->id, 'teacher_id' => $teacherFree->id, 'is_locked' => true,
+        ]);
+        // t3 is free -- the blocker's real escape route.
+
+        $newPlacement = ['school_class_id' => $newClass->id, 'bell_timing_id' => $t1->id, 'teacher_id' => $teacherFree->id, 'subject_id' => $subject->id];
+
+        $result = (new TimetableAutoFixService())->previewChainFix($newPlacement);
+
+        $this->assertTrue($result['ok'], $result['message']);
+        $this->assertCount(1, $result['steps']);
+        $this->assertSame($blocker->id, $result['steps'][0]['slot_id']);
+        $this->assertSame($t3->id, $result['steps'][0]['to_bell_timing_id'], 'Must skip the locked t2 slot and land on the genuinely free t3.');
+    }
+
+    public function test_apply_rejects_a_step_that_targets_a_slot_locked_since_preview(): void
+    {
+        [$t1, $t2] = $this->makeLinearGrid(2);
+        $newClass = SchoolClass::create(['name' => 'New', 'class_order' => 1, 'is_active' => true]);
+        $blockerClass = SchoolClass::create(['name' => 'Blocker', 'class_order' => 2, 'is_active' => true]);
+        $subject = Subject::create(['name' => 'Science', 'code' => 'AF' . uniqid()]);
+        $teacher = Teacher::create(['name' => 'Shared Teacher', 'status' => 'active']);
+
+        $blocker = TimetableSlot::create(['school_class_id' => $blockerClass->id, 'bell_timing_id' => $t1->id, 'subject_id' => $subject->id, 'teacher_id' => $teacher->id]);
+        $newPlacement = ['school_class_id' => $newClass->id, 'bell_timing_id' => $t1->id, 'teacher_id' => $teacher->id, 'subject_id' => $subject->id];
+
+        $service = new TimetableAutoFixService();
+        $preview = $service->previewChainFix($newPlacement);
+        $this->assertTrue($preview['ok']);
+        $steps = array_map(fn ($s) => ['slot_id' => $s['slot_id'], 'to_bell_timing_id' => $s['to_bell_timing_id']], $preview['steps']);
+
+        // Someone locks the blocker between preview and apply.
+        $blocker->update(['is_locked' => true]);
+
+        $applied = $service->applyChainFix($newPlacement, $steps);
+
+        $this->assertFalse($applied['applied']);
+        $this->assertSame($t1->id, $blocker->fresh()->bell_timing_id);
+    }
 }

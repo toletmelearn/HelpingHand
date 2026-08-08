@@ -210,6 +210,9 @@ class TimetableAutoFixService
                 if ($slot->status === TimetableSlot::STATUS_ARCHIVED) {
                     return ['applied' => false, 'message' => 'This fix is no longer valid -- one of the lessons it planned to move is now archived history.'];
                 }
+                if ($slot->is_locked) {
+                    return ['applied' => false, 'message' => 'This fix is no longer valid -- one of the lessons it planned to move has since been locked.'];
+                }
             }
 
             // Re-validate every step against LIVE data, each ignoring
@@ -331,7 +334,11 @@ class TimetableAutoFixService
         }
 
         $blocker = TimetableSlot::find($blockerId);
-        if (!$blocker || $blocker->combined_class_group_id || $blocker->status === TimetableSlot::STATUS_ARCHIVED) {
+        // Phase 5 (Locked Lessons): a locked slot is never a candidate to
+        // relocate -- the search simply treats it as an immovable wall and
+        // reports "no fix found" if nothing else can be moved instead,
+        // exactly like a combined-group or archived row already does.
+        if (!$blocker || $blocker->combined_class_group_id || $blocker->status === TimetableSlot::STATUS_ARCHIVED || $blocker->is_locked) {
             return null;
         }
 
