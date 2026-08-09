@@ -126,4 +126,21 @@ class ParentTimetableTodayTest extends TestCase
 
         $response->assertRedirect();
     }
+
+    /**
+     * Hardening pass item 1: the route/controller/view worked correctly
+     * all along, but nothing in the parent portal's navigation linked to
+     * it -- a parent could only reach it by typing the URL directly. This
+     * proves the persistent parent nav (present on the dashboard and every
+     * other parent page) now contains a working link to it.
+     */
+    public function test_parent_dashboard_navigation_contains_a_working_timetable_link(): void
+    {
+        $data = $this->seedFamily('Epsilon');
+
+        $response = $this->actingAs($data['parent'], 'parent')->get(route('parent.dashboard'));
+
+        $response->assertOk();
+        $response->assertSee(route('parent.timetable.today'), false);
+    }
 }

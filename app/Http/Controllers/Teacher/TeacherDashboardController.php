@@ -10,6 +10,7 @@ use App\Services\TeacherAcademicService;
 use App\Models\TeacherClassSubjectAssignment;
 use App\Models\SchoolClass;
 use App\Models\Subject;
+use App\Models\TimetableSlot;
 
 class TeacherDashboardController extends Controller
 {
@@ -130,6 +131,27 @@ class TeacherDashboardController extends Controller
             $assignedEnquiries = collect();
         }
 
+        // Today's periods -- Hardening pass item 4: mirrors
+        // Parent\TimetableController::today()'s exact shape (published
+        // only, today's day_of_week), scoped to this teacher as either the
+        // primary or co-teacher. Deliberately computed in its OWN
+        // try/catch, independent of the block above: that block wraps
+        // several unrelated, pre-existing queries (exams/results/
+        // notices/homework/duties/enquiries) behind a single catch-all, so
+        // a failure in any one of THOSE must never silently take this card
+        // down too, and a failure here must never take the rest of the
+        // dashboard down either.
+        $todaysPeriods = collect();
+        try {
+            $teacherLoginForToday = \Illuminate\Support\Facades\Auth::guard('teacher')->user();
+            $teacherForToday = $teacherLoginForToday ? \App\Models\Teacher::find($teacherLoginForToday->teacher_id) : null;
+            if ($teacherForToday) {
+                $todaysPeriods = $this->todaysPeriodsForTeacher($teacherForToday->id);
+            }
+        } catch (\Exception $e) {
+            $todaysPeriods = collect();
+        }
+
         // Universal safe defaults - ensure all variables exist
         $teacher = $teacher ?? null;
         $assignedClasses = isset($assignedClasses) ? collect($assignedClasses) : collect();
@@ -144,6 +166,7 @@ class TeacherDashboardController extends Controller
         $invigilatorDuties = isset($invigilatorDuties) ? collect($invigilatorDuties) : collect();
         $relievingDuties = isset($relievingDuties) ? collect($relievingDuties) : collect();
         $assignedEnquiries = isset($assignedEnquiries) ? collect($assignedEnquiries) : collect();
+        $todaysPeriods = isset($todaysPeriods) ? collect($todaysPeriods) : collect();
 
         return view('teacher.dashboard', compact(
             'teacher',
@@ -158,7 +181,28 @@ class TeacherDashboardController extends Controller
             'assignments',
             'invigilatorDuties',
             'relievingDuties',
-            'assignedEnquiries'
+            'assignedEnquiries',
+            'todaysPeriods'
         ));
+    }
+
+    /**
+     * Today's periods for this teacher, as either the primary or
+     * co-teacher -- published slots only, same shape and same "published
+     * is the only version anyone outside draft review ever sees" rule
+     * every other timetable reader in the app follows.
+     */
+    private function todaysPeriodsForTeacher(int $teacherId)
+    {
+        $dayOfWeek = now()->format('l');
+
+        return TimetableSlot::published()
+            ->where(fn ($q) => $q->where('teacher_id', $teacherId)->orWhere('co_teacher_id', $teacherId))
+            ->whereHas('bellTiming', fn ($q) => $q->where('day_of_week', $dayOfWeek))
+            ->with(['subject', 'schoolClass', 'section', 'bellTiming'])
+            ->get()
+            ->filter(fn (TimetableSlot $s) => $s->bellTiming !== null)
+            ->sortBy(fn (TimetableSlot $s) => $s->bellTiming->order_index)
+            ->values();
     }
 }
