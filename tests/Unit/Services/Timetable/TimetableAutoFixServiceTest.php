@@ -644,4 +644,72 @@ class TimetableAutoFixServiceTest extends TestCase
         $this->assertFalse($result['applied']);
         $this->assertSame($timings['Monday1']->id, $blocker->fresh()->bell_timing_id);
     }
+
+    // --- Production hardening: transaction rollback under an injected mid-write failure ---
+
+    /**
+     * Mirrors TimetableSwapServiceTest::test_a_failure_mid_transaction_rolls_back_the_entire_swap()
+     * for the chain Auto-Fix path: applyChainFix()'s per-step loop writes
+     * TWO rows in execution order (slotB then slotA) before creating the
+     * new placement. Previous rollback tests only proved "reject BEFORE
+     * any write" (a stale/locked/combined-group guard failing early);
+     * this proves the stronger guarantee -- a failure injected AFTER the
+     * FIRST step has already been written for real still rolls back that
+     * already-applied write too, and the new placement is never created.
+     */
+    public function test_a_failure_after_the_first_chain_step_has_written_rolls_back_everything(): void
+    {
+        $this->withoutExceptionHandling();
+        [$t1, $t2, $t3] = $this->makeLinearGrid(3);
+        $newClass = SchoolClass::create(['name' => 'New', 'class_order' => 1, 'is_active' => true]);
+        $classA = SchoolClass::create(['name' => 'A', 'class_order' => 2, 'is_active' => true]);
+        $classB = SchoolClass::create(['name' => 'B', 'class_order' => 3, 'is_active' => true]);
+        $subject = Subject::create(['name' => 'Science', 'code' => 'AF' . uniqid()]);
+        $teacher = Teacher::create(['name' => 'Shared Teacher', 'status' => 'active']);
+
+        $slotA = TimetableSlot::create(['school_class_id' => $classA->id, 'bell_timing_id' => $t1->id, 'subject_id' => $subject->id, 'teacher_id' => $teacher->id]);
+        $slotB = TimetableSlot::create(['school_class_id' => $classB->id, 'bell_timing_id' => $t2->id, 'subject_id' => $subject->id, 'teacher_id' => $teacher->id]);
+
+        $newPlacement = ['school_class_id' => $newClass->id, 'bell_timing_id' => $t1->id, 'teacher_id' => $teacher->id, 'subject_id' => $subject->id];
+
+        $service = new TimetableAutoFixService();
+        $preview = $service->previewChainFix($newPlacement, maxDepth: 3);
+        $this->assertTrue($preview['ok'], $preview['message']);
+        $this->assertCount(2, $preview['steps']);
+        $steps = array_map(fn ($s) => ['slot_id' => $s['slot_id'], 'to_bell_timing_id' => $s['to_bell_timing_id']], $preview['steps']);
+
+        $updateCount = 0;
+        TimetableSlot::updating(function () use (&$updateCount) {
+            $updateCount++;
+            // Let the FIRST step's update (slotB -> t3) go through for
+            // real, then fail on the SECOND (slotA -> t2) -- a genuine
+            // partial write must still be fully undone.
+            if ($updateCount === 2) {
+                throw new \RuntimeException('Simulated failure after the first chain step has already written');
+            }
+        });
+
+        try {
+            $threw = false;
+            try {
+                $service->applyChainFix($newPlacement, $steps);
+            } catch (\RuntimeException $e) {
+                $threw = true;
+            }
+            $this->assertTrue($threw, 'Expected the simulated failure to propagate out of the transaction.');
+        } finally {
+            \Illuminate\Support\Facades\Event::forget('eloquent.updating: ' . TimetableSlot::class);
+        }
+
+        $slotA->refresh();
+        $slotB->refresh();
+
+        // No partial chain: slotB's already-written move is rolled back too, not just slotA's.
+        $this->assertSame($t1->id, $slotA->bell_timing_id, 'Slot A must retain its original period.');
+        $this->assertSame($t2->id, $slotB->bell_timing_id, "Slot B's already-applied move must be rolled back too, not left half-applied.");
+        $this->assertSame(2, TimetableSlot::count(), 'The new placement must never have been created.');
+        $this->assertDatabaseMissing('timetable_slots', ['school_class_id' => $newClass->id, 'bell_timing_id' => $t1->id, 'teacher_id' => $teacher->id]);
+        $this->assertDatabaseMissing('activity_log', ['description' => 'timetable_autofix_chain_applied']);
+        $this->assertDatabaseMissing('activity_log', ['description' => 'timetable_autofix_chain_placed']);
+    }
 }

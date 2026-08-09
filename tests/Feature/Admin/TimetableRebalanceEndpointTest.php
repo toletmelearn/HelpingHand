@@ -164,6 +164,90 @@ class TimetableRebalanceEndpointTest extends TestCase
         $response->assertStatus(422);
     }
 
+    // ---- Apply: production-hardening -- movement-item validation ----
+
+    public function test_apply_rejects_a_movement_with_a_missing_type(): void
+    {
+        $response = $this->actingAs($this->makeAdmin())->postJson(route('timetable.rebalance.apply'), [
+            'movements' => [['slot_id' => 1, 'to_bell_timing_id' => 1]],
+        ]);
+
+        $response->assertStatus(422);
+        $response->assertJsonValidationErrors(['movements.0.type']);
+    }
+
+    public function test_apply_rejects_a_movement_with_an_unrecognised_type(): void
+    {
+        $response = $this->actingAs($this->makeAdmin())->postJson(route('timetable.rebalance.apply'), [
+            'movements' => [['type' => 'teleport', 'slot_id' => 1, 'to_bell_timing_id' => 1]],
+        ]);
+
+        $response->assertStatus(422);
+        $response->assertJsonValidationErrors(['movements.0.type']);
+    }
+
+    public function test_apply_rejects_a_relocate_movement_with_a_nonexistent_slot_id(): void
+    {
+        $response = $this->actingAs($this->makeAdmin())->postJson(route('timetable.rebalance.apply'), [
+            'movements' => [['type' => 'relocate', 'slot_id' => 999999, 'to_bell_timing_id' => $this->timing1->id]],
+        ]);
+
+        $response->assertStatus(422);
+        $response->assertJsonValidationErrors(['movements.0.slot_id']);
+    }
+
+    /** The exact scenario the production audit found: a stale/tampered to_bell_timing_id must be rejected by validation, never reach the database's own foreign-key constraint as an uncaught exception. */
+    public function test_apply_rejects_a_relocate_movement_with_a_nonexistent_to_bell_timing_id(): void
+    {
+        $slot = $this->makeSlot($this->timing1, ['subject_id' => $this->morningSubject->id]);
+
+        $response = $this->actingAs($this->makeAdmin())->postJson(route('timetable.rebalance.apply'), [
+            'movements' => [['type' => 'relocate', 'slot_id' => $slot->id, 'to_bell_timing_id' => 999999]],
+        ]);
+
+        $response->assertStatus(422);
+        $response->assertJsonValidationErrors(['movements.0.to_bell_timing_id']);
+        $this->assertSame($this->timing1->id, $slot->fresh()->bell_timing_id);
+    }
+
+    public function test_apply_rejects_a_swap_movement_with_a_nonexistent_slot_a_id(): void
+    {
+        $slotB = $this->makeSlot($this->timing2);
+
+        $response = $this->actingAs($this->makeAdmin())->postJson(route('timetable.rebalance.apply'), [
+            'movements' => [['type' => 'swap', 'slot_a_id' => 999999, 'slot_b_id' => $slotB->id]],
+        ]);
+
+        $response->assertStatus(422);
+        $response->assertJsonValidationErrors(['movements.0.slot_a_id']);
+    }
+
+    public function test_apply_rejects_a_swap_movement_with_a_nonexistent_slot_b_id(): void
+    {
+        $slotA = $this->makeSlot($this->timing1);
+
+        $response = $this->actingAs($this->makeAdmin())->postJson(route('timetable.rebalance.apply'), [
+            'movements' => [['type' => 'swap', 'slot_a_id' => $slotA->id, 'slot_b_id' => 999999]],
+        ]);
+
+        $response->assertStatus(422);
+        $response->assertJsonValidationErrors(['movements.0.slot_b_id']);
+    }
+
+    public function test_apply_accepts_a_well_formed_swap_movement_shape(): void
+    {
+        $admin = $this->makeAdmin();
+        $slotA = $this->makeSlot($this->timing1, ['subject_id' => $this->subject->id]);
+        $slotB = $this->makeSlot($this->timing2, ['subject_id' => $this->morningSubject->id, 'teacher_id' => Teacher::create(['name' => 'Second Teacher', 'status' => 'active'])->id]);
+
+        $response = $this->actingAs($admin)->postJson(route('timetable.rebalance.apply'), [
+            'movements' => [['type' => 'swap', 'slot_a_id' => $slotA->id, 'slot_b_id' => $slotB->id]],
+        ]);
+
+        // Validation itself must pass (no 422 from a malformed-shape rejection) -- whatever TimetableRebalanceService::apply() then decides is a separate, already-covered concern.
+        $response->assertStatus(200);
+    }
+
     // ---- Apply: end-to-end preview -> apply flow ----
 
     public function test_admin_can_preview_then_apply_a_rebalance_end_to_end(): void

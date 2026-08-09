@@ -295,6 +295,30 @@ class TimetableViewsAndExportsTest extends TestCase
         $response->assertSessionHas('error');
     }
 
+    /**
+     * Production-hardening: masterExcelExport() previously called
+     * Excel::download() unconditionally once masterTimetableData()
+     * returned non-null -- but that only guards "zero published slots",
+     * not "zero active periods for the current academic year". With
+     * every BellTiming deactivated, MasterTimetableExport::sheets()
+     * returns an empty array (WithMultipleSheets with no sheets), and the
+     * underlying writer's setActiveSheetIndex(0) threw an uncaught
+     * PhpSpreadsheet exception -- a real 500, not a friendly error. Must
+     * now be caught before Excel::download() is ever called.
+     */
+    public function test_master_excel_export_shows_friendly_message_when_no_active_bell_timings_exist(): void
+    {
+        $admin = $this->makeAdmin();
+        $this->makeSlot();
+        $this->timing1->update(['is_active' => false]);
+
+        $response = $this->actingAs($admin)->get(route('timetable.export.master'));
+
+        $response->assertRedirect();
+        $response->assertSessionHas('error');
+        $this->assertStringContainsString('Bell Timings', session('error'));
+    }
+
     public function test_guest_cannot_download_any_excel_export(): void
     {
         $response = $this->get(route('timetable.export.class', ['school_class_id' => $this->class->id]));

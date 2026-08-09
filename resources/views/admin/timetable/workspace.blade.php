@@ -39,6 +39,7 @@
         'ready' => ['label' => 'Ready', 'class' => 'badge-success'],
         'warning' => ['label' => 'Warnings', 'class' => 'badge-warning'],
         'blocked' => ['label' => 'Blocked', 'class' => 'badge-danger'],
+        'no_classes' => ['label' => 'Not Set Up', 'class' => 'badge-secondary'],
     ][$readiness];
     $statusBadge = [
         'published' => ['label' => 'Published', 'class' => 'badge-primary'],
@@ -55,13 +56,13 @@
     @if(session('success'))
         <div class="alert alert-success alert-dismissible fade show shadow-sm" role="alert">
             {{ session('success') }}
-            <button type="button" class="close" data-dismiss="alert" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+            <button type="button" class="close" data-bs-dismiss="alert" aria-label="Close"><span aria-hidden="true">&times;</span></button>
         </div>
     @endif
     @if(session('error'))
         <div class="alert alert-danger alert-dismissible fade show shadow-sm" role="alert">
             {{ session('error') }}
-            <button type="button" class="close" data-dismiss="alert" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+            <button type="button" class="close" data-bs-dismiss="alert" aria-label="Close"><span aria-hidden="true">&times;</span></button>
         </div>
     @endif
 
@@ -101,7 +102,9 @@
                     <div class="workspace-stat-card">
                         <div class="text-muted small font-weight-bold text-uppercase">Generation Readiness</div>
                         <span class="badge {{ $readinessBadge['class'] }} p-2">{{ $readinessBadge['label'] }}</span>
-                        @if($readiness !== 'ready')
+                        @if($readiness === 'no_classes')
+                            <div class="small text-muted mt-1">No active classes exist yet -- add a class before generating a timetable.</div>
+                        @elseif($readiness !== 'ready')
                             <div class="small text-muted mt-1">{{ count($report['conflicts'] ?? []) }} conflict(s), {{ count($report['class_teacher_readiness'] ?? []) }} readiness note(s)</div>
                         @endif
                     </div>
@@ -460,6 +463,33 @@
 <script>
     let rebalanceLastMovements = [];
 
+    /**
+     * Production hardening: builds a Bootstrap alert box via safe DOM
+     * text APIs (never innerHTML with interpolated content) -- a pure
+     * render, no other side effects, so callers stay in control of what
+     * else changes (e.g. confirmRebalance()'s failure path deliberately
+     * leaves the movement list visible so the admin can see what was
+     * attempted and retry; runRebalanceAnalysis()'s failure path
+     * deliberately does NOT, since a failed preview has no valid
+     * movement list to show). $alertClass lets every caller keep its own
+     * existing color -- alert-danger for genuine failures, alert-
+     * secondary/alert-success for the service's own read-only messages
+     * (e.g. "already balanced") -- both were previously built via raw
+     * innerHTML template-literal interpolation of server-supplied text.
+     */
+    function renderRebalanceFeedbackAlert(message, alertClass) {
+        const feedback = document.getElementById('rebalanceFeedback');
+        feedback.innerHTML = '';
+        const alertDiv = document.createElement('div');
+        alertDiv.className = 'alert ' + alertClass;
+        alertDiv.textContent = message;
+        feedback.appendChild(alertDiv);
+    }
+
+    function renderRebalanceErrorAlert(message) {
+        renderRebalanceFeedbackAlert(message, 'alert-danger');
+    }
+
     function runRebalanceAnalysis() {
         const btn = document.getElementById('rebalanceAnalyzeBtn');
         btn.disabled = true;
@@ -478,22 +508,37 @@
         fetch(`{{ route('timetable.rebalance.preview') }}?${params.toString()}`, {
             headers: { 'Accept': 'application/json' },
         })
-            .then(res => res.json())
-            .then(data => {
+            .then(res => res.json().then(data => ({ ok: res.ok, status: res.status, data })))
+            .then(({ ok, status, data }) => {
                 btn.disabled = false;
                 btn.innerHTML = '<i class="fas fa-balance-scale"></i> Analyze / Preview Rebalance';
+                if (!ok) {
+                    // Production hardening: a non-2xx response (e.g. a 403
+                    // authorization failure or a 422 validation error) must
+                    // be visually distinct (red, "danger") from the
+                    // legitimate "nothing to rebalance" outcome the service
+                    // itself can report, which renderRebalanceResults()
+                    // shows as alert-secondary -- previously both looked
+                    // identical since res.json() was rendered unconditionally.
+                    rebalanceLastMovements = [];
+                    document.getElementById('rebalanceResults').classList.add('d-none');
+                    renderRebalanceErrorAlert((data && data.message) ? data.message : `Request failed (HTTP ${status}). Please try again.`);
+                    return;
+                }
                 renderRebalanceResults(data);
             })
             .catch(() => {
                 btn.disabled = false;
                 btn.innerHTML = '<i class="fas fa-balance-scale"></i> Analyze / Preview Rebalance';
-                document.getElementById('rebalanceFeedback').innerHTML = '<div class="alert alert-danger">Could not reach the server. Please try again.</div>';
+                rebalanceLastMovements = [];
+                document.getElementById('rebalanceResults').classList.add('d-none');
+                renderRebalanceErrorAlert('Could not reach the server. Please try again.');
             });
     }
 
     function renderRebalanceResults(data) {
         if (!data.ok) {
-            document.getElementById('rebalanceFeedback').innerHTML = `<div class="alert alert-secondary">${data.message}</div>`;
+            renderRebalanceFeedbackAlert(data.message, 'alert-secondary');
             document.getElementById('rebalanceResults').classList.add('d-none');
             rebalanceLastMovements = [];
             return;
@@ -522,21 +567,41 @@
         if (rebalanceLastMovements.length === 0) {
             listWrap.classList.add('d-none');
             document.getElementById('rebalanceActions').classList.add('d-none');
-            document.getElementById('rebalanceFeedback').innerHTML = `<div class="alert alert-success">${data.message}</div>`;
+            renderRebalanceFeedbackAlert(data.message, 'alert-success');
             return;
         }
 
         listWrap.classList.remove('d-none');
         document.getElementById('rebalanceActions').classList.remove('d-none');
 
+        // Production hardening: subject/teacher names and the reason
+        // string are server-supplied (ultimately admin-entered data via
+        // Subject/Teacher management) -- built with safe DOM text APIs
+        // below rather than innerHTML string interpolation, so nothing in
+        // that text can ever be parsed as markup. Same visible layout as
+        // before: a bold "Swap:"/"Relocate:" label, the description on
+        // the same line, a line break, then the reason in a muted line.
         rebalanceLastMovements.forEach(m => {
             const li = document.createElement('li');
             li.className = 'list-group-item';
+
+            const label = document.createElement('strong');
+            const reasonLine = document.createElement('span');
+            reasonLine.className = 'small text-muted';
+            reasonLine.textContent = m.reason;
+
             if (m.type === 'swap') {
-                li.innerHTML = `<strong>Swap:</strong> ${m.a_subject} (${m.a_teacher}) ${m.a_from} &harr; ${m.b_subject} (${m.b_teacher}) ${m.b_from}<br><span class="small text-muted">${m.reason}</span>`;
+                label.textContent = 'Swap: ';
+                li.appendChild(label);
+                li.appendChild(document.createTextNode(`${m.a_subject} (${m.a_teacher}) ${m.a_from} ↔ ${m.b_subject} (${m.b_teacher}) ${m.b_from}`));
             } else {
-                li.innerHTML = `<strong>Relocate:</strong> ${m.subject} (${m.teacher}) from ${m.from} to ${m.to}<br><span class="small text-muted">${m.reason}</span>`;
+                label.textContent = 'Relocate: ';
+                li.appendChild(label);
+                li.appendChild(document.createTextNode(`${m.subject} (${m.teacher}) from ${m.from} to ${m.to}`));
             }
+            li.appendChild(document.createElement('br'));
+            li.appendChild(reasonLine);
+
             list.appendChild(li);
         });
 
@@ -571,13 +636,13 @@
                 if (status === 200 && data.applied) {
                     window.location.reload();
                 } else {
-                    document.getElementById('rebalanceFeedback').innerHTML = `<div class="alert alert-danger">Rebalance failed: ${data.message || 'Unknown error'}</div>`;
+                    renderRebalanceErrorAlert('Rebalance failed: ' + (data.message || 'Unknown error'));
                     btn.disabled = false;
                     btn.innerHTML = '<i class="fas fa-check"></i> Confirm Rebalance';
                 }
             })
             .catch(() => {
-                document.getElementById('rebalanceFeedback').innerHTML = '<div class="alert alert-danger">Rebalance failed: could not reach the server.</div>';
+                renderRebalanceErrorAlert('Rebalance failed: could not reach the server.');
                 btn.disabled = false;
                 btn.innerHTML = '<i class="fas fa-check"></i> Confirm Rebalance';
             });

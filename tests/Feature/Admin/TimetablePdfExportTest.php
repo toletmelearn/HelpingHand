@@ -164,6 +164,30 @@ class TimetablePdfExportTest extends TestCase
         $response->assertForbidden();
     }
 
+    /**
+     * Production-hardening: published slots can exist while every
+     * BellTiming for the current academic year is deactivated (or was
+     * never re-created after a year rollover) -- masterTimetableData()
+     * only guarded "zero slots", not "zero active periods", so
+     * $data['days'] came back empty and the master PDF view's own
+     * @foreach($days as $day) (which owns the ENTIRE page body) silently
+     * rendered nothing: a "successful" download of a blank PDF with no
+     * error shown anywhere. Must now be a clear, friendly rejection
+     * instead, matching masterExcelExport()'s twin fix.
+     */
+    public function test_master_pdf_shows_friendly_message_when_no_active_bell_timings_exist(): void
+    {
+        $admin = $this->makeAdmin();
+        $data = $this->seedOneSlot();
+        $data['timing']->update(['is_active' => false]);
+
+        $response = $this->actingAs($admin)->get(route('timetable.pdf.master'));
+
+        $response->assertRedirect();
+        $response->assertSessionHas('error');
+        $this->assertStringContainsString('Bell Timings', session('error'));
+    }
+
     // --- Filename pattern ---
 
     public function test_class_pdf_filename_follows_the_documented_pattern(): void

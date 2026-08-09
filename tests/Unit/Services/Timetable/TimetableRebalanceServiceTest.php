@@ -763,6 +763,62 @@ class TimetableRebalanceServiceTest extends TestCase
         $this->assertSame(0, $result['movements_applied']);
     }
 
+    /**
+     * Mirrors TimetableSwapServiceTest::test_a_failure_mid_transaction_rolls_back_the_entire_swap()
+     * and TimetableAutoFixServiceTest's chain equivalent. The existing
+     * "aborts_the_whole_batch" test above proves the WEAKER guarantee
+     * (a movement that's already invalid before apply() ever writes
+     * anything is rejected). This proves the STRONGER one: a real write
+     * for the first movement succeeds, THEN a failure is injected before
+     * the second movement's write -- the whole transaction, including
+     * the already-applied first write, must still roll back completely.
+     *
+     * Unlike TimetableSwapService::apply()/TimetableAutoFixService::
+     * applyChainFix() (which let a \RuntimeException propagate to their
+     * caller), TimetableRebalanceService::apply() deliberately catches it
+     * itself and returns applied:false -- by design, so the controller
+     * never needs its own try/catch (see rebalanceApply()). The
+     * DB::transaction() rollback itself is unaffected by where the
+     * exception is finally caught: Laravel rolls back and re-throws
+     * BEFORE apply()'s own catch block ever runs.
+     */
+    public function test_a_failure_after_the_first_movement_has_written_rolls_back_everything(): void
+    {
+        $week = $this->makeWeek(1, 4);
+        $slotA = $this->makeSlot($week['Monday'][2], ['subject_id' => $this->morningSubject->id]);
+        $slotB = $this->makeSlot($week['Monday'][4], ['subject_id' => $this->subject->id]);
+
+        $movements = [
+            ['type' => 'relocate', 'slot_id' => $slotA->id, 'to_bell_timing_id' => $week['Monday'][1]->id],
+            ['type' => 'relocate', 'slot_id' => $slotB->id, 'to_bell_timing_id' => $week['Monday'][3]->id],
+        ];
+
+        $updateCount = 0;
+        TimetableSlot::updating(function () use (&$updateCount) {
+            $updateCount++;
+            // Let the FIRST movement's update go through for real, then fail on the SECOND.
+            if ($updateCount === 2) {
+                throw new \RuntimeException('Simulated failure after the first movement has already written');
+            }
+        });
+
+        try {
+            $result = (new TimetableRebalanceService())->apply($movements);
+        } finally {
+            \Illuminate\Support\Facades\Event::forget('eloquent.updating: ' . TimetableSlot::class);
+        }
+
+        $this->assertFalse($result['applied'], 'apply() must report failure, not silently swallow the injected exception.');
+        $this->assertSame(0, $result['movements_applied']);
+
+        $slotA->refresh();
+        $slotB->refresh();
+
+        $this->assertSame($week['Monday'][2]->id, $slotA->bell_timing_id, "Slot A's already-applied move must be rolled back too, not left half-applied.");
+        $this->assertSame($week['Monday'][4]->id, $slotB->bell_timing_id, 'Slot B must retain its original period.');
+        $this->assertDatabaseMissing('activity_log', ['description' => 'timetable_rebalance_relocated']);
+    }
+
     /** Every movement analyze() proposes must be independently, immediately applicable (proves the preview and the authoritative resolver never disagree). */
     private function assertRebalanceApplyAlwaysSucceeds(array $preview): void
     {
