@@ -131,6 +131,27 @@ class TimetableWorkspaceTest extends TestCase
         $response->assertSee('No timetable yet');
     }
 
+    /**
+     * Production-hardening: with zero active classes, grid_capacity comes
+     * back empty and readinessIssueCount is also 0 (no conflicts, no
+     * classes to have readiness notes about either) -- these two facts
+     * used to collapse onto the same 'blocked' state as a genuine
+     * scheduling conflict, showing a red "Blocked" badge next to the
+     * literally contradictory "0 conflict(s), 0 readiness note(s)" text.
+     * Must now be a distinct, accurately-worded state.
+     */
+    public function test_home_tab_shows_not_set_up_when_no_active_classes_exist(): void
+    {
+        $this->class->update(['is_active' => false]);
+
+        $response = $this->actingAs($this->adminUser)->get(route('timetable.workspace'));
+
+        $response->assertOk();
+        $response->assertSee('Not Set Up');
+        $response->assertSee('No active classes exist yet -- add a class before generating a timetable.');
+        $response->assertDontSee('0 conflict(s), 0 readiness note(s)');
+    }
+
     public function test_home_tab_shows_published_status_once_a_slot_is_published(): void
     {
         TimetableSlot::create([

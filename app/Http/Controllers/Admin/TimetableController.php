@@ -135,8 +135,15 @@ class TimetableController extends Controller
 
         $readinessIssueCount = count($report['conflicts'] ?? [])
             + count($report['class_teacher_readiness'] ?? []);
+        // Production hardening: an empty grid_capacity here means there's
+        // nothing to evaluate yet (no active classes), not a genuine
+        // scheduling conflict -- previously both cases collapsed onto the
+        // same 'blocked' state, so the Home tab showed a red "Blocked"
+        // badge next to the literally contradictory "0 conflict(s), 0
+        // readiness note(s)" text. Kept as its own distinct state so the
+        // badge and explanation can accurately say why.
         $readiness = $readinessIssueCount === 0
-            ? (empty($report['grid_capacity']) ? 'blocked' : 'ready')
+            ? (empty($report['grid_capacity']) ? 'no_classes' : 'ready')
             : (count($report['conflicts'] ?? []) > 0 ? 'blocked' : 'warning');
 
         $gridData = $this->buildGridViewData($request);
@@ -588,6 +595,9 @@ class TimetableController extends Controller
         if ($data === null) {
             return back()->with('error', 'No timetable slots found for any class -- nothing to print yet.');
         }
+        if (empty($data['days'])) {
+            return back()->with('error', 'No active periods are configured for the current academic year -- nothing to print yet. Set up Bell Timings first.');
+        }
 
         $pdf = Pdf::loadView('admin.timetable.pdf.master', $data);
         $pdf->setPaper('A4', 'landscape');
@@ -601,6 +611,24 @@ class TimetableController extends Controller
      * buildTimetableGrid()'s [period][day] shape, since the master view
      * groups by day first to paginate one page per operating day), one
      * definition either consumer reads from.
+     *
+     * Returns null only when there are literally no published slots at
+     * all. It deliberately does NOT also guard "zero active bell timings
+     * for this academic year" (published slots can exist while every
+     * BellTiming is deactivated or tagged for a different year) -- both
+     * callers check `empty($data['days'])` themselves right after calling
+     * this, with their own format-specific message, since "nothing to
+     * print" and "nothing to export" already need their own wording for
+     * the zero-slots case too.
+     *
+     * production audit: masterExcelExport() previously called
+     * Excel::download() unconditionally once $data was non-null, which
+     * crashed with an uncaught PhpSpreadsheet exception when $data['days']
+     * was empty (WithMultipleSheets::sheets() returned no sheets at all,
+     * and the writer's setActiveSheetIndex(0) has nothing to index into).
+     * masterPdf() didn't crash but silently rendered a blank PDF instead
+     * -- the @foreach($days as $day) loop that owns the entire page body
+     * simply ran zero times. Both are guarded by the same check now.
      *
      * @return ?array{session: ?AcademicSession, periods: array, days: array, periodMeta: array, classes: \Illuminate\Support\Collection, byDay: array}
      */
@@ -705,6 +733,9 @@ class TimetableController extends Controller
         $data = $this->masterTimetableData();
         if ($data === null) {
             return back()->with('error', 'No timetable slots found for any class -- nothing to export yet.');
+        }
+        if (empty($data['days'])) {
+            return back()->with('error', 'No active periods are configured for the current academic year -- nothing to export yet. Set up Bell Timings first.');
         }
 
         return Excel::download(new MasterTimetableExport($data), $this->excelFilename('master', 'all-classes', $data['session']));
@@ -1392,8 +1423,24 @@ class TimetableController extends Controller
     {
         $this->authorize('autoFix', TimetableSlot::class);
 
+        // Production hardening: previously only 'movements' itself was
+        // validated (present, non-empty array) -- an invalid/stale
+        // to_bell_timing_id for a relocate movement was silently treated
+        // by TimetableConflictResolver::check() as "no conflict" (a
+        // not-found BellTiming short-circuits to an empty conflict list),
+        // so TimetableRebalanceService::applyRelocation() would reach
+        // $slot->update(['bell_timing_id' => $bogusId]) and let the
+        // database's own foreign-key constraint reject it as an uncaught
+        // QueryException (a 500), instead of the clean 422 every other
+        // rejection in this class produces. Mirrors autoFixApplyChain()'s
+        // own 'steps.*' validation discipline immediately above.
         $validated = $request->validate([
             'movements' => 'required|array|min:1',
+            'movements.*.type' => 'required|in:swap,relocate',
+            'movements.*.slot_id' => 'required_if:movements.*.type,relocate|integer|exists:timetable_slots,id',
+            'movements.*.to_bell_timing_id' => 'required_if:movements.*.type,relocate|integer|exists:bell_timings,id',
+            'movements.*.slot_a_id' => 'required_if:movements.*.type,swap|integer|exists:timetable_slots,id',
+            'movements.*.slot_b_id' => 'required_if:movements.*.type,swap|integer|exists:timetable_slots,id',
         ]);
 
         $academicYear = AcademicSession::current()->first()?->code;
