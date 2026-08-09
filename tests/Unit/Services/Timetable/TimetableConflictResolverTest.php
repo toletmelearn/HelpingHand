@@ -369,4 +369,144 @@ class TimetableConflictResolverTest extends TestCase
         $this->assertTrue($result['conflict'], 'Without a CURRENT-year require_consecutive assignment, the cap must default to 1, not 2.');
         $this->assertSame('subject_per_day', $result['type']);
     }
+
+    // --- Hardening pass: academic-year isolation on TimetableSlot-vs-TimetableSlot comparisons ---
+
+    /**
+     * The gap the Hardening Triage flagged: baseQuery() (teacher/class/room
+     * overlap) never filtered TimetableSlot comparisons by academic_year,
+     * only the BellTiming/assignment lookups that feed it. A published
+     * slot left over from a prior year -- e.g. a class that wasn't
+     * regenerated when the school rolled into a new session -- shared the
+     * SAME bell_timing_id (schools reuse bell timing rows year over year)
+     * and was wrongly treated as "this teacher is busy then" for a
+     * brand-new, current-year placement. This is the false-positive this
+     * fix closes: same teacher, same bell_timing_id, different year, must
+     * not conflict.
+     */
+    public function test_a_published_slot_from_a_different_academic_year_does_not_block_a_teacher_placement_this_year(): void
+    {
+        AcademicSession::create(['name' => 'New Year', 'code' => 'NEW-YEAR', 'is_current' => true, 'start_date' => '2027-04-01', 'end_date' => '2028-03-31']);
+
+        $staleClass = $this->makeClass();
+        $newClass = $this->makeClass();
+        $subject = Subject::create(['name' => 'Maths', 'code' => 'RM' . uniqid()]);
+        $teacher = Teacher::create(['name' => 'R Teacher', 'status' => 'active']);
+        // Tagged to the CURRENT (resolved) year -- BellTiming rows are
+        // already year-scoped by pre-existing, unrelated logic, so an
+        // untagged timing would be excluded before this fix's own logic is
+        // ever reached. Reusing the same bell timing across years (as a
+        // real school would) is exactly the scenario this fix targets.
+        $timing = $this->makeTiming(['academic_year' => 'NEW-YEAR']);
+
+        // A stale, still-PUBLISHED slot from last year, on the same
+        // (reused) bell timing, same teacher.
+        TimetableSlot::create([
+            'school_class_id' => $staleClass->id, 'bell_timing_id' => $timing->id,
+            'subject_id' => $subject->id, 'teacher_id' => $teacher->id,
+            'academic_year' => 'OLD-YEAR', 'status' => TimetableSlot::STATUS_PUBLISHED,
+        ]);
+
+        // academic_year omitted -> resolves to the current session's code (NEW-YEAR).
+        $result = (new TimetableConflictResolver())->check([
+            'school_class_id' => $newClass->id,
+            'bell_timing_id' => $timing->id,
+            'teacher_id' => $teacher->id,
+            'subject_id' => $subject->id,
+        ]);
+
+        $this->assertFalse($result['conflict'], 'A prior-year published slot must not block a same-teacher placement in the current year.');
+    }
+
+    /** Same scenario, explicitly checked WITHIN the stale slot's own year -- the conflict must still be caught. Proves the fix narrows the match, it doesn't remove it. */
+    public function test_a_teacher_conflict_within_the_same_academic_year_is_still_detected(): void
+    {
+        $staleClass = $this->makeClass();
+        $newClass = $this->makeClass();
+        $subject = Subject::create(['name' => 'Maths', 'code' => 'RM' . uniqid()]);
+        $teacher = Teacher::create(['name' => 'R Teacher', 'status' => 'active']);
+        // The BellTiming itself must also be tagged to this year -- the
+        // resolver's overlappingBellTimingIds() already scopes BellTiming
+        // by year (pre-existing behaviour, unrelated to this fix), so a
+        // year-tagged check against an untagged timing would find zero
+        // overlapping timings regardless of the TimetableSlot-level fix
+        // this test is targeting.
+        $timing = $this->makeTiming(['academic_year' => 'SAME-YEAR']);
+
+        TimetableSlot::create([
+            'school_class_id' => $staleClass->id, 'bell_timing_id' => $timing->id,
+            'subject_id' => $subject->id, 'teacher_id' => $teacher->id,
+            'academic_year' => 'SAME-YEAR', 'status' => TimetableSlot::STATUS_PUBLISHED,
+        ]);
+
+        $result = (new TimetableConflictResolver())->check([
+            'school_class_id' => $newClass->id,
+            'bell_timing_id' => $timing->id,
+            'teacher_id' => $teacher->id,
+            'subject_id' => $subject->id,
+            'academic_year' => 'SAME-YEAR',
+        ]);
+
+        $this->assertTrue($result['conflict'], 'A same-year teacher overlap must still be detected.');
+        $this->assertSame('teacher', $result['type']);
+    }
+
+    /** teacherLoadConflicts(): a prior-year published period must not count toward this year's daily limit. */
+    public function test_a_different_academic_years_load_does_not_count_toward_this_years_teacher_daily_limit(): void
+    {
+        $class = $this->makeClass();
+        $subject = Subject::create(['name' => 'Maths', 'code' => 'RM' . uniqid()]);
+        $teacher = Teacher::create(['name' => 'R Teacher', 'status' => 'active', 'max_periods_per_day' => 1, 'max_periods_per_week' => 36]);
+        // Both timings tagged to the CURRENT (resolved) year -- sameDayIds
+        // is itself year-scoped (pre-existing, unrelated), so both must
+        // share the resolved year for either to be considered "that day"
+        // at all; the differentiator this test targets is purely the
+        // SLOT's own year.
+        $timing1 = $this->makeTiming(['period_name' => 'P1', 'order_index' => 1, 'academic_year' => 'NEW-YEAR']);
+        $timing2 = $this->makeTiming(['period_name' => 'P2', 'start_time' => '08:45', 'end_time' => '09:30', 'order_index' => 2, 'academic_year' => 'NEW-YEAR']);
+
+        TimetableSlot::create([
+            'school_class_id' => $class->id, 'bell_timing_id' => $timing1->id,
+            'subject_id' => $subject->id, 'teacher_id' => $teacher->id,
+            'academic_year' => 'OLD-YEAR', 'status' => TimetableSlot::STATUS_PUBLISHED,
+        ]);
+
+        $result = (new TimetableConflictResolver())->check([
+            'school_class_id' => $class->id,
+            'bell_timing_id' => $timing2->id,
+            'teacher_id' => $teacher->id,
+            'subject_id' => $subject->id,
+            'academic_year' => 'NEW-YEAR',
+        ]);
+
+        $this->assertFalse($result['conflict'], 'A prior-year period must not count toward this year\'s daily limit.');
+    }
+
+    /** subjectPerDayConflicts(): a prior-year placement of the same subject/day must not count toward this year's subject-per-day cap. */
+    public function test_a_different_academic_years_subject_placement_does_not_count_toward_this_years_subject_per_day_cap(): void
+    {
+        $class = $this->makeClass();
+        $subject = Subject::create(['name' => 'Maths', 'code' => 'RM' . uniqid()]);
+        $teacher = Teacher::create(['name' => 'R Teacher', 'status' => 'active']);
+        // Both timings tagged to the CURRENT (resolved) year -- same
+        // reasoning as the daily-limit test above.
+        $timing1 = $this->makeTiming(['period_name' => 'P1', 'order_index' => 1, 'academic_year' => 'NEW-YEAR']);
+        $timing2 = $this->makeTiming(['period_name' => 'P2', 'start_time' => '08:45', 'end_time' => '09:30', 'order_index' => 2, 'academic_year' => 'NEW-YEAR']);
+
+        TimetableSlot::create([
+            'school_class_id' => $class->id, 'bell_timing_id' => $timing1->id,
+            'subject_id' => $subject->id, 'teacher_id' => $teacher->id,
+            'academic_year' => 'OLD-YEAR', 'status' => TimetableSlot::STATUS_PUBLISHED,
+        ]);
+
+        $result = (new TimetableConflictResolver())->check([
+            'school_class_id' => $class->id,
+            'bell_timing_id' => $timing2->id,
+            'teacher_id' => $teacher->id,
+            'subject_id' => $subject->id,
+            'academic_year' => 'NEW-YEAR',
+        ]);
+
+        $this->assertFalse($result['conflict'], 'A prior-year placement of the same subject must not count toward this year\'s subject-per-day cap.');
+    }
 }

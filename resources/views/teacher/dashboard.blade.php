@@ -22,11 +22,13 @@ $relievingDuties = $relievingDuties ?? collect();
 @endphp
 
 @php
-    function safePrint($value){
-        if(is_array($value) || is_object($value)){
-            return '';
+    if (!function_exists('safePrint')) {
+        function safePrint($value){
+            if(is_array($value) || is_object($value)){
+                return '';
+            }
+            return $value;
         }
-        return $value;
     }
 @endphp
 
@@ -54,6 +56,45 @@ $relievingDuties = $relievingDuties ?? collect();
                     <div class="card-body">
                         <h3><i class="fas fa-hand-wave"></i> Welcome, {{ $teacher->name ?? 'Teacher' }}!</h3>
                         <p class="mb-0">{{ $teacher->designation ?? '' }} | Employee ID: {{ $teacher->employee_id ?? 'N/A' }}</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Today's Timetable -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header bg-primary text-white">
+                        <h5 class="mb-0"><i class="fas fa-calendar-day"></i> Today's Timetable ({{ now()->format('l') }})</h5>
+                    </div>
+                    <div class="card-body">
+                        @if($todaysPeriods->isEmpty())
+                            <p class="text-muted mb-0">No periods scheduled for you today.</p>
+                        @else
+                            <div class="table-responsive">
+                                <table class="table table-sm table-hover mb-0">
+                                    <thead>
+                                        <tr>
+                                            <th>Period</th>
+                                            <th>Time</th>
+                                            <th>Class</th>
+                                            <th>Subject</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        @foreach($todaysPeriods as $period)
+                                            <tr>
+                                                <td>{{ $period->bellTiming->period_name ?? '' }}</td>
+                                                <td>{{ optional($period->bellTiming->start_time)->format('H:i') }} - {{ optional($period->bellTiming->end_time)->format('H:i') }}</td>
+                                                <td>{{ $period->schoolClass->name ?? '' }}{{ $period->section ? ' - ' . $period->section->name : '' }}</td>
+                                                <td>{{ $period->subject->name ?? '' }}</td>
+                                            </tr>
+                                        @endforeach
+                                    </tbody>
+                                </table>
+                            </div>
+                        @endif
                     </div>
                 </div>
             </div>

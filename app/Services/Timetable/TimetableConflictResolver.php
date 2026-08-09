@@ -98,13 +98,25 @@ class TimetableConflictResolver
         // Which academic year "other periods that day" / "other periods
         // that overlap" should be drawn from -- defaults to whatever
         // session is current, matching the wizard's own
-        // currentAcademicYear() pattern. Deliberately NOT applied to
-        // TimetableSlot queries below (see baseQuery()/teacherLoadConflicts/
-        // subjectPerDayConflicts): slots placed through the manual grid
-        // today don't carry an academic_year tag at all, so a strict filter
-        // there would make real, untagged slots invisible to conflict
-        // checks -- status (published/draft/archived) is what actually
-        // isolates real data from retired data on that table.
+        // currentAcademicYear() pattern. Applied tolerantly (only when
+        // known) to BellTiming/assignment queries below AND, as of the
+        // Hardening pass, to the TimetableSlot queries in baseQuery(),
+        // teacherLoadConflicts(), and subjectPerDayConflicts() too: every
+        // current write path (store(), update(), storeCombined(),
+        // GenerateTimetableJob) now stamps academic_year on every row it
+        // creates, so a stale published slot left over from a prior year
+        // (e.g. a class that wasn't regenerated when the school rolled into
+        // a new session) no longer counts as "busy" against a same-period,
+        // same-teacher placement in the CURRENT year -- it was only ever a
+        // false-positive risk (blocking a legitimate edit), never a
+        // false-negative one, since the filter only narrows an already
+        // status-scoped match, but it's worth closing regardless. The
+        // filter is "same year OR untagged" rather than a strict equals:
+        // an untagged legacy row (academic_year null -- e.g. a slot
+        // created directly, outside the app's own write paths, before
+        // this stamping was consistent) still counts as a real occupant,
+        // exactly as it always has; only a row explicitly tagged with a
+        // DIFFERENT year is excluded.
         $academicYear = $placement['academic_year'] ?? AcademicSession::current()->first()?->code;
 
         $overlappingIds = $this->overlappingBellTimingIds($bellTiming, $academicYear);
@@ -112,11 +124,11 @@ class TimetableConflictResolver
 
         $conflicts = [];
         $conflicts = array_merge($conflicts, $this->periodTypeConflicts($bellTiming));
-        $conflicts = array_merge($conflicts, $this->teacherOverlapConflicts($placement, $overlappingIds));
-        $conflicts = array_merge($conflicts, $this->classSectionOverlapConflicts($placement, $overlappingIds));
-        $conflicts = array_merge($conflicts, $this->roomOverlapConflicts($placement, $overlappingIds));
+        $conflicts = array_merge($conflicts, $this->teacherOverlapConflicts($placement, $overlappingIds, $academicYear));
+        $conflicts = array_merge($conflicts, $this->classSectionOverlapConflicts($placement, $overlappingIds, $academicYear));
+        $conflicts = array_merge($conflicts, $this->roomOverlapConflicts($placement, $overlappingIds, $academicYear));
         $conflicts = array_merge($conflicts, $this->teacherAvailabilityConflicts($placement, $bellTiming));
-        $conflicts = array_merge($conflicts, $this->teacherLoadConflicts($placement, $sameDayIds));
+        $conflicts = array_merge($conflicts, $this->teacherLoadConflicts($placement, $sameDayIds, $academicYear));
         $conflicts = array_merge($conflicts, $this->subjectPerDayConflicts($placement, $bellTiming, $sameDayIds, $academicYear));
 
         return $this->result($conflicts);
@@ -183,12 +195,14 @@ class TimetableConflictResolver
             ->pluck('id');
     }
 
-    private function baseQuery(array $placement, Collection $bellTimingIds): \Illuminate\Database\Eloquent\Builder
+    private function baseQuery(array $placement, Collection $bellTimingIds, ?string $academicYear = null): \Illuminate\Database\Eloquent\Builder
     {
         $status = $placement['status'] ?? TimetableSlot::STATUS_PUBLISHED;
 
         return $this->applyIgnore(
-            TimetableSlot::whereIn('bell_timing_id', $bellTimingIds)->where('status', $status),
+            TimetableSlot::whereIn('bell_timing_id', $bellTimingIds)
+                ->where('status', $status)
+                ->when($academicYear, fn ($q) => $q->where(fn ($q2) => $q2->whereNull('academic_year')->orWhere('academic_year', $academicYear))),
             $placement['ignore_slot_id'] ?? null
         );
     }
@@ -236,13 +250,13 @@ class TimetableConflictResolver
      * auto-generation; the DB's own co-teacher unique index only catches
      * co-teacher-vs-co-teacher).
      */
-    private function teacherOverlapConflicts(array $placement, Collection $overlappingIds): array
+    private function teacherOverlapConflicts(array $placement, Collection $overlappingIds, ?string $academicYear = null): array
     {
         $conflicts = [];
         $people = array_filter([$placement['teacher_id'] ?? null, $placement['co_teacher_id'] ?? null]);
 
         foreach ($people as $personId) {
-            $busy = $this->baseQuery($placement, $overlappingIds)
+            $busy = $this->baseQuery($placement, $overlappingIds, $academicYear)
                 ->where(fn ($q) => $q->where('teacher_id', $personId)->orWhere('co_teacher_id', $personId))
                 ->with('schoolClass')
                 ->first();
@@ -273,7 +287,7 @@ class TimetableConflictResolver
      * save conflicts only with an existing class-wide row (never the same
      * section's own row -- that's an update-in-place, not a collision).
      */
-    private function classSectionOverlapConflicts(array $placement, Collection $overlappingIds): array
+    private function classSectionOverlapConflicts(array $placement, Collection $overlappingIds, ?string $academicYear = null): array
     {
         $schoolClassId = $placement['school_class_id'] ?? null;
         if (!$schoolClassId) {
@@ -282,7 +296,7 @@ class TimetableConflictResolver
 
         $sectionId = $placement['section_id'] ?? null;
 
-        $existing = $this->baseQuery($placement, $overlappingIds)
+        $existing = $this->baseQuery($placement, $overlappingIds, $academicYear)
             ->where('school_class_id', $schoolClassId)
             ->when($sectionId, fn ($q) => $q->whereNull('section_id'), fn ($q) => $q->whereNotNull('section_id'))
             ->with('section')
@@ -303,14 +317,14 @@ class TimetableConflictResolver
         ]];
     }
 
-    private function roomOverlapConflicts(array $placement, Collection $overlappingIds): array
+    private function roomOverlapConflicts(array $placement, Collection $overlappingIds, ?string $academicYear = null): array
     {
         $roomNumber = $placement['room_number'] ?? null;
         if (!$roomNumber) {
             return [];
         }
 
-        $existing = $this->baseQuery($placement, $overlappingIds)
+        $existing = $this->baseQuery($placement, $overlappingIds, $academicYear)
             ->where('room_number', $roomNumber)
             ->with('schoolClass')
             ->first();
@@ -366,7 +380,7 @@ class TimetableConflictResolver
      * generator accumulates it across a single solve -- this is a
      * repeating weekly grid, not calendar weeks.
      */
-    private function teacherLoadConflicts(array $placement, Collection $sameDayIds): array
+    private function teacherLoadConflicts(array $placement, Collection $sameDayIds, ?string $academicYear = null): array
     {
         $conflicts = [];
         $status = $placement['status'] ?? TimetableSlot::STATUS_PUBLISHED;
@@ -385,8 +399,14 @@ class TimetableConflictResolver
             // placement's own natural key already occupies, if any) keeps
             // a same-cell resubmission from counting its own current
             // occupant as an ADDITIONAL period on top of the one being placed.
+            // Tolerant academic_year scoping (only applied when known) --
+            // a prior-year published slot must not count toward this
+            // year's daily/weekly load caps. A row with no academic_year
+            // at all (untagged legacy data) still counts -- only a row
+            // explicitly tagged with a DIFFERENT year is excluded.
             $personQuery = fn () => $this->applyIgnore(
                 TimetableSlot::where('status', $status)
+                    ->when($academicYear, fn ($q) => $q->where(fn ($q2) => $q2->whereNull('academic_year')->orWhere('academic_year', $academicYear)))
                     ->where(fn ($q) => $q->where('teacher_id', $personId)->orWhere('co_teacher_id', $personId)),
                 $placement['ignore_slot_id'] ?? null
             );
@@ -444,12 +464,16 @@ class TimetableConflictResolver
         $cap = $requiresConsecutive ? 2 : 1;
 
         // ignore_slot_id excludes a same-cell resubmission's own current
-        // occupant from counting as an extra period (see check()).
+        // occupant from counting as an extra period (see check()). Tolerant
+        // academic_year scoping (only applied when known) -- a prior-year
+        // published slot must not count toward this year's subject-per-day
+        // cap either; an untagged legacy row still counts.
         $existingCount = $this->applyIgnore(
             TimetableSlot::where('status', $status)
                 ->where('school_class_id', $schoolClassId)
                 ->where('section_id', $sectionId)
                 ->where('subject_id', $subjectId)
+                ->when($academicYear, fn ($q) => $q->where(fn ($q2) => $q2->whereNull('academic_year')->orWhere('academic_year', $academicYear)))
                 ->whereIn('bell_timing_id', $sameDayIds),
             $placement['ignore_slot_id'] ?? null
         )->count();

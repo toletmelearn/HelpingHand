@@ -604,6 +604,123 @@ class TimetableAutoFixServiceTest extends TestCase
     }
 
     /**
+     * Hardening pass: before this fix, the blocker was fetched via a plain
+     * find() BEFORE the write transaction opened, and every check
+     * (including is_locked) ran against that same early snapshot -- the
+     * final write went through the SAME stale in-memory object rather than
+     * re-reading it. The fetch is now a lockForUpdate() read taken INSIDE
+     * the transaction. This proves the write path is governed by a fresh,
+     * transaction-scoped read: the row is locked via a raw write --
+     * bypassing this test's own Eloquent reference entirely, exactly as a
+     * second, truly concurrent database connection would -- and the
+     * operation must still see and honour it.
+     */
+    public function test_a_lock_set_via_a_concurrent_raw_write_is_honoured_by_the_transaction_scoped_fetch(): void
+    {
+        $timings = $this->makeGrid();
+        $newClass = SchoolClass::create(['name' => 'New Class', 'class_order' => 1, 'is_active' => true]);
+        $blockerClass = SchoolClass::create(['name' => 'Blocker Class', 'class_order' => 2, 'is_active' => true]);
+        $subject = Subject::create(['name' => 'Science', 'code' => 'AF' . uniqid()]);
+        $sharedTeacher = Teacher::create(['name' => 'Shared Teacher', 'status' => 'active']);
+
+        $blocker = TimetableSlot::create([
+            'school_class_id' => $blockerClass->id, 'bell_timing_id' => $timings['Monday1']->id,
+            'subject_id' => $subject->id, 'teacher_id' => $sharedTeacher->id,
+        ]);
+
+        // A raw write, bypassing Eloquent entirely -- what a second, truly
+        // concurrent database connection would do; the test's own
+        // in-memory $blocker reference is deliberately left stale (never
+        // refreshed) to prove the SERVICE re-reads the row itself rather
+        // than trusting any reference obtained elsewhere.
+        \Illuminate\Support\Facades\DB::table('timetable_slots')->where('id', $blocker->id)->update(['is_locked' => true]);
+        $this->assertFalse((bool) $blocker->is_locked, 'Sanity check: this test\'s own reference really is stale.');
+
+        $newPlacement = [
+            'school_class_id' => $newClass->id,
+            'bell_timing_id' => $timings['Monday1']->id,
+            'teacher_id' => $sharedTeacher->id,
+            'subject_id' => $subject->id,
+        ];
+
+        $result = (new TimetableAutoFixService())->applyBlockerRelocation(
+            $newPlacement, $blocker->id, $timings['Monday2']->id
+        );
+
+        $this->assertFalse($result['applied']);
+        $this->assertStringContainsString('locked', strtolower($result['message']));
+        $this->assertSame($timings['Monday1']->id, $blocker->fresh()->bell_timing_id, 'The concurrently-locked blocker must not have moved.');
+        $this->assertDatabaseMissing('timetable_slots', [
+            'school_class_id' => $newClass->id,
+            'bell_timing_id' => $timings['Monday1']->id,
+        ]);
+    }
+
+    /**
+     * Hardening pass: this method never had a catch for the DB's own
+     * unique-constraint backstop, unlike TimetableController::store()'s
+     * identical updateOrCreate() call. A genuinely last-moment collision at
+     * the new lesson's destination -- simulated here via a raw insert
+     * landing between this method's own conflict checks and its write, the
+     * same technique the mid-transaction rollback tests below already use
+     * -- must now be rejected gracefully instead of leaking an unhandled
+     * QueryException to the caller.
+     */
+    public function test_a_genuine_last_moment_collision_at_the_destination_is_rejected_gracefully_not_thrown(): void
+    {
+        $timings = $this->makeGrid();
+        $newClass = SchoolClass::create(['name' => 'New Class', 'class_order' => 1, 'is_active' => true]);
+        $blockerClass = SchoolClass::create(['name' => 'Blocker Class', 'class_order' => 2, 'is_active' => true]);
+        $intruderClass = SchoolClass::create(['name' => 'Intruder Class', 'class_order' => 3, 'is_active' => true]);
+        $subject = Subject::create(['name' => 'Science', 'code' => 'AF' . uniqid()]);
+        $sharedTeacher = Teacher::create(['name' => 'Shared Teacher', 'status' => 'active']);
+
+        $blocker = TimetableSlot::create([
+            'school_class_id' => $blockerClass->id, 'bell_timing_id' => $timings['Monday1']->id,
+            'subject_id' => $subject->id, 'teacher_id' => $sharedTeacher->id,
+        ]);
+
+        $newPlacement = [
+            'school_class_id' => $newClass->id,
+            'bell_timing_id' => $timings['Monday1']->id,
+            'teacher_id' => $sharedTeacher->id,
+            'subject_id' => $subject->id,
+        ];
+
+        // Fires when the blocker's own bell_timing_id update runs (the
+        // first write in this method) -- inserts a row that collides with
+        // the new lesson's own about-to-run updateOrCreate() on the DB's
+        // teacher unique index, simulating a write that landed in the gap
+        // between this method's checks and its final write.
+        \Illuminate\Support\Facades\Event::listen('eloquent.updating: ' . TimetableSlot::class, function () use ($intruderClass, $timings, $sharedTeacher, $subject) {
+            static $done = false;
+            if ($done) {
+                return;
+            }
+            $done = true;
+            \Illuminate\Support\Facades\DB::table('timetable_slots')->insert([
+                'school_class_id' => $intruderClass->id,
+                'bell_timing_id' => $timings['Monday1']->id,
+                'subject_id' => $subject->id,
+                'teacher_id' => $sharedTeacher->id,
+                'status' => 'published',
+                'created_at' => now(), 'updated_at' => now(),
+            ]);
+        });
+
+        try {
+            $result = (new TimetableAutoFixService())->applyBlockerRelocation(
+                $newPlacement, $blocker->id, $timings['Monday2']->id
+            );
+        } finally {
+            \Illuminate\Support\Facades\Event::forget('eloquent.updating: ' . TimetableSlot::class);
+        }
+
+        $this->assertFalse($result['applied']);
+        $this->assertStringContainsString('no longer valid', strtolower($result['message']));
+    }
+
+    /**
      * A blocker locked AFTER a suggestion was generated (the interactive
      * flow re-validates on live data at apply time regardless of when the
      * suggestion itself was computed) must still be caught -- same

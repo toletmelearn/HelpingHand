@@ -44,6 +44,11 @@
                                     <i class="fas fa-home me-2"></i>Dashboard
                                 </a>
                             </li>
+                            <li class="list-group-item {{ request()->routeIs('parent.timetable.*') ? 'active' : '' }}">
+                                <a href="{{ route('parent.timetable.today') }}" class="text-decoration-none">
+                                    <i class="fas fa-calendar-alt me-2"></i>Timetable
+                                </a>
+                            </li>
                             <li class="list-group-item {{ request()->routeIs('parent.lesson-plans.*') ? 'active' : '' }}">
                                 <a href="{{ route('parent.lesson-plans.index') }}" class="text-decoration-none">
                                     <i class="fas fa-book me-2"></i>Lesson Plans

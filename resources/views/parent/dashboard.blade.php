@@ -83,6 +83,9 @@
                         <a href="{{ route('parent.payments.pay-fees') }}" class="btn btn-success mb-2 w-100">
                             <i class="fas fa-qrcode me-2"></i>Pay Fees
                         </a>
+                        <a href="{{ route('parent.timetable.today') }}" class="btn btn-outline-primary mb-2 w-100">
+                            <i class="fas fa-calendar-alt me-2"></i>View Timetable
+                        </a>
                         <a href="{{ route('parent.lesson-plans.index') }}" class="btn btn-info mb-2 w-100">
                             <i class="fas fa-book me-2"></i>View Lesson Plans
                         </a>
