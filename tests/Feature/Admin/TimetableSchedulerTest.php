@@ -538,4 +538,55 @@ class TimetableSchedulerTest extends TestCase
         $this->assertNotEmpty($suggestions['move_lesson']);
         $this->assertSame($this->timing2->id, $suggestions['move_lesson'][0]['bell_timing_id']);
     }
+
+    /**
+     * Staging reliability gate finding (2026-08): buildGridViewData() built
+     * its row list from BellTiming::active() with no academic_year scope
+     * at all, and the partial groups those rows by period_name+day only
+     * (see resources/views/admin/timetable/partials/_review-edit.blade.php).
+     * The moment two academic years both have active bell timings named
+     * "Period 1" on the same day -- a completely normal state while next
+     * year's grid is being set up alongside this year's live one -- the
+     * grid silently picks whichever one comes first and a real, correctly
+     * committed slot for the OTHER year vanishes from the page even though
+     * it's sitting right there in the database.
+     */
+    public function test_review_grid_scopes_bell_timings_to_the_slots_own_academic_year_not_a_colliding_other_year(): void
+    {
+        $oldYear = 'CROSS-YEAR-OLD';
+        $newYear = 'CROSS-YEAR-NEW';
+
+        // Created first (lower id), same day+period_name as the one below --
+        // exactly what an unscoped ->first() lookup would pick by accident.
+        $oldTiming = BellTiming::create([
+            'day_of_week' => 'Monday', 'period_name' => 'Period 1',
+            'start_time' => '06:00:00', 'end_time' => '06:45:00',
+            'is_active' => true, 'is_break' => false, 'order_index' => 1,
+            'academic_year' => $oldYear,
+        ]);
+        $newTiming = BellTiming::create([
+            'day_of_week' => 'Monday', 'period_name' => 'Period 1',
+            'start_time' => '08:00:00', 'end_time' => '08:45:00',
+            'is_active' => true, 'is_break' => false, 'order_index' => 1,
+            'academic_year' => $newYear,
+        ]);
+
+        TimetableSlot::create([
+            'school_class_id' => $this->class->id, 'bell_timing_id' => $newTiming->id,
+            'subject_id' => $this->subject->id, 'teacher_id' => $this->teacher->id,
+            'status' => 'draft', 'academic_year' => $newYear,
+        ]);
+
+        $response = $this->actingAs($this->adminUser)
+            ->get(route('timetable.index', ['school_class_id' => $this->class->id, 'status' => 'draft']));
+
+        $response->assertStatus(200);
+
+        $bellTimingIds = $response->viewData('bellTimings')->pluck('id');
+        $this->assertTrue($bellTimingIds->contains($newTiming->id), 'The bell timing the slot actually uses must be in the grid.');
+        $this->assertFalse($bellTimingIds->contains($oldTiming->id), 'A same-named period from a different academic year must not leak into the grid.');
+
+        $response->assertSee('08:00');
+        $response->assertDontSee('06:00');
+    }
 }

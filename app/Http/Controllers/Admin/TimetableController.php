@@ -62,12 +62,35 @@ class TimetableController extends Controller
         $teachers = Teacher::all();
         $subjects = Subject::all();
 
-        // Get active bell timings grouped by day of week
-        $bellTimings = BellTiming::active()->orderBy('order_index')->get();
-
         $slots = collect();
         $activeGeneration = null;
         $hasDraft = false;
+
+        // The grid's row/column structure must come from the SAME academic
+        // year as the slots being displayed -- otherwise, once more than
+        // one academic year has active bell timings at once (e.g. next
+        // year's grid being set up while this year's is still live), rows
+        // sharing a common period_name/day (like "Period 1" on Monday)
+        // silently collide across years: the view groups bell timings by
+        // period_name+day only (see the partial below), so a slot placed
+        // against this year's "Period 1" can vanish behind whichever other
+        // year's "Period 1" happens to be picked first.
+        $academicYear = null;
+        if ($schoolClassId) {
+            $academicYear = TimetableSlot::where('school_class_id', $schoolClassId)
+                ->when($sectionId, fn ($q) => $q->where('section_id', $sectionId))
+                ->when($view === 'draft', fn ($q) => $q->draft(), fn ($q) => $q->published())
+                ->value('academic_year');
+        }
+        $academicYear = $academicYear ?? AcademicSession::current()->first()?->code;
+
+        // Get active bell timings grouped by day of week, scoped to that
+        // academic year -- the exact same scoping GeneratorService itself
+        // uses, so the grid always reflects the bell-timing set the slots
+        // were actually generated against.
+        $bellTimings = BellTiming::active()->orderBy('order_index')
+            ->when($academicYear, fn ($q) => $q->where('academic_year', $academicYear))
+            ->get();
 
         if ($schoolClassId) {
             $baseQuery = TimetableSlot::where('school_class_id', $schoolClassId)

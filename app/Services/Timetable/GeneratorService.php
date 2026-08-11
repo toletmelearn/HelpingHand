@@ -865,6 +865,7 @@ class GeneratorService
             ->whereIn('class_id', $classIds)
             ->whereNotNull('periods_per_week')
             ->when($academicYear, fn ($q) => $q->where('academic_year', $academicYear))
+            ->orderBy('id')
             ->get()
             // T6 item 1: a class-teacher's own subject was already reserved
             // for period 1 every day by reserveClassTeacherPeriod1() -- that
@@ -1288,11 +1289,21 @@ class GeneratorService
                 continue;
             }
 
-            $this->commit($blockerLesson, $alternate);
+            $newBlockerPlacementId = $this->commit($blockerLesson, $alternate);
 
             if ($this->isHardLegal($lesson, $slot)) {
                 return [$slot];
             }
+
+            // The relocation didn't end up freeing $slot for $lesson after
+            // all (some other hard constraint on $lesson itself still
+            // blocks it) -- put the blocker back exactly where it was
+            // before trying the next candidate slot, per this method's
+            // documented contract. Without this, the blocker stays
+            // permanently (and pointlessly) relocated even though this
+            // attempt never placed $lesson.
+            $this->uncommitPlacement($newBlockerPlacementId);
+            $this->commit($blockerLesson, $slot);
         }
 
         return [];

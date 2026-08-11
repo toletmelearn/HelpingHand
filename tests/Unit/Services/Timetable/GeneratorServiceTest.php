@@ -989,4 +989,116 @@ class GeneratorServiceTest extends TestCase
         $this->assertCount(1, $result['placements']);
         $this->assertFalse($result['placements'][0]['is_locked'], 'A locked DRAFT slot is not carried forward as a lock -- only published locks are.');
     }
+
+    // --- Staging reliability gate: attemptBacktrack() revert-on-failure -------
+
+    /**
+     * Root-cause bug found via staging diagnostic instrumentation (2026-08):
+     * a realistic-scale generation run showed attemptBacktrack()'s final
+     * legality re-check failing 456 times out of 456 attempts, and every
+     * one of those left its relocated blocker permanently moved even
+     * though the lesson being backtracked for was never actually placed --
+     * directly contradicting the method's own documented contract ("the
+     * blocker is put back exactly where it was before trying the next
+     * candidate slot").
+     *
+     * This drives attemptBacktrack() directly (via reflection, bypassing
+     * generate()'s solver-ordering/scoring, which can't reliably steer two
+     * lessons into this exact shape): a blocker solo lesson already sits at
+     * the only slot the target lesson could reach by relocating it, and the
+     * target lesson is independently unplaceable there regardless (its
+     * weekly period cap is pre-exhausted) -- so the relocation can never
+     * help. attemptBacktrack() must still fail to place the lesson (the cap
+     * makes it genuinely infeasible), but the blocker must end up back at
+     * its original slot, not stranded at the alternate it was moved to.
+     */
+    public function test_backtracking_reverts_a_relocated_blocker_when_the_final_slot_still_cant_place_the_lesson(): void
+    {
+        $service = new GeneratorService();
+        $ref = new \ReflectionClass($service);
+
+        $setProp = function (string $name, $value) use ($service, $ref) {
+            $prop = $ref->getProperty($name);
+            $prop->setAccessible(true);
+            $prop->setValue($service, $value);
+        };
+        $callMethod = function (string $name, array $args) use ($service, $ref) {
+            $method = $ref->getMethod($name);
+            $method->setAccessible(true);
+
+            return $method->invokeArgs($service, $args);
+        };
+
+        // A 2-slot world: Monday period 1 (bell 101) and Tuesday period 1
+        // (bell 102) -- just enough room for a blocker to have a legal
+        // alternate to relocate to.
+        $setProp('timingMeta', [
+            101 => ['day_order' => 1, 'order_index' => 1, 'class_section' => null],
+            102 => ['day_order' => 2, 'order_index' => 1, 'class_section' => null],
+        ]);
+        $setProp('timingsByDay', [1 => [101], 2 => [102]]);
+        // Budget of exactly 1: only a single relocation attempt is allowed,
+        // so the loop cannot "accidentally" wander the blocker back to 101
+        // via a second candidate that happens to rediscover it at 102 --
+        // that coincidence (not a real fix) is exactly what a 2-slot,
+        // unbounded-budget version of this test would hide.
+        $setProp('backtrackBudgetPerLesson', 1);
+
+        // The lesson we're trying to place: teacher 20's weekly cap is
+        // pre-set to exactly the default max (36) BEFORE the blocker is
+        // committed (commit() only increments existing counters, so this
+        // must be seeded first) -- adding this one period is illegal
+        // everywhere for teacher 20, independent of whether the blocker
+        // moves, so the relocation can never actually free a usable slot.
+        $setProp('teacherWeekCount', [20 => 36]);
+
+        // The blocker: teacher 10 teaching class 100, already committed at
+        // bell 101 (Monday) -- an ordinary, relocatable (non-protected)
+        // solo placement.
+        $blockerLesson = [
+            'lesson_id' => 1, 'type' => 'solo', 'teacher_id' => 10, 'co_teacher_id' => null,
+            'subject_id' => 1, 'class_ids' => [100], 'section_ids' => [null], 'class_name' => 'C',
+            'require_consecutive' => false, 'periods_needed' => 1,
+        ];
+        $callMethod('commit', [$blockerLesson, ['bell_timing_ids' => [101]]]);
+
+        // Bell 101 (Monday) is illegal for the target lesson only because
+        // the blocker occupies class 100 there -- teacher 20 itself is
+        // free at both slots.
+        $lesson = [
+            'lesson_id' => 2, 'type' => 'solo', 'teacher_id' => 20, 'co_teacher_id' => null,
+            'subject_id' => 2, 'class_ids' => [100], 'section_ids' => [null], 'class_name' => 'C',
+            'require_consecutive' => false, 'periods_needed' => 1,
+        ];
+
+        $result = $callMethod('attemptBacktrack', [$lesson]);
+
+        $this->assertSame([], $result, 'The lesson is genuinely unplaceable (weekly cap exhausted) -- backtracking must not report a false success.');
+
+        $committed = $ref->getProperty('committed');
+        $committed->setAccessible(true);
+        $committedState = $committed->getValue($service);
+
+        $this->assertCount(1, $committedState, 'Only the blocker should be committed -- the lesson itself was never placed, and no duplicate blocker copy was left behind.');
+        // commit()/uncommitPlacement() always mint a fresh placement id, so
+        // the reverted blocker will not keep its original id -- what
+        // matters is that whichever single placement remains sits back at
+        // its original bell timing.
+        $blocker = array_values($committedState)[0];
+        $blockerFinalPlacementId = array_key_first($committedState);
+        $this->assertSame([101], $blocker['bell_timing_ids'], 'The blocker must be reverted to its original slot (Monday) once the relocation attempt failed to free a usable slot for the lesson -- it must not be left stranded at the alternate (Tuesday).');
+
+        $placementByClassSlot = $ref->getProperty('placementByClassSlot');
+        $placementByClassSlot->setAccessible(true);
+        $this->assertSame(
+            $blockerFinalPlacementId,
+            $placementByClassSlot->getValue($service)['100||101'] ?? null,
+            'The class-slot index must also point back at the original slot after the revert.'
+        );
+        $this->assertArrayNotHasKey(
+            '100||102',
+            $placementByClassSlot->getValue($service),
+            'No stale index entry should be left pointing at the alternate slot the blocker was only ever transiently moved to.'
+        );
+    }
 }
