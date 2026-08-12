@@ -57,6 +57,20 @@ class TimetableController extends Controller
         $sectionId = $request->get('section_id');
         $view = $request->get('status') === 'draft' ? 'draft' : 'published';
 
+        // Pilot-hardening (workspace authorization): index()/workspace()
+        // previously only checked viewAny (role), so any teacher-role
+        // account could view -- or, via ?status=draft, see the in-progress
+        // draft of -- ANY class's grid by supplying an arbitrary
+        // school_class_id. Reuses the exact same viewClassTimetable
+        // ability already applied to classPdf/classExcelExport, which
+        // itself reuses the write side's teacherAssignedToClassSection()
+        // check -- no new authorization system, no schema/role change.
+        // Applies identically regardless of draft/published, so drafts
+        // get the same boundary as published, never a weaker one.
+        if ($schoolClassId) {
+            $this->authorize('viewClassTimetable', [TimetableSlot::class, (int) $schoolClassId, $sectionId ? (int) $sectionId : null]);
+        }
+
         $classes = SchoolClass::orderBy('class_order')->get();
         $sections = Section::all();
         $teachers = Teacher::all();
