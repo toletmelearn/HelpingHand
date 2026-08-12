@@ -205,6 +205,23 @@ class TimetableWorkspaceTest extends TestCase
         $response->assertSee(route('combined-class-groups.index'), false);
     }
 
+    /**
+     * Pilot-hardening (Class Teacher / Section): the Setup tab shows
+     * "Teacher-Subject Assignment" and "Class Teacher Assignment" as two
+     * adjacent, equal-looking buttons -- documented as a real source of
+     * confusion, since only the former is section-aware and read by the
+     * generator. Confirms both buttons now carry disambiguating text
+     * rather than looking like interchangeable options.
+     */
+    public function test_setup_tab_disambiguates_the_two_class_teacher_screens(): void
+    {
+        $response = $this->actingAs($this->adminUser)->get(route('timetable.workspace'));
+
+        $response->assertOk();
+        $response->assertSee('section-level Class Teacher');
+        $response->assertSee('not used by Timetable');
+    }
+
     public function test_generate_tab_links_to_the_existing_generate_flow_not_a_new_one(): void
     {
         $response = $this->actingAs($this->adminUser)->get(route('timetable.workspace'));

@@ -474,7 +474,8 @@
                         @if(Route::has('admin.teacher-subject-assignments.index') && (Auth::user()->hasRole('admin') || Auth::user()->hasPermission('view-teacher-subject-assignment') || Auth::user()->hasPermission('manage-teacher-subject-assignment')))
                         <li class="nav-item">
                             <a class="nav-link text-white {{ request()->routeIs('admin.teacher-subject-assignments.*') ? 'active' : '' }}"
-                               href="{{ route('admin.teacher-subject-assignments.index') }}">
+                               href="{{ route('admin.teacher-subject-assignments.index') }}"
+                               title="Also where Class Teacher status is set for a specific class AND section (e.g. Class 3, Section B) -- this is what the Timetable module reads.">
                                 <i class="bi bi-arrow-left-right me-2"></i>
                                 <span>Teacher-Subject Assignment</span>
                             </a>
@@ -483,9 +484,10 @@
                         @if(Route::has('admin.teacher-class-assignments.index') && Auth::user()->hasRole(['admin', 'staff']))
                         <li class="nav-item">
                             <a class="nav-link text-white {{ request()->routeIs('admin.teacher-class-assignments.*') ? 'active' : '' }}"
-                               href="{{ route('admin.teacher-class-assignments.index') }}">
+                               href="{{ route('admin.teacher-class-assignments.index') }}"
+                               title="Whole-class only, no section -- NOT used by the Timetable module. For a section-specific class teacher (e.g. Class 3, Section B), use Teacher-Subject Assignment instead.">
                                 <i class="bi bi-arrow-down-up me-2"></i>
-                                <span>Class Teacher Assignment</span>
+                                <span>Class Teacher Assignment (Whole Class)</span>
                             </a>
                         </li>
                         @endif

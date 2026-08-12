@@ -14,6 +14,18 @@
                     </a>
                 </div>
                 <div class="card-body">
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle"></i>
+                        This screen assigns a class teacher for a whole class only -- it has no section field and is <strong>not</strong> read by the Timetable module.
+                        To assign a class teacher for a specific section (e.g. Class 3, Section B), use
+                        @if(\Illuminate\Support\Facades\Route::has('admin.teacher-subject-assignments.index'))
+                            <a href="{{ route('admin.teacher-subject-assignments.index') }}">Teacher-Subject Assignment</a>
+                        @else
+                            Teacher-Subject Assignment
+                        @endif
+                        instead, and check "Make Class Teacher" there.
+                    </div>
+
                     @if(session('success'))
                         <div class="alert alert-success">
                             {{ session('success') }}
