@@ -533,6 +533,7 @@ class TimetableController extends Controller
             'school_class_id' => 'required|exists:school_classes,id',
             'section_id' => 'nullable|exists:sections,id',
         ]);
+        $this->authorize('viewClassTimetable', [TimetableSlot::class, (int) $request->school_class_id, $request->filled('section_id') ? (int) $request->section_id : null]);
 
         $class = SchoolClass::findOrFail($request->school_class_id);
         $section = $request->filled('section_id') ? Section::find($request->section_id) : null;
@@ -577,6 +578,7 @@ class TimetableController extends Controller
         $request->validate([
             'teacher_id' => 'required|exists:teachers,id',
         ]);
+        $this->authorize('viewTeacherTimetable', [TimetableSlot::class, (int) $request->teacher_id]);
 
         $teacher = Teacher::findOrFail($request->teacher_id);
         $session = AcademicSession::current()->first();
@@ -692,6 +694,7 @@ class TimetableController extends Controller
             'school_class_id' => 'required|exists:school_classes,id',
             'section_id' => 'nullable|exists:sections,id',
         ]);
+        $this->authorize('viewClassTimetable', [TimetableSlot::class, (int) $request->school_class_id, $request->filled('section_id') ? (int) $request->section_id : null]);
 
         $class = SchoolClass::findOrFail($request->school_class_id);
         $section = $request->filled('section_id') ? Section::find($request->section_id) : null;
@@ -725,6 +728,7 @@ class TimetableController extends Controller
         $this->authorize('viewAny', TimetableSlot::class);
 
         $request->validate(['teacher_id' => 'required|exists:teachers,id']);
+        $this->authorize('viewTeacherTimetable', [TimetableSlot::class, (int) $request->teacher_id]);
 
         $teacher = Teacher::findOrFail($request->teacher_id);
         $session = AcademicSession::current()->first();
@@ -820,6 +824,7 @@ class TimetableController extends Controller
 
         if ($request->filled('teacher_id')) {
             $request->validate(['teacher_id' => 'exists:teachers,id']);
+            $this->authorize('viewTeacherTimetable', [TimetableSlot::class, (int) $request->teacher_id]);
             $selectedTeacher = Teacher::find($request->teacher_id);
 
             $slotsQuery = TimetableSlot::with(['bellTiming', 'subject', 'schoolClass', 'section', 'teacher', 'coTeacher'])
@@ -1119,6 +1124,7 @@ class TimetableController extends Controller
     public function generationReview(TimetableGeneration $generation)
     {
         $this->authorize('viewAny', TimetableSlot::class);
+        $this->authorize('viewGenerationReview', [TimetableSlot::class, $generation]);
 
         $classes = SchoolClass::whereIn('id', $generation->school_class_ids)->orderByOrder()->get()->keyBy('id');
 
@@ -1154,6 +1160,7 @@ class TimetableController extends Controller
     public function generationStatus(TimetableGeneration $generation)
     {
         $this->authorize('viewAny', TimetableSlot::class);
+        $this->authorize('viewGenerationReview', [TimetableSlot::class, $generation]);
 
         return response()->json([
             'id' => $generation->id,
