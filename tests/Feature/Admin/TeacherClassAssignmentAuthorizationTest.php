@@ -95,6 +95,27 @@ class TeacherClassAssignmentAuthorizationTest extends TestCase
         $response->assertOk();
     }
 
+    /**
+     * Pilot-hardening (Class Teacher / Section): this screen has no section
+     * field and is never read by the Timetable module -- an admin trying
+     * to assign a section-specific class teacher (e.g. Class 3, Section B)
+     * needs to be redirected in intent to Teacher-Subject Assignment,
+     * which is the screen the generator actually reads. Confirms the
+     * clarifying banner and cross-link are really on the page, not just
+     * documented.
+     */
+    public function test_index_clarifies_this_screen_has_no_section_and_links_to_teacher_subject_assignment(): void
+    {
+        $staff = $this->makeUserWithRole('staff');
+
+        $response = $this->actingAs($staff)->get(route('admin.teacher-class-assignments.index'));
+
+        $response->assertOk();
+        $response->assertSee('not', false);
+        $response->assertSee('Timetable module', false);
+        $response->assertSee(route('admin.teacher-subject-assignments.index'), false);
+    }
+
     public function test_admin_can_create_update_and_delete(): void
     {
         $admin = $this->makeUserWithRole('admin');

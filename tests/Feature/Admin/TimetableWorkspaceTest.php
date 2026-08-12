@@ -80,7 +80,10 @@ class TimetableWorkspaceTest extends TestCase
 
         $response->assertOk();
         $response->assertSee('Timetable Editor');
-        // All seven workspace areas from the plan are present as real tabs.
+        // Pilot-hardening (Navigation): all nine workspace tabs are present
+        // as real tabs -- Rebalance was previously untested here despite
+        // genuinely existing in the UI (workspace.blade.php's own tab
+        // list), a real test-coverage gap rather than an app defect.
         $response->assertSee('Home');
         $response->assertSee('Setup');
         $response->assertSee('Generate');
@@ -88,6 +91,7 @@ class TimetableWorkspaceTest extends TestCase
         $response->assertSee('Conflicts');
         $response->assertSee('Suggestions');
         $response->assertSee('Auto-Fix');
+        $response->assertSee('Rebalance');
         $response->assertSee('Publish');
     }
 
@@ -194,6 +198,26 @@ class TimetableWorkspaceTest extends TestCase
         $response->assertSee('Jane Doe');
     }
 
+    /**
+     * Pilot-hardening (Navigation): confirms Class/Teacher/Room views and
+     * exports are genuinely discoverable from the Workspace -- Teacher and
+     * Room views are linked directly from Home; Class exports are linked
+     * from Review & Edit (tested separately); Teacher/Room exports are one
+     * click deeper, reachable from the Teacher/Room view pages themselves
+     * once an entity is selected (verified directly on those views'
+     * blade files, not duplicated here). No new screens were added --
+     * this only proves the existing discoverability path holds.
+     */
+    public function test_home_tab_links_to_teacher_and_room_views_and_master_export(): void
+    {
+        $response = $this->actingAs($this->adminUser)->get(route('timetable.workspace'));
+
+        $response->assertOk();
+        $response->assertSee(route('timetable.view.teacher'), false);
+        $response->assertSee(route('timetable.view.room'), false);
+        $response->assertSee(route('timetable.export.master'), false);
+    }
+
     public function test_setup_tab_links_to_the_real_existing_setup_pages(): void
     {
         $response = $this->actingAs($this->adminUser)->get(route('timetable.workspace'));
@@ -203,6 +227,23 @@ class TimetableWorkspaceTest extends TestCase
         $response->assertSee(route('admin.school-classes.index'), false);
         $response->assertSee(route('bell-timing.index'), false);
         $response->assertSee(route('combined-class-groups.index'), false);
+    }
+
+    /**
+     * Pilot-hardening (Class Teacher / Section): the Setup tab shows
+     * "Teacher-Subject Assignment" and "Class Teacher Assignment" as two
+     * adjacent, equal-looking buttons -- documented as a real source of
+     * confusion, since only the former is section-aware and read by the
+     * generator. Confirms both buttons now carry disambiguating text
+     * rather than looking like interchangeable options.
+     */
+    public function test_setup_tab_disambiguates_the_two_class_teacher_screens(): void
+    {
+        $response = $this->actingAs($this->adminUser)->get(route('timetable.workspace'));
+
+        $response->assertOk();
+        $response->assertSee('section-level Class Teacher');
+        $response->assertSee('not used by Timetable');
     }
 
     public function test_generate_tab_links_to_the_existing_generate_flow_not_a_new_one(): void

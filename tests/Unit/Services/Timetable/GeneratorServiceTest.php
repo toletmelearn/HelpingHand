@@ -8,6 +8,7 @@ use App\Models\ClassTeacherAssignment;
 use App\Models\CombinedClassGroup;
 use App\Models\CombinedClassGroupMember;
 use App\Models\SchoolClass;
+use App\Models\Section;
 use App\Models\Subject;
 use App\Models\Teacher;
 use App\Models\TeacherAvailability;
@@ -342,6 +343,80 @@ class GeneratorServiceTest extends TestCase
             $this->assertSame($ctTeacher->id, $p['teacher_id']);
             $this->assertSame($ctSubject->id, $p['subject_id']);
         }
+    }
+
+    /**
+     * Pilot-hardening (Class Teacher / Section): the canonical assignment
+     * path is teacher_class_subject_assignments.is_class_teacher scoped by
+     * BOTH class_id AND section_id (e.g. "Class 3, Section B" is a real,
+     * distinct assignment from "Class 3, Section A") -- confirms the
+     * period-1 reservation reserveClassTeacherPeriod1() performs is scoped
+     * to the assigned section only, not the whole class, and never bleeds
+     * into a sibling section that has no class-teacher assignment of its
+     * own.
+     */
+    public function test_class_teacher_period_1_reservation_is_scoped_to_the_assigned_section_only(): void
+    {
+        $year = 'T6-CT-SECTION';
+        $this->makeGrid(['Monday', 'Tuesday', 'Wednesday', 'Thursday'], 4, $year);
+
+        $class = SchoolClass::create(['name' => 'Class 3', 'class_order' => 1, 'is_active' => true]);
+        $sectionA = Section::create(['name' => 'A']);
+        $sectionB = Section::create(['name' => 'B']);
+
+        $ctSubject = Subject::create(['name' => 'Maths', 'code' => 'CTSEC-M']);
+        $ctTeacher = Teacher::create(['name' => 'Section B Class Teacher', 'status' => 'active']);
+
+        $otherSubject = Subject::create(['name' => 'Science', 'code' => 'CTSEC-S']);
+        $otherTeacher = Teacher::create(['name' => 'Section A Teacher', 'status' => 'active']);
+
+        // Class 3, Section B: a real class-teacher assignment via the
+        // canonical path (class_id + section_id + is_class_teacher).
+        TeacherClassSubjectAssignment::create([
+            'teacher_id' => $ctTeacher->id, 'class_id' => $class->id, 'section_id' => $sectionB->id,
+            'subject_id' => $ctSubject->id, 'periods_per_week' => 4, 'is_class_teacher' => true,
+            'academic_year' => $year,
+        ]);
+
+        // Class 3, Section A: an ordinary assignment, deliberately with NO
+        // class-teacher flag -- Section A has no class teacher of its own.
+        TeacherClassSubjectAssignment::create([
+            'teacher_id' => $otherTeacher->id, 'class_id' => $class->id, 'section_id' => $sectionA->id,
+            'subject_id' => $otherSubject->id, 'periods_per_week' => 4, 'academic_year' => $year,
+        ]);
+
+        $result = (new GeneratorService())->generate($year, collect([$class]));
+
+        $this->assertSame([], $result['warnings']);
+        $this->assertSame(0, $result['stats']['unplaced_lessons']);
+
+        $period1Ids = BellTiming::where('order_index', 1)->pluck('id')->all();
+
+        $sectionBPeriod1 = collect($result['placements'])->filter(
+            fn ($p) => $p['section_id'] === $sectionB->id
+                && count($p['bell_timing_ids']) === 1
+                && in_array($p['bell_timing_ids'][0], $period1Ids, true)
+        );
+        $this->assertCount(4, $sectionBPeriod1, 'Section B must hold its class teacher\'s period 1 on all 4 days.');
+        foreach ($sectionBPeriod1 as $p) {
+            $this->assertSame($ctTeacher->id, $p['teacher_id']);
+            $this->assertSame($ctSubject->id, $p['subject_id']);
+        }
+
+        // Section A was never given a class-teacher assignment, so its own
+        // subject is free to solve normally -- including landing on period
+        // 1, which proves the reservation did not bleed across sections of
+        // the same class.
+        $sectionAPlacements = collect($result['placements'])->where('section_id', $sectionA->id);
+        $this->assertCount(4, $sectionAPlacements, 'Section A\'s own 4 periods/week must all be placed.');
+        foreach ($sectionAPlacements as $p) {
+            $this->assertSame($otherTeacher->id, $p['teacher_id']);
+            $this->assertSame($otherSubject->id, $p['subject_id']);
+        }
+        $sectionAOnPeriod1 = $sectionAPlacements->filter(
+            fn ($p) => count($p['bell_timing_ids']) === 1 && in_array($p['bell_timing_ids'][0], $period1Ids, true)
+        );
+        $this->assertNotEmpty($sectionAOnPeriod1, 'Section A must be free to use period 1 with its own teacher/subject -- the class-teacher reservation is section-scoped, not class-wide.');
     }
 
     public function test_class_with_no_class_teacher_still_generates(): void

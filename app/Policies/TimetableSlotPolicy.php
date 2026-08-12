@@ -4,6 +4,7 @@ namespace App\Policies;
 
 use App\Models\Teacher;
 use App\Models\TeacherClassSubjectAssignment;
+use App\Models\TimetableGeneration;
 use App\Models\TimetableSlot;
 use App\Models\User;
 
@@ -104,6 +105,76 @@ class TimetableSlotPolicy
     public function autoFix(User $user): bool
     {
         return $user->hasRole('admin');
+    }
+
+    /**
+     * Pilot-hardening (authorization): viewAny only checks role, so any
+     * teacher-role account could previously view/print/export ANY other
+     * teacher's, class's, or generation's timetable data by passing an
+     * arbitrary id -- these three abilities narrow the read-only,
+     * single-entity views/exports/generation-review actions specifically,
+     * reusing the same teacherAssignedToClassSection() ownership check the
+     * write side already relies on. Deliberately NOT applied to
+     * masterPdf/masterExcelExport (whole-school published data, not a
+     * specific person's/class's) or roomView/roomExcelExport (rooms have
+     * no ownership concept in this codebase), and NOT applied to
+     * index()/workspace() (the write side there is already correctly
+     * gated; broadening the read-side restriction to the whole editing
+     * grid was judged out of scope for this pass).
+     */
+    public function viewTeacherTimetable(User $user, int $teacherId): bool
+    {
+        if ($user->hasRole('admin')) {
+            return true;
+        }
+
+        if (!$user->hasRole('teacher')) {
+            return false;
+        }
+
+        $teacher = Teacher::where('user_id', $user->id)->first();
+
+        return $teacher && $teacher->id === $teacherId;
+    }
+
+    public function viewClassTimetable(User $user, int $schoolClassId, ?int $sectionId): bool
+    {
+        if ($user->hasRole('admin')) {
+            return true;
+        }
+
+        if (!$user->hasRole('teacher')) {
+            return false;
+        }
+
+        return $this->teacherAssignedToClassSection($user, $schoolClassId, $sectionId);
+    }
+
+    /**
+     * A generation covers a whole set of classes at once (not necessarily
+     * one class-section) -- a teacher may review it if they hold ANY
+     * assignment (any section) for at least one of the generation's
+     * classes, not scoped to one specific section the way a single
+     * class-section view is.
+     */
+    public function viewGenerationReview(User $user, TimetableGeneration $generation): bool
+    {
+        if ($user->hasRole('admin')) {
+            return true;
+        }
+
+        if (!$user->hasRole('teacher')) {
+            return false;
+        }
+
+        $teacher = Teacher::where('user_id', $user->id)->first();
+        if (!$teacher) {
+            return false;
+        }
+
+        return TeacherClassSubjectAssignment::where('teacher_id', $teacher->id)
+            ->whereIn('class_id', $generation->school_class_ids ?? [])
+            ->exists();
     }
 
     /**
