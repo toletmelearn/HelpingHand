@@ -1,6 +1,6 @@
 ﻿@extends('layouts.admin')
 
-@section('title', 'Assign Teacher - Admin Dashboard')
+@section('title', 'Assign Teacher-Subject (incl. Class Teacher) - Admin Dashboard')
 
 @section('content')
 <div class="container-fluid">
@@ -9,8 +9,8 @@
         <div class="col-12">
             <div class="d-flex justify-content-between align-items-center">
                 <div>
-                    <h2 class="mb-0"><i class="fas fa-user-plus"></i> Assign Teacher</h2>
-                    <p class="text-muted mb-0">Assign teacher to class and subject</p>
+                    <h2 class="mb-0"><i class="fas fa-user-plus"></i> Assign Teacher-Subject</h2>
+                    <p class="text-muted mb-0">Assign a teacher to a class, section and subject. Check "Make Class Teacher" below to also set them as the section's class teacher.</p>
                 </div>
                 <a href="{{ route('admin.teacher-subject-assignments.index') }}" class="btn btn-secondary">
                     <i class="fas fa-arrow-left"></i> Back to Assignments

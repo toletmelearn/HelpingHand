@@ -49,6 +49,24 @@ class TeacherSubjectAssignmentAuthorizationTest extends TestCase
         ]);
     }
 
+    /**
+     * Pilot-hardening (Navigation): the sidebar already disambiguates this
+     * screen from "Class Teacher Assignment (Whole Class)" via tooltips,
+     * but the page itself previously said only the generic "Teacher
+     * Assignments" -- no reinforcement once an admin actually landed here.
+     * Confirms the in-page header now matches the sidebar's own wording.
+     */
+    public function test_index_header_clearly_identifies_this_as_the_teacher_subject_screen(): void
+    {
+        $admin = $this->makeUserWithRole('admin');
+
+        $response = $this->actingAs($admin)->get(route('admin.teacher-subject-assignments.index'));
+
+        $response->assertOk();
+        $response->assertSee('Teacher-Subject Assignment');
+        $response->assertSee('Class Teacher', false);
+    }
+
     public function test_unauthorized_role_gets_403_on_store(): void
     {
         $teacher_role_user = $this->makeUserWithRole('teacher');

@@ -1,6 +1,6 @@
 ﻿@extends('layouts.admin')
 
-@section('title', 'Edit Teacher Assignment - Admin Dashboard')
+@section('title', 'Edit Teacher-Subject Assignment - Admin Dashboard')
 
 @section('content')
 <div class="container-fluid">
@@ -9,8 +9,8 @@
         <div class="col-12">
             <div class="d-flex justify-content-between align-items-center">
                 <div>
-                    <h2 class="mb-0"><i class="fas fa-edit"></i> Edit Assignment</h2>
-                    <p class="text-muted mb-0">Update teacher class and subject assignment</p>
+                    <h2 class="mb-0"><i class="fas fa-edit"></i> Edit Teacher-Subject Assignment</h2>
+                    <p class="text-muted mb-0">Update this teacher's class/section/subject assignment, including their Class Teacher status for this section.</p>
                 </div>
                 <a href="{{ route('admin.teacher-subject-assignments.index') }}" class="btn btn-secondary">
                     <i class="fas fa-arrow-left"></i> Back to Assignments

@@ -1,17 +1,25 @@
 ﻿@extends('layouts.admin')
 
-@section('title', 'Teacher Assignments - Admin Dashboard')
+@section('title', 'Teacher-Subject Assignment (incl. Class Teacher) - Admin Dashboard')
 
 @section('content')
 <div class="container-fluid">
     <!-- Page Header -->
     <div class="row mb-4">
         <div class="col-12">
-            <div class="d-flex justify-content-between align-items-center">
+            <div class="page-title-box d-sm-flex align-items-center justify-content-between">
                 <div>
-                    <h2 class="mb-0"><i class="fas fa-user-tie"></i> Teacher Assignments</h2>
-                    <p class="text-muted mb-0">Manage teacher class and subject assignments</p>
+                    <h2 class="mb-0"><i class="fas fa-user-tie"></i> Teacher-Subject Assignment</h2>
+                    <p class="text-muted mb-0">Assign a teacher to a class/section/subject -- also where section-level Class Teacher status is set (the Timetable module reads this screen, not "Class Teacher Assignment").</p>
                 </div>
+                <div class="page-title-right">
+                    <ol class="breadcrumb m-0">
+                        <li class="breadcrumb-item"><a href="{{ route('home') }}">Home</a></li>
+                        <li class="breadcrumb-item active">Teacher-Subject Assignment</li>
+                    </ol>
+                </div>
+            </div>
+            <div class="text-end mt-2">
                 <a href="{{ route('admin.teacher-subject-assignments.create') }}" class="btn btn-primary btn-lg">
                     <i class="fas fa-plus-circle"></i> Assign New
                 </a>

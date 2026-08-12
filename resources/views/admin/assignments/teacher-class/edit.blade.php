@@ -1,6 +1,6 @@
 ﻿@extends('layouts.admin')
 
-@section('title', 'Edit Teacher-Class Assignment')
+@section('title', 'Edit Class Teacher Assignment (Whole Class) - Admin Dashboard')
 
 @section('content')
 <div class="container-fluid">
@@ -8,7 +8,8 @@
         <div class="col-12">
             <div class="card">
                 <div class="card-header">
-                    <h4 class="card-title">Edit Teacher-Class Assignment</h4>
+                    <h4 class="card-title">Edit Class Teacher Assignment (Whole Class)</h4>
+                    <p class="text-muted mb-0">Whole-class only -- for a section-specific Class Teacher, use Teacher-Subject Assignment instead.</p>
                 </div>
                 <div class="card-body">
                     <form action="{{ route('admin.teacher-class-assignments.update', $assignment->id) }}" method="POST">

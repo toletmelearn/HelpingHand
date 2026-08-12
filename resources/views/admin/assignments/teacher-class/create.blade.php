@@ -1,6 +1,6 @@
 ﻿@extends('layouts.admin')
 
-@section('title', 'Assign Teacher to Class')
+@section('title', 'Assign Teacher to Class (Whole Class) - Admin Dashboard')
 
 @section('content')
 <div class="container-fluid">
@@ -8,7 +8,8 @@
         <div class="col-12">
             <div class="card">
                 <div class="card-header">
-                    <h4 class="card-title">Assign Teacher to Class</h4>
+                    <h4 class="card-title">Assign Teacher to Class (Whole Class)</h4>
+                    <p class="text-muted mb-0">Whole-class only -- for a section-specific Class Teacher (e.g. Class 3, Section B), use Teacher-Subject Assignment instead.</p>
                 </div>
                 <div class="card-body">
                     <form action="{{ route('admin.teacher-class-assignments.store') }}" method="POST">

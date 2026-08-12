@@ -116,6 +116,25 @@ class TeacherClassAssignmentAuthorizationTest extends TestCase
         $response->assertSee(route('admin.teacher-subject-assignments.index'), false);
     }
 
+    /**
+     * Pilot-hardening (Navigation): the sidebar labels this screen "Class
+     * Teacher Assignment (Whole Class)", but the page's own title/header
+     * previously said "Teacher-Class Assignments" -- a different phrase
+     * that didn't reinforce the sidebar's disambiguation once an admin
+     * actually landed here. Confirms the in-page header now matches the
+     * sidebar wording exactly, with a breadcrumb for orientation.
+     */
+    public function test_index_header_matches_the_sidebars_disambiguated_label(): void
+    {
+        $admin = $this->makeUserWithRole('admin');
+
+        $response = $this->actingAs($admin)->get(route('admin.teacher-class-assignments.index'));
+
+        $response->assertOk();
+        $response->assertSee('Class Teacher Assignment (Whole Class)');
+        $response->assertSee('breadcrumb', false);
+    }
+
     public function test_admin_can_create_update_and_delete(): void
     {
         $admin = $this->makeUserWithRole('admin');
