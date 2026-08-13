@@ -169,6 +169,62 @@ class GeneratorService
             ->mapWithKeys(fn ($a) => ["{$a->teacher_id}|{$a->bell_timing_id}" => true])
             ->all();
 
+        // Subset-generation safety: GenerateTimetableJob clears existing
+        // DRAFT rows for exactly these classes and this academic year right
+        // before inserting the new placements -- but it can never know
+        // that here, before a single lesson has been placed. Any draft row
+        // this run's own solve doesn't already know about (a teacher's
+        // commitment in a class outside this subset, or a stale row the
+        // upcoming cleanup's exact-match academic_year filter will miss)
+        // still occupies its bell timing as far as the unique DB
+        // constraints (teacher_bell_status, class_section_bell_status) are
+        // concerned. Without this, the solver can happily plan a placement
+        // that looks perfectly legal in memory and then fails at INSERT
+        // time with a raw duplicate-key exception -- exactly the staging
+        // failure this was found from (teacher 76, bell_timing 2: an
+        // orphaned draft row for a class outside the requested subset,
+        // never cleared, silently invisible to every check the solver had
+        // until now).
+        $staleDraftQuery = TimetableSlot::query()
+            ->where('status', TimetableSlot::STATUS_DRAFT)
+            ->whereIn('bell_timing_id', $timings->pluck('id'));
+        if ($academicYear !== null) {
+            // Mirror the exact complement of the cleanup delete() below:
+            // a row survives it (and so must still be treated as busy)
+            // when it belongs to a DIFFERENT class than this run's own,
+            // OR its academic_year doesn't exactly match this run's --
+            // including NULL, which a plain `<>` comparison would never
+            // catch under SQL's null-handling.
+            $staleDraftQuery->where(function ($q) use ($classIds, $academicYear) {
+                $q->whereNotIn('school_class_id', $classIds->all())
+                    ->orWhereNull('academic_year')
+                    ->orWhere('academic_year', '!=', $academicYear);
+            });
+        }
+        // When $academicYear itself is null, the cleanup's own
+        // `where('academic_year', $academicYear)` matches no row at all
+        // (SQL NULL semantics) -- nothing is ever cleared, so every draft
+        // row at these bell timings survives and must be considered here,
+        // with no extra filter needed.
+        foreach ($staleDraftQuery->get(['school_class_id', 'section_id', 'teacher_id', 'co_teacher_id', 'bell_timing_id', 'combined_class_group_id']) as $stale) {
+            if ($stale->combined_class_group_id !== null) {
+                continue; // structurally exempt from teacher_active_key uniqueness (see the migration); not a real solo-teacher conflict.
+            }
+
+            $this->teacherBlocked["{$stale->teacher_id}|{$stale->bell_timing_id}"] = true;
+            if ($stale->co_teacher_id !== null) {
+                $this->teacherBlocked["{$stale->co_teacher_id}|{$stale->bell_timing_id}"] = true;
+            }
+
+            // Class-side collisions can only ever matter for a class this
+            // run is actually placing lessons into -- a stale row on an
+            // unrelated class can never class-collide, since nothing here
+            // will ever target that class/section.
+            if (in_array($stale->school_class_id, $classIds->all(), true)) {
+                $this->classBusy["{$stale->school_class_id}|{$stale->section_id}|{$stale->bell_timing_id}"] = true;
+            }
+        }
+
         // Teacher limits must be loaded before ANY commits, including the
         // class-teacher reservations below -- scoped by class, not by the
         // (not yet built) lesson list, since reservation happens first.

@@ -13,6 +13,7 @@ use App\Models\Subject;
 use App\Models\Teacher;
 use App\Models\TeacherAvailability;
 use App\Models\TeacherClassSubjectAssignment;
+use App\Models\TimetableSlot;
 use App\Models\User;
 use App\Services\Timetable\GeneratorService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -1175,5 +1176,103 @@ class GeneratorServiceTest extends TestCase
             $placementByClassSlot->getValue($service),
             'No stale index entry should be left pointing at the alternate slot the blocker was only ever transiently moved to.'
         );
+    }
+
+    // --- Staging reliability gate: subset-generation / stale-draft integrity ---
+
+    /**
+     * Real staging incident (2026-08-10, reproduced 2026-08-11): a subset
+     * generation for classes [9,10,11,12] crashed with
+     * "Duplicate entry '76-2-draft' for key
+     * timetable_slots_teacher_bell_status_unique". Root cause: a draft
+     * TimetableSlot already existed for teacher 76 at that bell timing,
+     * for school_class_id=2 -- a class OUTSIDE the requested subset, so
+     * GenerateTimetableJob's own cleanup (which only clears drafts for the
+     * classes/academic_year being regenerated) never touches it, and
+     * GeneratorService had no way to know it existed: it only ever loads
+     * teacher/class state for the classes it was actually asked to solve.
+     * The solver happily "placed" the same teacher at the same bell timing
+     * in memory, and the very real INSERT then hit the DB's own unique
+     * constraint -- exactly the protection that constraint exists for.
+     *
+     * This reproduces that shape directly: Class B (outside the subset)
+     * already holds a draft slot for Teacher T at the only bell timing
+     * that exists; Class A (the one actually being generated) also needs
+     * Teacher T for one period. Before the fix, generate() has no idea
+     * Class B's row exists and reports this lesson placed -- which would
+     * crash at INSERT time exactly like staging did. After the fix, it
+     * must recognise the external commitment and report the lesson
+     * unplaced, never attempt to double-book Teacher T.
+     */
+    public function test_generation_never_places_a_teacher_over_an_existing_draft_slot_in_a_class_outside_the_requested_subset(): void
+    {
+        $year = 'T7-SUBSET-STALE';
+        [$onlySlot] = $this->makeGrid(['Monday'], 1, $year);
+
+        $classA = SchoolClass::create(['name' => 'Subset Class A', 'class_order' => 1, 'is_active' => true]);
+        $classB = SchoolClass::create(['name' => 'Outside Subset Class B', 'class_order' => 2, 'is_active' => true]);
+
+        $subjectA = Subject::create(['name' => 'Science', 'code' => 'SUBSET-SCI-T7']);
+        $subjectB = Subject::create(['name' => 'Maths', 'code' => 'SUBSET-MTH-T7']);
+        $sharedTeacher = Teacher::create(['name' => 'Shared Teacher', 'status' => 'active']);
+
+        // Class B's pre-existing draft commitment -- exactly like the
+        // orphaned staging row: not tied to any generation, and Class B is
+        // never passed into generate() below.
+        TimetableSlot::create([
+            'school_class_id' => $classB->id, 'bell_timing_id' => $onlySlot,
+            'subject_id' => $subjectB->id, 'teacher_id' => $sharedTeacher->id,
+            'status' => 'draft', 'academic_year' => $year,
+        ]);
+
+        TeacherClassSubjectAssignment::create([
+            'teacher_id' => $sharedTeacher->id, 'class_id' => $classA->id, 'subject_id' => $subjectA->id,
+            'periods_per_week' => 1, 'academic_year' => $year,
+        ]);
+
+        // Only Class A is requested -- Class B's existing commitment must
+        // still be respected even though it's outside this run entirely.
+        $result = (new GeneratorService())->generate($year, collect([$classA]));
+
+        $this->assertSame(0, $result['stats']['placed_lessons'], 'Teacher T must never be placed for Class A at the one bell timing Class B already holds them at -- that would crash the real INSERT on the DB unique constraint exactly like the staging incident did.');
+        $this->assertCount(1, $result['unplaced']);
+        $this->assertSame([], $result['placements']);
+    }
+
+    /**
+     * Companion to the test above, proving the fix is precise rather than
+     * a blanket "never place this teacher again": with a genuinely free
+     * alternative bell timing available, Teacher T's Class A lesson must
+     * still land there normally -- only the specific bell timing Class B
+     * already holds them at is off-limits.
+     */
+    public function test_generation_still_places_a_teacher_normally_around_an_unrelated_classs_existing_draft_slot(): void
+    {
+        $year = 'T7-SUBSET-STALE-FREE-ALT';
+        [$occupied, $free] = $this->makeGrid(['Monday'], 2, $year);
+
+        $classA = SchoolClass::create(['name' => 'Subset Class A Alt', 'class_order' => 1, 'is_active' => true]);
+        $classB = SchoolClass::create(['name' => 'Outside Subset Class B Alt', 'class_order' => 2, 'is_active' => true]);
+
+        $subjectA = Subject::create(['name' => 'Science', 'code' => 'SUBSETF-SCI-T7']);
+        $subjectB = Subject::create(['name' => 'Maths', 'code' => 'SUBSETF-MTH-T7']);
+        $sharedTeacher = Teacher::create(['name' => 'Shared Teacher Alt', 'status' => 'active']);
+
+        TimetableSlot::create([
+            'school_class_id' => $classB->id, 'bell_timing_id' => $occupied,
+            'subject_id' => $subjectB->id, 'teacher_id' => $sharedTeacher->id,
+            'status' => 'draft', 'academic_year' => $year,
+        ]);
+
+        TeacherClassSubjectAssignment::create([
+            'teacher_id' => $sharedTeacher->id, 'class_id' => $classA->id, 'subject_id' => $subjectA->id,
+            'periods_per_week' => 1, 'academic_year' => $year,
+        ]);
+
+        $result = (new GeneratorService())->generate($year, collect([$classA]));
+
+        $this->assertSame(0, $result['stats']['unplaced_lessons']);
+        $this->assertCount(1, $result['placements']);
+        $this->assertSame([$free], $result['placements'][0]['bell_timing_ids'], 'Teacher T must land on the genuinely free bell timing, not the one Class B already occupies.');
     }
 }
