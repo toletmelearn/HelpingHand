@@ -829,4 +829,116 @@ class TimetableAutoFixServiceTest extends TestCase
         $this->assertDatabaseMissing('activity_log', ['description' => 'timetable_autofix_chain_applied']);
         $this->assertDatabaseMissing('activity_log', ['description' => 'timetable_autofix_chain_placed']);
     }
+
+    /**
+     * Root-cause bug found this session: $placement can be blocked by TWO
+     * unrelated occupants at once -- one lesson blocking on teacher, a
+     * completely different lesson blocking on room. discoverChain() used to
+     * resolve only the FIRST blocker it found (teacher sorts ahead of room
+     * in TimetableConflictResolver::check()'s conflict list) and declare
+     * success immediately, never re-checking whether $placement was
+     * actually clean afterward. previewChainFix() would report "Found a
+     * fix!" while the room conflict was still completely untouched.
+     *
+     * This 2-period grid has exactly one free period for the blocker to
+     * move into -- not enough room for BOTH the teacher-blocker and the
+     * room-holder to relocate, so the correct, honest answer is "no fix
+     * found," not a false "fixed!". applyChainFix() already independently
+     * re-validates before writing (see the class docblock), so this never
+     * actually corrupted data -- only the preview was misleading. Verified
+     * to fail (ok:true) before the discoverChain() fix and pass after.
+     */
+    public function test_preview_chain_fix_reports_no_fix_when_a_second_unrelated_blocker_has_nowhere_to_go(): void
+    {
+        [$t1, $t2] = $this->makeLinearGrid(2);
+        $newClass = SchoolClass::create(['name' => 'New', 'class_order' => 1, 'is_active' => true]);
+        $blockerClass = SchoolClass::create(['name' => 'Blocker', 'class_order' => 2, 'is_active' => true]);
+        $roomHolderClass = SchoolClass::create(['name' => 'Room Holder', 'class_order' => 3, 'is_active' => true]);
+        $subject = Subject::create(['name' => 'Science', 'code' => 'AF' . uniqid()]);
+        $sharedTeacher = Teacher::create(['name' => 'Shared Teacher', 'status' => 'active']);
+        $roomHolderTeacher = Teacher::create(['name' => 'Room Holder Teacher', 'status' => 'active']);
+
+        // Blocks t1 for the shared teacher -- its only alternate, t2, is
+        // exactly what the room-holder below would also need.
+        $blocker = TimetableSlot::create([
+            'school_class_id' => $blockerClass->id, 'bell_timing_id' => $t1->id,
+            'subject_id' => $subject->id, 'teacher_id' => $sharedTeacher->id,
+        ]);
+
+        // An entirely unrelated lesson, different teacher, already sitting
+        // in the requested room at t1 -- moving the teacher-blocker away
+        // does nothing to free this.
+        TimetableSlot::create([
+            'school_class_id' => $roomHolderClass->id, 'bell_timing_id' => $t1->id,
+            'subject_id' => $subject->id, 'teacher_id' => $roomHolderTeacher->id, 'room_number' => 'Lab-1',
+        ]);
+
+        $newPlacement = [
+            'school_class_id' => $newClass->id, 'bell_timing_id' => $t1->id,
+            'teacher_id' => $sharedTeacher->id, 'subject_id' => $subject->id, 'room_number' => 'Lab-1',
+        ];
+
+        $preview = (new TimetableAutoFixService())->previewChainFix($newPlacement);
+
+        $this->assertFalse($preview['ok'], 'Only one of the two unrelated blockers can relocate within this 2-period grid -- the room conflict is genuinely unresolved and must be reported honestly, not as a false success.');
+
+        // And even if a caller tried to apply exactly the (incomplete)
+        // teacher-only move anyway, applyChainFix() must independently
+        // reject it too -- it must never trust a preview blindly.
+        $applied = (new TimetableAutoFixService())->applyChainFix($newPlacement, [
+            ['slot_id' => $blocker->id, 'to_bell_timing_id' => $t2->id],
+        ]);
+
+        $this->assertFalse($applied['applied']);
+        $this->assertSame($t1->id, $blocker->fresh()->bell_timing_id, 'A rejected chain must never leave the blocker relocated.');
+        $this->assertDatabaseMissing('timetable_slots', ['school_class_id' => $newClass->id, 'room_number' => 'Lab-1']);
+    }
+
+    /**
+     * Companion to the test above, proving the discoverChain() fix is a
+     * genuine capability, not just a stricter rejection: with a THIRD
+     * period available, both the teacher-blocker and the room-blocker have
+     * somewhere to go, and the chain-fix must find and report both moves,
+     * successfully resolving two simultaneous, unrelated blockers at once.
+     */
+    public function test_preview_chain_fix_resolves_two_simultaneous_unrelated_blockers_when_a_solution_exists(): void
+    {
+        [$t1, $t2, $t3] = $this->makeLinearGrid(3);
+        $newClass = SchoolClass::create(['name' => 'New', 'class_order' => 1, 'is_active' => true]);
+        $blockerClass = SchoolClass::create(['name' => 'Blocker', 'class_order' => 2, 'is_active' => true]);
+        $roomHolderClass = SchoolClass::create(['name' => 'Room Holder', 'class_order' => 3, 'is_active' => true]);
+        $subject = Subject::create(['name' => 'Science', 'code' => 'AF' . uniqid()]);
+        $sharedTeacher = Teacher::create(['name' => 'Shared Teacher', 'status' => 'active']);
+        $roomHolderTeacher = Teacher::create(['name' => 'Room Holder Teacher', 'status' => 'active']);
+
+        $blocker = TimetableSlot::create([
+            'school_class_id' => $blockerClass->id, 'bell_timing_id' => $t1->id,
+            'subject_id' => $subject->id, 'teacher_id' => $sharedTeacher->id,
+        ]);
+        $roomHolder = TimetableSlot::create([
+            'school_class_id' => $roomHolderClass->id, 'bell_timing_id' => $t1->id,
+            'subject_id' => $subject->id, 'teacher_id' => $roomHolderTeacher->id, 'room_number' => 'Lab-1',
+        ]);
+
+        $newPlacement = [
+            'school_class_id' => $newClass->id, 'bell_timing_id' => $t1->id,
+            'teacher_id' => $sharedTeacher->id, 'subject_id' => $subject->id, 'room_number' => 'Lab-1',
+        ];
+
+        $preview = (new TimetableAutoFixService())->previewChainFix($newPlacement);
+
+        $this->assertTrue($preview['ok'], 'With a genuinely free period for each blocker, both must be found and resolved.');
+        $this->assertCount(2, $preview['steps'], 'Both the teacher-blocker and the room-holder must be part of the reported fix.');
+        $movedSlotIds = collect($preview['steps'])->pluck('slot_id')->sort()->values()->all();
+        $this->assertSame([$blocker->id, $roomHolder->id], $movedSlotIds, 'The reported fix must move exactly these two lessons, nothing else.');
+
+        $steps = array_map(fn ($s) => ['slot_id' => $s['slot_id'], 'to_bell_timing_id' => $s['to_bell_timing_id']], $preview['steps']);
+        $applied = (new TimetableAutoFixService())->applyChainFix($newPlacement, $steps);
+
+        $this->assertTrue($applied['applied']);
+        $this->assertDatabaseHas('timetable_slots', ['school_class_id' => $newClass->id, 'bell_timing_id' => $t1->id, 'room_number' => 'Lab-1']);
+        $this->assertNotSame($t1->id, $blocker->fresh()->bell_timing_id);
+        $this->assertNotSame($t1->id, $roomHolder->fresh()->bell_timing_id);
+        $this->assertNotSame($blocker->fresh()->bell_timing_id, $roomHolder->fresh()->bell_timing_id, 'The two relocated blockers must not collide with each other either.');
+    }
 }

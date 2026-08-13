@@ -289,6 +289,107 @@ class TimetableConflictResolverTest extends TestCase
         $this->assertTrue($types->contains('room'));
     }
 
+    // --- Room safety pilot-completion pass: isolated room-only scenarios,
+    // exercising roomOverlapConflicts() on its own rather than only ever
+    // combined with a teacher/class clash as above. ---
+
+    public function test_same_room_at_an_overlapping_period_is_a_room_conflict_even_with_no_other_clash(): void
+    {
+        $class = $this->makeClass();
+        $otherClass = $this->makeClass();
+        $subject = Subject::create(['name' => 'Maths', 'code' => 'RM' . uniqid()]);
+        $teacher = Teacher::create(['name' => 'R Teacher', 'status' => 'active']);
+        $otherTeacher = Teacher::create(['name' => 'Other Teacher', 'status' => 'active']);
+        $timing = $this->makeTiming();
+
+        TimetableSlot::create([
+            'school_class_id' => $otherClass->id, 'bell_timing_id' => $timing->id,
+            'subject_id' => $subject->id, 'teacher_id' => $otherTeacher->id, 'room_number' => 'Lab-3A',
+        ]);
+
+        $result = (new TimetableConflictResolver())->check([
+            'school_class_id' => $class->id, 'bell_timing_id' => $timing->id,
+            'teacher_id' => $teacher->id, 'subject_id' => $subject->id, 'room_number' => 'Lab-3A',
+        ]);
+
+        $this->assertTrue($result['conflict']);
+        $this->assertSame('room', $result['type']);
+    }
+
+    public function test_same_room_at_a_different_non_overlapping_period_is_not_a_conflict(): void
+    {
+        $class = $this->makeClass();
+        $otherClass = $this->makeClass();
+        $subject = Subject::create(['name' => 'Maths', 'code' => 'RM' . uniqid()]);
+        $teacher = Teacher::create(['name' => 'R Teacher', 'status' => 'active']);
+        $otherTeacher = Teacher::create(['name' => 'Other Teacher', 'status' => 'active']);
+        $timing1 = $this->makeTiming(['period_name' => 'P1', 'order_index' => 1, 'start_time' => '08:00', 'end_time' => '08:45']);
+        $timing2 = $this->makeTiming(['period_name' => 'P2', 'order_index' => 2, 'start_time' => '08:45', 'end_time' => '09:30']);
+
+        TimetableSlot::create([
+            'school_class_id' => $otherClass->id, 'bell_timing_id' => $timing1->id,
+            'subject_id' => $subject->id, 'teacher_id' => $otherTeacher->id, 'room_number' => 'Lab-3A',
+        ]);
+
+        $result = (new TimetableConflictResolver())->check([
+            'school_class_id' => $class->id, 'bell_timing_id' => $timing2->id,
+            'teacher_id' => $teacher->id, 'subject_id' => $subject->id, 'room_number' => 'Lab-3A',
+        ]);
+
+        $this->assertFalse($result['conflict'], 'The same room at a genuinely different period must never conflict.');
+    }
+
+    public function test_different_rooms_at_the_same_period_is_not_a_room_conflict(): void
+    {
+        $class = $this->makeClass();
+        $otherClass = $this->makeClass();
+        $subject = Subject::create(['name' => 'Maths', 'code' => 'RM' . uniqid()]);
+        $teacher = Teacher::create(['name' => 'R Teacher', 'status' => 'active']);
+        $otherTeacher = Teacher::create(['name' => 'Other Teacher', 'status' => 'active']);
+        $timing = $this->makeTiming();
+
+        TimetableSlot::create([
+            'school_class_id' => $otherClass->id, 'bell_timing_id' => $timing->id,
+            'subject_id' => $subject->id, 'teacher_id' => $otherTeacher->id, 'room_number' => 'Lab-3A',
+        ]);
+
+        $result = (new TimetableConflictResolver())->check([
+            'school_class_id' => $class->id, 'bell_timing_id' => $timing->id,
+            'teacher_id' => $teacher->id, 'subject_id' => $subject->id, 'room_number' => 'Lab-9B',
+        ]);
+
+        $this->assertFalse($result['conflict'], 'Two different rooms at the same period must never conflict with each other.');
+    }
+
+    public function test_a_blank_room_never_produces_a_room_conflict(): void
+    {
+        $class = $this->makeClass();
+        $otherClass = $this->makeClass();
+        $subject = Subject::create(['name' => 'Maths', 'code' => 'RM' . uniqid()]);
+        $teacher = Teacher::create(['name' => 'R Teacher', 'status' => 'active']);
+        $otherTeacher = Teacher::create(['name' => 'Other Teacher', 'status' => 'active']);
+        $timing = $this->makeTiming();
+
+        // An existing slot with NO room set at all.
+        TimetableSlot::create([
+            'school_class_id' => $otherClass->id, 'bell_timing_id' => $timing->id,
+            'subject_id' => $subject->id, 'teacher_id' => $otherTeacher->id, 'room_number' => null,
+        ]);
+
+        $result = (new TimetableConflictResolver())->check([
+            'school_class_id' => $class->id, 'bell_timing_id' => $timing->id,
+            'teacher_id' => $teacher->id, 'subject_id' => $subject->id, 'room_number' => null,
+        ]);
+
+        // Genuinely no room type in the conflict list -- a blank room never
+        // participates in room-uniqueness at all (existing rooms in other
+        // schools' free-text data are frequently left blank, and treating
+        // two blank rooms as "the same room" would produce false positives
+        // school-wide).
+        $types = collect($result['conflicts'])->pluck('type');
+        $this->assertFalse($types->contains('room'), 'A blank room must never be treated as a room conflict.');
+    }
+
     /**
      * The exact scenario found live in this project's own dev database:
      * a retired/other-year bell timing (deactivated, e.g. leftover

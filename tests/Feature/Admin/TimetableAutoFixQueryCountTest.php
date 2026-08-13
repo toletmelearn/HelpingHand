@@ -33,10 +33,24 @@ use Tests\TestCase;
  * the FIRST candidate that works at each level rather than exhausting the
  * whole pool the way an unconstrained suggestion scan does; the search
  * only pays for candidates it actually tries, not the full ~30-period
- * pool. The ceiling below is that measurement plus a margin, exactly
- * mirroring TimetableSuggestionQueryCountTest's own approach. Do not
- * raise this ceiling to make a regression pass -- if a change pushes the
- * count up, that's the thing to investigate.
+ * pool.
+ *
+ * Room safety pilot-completion pass (2026-08): discoverChain() had a
+ * genuine correctness bug -- it resolved only the FIRST blocker found for
+ * a placement and declared success immediately, never re-checking whether
+ * a SECOND, unrelated blocker (e.g. a different lesson occupying the
+ * requested room) still occupied the target period. Fixed by looping to
+ * re-verify the full placement after each blocker is resolved, which costs
+ * one extra full TimetableConflictResolver::check() call per resolved
+ * blocker in the chain -- for this scenario's genuine two-hop chain, that
+ * raised the measured count from 62 to 84 queries. This is the necessary,
+ * one-time cost of the fix (see TimetableAutoFixServiceTest::
+ * test_preview_chain_fix_reports_no_fix_when_a_second_unrelated_blocker_has_nowhere_to_go
+ * and its companion success-case test), not an unbounded regression --
+ * the ceiling below is the new measurement plus the same margin as before.
+ * Do not raise this ceiling again without a similarly concrete,
+ * measured justification -- if a change pushes the count up without one,
+ * that's the thing to investigate.
  */
 class TimetableAutoFixQueryCountTest extends TestCase
 {
@@ -119,9 +133,9 @@ class TimetableAutoFixQueryCountTest extends TestCase
         // part of this hardening pass -- the search's own $budget/$depth
         // config already caps it from running away entirely.
         $this->assertLessThanOrEqual(
-            75,
+            95,
             $queryCount,
-            "autoFixPreviewChain (discoverChain) issued {$queryCount} queries for this scenario -- expected at or below the measured baseline ceiling (62, +margin). This likely means a per-candidate or per-recursion query was added."
+            "autoFixPreviewChain (discoverChain) issued {$queryCount} queries for this scenario -- expected at or below the measured baseline ceiling (84, +margin, post room-safety fix). This likely means a per-candidate or per-recursion query was added."
         );
     }
 }

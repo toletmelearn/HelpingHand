@@ -337,81 +337,108 @@ class TimetableAutoFixService
      */
     private function discoverChain(array $placement, int $depth, array &$movedSlotIds, array &$claimedBellTimingIds, int &$budget): ?array
     {
-        if ($budget <= 0) {
-            return null;
-        }
-        $budget--;
+        // Room safety pilot-completion pass: $placement can be blocked by
+        // more than one UNRELATED occupant at once (e.g. one lesson blocks
+        // it on teacher, a completely different lesson blocks it on room) --
+        // resolving the first blocker found is not enough on its own, so
+        // this loops, re-checking $placement after each successful
+        // relocation, until it's genuinely clean or nothing more can be
+        // moved. Previously this returned as soon as ONE blocker was
+        // resolved, regardless of whether $placement was actually legal
+        // yet -- previewChainFix() could report "found a fix" while a
+        // second, untouched blocker (of a different conflict type) still
+        // occupied the exact target period. applyChainFix() itself already
+        // independently re-validates the complete placement before writing
+        // anything (line ~274), so this never actually corrupted data --
+        // only the preview was misleadingly optimistic.
+        $allSteps = [];
 
-        $check = $this->resolver->check(array_merge($placement, ['ignore_slot_id' => $movedSlotIds]));
-        if (!$check['conflict']) {
-            return [];
-        }
-
-        if ($depth <= 0) {
-            return null;
-        }
-
-        $blockerId = null;
-        foreach ($check['conflicts'] as $conflict) {
-            if (!empty($conflict['blocking_slot_id']) && !in_array((int) $conflict['blocking_slot_id'], $movedSlotIds, true)) {
-                $blockerId = (int) $conflict['blocking_slot_id'];
-                break;
-            }
-        }
-
-        if (!$blockerId) {
-            return null; // constraint-only violation (load limit, subject-per-day, period type) -- no row to move.
-        }
-
-        $blocker = TimetableSlot::find($blockerId);
-        // Phase 5 (Locked Lessons): a locked slot is never a candidate to
-        // relocate -- the search simply treats it as an immovable wall and
-        // reports "no fix found" if nothing else can be moved instead,
-        // exactly like a combined-group or archived row already does.
-        if (!$blocker || $blocker->combined_class_group_id || $blocker->status === TimetableSlot::STATUS_ARCHIVED || $blocker->is_locked) {
-            return null;
-        }
-
-        $movedSlotIds[] = $blockerId;
-
-        $blockerPlacement = [
-            'school_class_id' => $blocker->school_class_id,
-            'section_id' => $blocker->section_id,
-            'teacher_id' => $blocker->teacher_id,
-            'co_teacher_id' => $blocker->co_teacher_id,
-            'subject_id' => $blocker->subject_id,
-            'room_number' => $blocker->room_number,
-            'status' => $blocker->status,
-            'academic_year' => $blocker->academic_year,
-        ];
-
-        foreach ($this->suggestions->candidatePeriodsFor($blockerPlacement) as $candidate) {
+        while (true) {
             if ($budget <= 0) {
-                break;
+                return null;
             }
-            $candidateId = (int) $candidate->id;
-            if ($candidateId === (int) $blocker->bell_timing_id || in_array($candidateId, $claimedBellTimingIds, true)) {
-                continue;
-            }
+            $budget--;
 
-            $claimedBellTimingIds[] = $candidateId;
-
-            $trial = array_merge($blockerPlacement, ['bell_timing_id' => $candidateId]);
-            $subMoves = $this->discoverChain($trial, $depth - 1, $movedSlotIds, $claimedBellTimingIds, $budget);
-
-            if ($subMoves !== null) {
-                $subMoves[] = ['slot_id' => $blockerId, 'to_bell_timing_id' => $candidateId, 'from_bell_timing_id' => (int) $blocker->bell_timing_id];
-
-                return $subMoves;
+            $check = $this->resolver->check(array_merge($placement, ['ignore_slot_id' => $movedSlotIds]));
+            if (!$check['conflict']) {
+                return $allSteps;
             }
 
-            array_pop($claimedBellTimingIds); // backtrack: this candidate didn't pan out.
+            if ($depth <= 0) {
+                return null;
+            }
+
+            $blockerId = null;
+            foreach ($check['conflicts'] as $conflict) {
+                if (!empty($conflict['blocking_slot_id']) && !in_array((int) $conflict['blocking_slot_id'], $movedSlotIds, true)) {
+                    $blockerId = (int) $conflict['blocking_slot_id'];
+                    break;
+                }
+            }
+
+            if (!$blockerId) {
+                return null; // constraint-only violation (load limit, subject-per-day, period type) -- no row to move.
+            }
+
+            $blocker = TimetableSlot::find($blockerId);
+            // Phase 5 (Locked Lessons): a locked slot is never a candidate to
+            // relocate -- the search simply treats it as an immovable wall and
+            // reports "no fix found" if nothing else can be moved instead,
+            // exactly like a combined-group or archived row already does.
+            if (!$blocker || $blocker->combined_class_group_id || $blocker->status === TimetableSlot::STATUS_ARCHIVED || $blocker->is_locked) {
+                return null;
+            }
+
+            $movedSlotIds[] = $blockerId;
+
+            $blockerPlacement = [
+                'school_class_id' => $blocker->school_class_id,
+                'section_id' => $blocker->section_id,
+                'teacher_id' => $blocker->teacher_id,
+                'co_teacher_id' => $blocker->co_teacher_id,
+                'subject_id' => $blocker->subject_id,
+                'room_number' => $blocker->room_number,
+                'status' => $blocker->status,
+                'academic_year' => $blocker->academic_year,
+            ];
+
+            $resolvedThisBlocker = false;
+
+            foreach ($this->suggestions->candidatePeriodsFor($blockerPlacement) as $candidate) {
+                if ($budget <= 0) {
+                    break;
+                }
+                $candidateId = (int) $candidate->id;
+                if ($candidateId === (int) $blocker->bell_timing_id || in_array($candidateId, $claimedBellTimingIds, true)) {
+                    continue;
+                }
+
+                $claimedBellTimingIds[] = $candidateId;
+
+                $trial = array_merge($blockerPlacement, ['bell_timing_id' => $candidateId]);
+                $subMoves = $this->discoverChain($trial, $depth - 1, $movedSlotIds, $claimedBellTimingIds, $budget);
+
+                if ($subMoves !== null) {
+                    $subMoves[] = ['slot_id' => $blockerId, 'to_bell_timing_id' => $candidateId, 'from_bell_timing_id' => (int) $blocker->bell_timing_id];
+                    $allSteps = array_merge($allSteps, $subMoves);
+                    $resolvedThisBlocker = true;
+                    break;
+                }
+
+                array_pop($claimedBellTimingIds); // backtrack: this candidate didn't pan out.
+            }
+
+            if (!$resolvedThisBlocker) {
+                // No candidate worked for this blocker within budget/depth -- back out of committing to move it.
+                array_splice($movedSlotIds, array_search($blockerId, $movedSlotIds, true), 1);
+
+                return null;
+            }
+
+            // This blocker is resolved -- loop back and re-check $placement:
+            // it may now be clean, or another, still-unrelated blocker may
+            // remain (e.g. the room conflict in the scenario above).
         }
-
-        // No candidate worked for this blocker within budget/depth -- back out of committing to move it.
-        array_splice($movedSlotIds, array_search($blockerId, $movedSlotIds, true), 1);
-
-        return null;
     }
 
     private function describeStep(array $step): array

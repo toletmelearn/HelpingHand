@@ -1275,4 +1275,108 @@ class GeneratorServiceTest extends TestCase
         $this->assertCount(1, $result['placements']);
         $this->assertSame([$free], $result['placements'][0]['bell_timing_ids'], 'Teacher T must land on the genuinely free bell timing, not the one Class B already occupies.');
     }
+
+    // --- Room safety pilot-completion pass -------------------------------
+
+    /**
+     * Room safety audit finding: GeneratorService never assigns a room to
+     * any freshly-placed lesson (teacher_class_subject_assignments has no
+     * room column, and buildLessons() never references room_number at all)
+     * -- the only room_number values that ever flow through generation are
+     * pre-existing PUBLISHED+LOCKED slots being carried forward verbatim
+     * (reserveLockedSlots()). This means the generator cannot invent a NEW
+     * room conflict: two freshly-placed lessons can never collide on room,
+     * because neither of them is ever given one. This test is a
+     * safe-by-construction guardrail -- if buildLessons() is ever extended
+     * to pull a room from somewhere (a future TCSA room column, say), this
+     * test's second assertion will start failing and force a real
+     * room-conflict check to be added at that point, rather than silently
+     * regressing.
+     *
+     * Room-conflict PREVENTION for every INTERACTIVE write path (manual
+     * Edit, Swap, Auto-Fix, Rebalance) already lives in
+     * TimetableConflictResolver::roomOverlapConflicts() -- see
+     * TimetableConflictResolverTest, TimetableSwapServiceTest,
+     * TimetableAutoFixServiceTest, TimetableRebalanceServiceTest.
+     */
+    public function test_generation_never_assigns_a_room_to_a_freshly_placed_lesson(): void
+    {
+        $year = 'T7-ROOM-SAFE';
+        $this->makeGrid(['Monday', 'Tuesday'], 3, $year);
+
+        $class = SchoolClass::create(['name' => 'Room Safe Class', 'class_order' => 1, 'is_active' => true]);
+        $subjectA = Subject::create(['name' => 'Maths', 'code' => 'ROOMSAFE-MTH-T7']);
+        $subjectB = Subject::create(['name' => 'Science', 'code' => 'ROOMSAFE-SCI-T7']);
+        $teacherA = Teacher::create(['name' => 'Maths Teacher', 'status' => 'active']);
+        $teacherB = Teacher::create(['name' => 'Science Teacher', 'status' => 'active']);
+
+        TeacherClassSubjectAssignment::create([
+            'teacher_id' => $teacherA->id, 'class_id' => $class->id, 'subject_id' => $subjectA->id,
+            'periods_per_week' => 2, 'academic_year' => $year,
+        ]);
+        TeacherClassSubjectAssignment::create([
+            'teacher_id' => $teacherB->id, 'class_id' => $class->id, 'subject_id' => $subjectB->id,
+            'periods_per_week' => 2, 'academic_year' => $year,
+        ]);
+
+        $result = (new GeneratorService())->generate($year, collect([$class]));
+
+        $this->assertSame(0, $result['stats']['unplaced_lessons']);
+        $this->assertNotEmpty($result['placements']);
+        foreach ($result['placements'] as $placement) {
+            $this->assertNull($placement['room_number'], 'A freshly-placed lesson (no locked-slot carry-forward involved) must never be assigned a room_number -- the generator has no room-assignment logic, so it must remain null, never invented.');
+        }
+    }
+
+    /**
+     * Companion: two DIFFERENT locked, published slots that both carry a
+     * real room -- at genuinely different periods -- must both survive
+     * regeneration with their own room untouched. This is the only
+     * room_number GeneratorService ever writes: a verbatim carry-forward,
+     * never a new assignment or a new conflict between them.
+     */
+    public function test_generation_preserves_distinct_rooms_on_two_different_locked_slots(): void
+    {
+        $year = 'T7-ROOM-SAFE-LOCKS';
+        [$mon, $tue] = $this->makeGrid(['Monday', 'Tuesday'], 1, $year);
+
+        $classA = SchoolClass::create(['name' => 'Locked Room Class A', 'class_order' => 1, 'is_active' => true]);
+        $classB = SchoolClass::create(['name' => 'Locked Room Class B', 'class_order' => 2, 'is_active' => true]);
+        $subject = Subject::create(['name' => 'Maths', 'code' => 'ROOMSAFE-LOCK-T7']);
+        $teacherA = Teacher::create(['name' => 'Teacher A', 'status' => 'active']);
+        $teacherB = Teacher::create(['name' => 'Teacher B', 'status' => 'active']);
+
+        TeacherClassSubjectAssignment::create([
+            'teacher_id' => $teacherA->id, 'class_id' => $classA->id, 'subject_id' => $subject->id,
+            'periods_per_week' => 1, 'academic_year' => $year,
+        ]);
+        TeacherClassSubjectAssignment::create([
+            'teacher_id' => $teacherB->id, 'class_id' => $classB->id, 'subject_id' => $subject->id,
+            'periods_per_week' => 1, 'academic_year' => $year,
+        ]);
+
+        \App\Models\TimetableSlot::create([
+            'school_class_id' => $classA->id, 'bell_timing_id' => $mon,
+            'subject_id' => $subject->id, 'teacher_id' => $teacherA->id,
+            'status' => 'published', 'academic_year' => $year, 'is_locked' => true,
+            'room_number' => 'Lab-1',
+        ]);
+        \App\Models\TimetableSlot::create([
+            'school_class_id' => $classB->id, 'bell_timing_id' => $tue,
+            'subject_id' => $subject->id, 'teacher_id' => $teacherB->id,
+            'status' => 'published', 'academic_year' => $year, 'is_locked' => true,
+            'room_number' => 'Lab-1',
+        ]);
+
+        $result = (new GeneratorService())->generate($year, collect([$classA, $classB]));
+
+        $this->assertSame(0, $result['stats']['unplaced_lessons']);
+        $this->assertCount(2, $result['placements']);
+
+        $placementA = collect($result['placements'])->firstWhere('school_class_id', $classA->id);
+        $placementB = collect($result['placements'])->firstWhere('school_class_id', $classB->id);
+        $this->assertSame('Lab-1', $placementA['room_number']);
+        $this->assertSame('Lab-1', $placementB['room_number']);
+        $this->assertNotSame($placementA['bell_timing_ids'], $placementB['bell_timing_ids'], 'Same room, genuinely different periods (Monday vs Tuesday) -- both pre-existing locks survive untouched, not a conflict.');
+    }
 }
