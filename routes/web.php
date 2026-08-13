@@ -1456,6 +1456,8 @@ Route::get('/admin/results/final-result/{studentId}/{examId}', [App\Http\Control
 
             // T5 item 1: today's periods (published timetable + substitutions)
             Route::get('/timetable/today', [App\Http\Controllers\Parent\TimetableController::class, 'today'])->name('timetable.today');
+            // Timetable pilot-completion pass (Phase 3): weekly companion.
+            Route::get('/timetable/weekly', [App\Http\Controllers\Parent\TimetableController::class, 'weekly'])->name('timetable.weekly');
         });
     });
     

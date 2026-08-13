@@ -7,8 +7,11 @@
     <div class="row">
         <div class="col-12">
             <div class="card">
-                <div class="card-header">
-                    <h4 class="card-title">Today's Periods -- {{ $date->format('l, d M Y') }}</h4>
+                <div class="card-header d-flex align-items-center justify-content-between">
+                    <h4 class="card-title mb-0">Today's Periods -- {{ $date->format('l, d M Y') }}</h4>
+                    <a href="{{ route('parent.timetable.weekly') }}" class="btn btn-outline-primary btn-sm">
+                        <i class="fas fa-calendar-week"></i> Weekly View
+                    </a>
                 </div>
                 <div class="card-body">
                     @if(!$student)
