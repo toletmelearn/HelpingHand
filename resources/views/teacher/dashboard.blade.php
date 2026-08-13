@@ -65,8 +65,11 @@ $relievingDuties = $relievingDuties ?? collect();
         <div class="row mb-4">
             <div class="col-12">
                 <div class="card">
-                    <div class="card-header bg-primary text-white">
+                    <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
                         <h5 class="mb-0"><i class="fas fa-calendar-day"></i> Today's Timetable ({{ now()->format('l') }})</h5>
+                        <a href="{{ route('teacher.timetable') }}" class="btn btn-sm btn-light">
+                            <i class="fas fa-calendar-week"></i> View Weekly Timetable
+                        </a>
                     </div>
                     <div class="card-body">
                         @if($todaysPeriods->isEmpty())

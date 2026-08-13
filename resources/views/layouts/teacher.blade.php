@@ -54,7 +54,13 @@
                             </a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link {{ request()->routeIs('teacher.classes.*') ? 'active' : '' }}" 
+                            <a class="nav-link {{ request()->routeIs('teacher.timetable') ? 'active' : '' }}"
+                               href="{{ route('teacher.timetable') }}">
+                                <i class="fas fa-calendar-week me-2"></i>My Timetable
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link {{ request()->routeIs('teacher.classes.*') ? 'active' : '' }}"
                                href="{{ route('teacher.classes') }}">
                                 <i class="fas fa-users me-2"></i>My Classes
                             </a>

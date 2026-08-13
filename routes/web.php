@@ -170,7 +170,13 @@ Route::prefix('teacher')->group(function () {
         
         Route::get('/dashboard', [App\Http\Controllers\Teacher\TeacherDashboardController::class, 'index'])
             ->name('teacher.dashboard');
-        
+
+        // Timetable pilot-completion pass (Phase 2): weekly view, alongside
+        // the dashboard's existing "today" card. No route parameter --
+        // always the authenticated teacher's own timetable.
+        Route::get('/timetable', [App\Http\Controllers\Teacher\TeacherTimetableController::class, 'index'])
+            ->name('teacher.timetable');
+
         // My Classes
         Route::get('/my-classes', [App\Http\Controllers\Teacher\TeacherClassController::class, 'index'])
             ->name('teacher.classes');
