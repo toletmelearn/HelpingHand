@@ -8,6 +8,7 @@ use App\Models\Role;
 use App\Models\SchoolClass;
 use App\Models\Subject;
 use App\Models\Teacher;
+use App\Models\TimetableGeneration;
 use App\Models\TimetableSlot;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -237,5 +238,182 @@ class TimetableAutoFixChainEndpointTest extends TestCase
         $this->assertDatabaseMissing('timetable_slots', ['school_class_id' => $newClass->id]);
         $this->assertDatabaseMissing('activity_log', ['description' => 'timetable_autofix_chain_applied']);
         $this->assertDatabaseMissing('activity_log', ['description' => 'timetable_autofix_chain_placed']);
+    }
+
+    // --- Issue #14: end-to-end wiring (Admin page -> controller -> service -> publish) ---
+
+    /**
+     * The complete Issue #14 path, exactly as a real admin reviewing a
+     * generation's draft would trigger it: preview and apply both carry
+     * the generation being reviewed, the created slot retains it, and --
+     * the actual real-world failure -- publishing that SAME generation
+     * through the real publish endpoint now promotes it to published,
+     * where it was previously left behind as an invisible orphaned draft.
+     */
+    public function test_auto_fix_created_slot_is_captured_by_publishing_the_generation_it_belongs_to(): void
+    {
+        [$t1, $t2] = $this->makeGrid(2);
+        $newClass = SchoolClass::create(['name' => 'New', 'class_order' => 1, 'is_active' => true]);
+        $blockerClass = SchoolClass::create(['name' => 'Blocker', 'class_order' => 2, 'is_active' => true]);
+        $subject = Subject::create(['name' => 'Science', 'code' => 'AFC' . uniqid()]);
+        $teacher = Teacher::create(['name' => 'Teacher', 'status' => 'active']);
+
+        // Draft, not published -- matches the real Issue #14 scenario:
+        // another lesson already sitting in the draft grid blocks the
+        // unplaced one, not an unrelated published row (draft/published
+        // are independent grids, so a published blocker wouldn't even be
+        // seen as a conflict against a draft placement).
+        $blocker = TimetableSlot::create(['school_class_id' => $blockerClass->id, 'bell_timing_id' => $t1->id, 'subject_id' => $subject->id, 'teacher_id' => $teacher->id, 'status' => TimetableSlot::STATUS_DRAFT]);
+
+        // The generation under review -- covers $newClass, exactly what
+        // draft review is resolving an unplaced lesson for.
+        $generation = TimetableGeneration::create([
+            'academic_year' => null,
+            'school_class_ids' => [$newClass->id],
+            'style' => 'rotating',
+            'status' => TimetableGeneration::STATUS_COMPLETED,
+            'placed_count' => 0,
+            'unplaced_count' => 1,
+        ]);
+
+        $admin = $this->admin();
+
+        $preview = $this->actingAs($admin)->getJson(route('timetable.auto-fix.preview-chain', [
+            'school_class_id' => $newClass->id, 'bell_timing_id' => $t1->id, 'teacher_id' => $teacher->id, 'subject_id' => $subject->id,
+            'status' => 'draft', 'timetable_generation_id' => $generation->id,
+        ]));
+        $preview->assertOk();
+        $preview->assertJson(['ok' => true]);
+        $steps = array_map(fn ($s) => ['slot_id' => $s['slot_id'], 'to_bell_timing_id' => $s['to_bell_timing_id']], $preview->json('steps'));
+
+        $apply = $this->actingAs($admin)->postJson(route('timetable.auto-fix.apply-chain'), [
+            'school_class_id' => $newClass->id, 'bell_timing_id' => $t1->id, 'teacher_id' => $teacher->id, 'subject_id' => $subject->id,
+            'status' => 'draft', 'timetable_generation_id' => $generation->id,
+            'steps' => $steps,
+        ]);
+        $apply->assertOk();
+        $apply->assertJson(['applied' => true]);
+
+        $newSlot = TimetableSlot::where('school_class_id', $newClass->id)->where('bell_timing_id', $t1->id)->first();
+        $this->assertNotNull($newSlot);
+        $this->assertSame('draft', $newSlot->status);
+        $this->assertSame($generation->id, $newSlot->timetable_generation_id, 'Issue #14 regression: the slot must carry the generation it was created to resolve.');
+
+        // The previous failure, reproduced exactly: publishing the SAME
+        // generation this slot belongs to must promote it. Before this
+        // wiring, this assertion is exactly what would have failed --
+        // the slot stayed draft, invisible to Teacher/Parent views.
+        $publish = $this->actingAs($admin)->post(route('timetable.generation.publish', $generation));
+        $publish->assertRedirect();
+
+        $this->assertSame('published', $newSlot->fresh()->status, 'Issue #14 regression: the Auto-Fix-created slot must be promoted by publishing its own generation.');
+    }
+
+    /**
+     * Security requirement: a client-supplied timetable_generation_id is
+     * never trusted on its own. A generation that genuinely exists but
+     * does NOT cover the class this request is placing a lesson into must
+     * be rejected outright -- reusing the same school_class_ids membership
+     * check viewGenerationReview() already applies -- not silently
+     * accepted and attached to the wrong generation's publish sweep.
+     */
+    public function test_apply_rejects_a_generation_id_that_does_not_cover_the_requested_class(): void
+    {
+        [$t1] = $this->makeGrid(1);
+        $newClass = SchoolClass::create(['name' => 'New', 'class_order' => 1, 'is_active' => true]);
+        $unrelatedClass = SchoolClass::create(['name' => 'Unrelated', 'class_order' => 2, 'is_active' => true]);
+        $subject = Subject::create(['name' => 'Science', 'code' => 'AFC' . uniqid()]);
+        $teacher = Teacher::create(['name' => 'Teacher', 'status' => 'active']);
+
+        // A real generation, but for a DIFFERENT class than the one this
+        // request is placing a lesson into.
+        $unrelatedGeneration = TimetableGeneration::create([
+            'academic_year' => null,
+            'school_class_ids' => [$unrelatedClass->id],
+            'style' => 'rotating',
+            'status' => TimetableGeneration::STATUS_COMPLETED,
+            'placed_count' => 0,
+            'unplaced_count' => 0,
+        ]);
+
+        $apply = $this->actingAs($this->admin())->postJson(route('timetable.auto-fix.apply-chain'), [
+            'school_class_id' => $newClass->id, 'bell_timing_id' => $t1->id, 'teacher_id' => $teacher->id, 'subject_id' => $subject->id,
+            'status' => 'draft', 'timetable_generation_id' => $unrelatedGeneration->id,
+            'steps' => [],
+        ]);
+
+        $apply->assertStatus(422);
+        $apply->assertJsonValidationErrors(['timetable_generation_id']);
+        $this->assertDatabaseMissing('timetable_slots', ['school_class_id' => $newClass->id]);
+    }
+
+    /** A wholly nonexistent generation id must be rejected the same ordinary way any other exists: rule failure already is. */
+    public function test_apply_rejects_a_generation_id_that_does_not_exist(): void
+    {
+        [$t1] = $this->makeGrid(1);
+        $newClass = SchoolClass::create(['name' => 'New', 'class_order' => 1, 'is_active' => true]);
+        $subject = Subject::create(['name' => 'Science', 'code' => 'AFC' . uniqid()]);
+        $teacher = Teacher::create(['name' => 'Teacher', 'status' => 'active']);
+
+        $apply = $this->actingAs($this->admin())->postJson(route('timetable.auto-fix.apply-chain'), [
+            'school_class_id' => $newClass->id, 'bell_timing_id' => $t1->id, 'teacher_id' => $teacher->id, 'subject_id' => $subject->id,
+            'timetable_generation_id' => 999999,
+            'steps' => [],
+        ]);
+
+        $apply->assertStatus(422);
+        $apply->assertJsonValidationErrors(['timetable_generation_id']);
+    }
+
+    /**
+     * Regression guard restated at the HTTP boundary: when the request
+     * genuinely carries no timetable_generation_id at all (the ordinary
+     * published-grid Auto-Fix case, exactly what the page sends when there
+     * is no active generation to review), the created slot's
+     * generation_id must be NULL -- never invented, never defaulted to
+     * some other generation.
+     */
+    public function test_apply_leaves_generation_id_null_when_the_request_supplies_none(): void
+    {
+        [$t1] = $this->makeGrid(1);
+        $newClass = SchoolClass::create(['name' => 'New', 'class_order' => 1, 'is_active' => true]);
+        $subject = Subject::create(['name' => 'Science', 'code' => 'AFC' . uniqid()]);
+        $teacher = Teacher::create(['name' => 'Teacher', 'status' => 'active']);
+
+        $apply = $this->actingAs($this->admin())->postJson(route('timetable.auto-fix.apply-chain'), [
+            'school_class_id' => $newClass->id, 'bell_timing_id' => $t1->id, 'teacher_id' => $teacher->id, 'subject_id' => $subject->id,
+            'steps' => [],
+        ]);
+
+        $apply->assertOk();
+        $newSlot = TimetableSlot::where('school_class_id', $newClass->id)->where('bell_timing_id', $t1->id)->first();
+        $this->assertNotNull($newSlot);
+        $this->assertNull($newSlot->timetable_generation_id);
+    }
+
+    /**
+     * Same regression guard for the exact wire format the real page sends
+     * when there is no active generation: an explicit empty string (what
+     * @json($activeGeneration->id ?? null) ?? '' renders to in the blade),
+     * not an absent key -- must resolve to the same NULL, not a validation
+     * error and not an invented id.
+     */
+    public function test_apply_treats_an_empty_string_generation_id_the_same_as_absent(): void
+    {
+        [$t1] = $this->makeGrid(1);
+        $newClass = SchoolClass::create(['name' => 'New', 'class_order' => 1, 'is_active' => true]);
+        $subject = Subject::create(['name' => 'Science', 'code' => 'AFC' . uniqid()]);
+        $teacher = Teacher::create(['name' => 'Teacher', 'status' => 'active']);
+
+        $apply = $this->actingAs($this->admin())->postJson(route('timetable.auto-fix.apply-chain'), [
+            'school_class_id' => $newClass->id, 'bell_timing_id' => $t1->id, 'teacher_id' => $teacher->id, 'subject_id' => $subject->id,
+            'timetable_generation_id' => '',
+            'steps' => [],
+        ]);
+
+        $apply->assertOk();
+        $newSlot = TimetableSlot::where('school_class_id', $newClass->id)->where('bell_timing_id', $t1->id)->first();
+        $this->assertNotNull($newSlot);
+        $this->assertNull($newSlot->timetable_generation_id);
     }
 }

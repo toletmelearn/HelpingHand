@@ -1377,9 +1377,17 @@ class TimetableController extends Controller
             'subject_id' => 'nullable|exists:subjects,id',
             'room_number' => 'nullable|string|max:50',
             'status' => 'nullable|in:draft,published',
+            // Issue #14: the draft review grid's own active generation
+            // (present only when reviewing a specific generation's draft --
+            // never invented for the plain published-grid Auto-Fix case).
+            // Never trusted on the strength of the client alone: it must
+            // both exist and genuinely cover the requested class, the same
+            // ownership check viewGenerationReview() already applies to
+            // reviewing a generation at all.
+            'timetable_generation_id' => ['nullable', 'integer', 'exists:timetable_generations,id', $this->generationCoversClassRule($request)],
         ]);
 
-        $newPlacement = array_merge($validated, [
+        $newPlacement = array_merge($this->withoutNullGenerationId($validated), [
             'academic_year' => AcademicSession::current()->first()?->code,
         ]);
 
@@ -1412,16 +1420,60 @@ class TimetableController extends Controller
             'steps' => 'present|array',
             'steps.*.slot_id' => 'required_with:steps|integer|exists:timetable_slots,id',
             'steps.*.to_bell_timing_id' => 'required_with:steps|integer|exists:bell_timings,id',
+            // Issue #14: see autoFixPreviewChain() -- carries the draft
+            // review's own generation id through so the slot this creates
+            // is captured by publishGeneration()'s generation-scoped
+            // promote sweep, instead of staying an orphaned draft forever.
+            'timetable_generation_id' => ['nullable', 'integer', 'exists:timetable_generations,id', $this->generationCoversClassRule($request)],
         ]);
 
         $newPlacement = array_merge(
-            collect($validated)->except('steps')->all(),
+            collect($this->withoutNullGenerationId($validated))->except('steps')->all(),
             ['academic_year' => AcademicSession::current()->first()?->code]
         );
 
         $result = (new TimetableAutoFixService())->applyChainFix($newPlacement, $validated['steps']);
 
         return response()->json($result, $result['applied'] ? 200 : 422);
+    }
+
+    /**
+     * Issue #14 wiring: a client-supplied timetable_generation_id is never
+     * trusted on its own -- it must name a generation that genuinely
+     * covers the class this Auto-Fix request is placing a lesson into,
+     * reusing the exact same TimetableGeneration::school_class_ids
+     * membership check TimetableSlotPolicy::viewGenerationReview() already
+     * applies to reviewing a generation at all, rather than inventing a
+     * new authorization rule.
+     */
+    private function generationCoversClassRule(Request $request): \Closure
+    {
+        return function (string $attribute, mixed $value, \Closure $fail) use ($request): void {
+            $generation = TimetableGeneration::find($value);
+            $schoolClassId = (int) $request->input('school_class_id');
+
+            if (!$generation || !in_array($schoolClassId, $generation->school_class_ids ?? [], true)) {
+                $fail('This generation does not cover the selected class.');
+            }
+        };
+    }
+
+    /**
+     * A client that has no active generation to review (the ordinary
+     * published-grid Auto-Fix case) sends timetable_generation_id as an
+     * explicit JSON null, not an absent key -- dropping it here keeps that
+     * indistinguishable from "never supplied" by the time it reaches
+     * TimetableAutoFixService, so an updateOrCreate() match against an
+     * existing row can never have its real generation_id overwritten with
+     * a null the client only sent because it had nothing to report.
+     */
+    private function withoutNullGenerationId(array $validated): array
+    {
+        if (($validated['timetable_generation_id'] ?? null) === null) {
+            unset($validated['timetable_generation_id']);
+        }
+
+        return $validated;
     }
 
     /**

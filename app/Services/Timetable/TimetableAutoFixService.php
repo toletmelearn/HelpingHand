@@ -108,6 +108,21 @@ class TimetableAutoFixService
 
                 $blocker->update(['bell_timing_id' => $blockerNewBellTimingId]);
 
+                // Issue #14: a slot Auto-Fix creates while resolving an
+                // unplaced lesson from a specific generation's draft review
+                // must carry that generation's id through, or
+                // publishGeneration()'s generation-scoped promote sweep
+                // silently never reaches it -- the admin sees "scheduled",
+                // the row stays draft forever. Only carried through when the
+                // caller actually supplied one (never invented here), and
+                // only added to the write when present so an update-path
+                // match (an already-existing row) never gets its real
+                // generation_id silently nulled out by an omission.
+                $newPlacementValues = $newPlacement;
+                if (array_key_exists('timetable_generation_id', $newPlacement)) {
+                    $newPlacementValues['timetable_generation_id'] = $newPlacement['timetable_generation_id'];
+                }
+
                 TimetableSlot::updateOrCreate(
                     [
                         'school_class_id' => $newPlacement['school_class_id'],
@@ -115,7 +130,7 @@ class TimetableAutoFixService
                         'bell_timing_id' => $newPlacement['bell_timing_id'],
                         'status' => $newPlacement['status'] ?? TimetableSlot::STATUS_PUBLISHED,
                     ],
-                    array_merge($newPlacement, ['status' => $newPlacement['status'] ?? TimetableSlot::STATUS_PUBLISHED])
+                    array_merge($newPlacementValues, ['status' => $newPlacement['status'] ?? TimetableSlot::STATUS_PUBLISHED])
                 );
 
                 activity()->causedBy(Auth::user())->performedOn($blocker)
@@ -283,6 +298,18 @@ class TimetableAutoFixService
                 $slot->update(['bell_timing_id' => (int) $step['to_bell_timing_id']]);
             }
 
+            // Issue #14: see the identical guard in applyBlockerRelocation()
+            // above -- carries timetable_generation_id through only when the
+            // caller actually supplied one, so a chain-fixed placement stays
+            // linked to the generation it was resolving an unplaced lesson
+            // for (publishGeneration()'s promote sweep is generation-scoped),
+            // without ever inventing a value or risking clobbering an
+            // existing row's generation_id on the update-path match.
+            $newPlacementValues = $newPlacement;
+            if (array_key_exists('timetable_generation_id', $newPlacement)) {
+                $newPlacementValues['timetable_generation_id'] = $newPlacement['timetable_generation_id'];
+            }
+
             $newSlot = TimetableSlot::updateOrCreate(
                 [
                     'school_class_id' => $newPlacement['school_class_id'],
@@ -290,7 +317,7 @@ class TimetableAutoFixService
                     'bell_timing_id' => $rootBellTimingId,
                     'status' => $newPlacement['status'] ?? TimetableSlot::STATUS_PUBLISHED,
                 ],
-                array_merge($newPlacement, ['status' => $newPlacement['status'] ?? TimetableSlot::STATUS_PUBLISHED])
+                array_merge($newPlacementValues, ['status' => $newPlacement['status'] ?? TimetableSlot::STATUS_PUBLISHED])
             );
 
             foreach ($steps as $step) {

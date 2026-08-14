@@ -991,6 +991,16 @@
             // conflict against draft data would be silently missed. Same
             // hidden-state pattern triggerConflictCheck() already uses.
             status: @json($view ?? 'published'),
+            // Issue #14: the generation this draft review is FOR (absent/''
+            // on the plain published grid, where there is no active
+            // generation at all) -- without this, a lesson Auto-Fix places
+            // while resolving this generation's unplaced lessons is never
+            // captured by Publish's generation-scoped promote sweep, and
+            // stays a permanently invisible draft. Same empty-string-not-
+            // literal-"null" guard as section_id above: openAutoFixPreview()
+            // sends these fields via URLSearchParams, which would otherwise
+            // stringify a JS null into the literal text "null".
+            timetable_generation_id: @json($activeGeneration->id ?? null) ?? '',
         };
     }
 

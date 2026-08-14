@@ -8,6 +8,7 @@ use App\Models\CombinedClassGroup;
 use App\Models\SchoolClass;
 use App\Models\Subject;
 use App\Models\Teacher;
+use App\Models\TimetableGeneration;
 use App\Models\TimetableSlot;
 use App\Services\Timetable\TimetableAutoFixService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -940,5 +941,151 @@ class TimetableAutoFixServiceTest extends TestCase
         $this->assertNotSame($t1->id, $blocker->fresh()->bell_timing_id);
         $this->assertNotSame($t1->id, $roomHolder->fresh()->bell_timing_id);
         $this->assertNotSame($blocker->fresh()->bell_timing_id, $roomHolder->fresh()->bell_timing_id, 'The two relocated blockers must not collide with each other either.');
+    }
+
+    // --- Issue #14: Auto-Fix-created slots must carry the generation they belong to ---
+
+    /**
+     * The exact Issue #14 scenario: an admin reviewing a specific
+     * generation's draft (unplaced lessons still to resolve) uses chain
+     * Auto-Fix to place one. Before this fix, the new slot was created with
+     * a NULL timetable_generation_id, so publishGeneration()'s
+     * generation-scoped promote sweep (TimetableSlot::draft()->where(
+     * 'timetable_generation_id', $generation->id)) never reached it -- the
+     * admin saw "your lesson is now scheduled", but the row stayed draft
+     * forever, invisible to every Teacher/Parent published-timetable view.
+     * This proves the created slot both retains the supplied generation_id
+     * AND is genuinely captured by that exact publish-sweep query shape.
+     */
+    public function test_apply_chain_fix_preserves_a_supplied_generation_id_so_the_slot_is_captured_by_the_publish_sweep(): void
+    {
+        [$t1, $t2] = $this->makeLinearGrid(2, '2026-2027');
+        $newClass = SchoolClass::create(['name' => 'New', 'class_order' => 1, 'is_active' => true]);
+        $blockerClass = SchoolClass::create(['name' => 'Blocker', 'class_order' => 2, 'is_active' => true]);
+        $subject = Subject::create(['name' => 'Science', 'code' => 'AF' . uniqid()]);
+        $teacher = Teacher::create(['name' => 'Shared Teacher', 'status' => 'active']);
+
+        $generation = TimetableGeneration::create([
+            'academic_year' => '2026-2027',
+            'school_class_ids' => [$newClass->id],
+            'style' => 'rotating',
+            'status' => TimetableGeneration::STATUS_COMPLETED,
+            'placed_count' => 0,
+            'unplaced_count' => 1,
+        ]);
+
+        $blocker = TimetableSlot::create([
+            'school_class_id' => $blockerClass->id, 'bell_timing_id' => $t1->id,
+            'subject_id' => $subject->id, 'teacher_id' => $teacher->id,
+        ]);
+
+        // Exactly what the draft review grid's Auto-Fix payload carries
+        // once the generation id is threaded through: the unplaced
+        // lesson's own placement, tagged with the generation being
+        // reviewed, requested as a draft row (the review grid's own
+        // draft/published toggle state).
+        $newPlacement = [
+            'school_class_id' => $newClass->id, 'bell_timing_id' => $t1->id,
+            'teacher_id' => $teacher->id, 'subject_id' => $subject->id,
+            'status' => TimetableSlot::STATUS_DRAFT,
+            'timetable_generation_id' => $generation->id,
+        ];
+
+        $service = new TimetableAutoFixService();
+        $preview = $service->previewChainFix($newPlacement);
+        $this->assertTrue($preview['ok'], $preview['message']);
+        $steps = array_map(fn ($s) => ['slot_id' => $s['slot_id'], 'to_bell_timing_id' => $s['to_bell_timing_id']], $preview['steps']);
+
+        $applied = $service->applyChainFix($newPlacement, $steps);
+        $this->assertTrue($applied['applied'], $applied['message']);
+
+        $newSlot = TimetableSlot::where('school_class_id', $newClass->id)->where('bell_timing_id', $t1->id)->first();
+        $this->assertNotNull($newSlot, 'The new placement must have been created.');
+        $this->assertSame(TimetableSlot::STATUS_DRAFT, $newSlot->status);
+        $this->assertSame(
+            $generation->id,
+            $newSlot->timetable_generation_id,
+            'Regression guard for Issue #14: the created slot must carry the generation_id it was resolving an unplaced lesson for, not NULL.'
+        );
+
+        // The actual boundary that failed in production: publishGeneration()
+        // promotes exactly this query. Before the fix, this collection
+        // would NOT have contained the new slot at all.
+        $capturedByPublishSweep = TimetableSlot::draft()->where('timetable_generation_id', $generation->id)->pluck('id');
+        $this->assertTrue(
+            $capturedByPublishSweep->contains($newSlot->id),
+            'The Auto-Fix-created slot must be captured by the same generation-scoped query publishGeneration() uses to promote drafts to published.'
+        );
+    }
+
+    /** Same guard for the single-hop relocate path (applyBlockerRelocation), the other call site this fix touched. */
+    public function test_apply_blocker_relocation_preserves_a_supplied_generation_id(): void
+    {
+        $timings = $this->makeGrid();
+        $newClass = SchoolClass::create(['name' => 'New Class', 'class_order' => 1, 'is_active' => true]);
+        $blockerClass = SchoolClass::create(['name' => 'Blocker Class', 'class_order' => 2, 'is_active' => true]);
+        $subject = Subject::create(['name' => 'Science', 'code' => 'AF' . uniqid()]);
+        $sharedTeacher = Teacher::create(['name' => 'Shared Teacher', 'status' => 'active']);
+
+        $generation = TimetableGeneration::create([
+            'academic_year' => '2026-2027',
+            'school_class_ids' => [$newClass->id],
+            'style' => 'rotating',
+            'status' => TimetableGeneration::STATUS_COMPLETED,
+            'placed_count' => 0,
+            'unplaced_count' => 1,
+        ]);
+
+        $blocker = TimetableSlot::create([
+            'school_class_id' => $blockerClass->id, 'bell_timing_id' => $timings['Monday1']->id,
+            'subject_id' => $subject->id, 'teacher_id' => $sharedTeacher->id,
+        ]);
+
+        $newPlacement = [
+            'school_class_id' => $newClass->id,
+            'bell_timing_id' => $timings['Monday1']->id,
+            'teacher_id' => $sharedTeacher->id,
+            'subject_id' => $subject->id,
+            'status' => TimetableSlot::STATUS_DRAFT,
+            'timetable_generation_id' => $generation->id,
+        ];
+
+        $result = (new TimetableAutoFixService())->applyBlockerRelocation(
+            $newPlacement, $blocker->id, $timings['Monday2']->id
+        );
+
+        $this->assertTrue($result['applied']);
+        $newSlot = TimetableSlot::where('school_class_id', $newClass->id)->where('bell_timing_id', $timings['Monday1']->id)->first();
+        $this->assertNotNull($newSlot);
+        $this->assertSame($generation->id, $newSlot->timetable_generation_id);
+    }
+
+    /**
+     * The other half of "carry through when present, never invent a
+     * default": when the caller supplies no timetable_generation_id at
+     * all (every caller in production today, until the controller/view
+     * are wired to send one), the created slot must land on NULL -- not a
+     * guessed or fabricated generation id.
+     */
+    public function test_apply_chain_fix_leaves_generation_id_null_when_the_caller_supplies_none(): void
+    {
+        [$t1, $t2] = $this->makeLinearGrid(2);
+        $newClass = SchoolClass::create(['name' => 'New', 'class_order' => 1, 'is_active' => true]);
+        $blockerClass = SchoolClass::create(['name' => 'Blocker', 'class_order' => 2, 'is_active' => true]);
+        $subject = Subject::create(['name' => 'Science', 'code' => 'AF' . uniqid()]);
+        $teacher = Teacher::create(['name' => 'Shared Teacher', 'status' => 'active']);
+
+        $blocker = TimetableSlot::create(['school_class_id' => $blockerClass->id, 'bell_timing_id' => $t1->id, 'subject_id' => $subject->id, 'teacher_id' => $teacher->id]);
+
+        $newPlacement = ['school_class_id' => $newClass->id, 'bell_timing_id' => $t1->id, 'teacher_id' => $teacher->id, 'subject_id' => $subject->id];
+
+        $service = new TimetableAutoFixService();
+        $preview = $service->previewChainFix($newPlacement);
+        $steps = array_map(fn ($s) => ['slot_id' => $s['slot_id'], 'to_bell_timing_id' => $s['to_bell_timing_id']], $preview['steps']);
+        $applied = $service->applyChainFix($newPlacement, $steps);
+        $this->assertTrue($applied['applied']);
+
+        $newSlot = TimetableSlot::where('school_class_id', $newClass->id)->where('bell_timing_id', $t1->id)->first();
+        $this->assertNull($newSlot->timetable_generation_id, 'No generation_id was supplied -- none must be invented.');
     }
 }
