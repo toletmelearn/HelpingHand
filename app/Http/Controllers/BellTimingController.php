@@ -90,24 +90,23 @@ class BellTimingController extends Controller
             'color_code' => 'nullable|regex:/^#[0-9A-F]{6}$/i'
         ]);
 
-        // Check for time conflicts
+        // Check for time conflicts. Same fix as bulkCreate(): a strict-
+        // inequality overlap test (existing.start < new.end AND
+        // existing.end > new.start) instead of the previous inclusive
+        // whereBetween, so a period whose start_time exactly equals
+        // another period's end_time (a genuine back-to-back schedule) is
+        // no longer flagged as a false-positive conflict.
         $conflicts = BellTiming::where('day_of_week', $request->day_of_week)
                               ->where('class_section', $request->class_section)
-                              ->where(function($query) use ($request) {
-                                  $query->whereBetween('start_time', [$request->start_time, $request->end_time])
-                                        ->orWhereBetween('end_time', [$request->start_time, $request->end_time])
-                                        ->orWhere(function($q) use ($request) {
-                                            $q->where('start_time', '<=', $request->start_time)
-                                              ->where('end_time', '>=', $request->end_time);
-                                        });
-                              })
+                              ->where('start_time', '<', $request->end_time)
+                              ->where('end_time', '>', $request->start_time)
                               ->where('is_active', true)
                               ->get();
 
         if ($conflicts->count() > 0) {
-            return back()->withErrors(['time_conflict' => 'Time conflict detected with existing schedule: ' . 
-                                     $conflicts->first()->period_name . ' (' . 
-                                     $conflicts->first()->start_time . ' - ' . 
+            return back()->withErrors(['time_conflict' => 'Time conflict detected with existing schedule: ' .
+                                     $conflicts->first()->period_name . ' (' .
+                                     $conflicts->first()->start_time . ' - ' .
                                      $conflicts->first()->end_time . ')']);
         }
 
@@ -169,25 +168,20 @@ class BellTimingController extends Controller
             'color_code' => 'nullable|regex:/^#[0-9A-F]{6}$/i'
         ]);
 
-        // Check for time conflicts (excluding current record)
+        // Check for time conflicts (excluding current record). Same
+        // strict-inequality overlap fix as store()/bulkCreate().
         $conflicts = BellTiming::where('day_of_week', $request->day_of_week)
                               ->where('class_section', $request->class_section)
                               ->where('id', '!=', $bellTiming->id)
-                              ->where(function($query) use ($request) {
-                                  $query->whereBetween('start_time', [$request->start_time, $request->end_time])
-                                        ->orWhereBetween('end_time', [$request->start_time, $request->end_time])
-                                        ->orWhere(function($q) use ($request) {
-                                            $q->where('start_time', '<=', $request->start_time)
-                                              ->where('end_time', '>=', $request->end_time);
-                                        });
-                              })
+                              ->where('start_time', '<', $request->end_time)
+                              ->where('end_time', '>', $request->start_time)
                               ->where('is_active', true)
                               ->get();
 
         if ($conflicts->count() > 0) {
-            return back()->withErrors(['time_conflict' => 'Time conflict detected with existing schedule: ' . 
-                                     $conflicts->first()->period_name . ' (' . 
-                                     $conflicts->first()->start_time . ' - ' . 
+            return back()->withErrors(['time_conflict' => 'Time conflict detected with existing schedule: ' .
+                                     $conflicts->first()->period_name . ' (' .
+                                     $conflicts->first()->start_time . ' - ' .
                                      $conflicts->first()->end_time . ')']);
         }
 
