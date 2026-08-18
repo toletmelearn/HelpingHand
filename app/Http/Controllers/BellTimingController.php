@@ -303,17 +303,23 @@ class BellTimingController extends Controller
         foreach ($request->days as $day) {
             foreach ($request->periods as $index => $period) {
                 try {
-                    // Check for time conflicts
+                    // Check for time conflicts. UAT Step 5, Scenario 1: the
+                    // previous whereBetween-based check was inclusive on
+                    // both boundaries, so a period whose start_time exactly
+                    // equalled another period's end_time (a genuine
+                    // back-to-back schedule, e.g. 09:00-09:40 followed by
+                    // 09:40-10:20) was flagged as a false-positive conflict.
+                    // A single strict-inequality overlap test --
+                    // existing.start < new.end AND existing.end > new.start
+                    // -- is the standard interval-overlap condition: two
+                    // intervals that only touch at a boundary never satisfy
+                    // both strict inequalities, while any genuine overlap
+                    // (partial, identical, or one containing the other)
+                    // always does.
                     $conflicts = BellTiming::where('day_of_week', $day)
                                           ->where('class_section', $request->class_section)
-                                          ->where(function($query) use ($period) {
-                                              $query->whereBetween('start_time', [$period['start_time'], $period['end_time']])
-                                                    ->orWhereBetween('end_time', [$period['start_time'], $period['end_time']])
-                                                    ->orWhere(function($q) use ($period) {
-                                                        $q->where('start_time', '<=', $period['start_time'])
-                                                          ->where('end_time', '>=', $period['end_time']);
-                                                    });
-                                          })
+                                          ->where('start_time', '<', $period['end_time'])
+                                          ->where('end_time', '>', $period['start_time'])
                                           ->where('is_active', true)
                                           ->get();
 

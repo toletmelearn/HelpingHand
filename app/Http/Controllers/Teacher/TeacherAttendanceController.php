@@ -7,6 +7,7 @@ use App\Services\AttendanceService;
 use App\Services\AttendanceNotificationService;
 use App\Models\Student;
 use App\Models\SchoolClass;
+use App\Models\TeacherClassSubjectAssignment;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Carbon\Carbon;
@@ -66,9 +67,26 @@ class TeacherAttendanceController extends Controller
             return redirect()->back()->with('error', 'Teacher record not found.');
         }
         
-        // Verify teacher has access to this class
-        $this->authorize('markAttendance', [null, $classId]);
-        
+        // Verify teacher has access to this class. UAT Step 5, Scenario 31:
+        // AttendancePolicy::markAttendance() resolved the acting teacher via
+        // Teacher::where('user_id', Auth::user()->id) against the default
+        // 'web' guard -- but this route is only ever reached through the
+        // separate 'teacher' guard (TeacherAuth middleware above), so
+        // Auth::user() (web) is always null here and the Gate-based check
+        // denied every real teacher unconditionally. $teacher is already
+        // the correctly-resolved teacher-guard identity (line 63 above);
+        // authorize it directly against the same class-ownership record
+        // (TeacherClassSubjectAssignment) TimetableSlotPolicy already uses
+        // for the equivalent check elsewhere, instead of going through the
+        // web-guard-only Gate.
+        $hasAccess = TeacherClassSubjectAssignment::where('teacher_id', $teacher->id)
+            ->where('class_id', $classId)
+            ->exists();
+
+        if (!$hasAccess) {
+            abort(403, 'You are not assigned to this class.');
+        }
+
         $schoolClass = SchoolClass::findOrFail($classId);
         $students = Student::where('class_id', $classId)->get();
         $today = Carbon::today();

@@ -83,6 +83,7 @@ $relievingDuties = $relievingDuties ?? collect();
                                             <th>Time</th>
                                             <th>Class</th>
                                             <th>Subject</th>
+                                            <th>Arrangement</th>
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -92,6 +93,13 @@ $relievingDuties = $relievingDuties ?? collect();
                                                 <td>{{ optional($period->bellTiming->start_time)->format('H:i') }} - {{ optional($period->bellTiming->end_time)->format('H:i') }}</td>
                                                 <td>{{ $period->schoolClass->name ?? '' }}{{ $period->section ? ' - ' . $period->section->name : '' }}</td>
                                                 <td>{{ $period->subject->name ?? '' }}</td>
+                                                <td>
+                                                    @if($period->arrangement)
+                                                        <span class="badge bg-warning text-dark">Covered by {{ $period->arrangement->substituteTeacher->name ?? 'N/A' }}</span>
+                                                    @else
+                                                        &mdash;
+                                                    @endif
+                                                </td>
                                             </tr>
                                         @endforeach
                                     </tbody>

@@ -72,40 +72,48 @@
                 </div>
             </div>
         @endforeach
+    @endif
 
-        @if($coveringAssignments->isNotEmpty())
-            <div class="card mb-4 border-info">
-                <div class="card-header bg-info text-white">
-                    <h5 class="mb-0"><i class="fas fa-people-arrows"></i> Additional Covering Assignments This Week</h5>
-                </div>
-                <div class="card-body p-0">
-                    <div class="table-responsive">
-                        <table class="table table-sm table-hover mb-0">
-                            <thead>
+    {{-- UAT Step 5, Scenario 16: this card was previously nested inside the
+         @else branch above, so a substitute-only teacher (covering duty
+         but no regular timetable of their own, count($days) === 0) fell
+         into the "No published timetable" empty state and never saw it,
+         even though $coveringAssignments was correctly populated by the
+         controller. Moved out here so it renders whenever there's
+         something to show, independent of whether the teacher has a
+         regular weekly grid. --}}
+    @if($teacher && isset($coveringAssignments) && $coveringAssignments->isNotEmpty())
+        <div class="card mb-4 border-info">
+            <div class="card-header bg-info text-white">
+                <h5 class="mb-0"><i class="fas fa-people-arrows"></i> Additional Covering Assignments This Week</h5>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-sm table-hover mb-0">
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>Period</th>
+                                <th>Class</th>
+                                <th>Subject</th>
+                                <th>Covering For</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach($coveringAssignments as $assignment)
                                 <tr>
-                                    <th>Date</th>
-                                    <th>Period</th>
-                                    <th>Class</th>
-                                    <th>Subject</th>
-                                    <th>Covering For</th>
+                                    <td>{{ $assignment->substitution_date->format('D, M j') }}</td>
+                                    <td>{{ $assignment->bellTiming->period_name ?? $assignment->period_name }}</td>
+                                    <td>{{ $assignment->class->name ?? '' }}{{ $assignment->section ? ' - ' . $assignment->section->name : '' }}</td>
+                                    <td>{{ $assignment->subject->name ?? '' }}</td>
+                                    <td>{{ $assignment->absentTeacher->name ?? '' }}</td>
                                 </tr>
-                            </thead>
-                            <tbody>
-                                @foreach($coveringAssignments as $assignment)
-                                    <tr>
-                                        <td>{{ $assignment->substitution_date->format('D, M j') }}</td>
-                                        <td>{{ $assignment->bellTiming->period_name ?? $assignment->period_name }}</td>
-                                        <td>{{ $assignment->class->name ?? '' }}{{ $assignment->section ? ' - ' . $assignment->section->name : '' }}</td>
-                                        <td>{{ $assignment->subject->name ?? '' }}</td>
-                                        <td>{{ $assignment->absentTeacher->name ?? '' }}</td>
-                                    </tr>
-                                @endforeach
-                            </tbody>
-                        </table>
-                    </div>
+                            @endforeach
+                        </tbody>
+                    </table>
                 </div>
             </div>
-        @endif
+        </div>
     @endif
 </div>
 @endsection

@@ -191,12 +191,23 @@ class TeacherDashboardController extends Controller
      * co-teacher -- published slots only, same shape and same "published
      * is the only version anyone outside draft review ever sees" rule
      * every other timetable reader in the app follows.
+     *
+     * UAT Step 5, Scenario 15: an absent-and-substituted teacher's own
+     * Today card showed zero acknowledgement of the substitution -- the
+     * query simply never fetched it. Mirrors the same
+     * date+bell_timing_id-keyed lookup TeacherTimetableController::index()
+     * already uses for the weekly view's "Covered by X" overlay, narrowed
+     * to today's date instead of the whole week, and attached as a dynamic
+     * ->arrangement property on the existing TimetableSlot rows so the
+     * view's current field access (bellTiming/schoolClass/subject) is
+     * untouched.
      */
     private function todaysPeriodsForTeacher(int $teacherId)
     {
         $dayOfWeek = now()->format('l');
+        $today = now()->toDateString();
 
-        return TimetableSlot::published()
+        $periods = TimetableSlot::published()
             ->where(fn ($q) => $q->where('teacher_id', $teacherId)->orWhere('co_teacher_id', $teacherId))
             ->whereHas('bellTiming', fn ($q) => $q->where('day_of_week', $dayOfWeek))
             ->with(['subject', 'schoolClass', 'section', 'bellTiming'])
@@ -204,5 +215,19 @@ class TeacherDashboardController extends Controller
             ->filter(fn (TimetableSlot $s) => $s->bellTiming !== null)
             ->sortBy(fn (TimetableSlot $s) => $s->bellTiming->order_index)
             ->values();
+
+        $arrangements = \App\Models\TeacherSubstitution::where('absent_teacher_id', $teacherId)
+            ->whereIn('bell_timing_id', $periods->pluck('bell_timing_id')->unique())
+            ->whereDate('substitution_date', $today)
+            ->where('status', '!=', 'cancelled')
+            ->with('substituteTeacher')
+            ->get()
+            ->keyBy('bell_timing_id');
+
+        $periods->each(function (TimetableSlot $period) use ($arrangements) {
+            $period->arrangement = $arrangements->get($period->bell_timing_id);
+        });
+
+        return $periods;
     }
 }
