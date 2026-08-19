@@ -29,6 +29,19 @@
     </style>
 </head>
 <body>
+    @php
+        // Restore whatever the user typed before a validation failure.
+        // Laravel already flashes `periods`/`days`/etc. to the session on a
+        // failed $request->validate() -- the only thing missing was the
+        // view actually reading it back. Falls back to a single blank
+        // period row on a genuinely fresh visit, matching prior behavior.
+        $oldPeriods = old('periods', []);
+        if (empty($oldPeriods)) {
+            $oldPeriods = [1 => ['order_index' => 1]];
+        }
+        $maxPeriodIndex = max(array_keys($oldPeriods));
+        $oldDays = old('days', []);
+    @endphp
     <div class="container mt-4">
         <div class="d-flex justify-content-between align-items-center mb-4">
             <h1><i class="bi bi-file-earmark-plus"></i> Bulk Create Bell Timings</h1>
@@ -81,10 +94,11 @@
                             <div class="row">
                                 @foreach($daysOfWeek as $day)
                                     <div class="col-md-4 mb-2">
-                                        <div class="form-check day-selector border p-3 rounded" 
+                                        <div class="form-check day-selector border p-3 rounded {{ in_array($day, $oldDays) ? 'selected' : '' }}"
                                              onclick="toggleDay(this, '{{ $day }}')">
-                                            <input type="checkbox" class="form-check-input d-none" 
-                                                   name="days[]" value="{{ $day }}" id="day_{{ $day }}">
+                                            <input type="checkbox" class="form-check-input d-none"
+                                                   name="days[]" value="{{ $day }}" id="day_{{ $day }}"
+                                                   {{ in_array($day, $oldDays) ? 'checked' : '' }}>
                                             <label class="form-check-label fw-bold mb-0" for="day_{{ $day }}">
                                                 <i class="bi bi-calendar-day"></i> {{ $day }}
                                             </label>
@@ -116,7 +130,7 @@
                                         <select class="form-select" id="class_section" name="class_section" required>
                                             <option value="">Select Class</option>
                                             @foreach($classSections as $section)
-                                                <option value="{{ $section }}">{{ $section }}</option>
+                                                <option value="{{ $section }}" {{ old('class_section') == $section ? 'selected' : '' }}>{{ $section }}</option>
                                             @endforeach
                                         </select>
                                     </div>
@@ -127,7 +141,7 @@
                                         <select class="form-select" id="academic_year" name="academic_year" required>
                                             <option value="">Select Year</option>
                                             @foreach($academicYears as $year)
-                                                <option value="{{ $year }}">{{ $year }}</option>
+                                                <option value="{{ $year }}" {{ old('academic_year') == $year ? 'selected' : '' }}>{{ $year }}</option>
                                             @endforeach
                                         </select>
                                     </div>
@@ -137,9 +151,9 @@
                                 <label for="semester" class="form-label">Semester</label>
                                 <select class="form-select" id="semester" name="semester">
                                     <option value="">Select Semester</option>
-                                    <option value="First">First</option>
-                                    <option value="Second">Second</option>
-                                    <option value="Third">Third</option>
+                                    <option value="First" {{ old('semester') == 'First' ? 'selected' : '' }}>First</option>
+                                    <option value="Second" {{ old('semester') == 'Second' ? 'selected' : '' }}>Second</option>
+                                    <option value="Third" {{ old('semester') == 'Third' ? 'selected' : '' }}>Third</option>
                                 </select>
                             </div>
                         </div>
@@ -155,7 +169,90 @@
                         </div>
                         <div class="card-body">
                             <div id="periodsContainer">
-                                <!-- Period rows will be added here dynamically -->
+                                @foreach($oldPeriods as $i => $p)
+                                    <div class="period-row" id="period_{{ $i }}">
+                                        <div class="row">
+                                            <div class="col-md-3">
+                                                <div class="mb-2">
+                                                    <label class="form-label">Period Name *</label>
+                                                    <input type="text" class="form-control @error('periods.'.$i.'.period_name') is-invalid @enderror"
+                                                           name="periods[{{ $i }}][period_name]"
+                                                           value="{{ $p['period_name'] ?? '' }}"
+                                                           placeholder="e.g., Period 1" required>
+                                                    @error('periods.'.$i.'.period_name')
+                                                        <div class="invalid-feedback">{{ $message }}</div>
+                                                    @enderror
+                                                </div>
+                                            </div>
+                                            <div class="col-md-2">
+                                                <div class="mb-2">
+                                                    <label class="form-label">Start Time *</label>
+                                                    <input type="time" class="form-control @error('periods.'.$i.'.start_time') is-invalid @enderror"
+                                                           name="periods[{{ $i }}][start_time]"
+                                                           value="{{ $p['start_time'] ?? '' }}" required>
+                                                    @error('periods.'.$i.'.start_time')
+                                                        <div class="invalid-feedback">{{ $message }}</div>
+                                                    @enderror
+                                                </div>
+                                            </div>
+                                            <div class="col-md-2">
+                                                <div class="mb-2">
+                                                    <label class="form-label">End Time *</label>
+                                                    <input type="time" class="form-control @error('periods.'.$i.'.end_time') is-invalid @enderror"
+                                                           name="periods[{{ $i }}][end_time]"
+                                                           value="{{ $p['end_time'] ?? '' }}" required>
+                                                    @error('periods.'.$i.'.end_time')
+                                                        <div class="invalid-feedback">{{ $message }}</div>
+                                                    @enderror
+                                                </div>
+                                            </div>
+                                            <div class="col-md-2">
+                                                <div class="mb-2">
+                                                    <label class="form-label">Order</label>
+                                                    <input type="number" class="form-control @error('periods.'.$i.'.order_index') is-invalid @enderror"
+                                                           name="periods[{{ $i }}][order_index]"
+                                                           value="{{ $p['order_index'] ?? $i }}" min="0">
+                                                    @error('periods.'.$i.'.order_index')
+                                                        <div class="invalid-feedback">{{ $message }}</div>
+                                                    @enderror
+                                                </div>
+                                            </div>
+                                            <div class="col-md-2">
+                                                <div class="mb-2">
+                                                    <label class="form-label">Type</label>
+                                                    <select class="form-select" name="periods[{{ $i }}][is_break]">
+                                                        <option value="0" {{ (string) ($p['is_break'] ?? '0') === '0' ? 'selected' : '' }}>Class</option>
+                                                        <option value="1" {{ (string) ($p['is_break'] ?? '0') === '1' ? 'selected' : '' }}>Break</option>
+                                                    </select>
+                                                </div>
+                                            </div>
+                                            <div class="col-md-1">
+                                                <div class="mb-2">
+                                                    <label class="form-label">&nbsp;</label>
+                                                    <button type="button" class="btn btn-danger btn-sm w-100" onclick="removePeriod({{ $i }})">
+                                                        <i class="bi bi-trash"></i>
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="row">
+                                            <div class="col-md-6">
+                                                <div class="mb-2">
+                                                    <label class="form-label">Custom Label</label>
+                                                    <input type="text" class="form-control" name="periods[{{ $i }}][custom_label]"
+                                                           value="{{ $p['custom_label'] ?? '' }}" placeholder="e.g., Math Period">
+                                                </div>
+                                            </div>
+                                            <div class="col-md-6">
+                                                <div class="mb-2">
+                                                    <label class="form-label">Color Code</label>
+                                                    <input type="color" class="form-control form-control-color"
+                                                           name="periods[{{ $i }}][color_code]" value="{{ $p['color_code'] ?? '#007bff' }}">
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                @endforeach
                             </div>
                             
                             <div class="mt-3">
@@ -223,7 +320,11 @@
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
-        let periodCounter = 0;
+        // Starts past the highest index already rendered server-side (from
+        // old('periods') on a validation-failure reload, or 1 for a fresh
+        // blank row) so a subsequent "Add Period" click never collides with
+        // a restored row's name="periods[N][...]" index.
+        let periodCounter = {{ $maxPeriodIndex }};
 
         function toggleDay(element, dayValue) {
             const checkbox = element.querySelector('input[type="checkbox"]');
@@ -453,9 +554,13 @@
             submitBtn.disabled = !(selectedDays.length > 0 && periodsCount > 0);
         }
 
-        // Initialize with one period
+        // Period rows are now rendered server-side (from old('periods'), or
+        // a single default blank row on a fresh visit) so a
+        // validation-failure reload no longer wipes out what the user
+        // already typed. Just sync the preview panel to whatever rows are
+        // already in the DOM.
         document.addEventListener('DOMContentLoaded', function() {
-            addPeriod();
+            updatePreview();
         });
 
         // Update preview when form changes
