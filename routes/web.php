@@ -458,8 +458,24 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/bell-timing/bulk-create', [App\Http\Controllers\BellTimingController::class, 'bulkCreate'])->name('bell-timing.bulk-create');
     Route::post('/bell-timing/bulk-create', [App\Http\Controllers\BellTimingController::class, 'bulkCreate'])->name('bell-timing.bulk-create.process');
     Route::get('/bell-timing/print/{classSection?}/{academicYear?}', [App\Http\Controllers\BellTimingController::class, 'printTimetable'])->name('bell-timing.print');
+    // Same literal-before-resource requirement as above: these two also sit
+    // under /bell-timing/... and must be registered before the resource's
+    // GET bell-timing/{bell_timing} show route.
+    Route::get('/bell-timing/save-as-template', [App\Http\Controllers\BellTimingTemplateController::class, 'saveAsTemplateForm'])->name('bell-timing.save-as-template');
+    Route::post('/bell-timing/save-as-template', [App\Http\Controllers\BellTimingTemplateController::class, 'saveAsTemplateStore'])->name('bell-timing.save-as-template.store');
     Route::resource('bell-timing', App\Http\Controllers\BellTimingController::class);
-    
+
+    // Bell Timing Templates -- a completely separate URL segment from
+    // /bell-timing/..., so no collision risk with the resource route above,
+    // but the same literal-before-resource discipline is kept anyway.
+    Route::get('/bell-timing-templates/{bellTimingTemplate}/apply', [App\Http\Controllers\BellTimingTemplateController::class, 'applyForm'])->name('bell-timing-templates.apply.form');
+    Route::post('/bell-timing-templates/{bellTimingTemplate}/apply/preview', [App\Http\Controllers\BellTimingTemplateController::class, 'applyPreview'])->name('bell-timing-templates.apply.preview');
+    Route::post('/bell-timing-templates/{bellTimingTemplate}/apply/confirm', [App\Http\Controllers\BellTimingTemplateController::class, 'applyConfirm'])->name('bell-timing-templates.apply.confirm');
+    Route::post('/bell-timing-templates/{bellTimingTemplate}/duplicate', [App\Http\Controllers\BellTimingTemplateController::class, 'duplicate'])->name('bell-timing-templates.duplicate');
+    Route::resource('bell-timing-templates', App\Http\Controllers\BellTimingTemplateController::class)
+        ->except(['show'])
+        ->parameters(['bell-timing-templates' => 'bellTimingTemplate']);
+
     // Removed legacy user-facing exam-papers routes. All routing is consolidated under Admin namespace.
     
     // (debug route removed)

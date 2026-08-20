@@ -48,6 +48,11 @@
                 <a href="{{ route('bell-timing.bulk-create') }}" class="btn btn-success">
                     <i class="bi bi-file-earmark-plus"></i> Bulk Create
                 </a>
+                @if(Route::has('bell-timing-templates.index') && Auth::user()->hasRole('admin'))
+                    <a href="{{ route('bell-timing-templates.index') }}" class="btn btn-outline-primary">
+                        <i class="bi bi-journals"></i> Templates
+                    </a>
+                @endif
             </div>
         </div>
 

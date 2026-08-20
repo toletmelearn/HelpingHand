@@ -47,6 +47,7 @@ class AuthServiceProvider extends ServiceProvider
         'App\Models\Syllabus' => 'App\Policies\SyllabusPolicy',
         'App\Models\DailyTeachingWork' => 'App\Policies\DailyTeachingWorkPolicy',
         'App\Models\BellTiming' => 'App\Policies\BellTimingPolicy',
+        'App\Models\BellTimingTemplate' => 'App\Policies\BellTimingTemplatePolicy',
         'App\Models\TimetableSlot' => 'App\Policies\TimetableSlotPolicy',
         'App\Models\AcademicEvent' => 'App\Policies\AcademicEventPolicy',
         'App\Models\StudentPromotionLog' => 'App\Policies\StudentPromotionPolicy',
