@@ -26,6 +26,30 @@
             color: white;
             border-color: #007bff !important;
         }
+        /* Time-format toggle: exactly one of these two widgets is visible per
+           time field, driven by [data-time-format] on <body>. The hidden
+           canonical input (always HH:mm, 24-hour) is the only thing actually
+           submitted -- both widgets just read/write it. */
+        /* !important needed: Bootstrap's .d-flex utility (used on both
+           widgets for their internal layout) is itself !important, so a
+           plain display:none here would never win against it. */
+        body:not([data-time-format="12"]) .time-input-12h { display: none !important; }
+        body[data-time-format="12"] .time-input-24h { display: none !important; }
+        .time-input-24h, .time-input-12h { flex-wrap: nowrap; }
+        .time-h, .time-m { width: 4.2em; text-align: center; }
+        .time-ampm { width: 5.5em; }
+        /* Bootstrap's .is-invalid adds a background-image (a red circled
+           exclamation icon) plus right-padding to make room for it. At
+           these narrow widths that icon completely overlaps the 1-2 digit
+           value, visually replacing it -- the number is still there and
+           still editable, it's just invisible. The red border alone is
+           already a clear enough invalid indicator here (the error message
+           is also shown directly below the field), so drop the icon/padding
+           for just these narrow inputs and keep the border. */
+        .time-h.is-invalid, .time-m.is-invalid, .time-ampm.is-invalid {
+            background-image: none !important;
+            padding-right: 0.5rem !important;
+        }
     </style>
 </head>
 <body>
@@ -41,6 +65,21 @@
         }
         $maxPeriodIndex = max(array_keys($oldPeriods));
         $oldDays = old('days', []);
+
+        // Splits a canonical "HH:mm" (24-hour) string into both the
+        // 24-hour and 12-hour representations the two widgets need. The
+        // canonical value itself never changes shape -- this is purely for
+        // pre-filling the visible controls on first render.
+        $splitTime = function (?string $hhmm) {
+            if (!$hhmm || !preg_match('/^(\d{1,2}):(\d{2})/', $hhmm, $m)) {
+                return ['h24' => '', 'm' => '', 'h12' => '', 'ampm' => 'AM'];
+            }
+            $h = (int) $m[1];
+            $min = (int) $m[2];
+            $h12 = ($h % 12) ?: 12;
+            $ampm = $h < 12 ? 'AM' : 'PM';
+            return ['h24' => $h, 'm' => $min, 'h12' => $h12, 'ampm' => $ampm];
+        };
     @endphp
     <div class="container mt-4">
         <div class="d-flex justify-content-between align-items-center mb-4">
@@ -48,6 +87,21 @@
             <a href="{{ route('bell-timing.index') }}" class="btn btn-secondary">
                 <i class="bi bi-arrow-left"></i> Back to List
             </a>
+        </div>
+
+        <!-- Time Format -->
+        <div class="card mb-4">
+            <div class="card-body py-2 d-flex align-items-center gap-3 flex-wrap">
+                <strong><i class="bi bi-clock"></i> Time Format</strong>
+                <div class="btn-group" role="group" aria-label="Time format">
+                    <input type="radio" class="btn-check" name="time_format_ui" id="fmt24" autocomplete="off" value="24">
+                    <label class="btn btn-outline-primary btn-sm" for="fmt24">24 Hour</label>
+
+                    <input type="radio" class="btn-check" name="time_format_ui" id="fmt12" autocomplete="off" value="12">
+                    <label class="btn btn-outline-primary btn-sm" for="fmt12">12 Hour (AM/PM)</label>
+                </div>
+                <span class="small text-muted">Switching format converts your entered times -- nothing is lost.</span>
+            </div>
         </div>
 
         <!-- Flash Messages -->
@@ -82,7 +136,7 @@
 
         <form action="{{ route('bell-timing.bulk-create') }}" method="POST" id="bulkForm">
             @csrf
-            
+
             <div class="row">
                 <div class="col-md-8">
                     <!-- Days Selection -->
@@ -170,6 +224,10 @@
                         <div class="card-body">
                             <div id="periodsContainer">
                                 @foreach($oldPeriods as $i => $p)
+                                    @php
+                                        $st = $splitTime($p['start_time'] ?? null);
+                                        $et = $splitTime($p['end_time'] ?? null);
+                                    @endphp
                                     <div class="period-row" id="period_{{ $i }}">
                                         <div class="row">
                                             <div class="col-md-3">
@@ -184,25 +242,53 @@
                                                     @enderror
                                                 </div>
                                             </div>
-                                            <div class="col-md-2">
-                                                <div class="mb-2">
+                                            <div class="col-md-3">
+                                                <div class="mb-2 time-field-wrap">
                                                     <label class="form-label">Start Time *</label>
-                                                    <input type="time" class="form-control @error('periods.'.$i.'.start_time') is-invalid @enderror"
-                                                           name="periods[{{ $i }}][start_time]"
-                                                           value="{{ $p['start_time'] ?? '' }}" required>
+                                                    <input type="hidden" name="periods[{{ $i }}][start_time]"
+                                                           class="time-canonical @error('periods.'.$i.'.start_time') is-invalid @enderror"
+                                                           value="{{ $p['start_time'] ?? '' }}">
+                                                    <div class="time-input-24h d-flex align-items-center gap-1">
+                                                        <input type="number" class="form-control form-control-sm time-h @error('periods.'.$i.'.start_time') is-invalid @enderror" min="0" max="23" placeholder="HH" value="{{ $st['h24'] }}">
+                                                        <span>:</span>
+                                                        <input type="number" class="form-control form-control-sm time-m @error('periods.'.$i.'.start_time') is-invalid @enderror" min="0" max="59" placeholder="MM" value="{{ $st['m'] }}">
+                                                    </div>
+                                                    <div class="time-input-12h d-flex align-items-center gap-1">
+                                                        <input type="number" class="form-control form-control-sm time-h @error('periods.'.$i.'.start_time') is-invalid @enderror" min="1" max="12" placeholder="HH" value="{{ $st['h12'] }}">
+                                                        <span>:</span>
+                                                        <input type="number" class="form-control form-control-sm time-m @error('periods.'.$i.'.start_time') is-invalid @enderror" min="0" max="59" placeholder="MM" value="{{ $st['m'] }}">
+                                                        <select class="form-select form-select-sm time-ampm">
+                                                            <option value="AM" {{ $st['ampm'] == 'AM' ? 'selected' : '' }}>AM</option>
+                                                            <option value="PM" {{ $st['ampm'] == 'PM' ? 'selected' : '' }}>PM</option>
+                                                        </select>
+                                                    </div>
                                                     @error('periods.'.$i.'.start_time')
-                                                        <div class="invalid-feedback">{{ $message }}</div>
+                                                        <div class="invalid-feedback d-block">{{ $message }}</div>
                                                     @enderror
                                                 </div>
                                             </div>
-                                            <div class="col-md-2">
-                                                <div class="mb-2">
+                                            <div class="col-md-3">
+                                                <div class="mb-2 time-field-wrap">
                                                     <label class="form-label">End Time *</label>
-                                                    <input type="time" class="form-control @error('periods.'.$i.'.end_time') is-invalid @enderror"
-                                                           name="periods[{{ $i }}][end_time]"
-                                                           value="{{ $p['end_time'] ?? '' }}" required>
+                                                    <input type="hidden" name="periods[{{ $i }}][end_time]"
+                                                           class="time-canonical @error('periods.'.$i.'.end_time') is-invalid @enderror"
+                                                           value="{{ $p['end_time'] ?? '' }}">
+                                                    <div class="time-input-24h d-flex align-items-center gap-1">
+                                                        <input type="number" class="form-control form-control-sm time-h @error('periods.'.$i.'.end_time') is-invalid @enderror" min="0" max="23" placeholder="HH" value="{{ $et['h24'] }}">
+                                                        <span>:</span>
+                                                        <input type="number" class="form-control form-control-sm time-m @error('periods.'.$i.'.end_time') is-invalid @enderror" min="0" max="59" placeholder="MM" value="{{ $et['m'] }}">
+                                                    </div>
+                                                    <div class="time-input-12h d-flex align-items-center gap-1">
+                                                        <input type="number" class="form-control form-control-sm time-h @error('periods.'.$i.'.end_time') is-invalid @enderror" min="1" max="12" placeholder="HH" value="{{ $et['h12'] }}">
+                                                        <span>:</span>
+                                                        <input type="number" class="form-control form-control-sm time-m @error('periods.'.$i.'.end_time') is-invalid @enderror" min="0" max="59" placeholder="MM" value="{{ $et['m'] }}">
+                                                        <select class="form-select form-select-sm time-ampm">
+                                                            <option value="AM" {{ $et['ampm'] == 'AM' ? 'selected' : '' }}>AM</option>
+                                                            <option value="PM" {{ $et['ampm'] == 'PM' ? 'selected' : '' }}>PM</option>
+                                                        </select>
+                                                    </div>
                                                     @error('periods.'.$i.'.end_time')
-                                                        <div class="invalid-feedback">{{ $message }}</div>
+                                                        <div class="invalid-feedback d-block">{{ $message }}</div>
                                                     @enderror
                                                 </div>
                                             </div>
@@ -217,7 +303,7 @@
                                                     @enderror
                                                 </div>
                                             </div>
-                                            <div class="col-md-2">
+                                            <div class="col-md-1">
                                                 <div class="mb-2">
                                                     <label class="form-label">Type</label>
                                                     <select class="form-select" name="periods[{{ $i }}][is_break]">
@@ -226,35 +312,35 @@
                                                     </select>
                                                 </div>
                                             </div>
-                                            <div class="col-md-1">
-                                                <div class="mb-2">
-                                                    <label class="form-label">&nbsp;</label>
-                                                    <button type="button" class="btn btn-danger btn-sm w-100" onclick="removePeriod({{ $i }})">
-                                                        <i class="bi bi-trash"></i>
-                                                    </button>
-                                                </div>
-                                            </div>
                                         </div>
                                         <div class="row">
-                                            <div class="col-md-6">
+                                            <div class="col-md-5">
                                                 <div class="mb-2">
                                                     <label class="form-label">Custom Label</label>
                                                     <input type="text" class="form-control" name="periods[{{ $i }}][custom_label]"
                                                            value="{{ $p['custom_label'] ?? '' }}" placeholder="e.g., Math Period">
                                                 </div>
                                             </div>
-                                            <div class="col-md-6">
+                                            <div class="col-md-5">
                                                 <div class="mb-2">
                                                     <label class="form-label">Color Code</label>
                                                     <input type="color" class="form-control form-control-color"
                                                            name="periods[{{ $i }}][color_code]" value="{{ $p['color_code'] ?? '#007bff' }}">
                                                 </div>
                                             </div>
+                                            <div class="col-md-2">
+                                                <div class="mb-2">
+                                                    <label class="form-label">&nbsp;</label>
+                                                    <button type="button" class="btn btn-danger btn-sm w-100" onclick="removePeriod({{ $i }})">
+                                                        <i class="bi bi-trash"></i> Remove
+                                                    </button>
+                                                </div>
+                                            </div>
                                         </div>
                                     </div>
                                 @endforeach
                             </div>
-                            
+
                             <div class="mt-3">
                                 <button type="button" class="btn btn-outline-primary" onclick="addCommonPeriods()">
                                     <i class="bi bi-magic"></i> Add Common Schedule
@@ -326,13 +412,137 @@
         // a restored row's name="periods[N][...]" index.
         let periodCounter = {{ $maxPeriodIndex }};
 
+        // ---------------------------------------------------------------
+        // Time format (12-hour / 24-hour) support.
+        //
+        // The hidden `.time-canonical` input is the single source of truth
+        // -- always "HH:mm" 24-hour, exactly what's submitted and exactly
+        // what the backend already validates. The two visible widgets
+        // (.time-input-24h / .time-input-12h) are just alternate ways to
+        // read and write that same value; only one is ever visible at a
+        // time, chosen by [data-time-format] on <body>. This avoids
+        // depending on the browser's native <input type="time"> picker,
+        // whose displayed AM/PM behavior is locale-dependent and was the
+        // root cause of the original "01:30" (meant 1:30 PM, read as 1:30
+        // AM) confusion.
+        // ---------------------------------------------------------------
+        const TIME_FORMAT_STORAGE_KEY = 'bulkBellTimingTimeFormat';
+
+        function pad2(n) { return String(n).padStart(2, '0'); }
+
+        function to12h(hhmm) {
+            if (!hhmm || !/^\d{1,2}:\d{2}/.test(hhmm)) return { h: '', m: '', ampm: 'AM' };
+            const [H, M] = hhmm.split(':').map(Number);
+            const h12 = (H % 12) || 12;
+            const ampm = H < 12 ? 'AM' : 'PM';
+            return { h: h12, m: M, ampm };
+        }
+
+        function from12h(h, m, ampm) {
+            let H = parseInt(h, 10);
+            const M = parseInt(m, 10);
+            if (isNaN(H) || isNaN(M)) return '';
+            if (ampm === 'PM' && H !== 12) H += 12;
+            if (ampm === 'AM' && H === 12) H = 0;
+            return pad2(H) + ':' + pad2(M);
+        }
+
+        function from24h(h, m) {
+            const H = parseInt(h, 10);
+            const M = parseInt(m, 10);
+            if (isNaN(H) || isNaN(M)) return '';
+            return pad2(H) + ':' + pad2(M);
+        }
+
+        function getTimeFormat() {
+            return localStorage.getItem(TIME_FORMAT_STORAGE_KEY) || '24';
+        }
+
+        // Builds one Start/End Time field: hidden canonical + both widgets.
+        function timeFieldHtml(idx, field, label, value24) {
+            value24 = value24 || '';
+            const parts = value24.split(':');
+            const h24 = parts[0] !== undefined && parts[0] !== '' ? parseInt(parts[0], 10) : '';
+            const m = parts[1] !== undefined && parts[1] !== '' ? parseInt(parts[1], 10) : '';
+            const t12 = to12h(value24);
+            return `
+                <div class="mb-2 time-field-wrap">
+                    <label class="form-label">${label} *</label>
+                    <input type="hidden" name="periods[${idx}][${field}]" class="time-canonical" value="${value24}">
+                    <div class="time-input-24h d-flex align-items-center gap-1">
+                        <input type="number" class="form-control form-control-sm time-h" min="0" max="23" placeholder="HH" value="${h24 === '' ? '' : h24}">
+                        <span>:</span>
+                        <input type="number" class="form-control form-control-sm time-m" min="0" max="59" placeholder="MM" value="${m === '' ? '' : m}">
+                    </div>
+                    <div class="time-input-12h d-flex align-items-center gap-1">
+                        <input type="number" class="form-control form-control-sm time-h" min="1" max="12" placeholder="HH" value="${t12.h}">
+                        <span>:</span>
+                        <input type="number" class="form-control form-control-sm time-m" min="0" max="59" placeholder="MM" value="${t12.m}">
+                        <select class="form-select form-select-sm time-ampm">
+                            <option value="AM" ${t12.ampm === 'AM' ? 'selected' : ''}>AM</option>
+                            <option value="PM" ${t12.ampm === 'PM' ? 'selected' : ''}>PM</option>
+                        </select>
+                    </div>
+                </div>
+            `;
+        }
+
+        // Recomputes the hidden canonical value from whichever widget is
+        // currently visible (i.e. whatever the user is actually editing).
+        function syncToCanonical(canonicalInput) {
+            const wrap = canonicalInput.closest('.time-field-wrap');
+            if (!wrap) return;
+            const mode = getTimeFormat();
+            let val = '';
+            if (mode === '12') {
+                const c = wrap.querySelector('.time-input-12h');
+                val = from12h(c.querySelector('.time-h').value, c.querySelector('.time-m').value, c.querySelector('.time-ampm').value);
+            } else {
+                const c = wrap.querySelector('.time-input-24h');
+                val = from24h(c.querySelector('.time-h').value, c.querySelector('.time-m').value);
+            }
+            canonicalInput.value = val;
+        }
+
+        // Re-populates BOTH widgets from the canonical value -- used when
+        // switching formats, so the format that's about to become visible
+        // always shows the correct converted numbers.
+        function syncFromCanonical(canonicalInput) {
+            const wrap = canonicalInput.closest('.time-field-wrap');
+            if (!wrap) return;
+            const value24 = canonicalInput.value;
+            const parts = (value24 || '').split(':');
+            const h24 = parts[0] !== undefined && parts[0] !== '' ? parseInt(parts[0], 10) : '';
+            const m = parts[1] !== undefined && parts[1] !== '' ? parseInt(parts[1], 10) : '';
+            const c24 = wrap.querySelector('.time-input-24h');
+            c24.querySelector('.time-h').value = (h24 === '' || isNaN(h24)) ? '' : h24;
+            c24.querySelector('.time-m').value = (m === '' || isNaN(m)) ? '' : m;
+            const t12 = to12h(value24);
+            const c12 = wrap.querySelector('.time-input-12h');
+            c12.querySelector('.time-h').value = t12.h;
+            c12.querySelector('.time-m').value = t12.m;
+            c12.querySelector('.time-ampm').value = t12.ampm;
+        }
+
+        function applyTimeFormat(mode) {
+            document.body.setAttribute('data-time-format', mode);
+            document.querySelectorAll('.time-canonical').forEach(syncFromCanonical);
+            const radio = document.getElementById(mode === '12' ? 'fmt12' : 'fmt24');
+            if (radio) radio.checked = true;
+        }
+
+        function setTimeFormat(mode) {
+            localStorage.setItem(TIME_FORMAT_STORAGE_KEY, mode);
+            applyTimeFormat(mode);
+        }
+
         function toggleDay(element, dayValue) {
             const checkbox = element.querySelector('input[type="checkbox"]');
             const isSelected = checkbox.checked;
-            
+
             checkbox.checked = !isSelected;
             element.classList.toggle('selected', !isSelected);
-            
+
             updatePreview();
         }
 
@@ -357,37 +567,31 @@
         function addPeriod() {
             periodCounter++;
             const container = document.getElementById('periodsContainer');
-            
+
             const periodHtml = `
                 <div class="period-row" id="period_${periodCounter}">
                     <div class="row">
                         <div class="col-md-3">
                             <div class="mb-2">
                                 <label class="form-label">Period Name *</label>
-                                <input type="text" class="form-control" name="periods[${periodCounter}][period_name]" 
+                                <input type="text" class="form-control" name="periods[${periodCounter}][period_name]"
                                        placeholder="e.g., Period 1" required>
                             </div>
                         </div>
-                        <div class="col-md-2">
-                            <div class="mb-2">
-                                <label class="form-label">Start Time *</label>
-                                <input type="time" class="form-control" name="periods[${periodCounter}][start_time]" required>
-                            </div>
+                        <div class="col-md-3">
+                            ${timeFieldHtml(periodCounter, 'start_time', 'Start Time', '')}
                         </div>
-                        <div class="col-md-2">
-                            <div class="mb-2">
-                                <label class="form-label">End Time *</label>
-                                <input type="time" class="form-control" name="periods[${periodCounter}][end_time]" required>
-                            </div>
+                        <div class="col-md-3">
+                            ${timeFieldHtml(periodCounter, 'end_time', 'End Time', '')}
                         </div>
                         <div class="col-md-2">
                             <div class="mb-2">
                                 <label class="form-label">Order</label>
-                                <input type="number" class="form-control" name="periods[${periodCounter}][order_index]" 
+                                <input type="number" class="form-control" name="periods[${periodCounter}][order_index]"
                                        value="${periodCounter}" min="0">
                             </div>
                         </div>
-                        <div class="col-md-2">
+                        <div class="col-md-1">
                             <div class="mb-2">
                                 <label class="form-label">Type</label>
                                 <select class="form-select" name="periods[${periodCounter}][is_break]">
@@ -396,35 +600,36 @@
                                 </select>
                             </div>
                         </div>
-                        <div class="col-md-1">
-                            <div class="mb-2">
-                                <label class="form-label">&nbsp;</label>
-                                <button type="button" class="btn btn-danger btn-sm w-100" onclick="removePeriod(${periodCounter})">
-                                    <i class="bi bi-trash"></i>
-                                </button>
-                            </div>
-                        </div>
                     </div>
                     <div class="row">
-                        <div class="col-md-6">
+                        <div class="col-md-5">
                             <div class="mb-2">
                                 <label class="form-label">Custom Label</label>
-                                <input type="text" class="form-control" name="periods[${periodCounter}][custom_label]" 
+                                <input type="text" class="form-control" name="periods[${periodCounter}][custom_label]"
                                        placeholder="e.g., Math Period">
                             </div>
                         </div>
-                        <div class="col-md-6">
+                        <div class="col-md-5">
                             <div class="mb-2">
                                 <label class="form-label">Color Code</label>
-                                <input type="color" class="form-control form-control-color" 
+                                <input type="color" class="form-control form-control-color"
                                        name="periods[${periodCounter}][color_code]" value="#007bff">
+                            </div>
+                        </div>
+                        <div class="col-md-2">
+                            <div class="mb-2">
+                                <label class="form-label">&nbsp;</label>
+                                <button type="button" class="btn btn-danger btn-sm w-100" onclick="removePeriod(${periodCounter})">
+                                    <i class="bi bi-trash"></i> Remove
+                                </button>
                             </div>
                         </div>
                     </div>
                 </div>
             `;
-            
+
             container.insertAdjacentHTML('beforeend', periodHtml);
+            applyTimeFormat(getTimeFormat());
             updatePreview();
         }
 
@@ -437,7 +642,7 @@
             // Clear existing periods
             document.getElementById('periodsContainer').innerHTML = '';
             periodCounter = 0;
-            
+
             // Add common school periods
             const commonPeriods = [
                 {name: 'Morning Assembly', start: '08:00', end: '08:30', break: 1},
@@ -450,43 +655,35 @@
                 {name: 'Period 5', start: '13:00', end: '13:50', break: 0},
                 {name: 'Period 6', start: '13:50', end: '14:40', break: 0}
             ];
-            
+
             commonPeriods.forEach((period, index) => {
                 periodCounter++;
                 const container = document.getElementById('periodsContainer');
-                
+
                 const periodHtml = `
                     <div class="period-row" id="period_${periodCounter}">
                         <div class="row">
                             <div class="col-md-3">
                                 <div class="mb-2">
                                     <label class="form-label">Period Name *</label>
-                                    <input type="text" class="form-control" name="periods[${periodCounter}][period_name]" 
+                                    <input type="text" class="form-control" name="periods[${periodCounter}][period_name]"
                                            value="${period.name}" required>
                                 </div>
                             </div>
-                            <div class="col-md-2">
-                                <div class="mb-2">
-                                    <label class="form-label">Start Time *</label>
-                                    <input type="time" class="form-control" name="periods[${periodCounter}][start_time]" 
-                                           value="${period.start}" required>
-                                </div>
+                            <div class="col-md-3">
+                                ${timeFieldHtml(periodCounter, 'start_time', 'Start Time', period.start)}
                             </div>
-                            <div class="col-md-2">
-                                <div class="mb-2">
-                                    <label class="form-label">End Time *</label>
-                                    <input type="time" class="form-control" name="periods[${periodCounter}][end_time]" 
-                                           value="${period.end}" required>
-                                </div>
+                            <div class="col-md-3">
+                                ${timeFieldHtml(periodCounter, 'end_time', 'End Time', period.end)}
                             </div>
                             <div class="col-md-2">
                                 <div class="mb-2">
                                     <label class="form-label">Order</label>
-                                    <input type="number" class="form-control" name="periods[${periodCounter}][order_index]" 
+                                    <input type="number" class="form-control" name="periods[${periodCounter}][order_index]"
                                            value="${index}" min="0">
                                 </div>
                             </div>
-                            <div class="col-md-2">
+                            <div class="col-md-1">
                                 <div class="mb-2">
                                     <label class="form-label">Type</label>
                                     <select class="form-select" name="periods[${periodCounter}][is_break]">
@@ -495,36 +692,37 @@
                                     </select>
                                 </div>
                             </div>
-                            <div class="col-md-1">
-                                <div class="mb-2">
-                                    <label class="form-label">&nbsp;</label>
-                                    <button type="button" class="btn btn-danger btn-sm w-100" onclick="removePeriod(${periodCounter})">
-                                        <i class="bi bi-trash"></i>
-                                    </button>
-                                </div>
-                            </div>
                         </div>
                         <div class="row">
-                            <div class="col-md-6">
+                            <div class="col-md-5">
                                 <div class="mb-2">
                                     <label class="form-label">Custom Label</label>
                                     <input type="text" class="form-control" name="periods[${periodCounter}][custom_label]">
                                 </div>
                             </div>
-                            <div class="col-md-6">
+                            <div class="col-md-5">
                                 <div class="mb-2">
                                     <label class="form-label">Color Code</label>
-                                    <input type="color" class="form-control form-control-color" 
+                                    <input type="color" class="form-control form-control-color"
                                            name="periods[${periodCounter}][color_code]" value="#${period.break ? 'ffc107' : '007bff'}">
+                                </div>
+                            </div>
+                            <div class="col-md-2">
+                                <div class="mb-2">
+                                    <label class="form-label">&nbsp;</label>
+                                    <button type="button" class="btn btn-danger btn-sm w-100" onclick="removePeriod(${periodCounter})">
+                                        <i class="bi bi-trash"></i> Remove
+                                    </button>
                                 </div>
                             </div>
                         </div>
                     </div>
                 `;
-                
+
                 container.insertAdjacentHTML('beforeend', periodHtml);
             });
-            
+
+            applyTimeFormat(getTimeFormat());
             updatePreview();
         }
 
@@ -540,15 +738,15 @@
                                     .map(cb => cb.value);
             const daysPreview = document.getElementById('selectedDaysPreview');
             daysPreview.textContent = selectedDays.length > 0 ? selectedDays.join(', ') : 'None selected';
-            
+
             // Update periods count
             const periodsCount = document.querySelectorAll('#periodsContainer > .period-row').length;
             document.getElementById('periodsCountPreview').textContent = `${periodsCount} periods`;
-            
+
             // Update total schedules
             const totalSchedules = selectedDays.length * periodsCount;
             document.getElementById('totalSchedulesPreview').textContent = `${totalSchedules} schedules (${selectedDays.length} days × ${periodsCount} periods)`;
-            
+
             // Enable/disable submit button
             const submitBtn = document.getElementById('submitBtn');
             submitBtn.disabled = !(selectedDays.length > 0 && periodsCount > 0);
@@ -557,10 +755,29 @@
         // Period rows are now rendered server-side (from old('periods'), or
         // a single default blank row on a fresh visit) so a
         // validation-failure reload no longer wipes out what the user
-        // already typed. Just sync the preview panel to whatever rows are
-        // already in the DOM.
+        // already typed. Just sync the preview panel and time-format
+        // widgets to whatever rows are already in the DOM.
         document.addEventListener('DOMContentLoaded', function() {
+            applyTimeFormat(getTimeFormat());
             updatePreview();
+        });
+
+        document.getElementById('fmt24').addEventListener('change', () => setTimeFormat('24'));
+        document.getElementById('fmt12').addEventListener('change', () => setTimeFormat('12'));
+
+        // Event delegation: covers period rows added later by addPeriod()/
+        // addCommonPeriods() too, without needing to re-wire listeners.
+        document.getElementById('periodsContainer').addEventListener('input', function (e) {
+            if (e.target.classList.contains('time-h') || e.target.classList.contains('time-m')) {
+                const wrap = e.target.closest('.time-field-wrap');
+                syncToCanonical(wrap.querySelector('.time-canonical'));
+            }
+        });
+        document.getElementById('periodsContainer').addEventListener('change', function (e) {
+            if (e.target.classList.contains('time-ampm') || e.target.classList.contains('time-h') || e.target.classList.contains('time-m')) {
+                const wrap = e.target.closest('.time-field-wrap');
+                syncToCanonical(wrap.querySelector('.time-canonical'));
+            }
         });
 
         // Update preview when form changes
