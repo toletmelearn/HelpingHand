@@ -136,14 +136,22 @@ class BellTimingController extends Controller
     {
         $this->authorize('update', $bellTiming);
         $daysOfWeek = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
-        $classSections = Student::distinct()->pluck('class')->filter()->sortBy('class');
+        // Sourced from BellTiming/SchoolClass (not Student::class) so the
+        // dropdown always contains this row's own class_section, whatever
+        // it is -- otherwise the select falls back to its first option
+        // ("All Classes") and saving silently blanks class_section.
+        $classSections = \App\Models\SchoolClass::active()->orderByOrder()->pluck('name')
+            ->merge(BellTiming::whereNotNull('class_section')->distinct()->pluck('class_section'))
+            ->unique()
+            ->sort()
+            ->values();
         $currentYear = date('Y');
         $academicYears = [
             $currentYear . '-' . ($currentYear + 1),
             ($currentYear - 1) . '-' . $currentYear,
             ($currentYear + 1) . '-' . ($currentYear + 2)
         ];
-        
+
         return view('bell-timing.edit', compact('bellTiming', 'daysOfWeek', 'classSections', 'academicYears'));
     }
 
