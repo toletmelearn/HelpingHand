@@ -154,11 +154,12 @@ class BellTimingTemplateController extends Controller
     }
 
     /**
-     * Step 2: compare the template's structure against every selected
-     * class's existing schedule (using the first selected day as the
-     * representative day) and show the review/customize screen. No writes.
+     * Step 2a: validate the admin's day/class selection and stash it in the
+     * session, then redirect (Post/Redirect/Get) to the GET preview route.
+     * No comparison work and no writes happen here -- this action's only
+     * job is to turn a POST body into GET-able state.
      */
-    public function applyPreview(Request $request, BellTimingTemplate $bellTimingTemplate)
+    public function applyPreview(Request $request, BellTimingTemplate $bellTimingTemplate): RedirectResponse
     {
         $this->authorize('apply', $bellTimingTemplate);
 
@@ -171,21 +172,56 @@ class BellTimingTemplateController extends Controller
             'semester' => 'nullable|string|max:20',
         ]);
 
-        $bellTimingTemplate->load('slots');
-        $firstDay = $validated['days'][0];
+        $request->session()->put($this->previewSessionKey($bellTimingTemplate), [
+            'days' => $validated['days'],
+            'classes' => $validated['classes'],
+            'academic_year' => $validated['academic_year'] ?? null,
+            'semester' => $validated['semester'] ?? null,
+        ]);
 
-        $comparisons = collect($validated['classes'])->mapWithKeys(function ($classSection) use ($bellTimingTemplate, $firstDay) {
+        return redirect()->route('bell-timing-templates.apply.preview.show', $bellTimingTemplate);
+    }
+
+    /**
+     * Step 2b: the GET-able preview page. Reads the selection stashed by
+     * applyPreview() out of the session and recomputes the structure
+     * comparison fresh on every load -- read-only (compareStructure() never
+     * writes), so this route is safe to refresh, bookmark, or revisit and
+     * can never itself apply anything. If there's no stashed selection
+     * (session expired, or the URL was visited without going through the
+     * form), bounce back to step 1 instead of erroring.
+     */
+    public function applyPreviewShow(BellTimingTemplate $bellTimingTemplate)
+    {
+        $this->authorize('apply', $bellTimingTemplate);
+
+        $selection = session($this->previewSessionKey($bellTimingTemplate));
+
+        if (! $selection) {
+            return redirect()->route('bell-timing-templates.apply.form', $bellTimingTemplate)
+                ->with('error', 'Your preview selection has expired. Please reselect classes and preview again.');
+        }
+
+        $bellTimingTemplate->load('slots');
+        $firstDay = $selection['days'][0];
+
+        $comparisons = collect($selection['classes'])->mapWithKeys(function ($classSection) use ($bellTimingTemplate, $firstDay) {
             return [$classSection => $this->templates->compareStructure($bellTimingTemplate, $classSection, $firstDay)];
         });
 
         return view('bell-timing-templates.apply-preview', [
             'template' => $bellTimingTemplate,
-            'days' => $validated['days'],
-            'classes' => $validated['classes'],
-            'academicYear' => $validated['academic_year'] ?? null,
-            'semester' => $validated['semester'] ?? null,
+            'days' => $selection['days'],
+            'classes' => $selection['classes'],
+            'academicYear' => $selection['academic_year'],
+            'semester' => $selection['semester'],
             'comparisons' => $comparisons,
         ]);
+    }
+
+    private function previewSessionKey(BellTimingTemplate $bellTimingTemplate): string
+    {
+        return "bell_timing_template_preview.{$bellTimingTemplate->id}";
     }
 
     /**
@@ -228,6 +264,8 @@ class BellTimingTemplateController extends Controller
 
         $applied = collect($results)->reject(fn ($r) => $r['action'] === 'skip')->count();
         $skipped = collect($results)->where('action', 'skip')->count();
+
+        $request->session()->forget($this->previewSessionKey($bellTimingTemplate));
 
         return redirect()->route('bell-timing-templates.index')
             ->with('success', "Applied \"{$bellTimingTemplate->name}\" to {$applied} class(es)." . ($skipped ? " {$skipped} class(es) skipped." : ''));

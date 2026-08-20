@@ -310,7 +310,8 @@ class BellTimingTemplateTest extends TestCase
         unset($s);
         $this->seedClassSchedule('Class 8', 'Monday', $shifted);
 
-        $response = $this->actingAs($admin)->post(route('bell-timing-templates.apply.preview', $template), [
+        // POST redirects (PRG); follow it to reach the GET-rendered preview.
+        $response = $this->actingAs($admin)->followingRedirects()->post(route('bell-timing-templates.apply.preview', $template), [
             'days' => ['Monday'],
             'classes' => ['Class 8'],
         ]);
@@ -356,7 +357,8 @@ class BellTimingTemplateTest extends TestCase
         $sixPeriods = array_slice($this->eightPeriodSlots(), 0, 6);
         $this->seedClassSchedule('Class 11', 'Monday', $sixPeriods);
 
-        $response = $this->actingAs($admin)->post(route('bell-timing-templates.apply.preview', $template), [
+        // POST redirects (PRG); follow it to reach the GET-rendered preview.
+        $response = $this->actingAs($admin)->followingRedirects()->post(route('bell-timing-templates.apply.preview', $template), [
             'days' => ['Monday'],
             'classes' => ['Class 11'],
         ]);
@@ -782,5 +784,179 @@ class BellTimingTemplateTest extends TestCase
         $response->assertSessionHas('error');
         // Class 19 must NOT have been partially applied even though it was valid on its own.
         $this->assertSame(0, BellTiming::where('class_section', 'Class 19')->count(), 'Partial application must never be left behind.');
+    }
+
+    // ============================================================
+    // Y. Apply Preview Post/Redirect/Get
+    //
+    // The preview step used to render its result directly at the POST
+    // URL, so the address bar was left showing a POST-only endpoint --
+    // any refresh/bookmark/retyped-URL GET to that exact path 405'd
+    // (MethodNotAllowedHttpException). These tests cover the PRG fix:
+    // POST validates + stashes the selection in session and redirects;
+    // GET reads it back and renders read-only.
+    // ============================================================
+
+    public function test_post_apply_preview_redirects_to_the_get_preview_route(): void
+    {
+        $admin = $this->admin();
+        $template = $this->createEightPeriodTemplate($admin);
+
+        $response = $this->actingAs($admin)->post(route('bell-timing-templates.apply.preview', $template), [
+            'days' => ['Monday'],
+            'classes' => ['Class 3'],
+        ]);
+
+        $response->assertRedirect(route('bell-timing-templates.apply.preview.show', $template));
+    }
+
+    public function test_get_preview_displays_the_selected_classes_and_template(): void
+    {
+        $admin = $this->admin();
+        $template = $this->createEightPeriodTemplate($admin);
+
+        $this->actingAs($admin)->post(route('bell-timing-templates.apply.preview', $template), [
+            'days' => ['Monday', 'Tuesday'],
+            'classes' => ['Class 3', 'Class 4'],
+        ]);
+
+        $response = $this->actingAs($admin)->get(route('bell-timing-templates.apply.preview.show', $template));
+
+        $response->assertOk();
+        $response->assertSee($template->name, false);
+        $response->assertSee('Class 3', false);
+        $response->assertSee('Class 4', false);
+        $response->assertSee('Monday, Tuesday', false);
+    }
+
+    public function test_refreshing_the_get_preview_repeatedly_does_not_resubmit_the_post_and_stays_stable(): void
+    {
+        $admin = $this->admin();
+        $template = $this->createEightPeriodTemplate($admin);
+
+        $this->actingAs($admin)->post(route('bell-timing-templates.apply.preview', $template), [
+            'days' => ['Monday'],
+            'classes' => ['Class 3'],
+        ]);
+
+        // Simulates a browser hitting refresh on the preview page multiple times.
+        foreach (range(1, 3) as $_) {
+            $response = $this->actingAs($admin)->get(route('bell-timing-templates.apply.preview.show', $template));
+            $response->assertOk();
+            $response->assertSee('Class 3', false);
+        }
+    }
+
+    public function test_get_preview_performs_no_database_timetable_mutation(): void
+    {
+        $admin = $this->admin();
+        $template = $this->createEightPeriodTemplate($admin);
+
+        $this->actingAs($admin)->post(route('bell-timing-templates.apply.preview', $template), [
+            'days' => ['Monday'],
+            'classes' => ['Class 3'],
+        ]);
+
+        $this->actingAs($admin)->get(route('bell-timing-templates.apply.preview.show', $template));
+        $this->actingAs($admin)->get(route('bell-timing-templates.apply.preview.show', $template));
+
+        $this->assertSame(0, BellTiming::where('class_section', 'Class 3')->count(), 'GET preview must never write timetable rows.');
+    }
+
+    public function test_get_preview_without_a_prior_post_redirects_back_to_the_apply_form(): void
+    {
+        $admin = $this->admin();
+        $template = $this->createEightPeriodTemplate($admin);
+
+        // Simulates visiting the preview URL directly with no stashed selection.
+        $response = $this->actingAs($admin)->get(route('bell-timing-templates.apply.preview.show', $template));
+
+        $response->assertRedirect(route('bell-timing-templates.apply.form', $template));
+        $response->assertSessionHas('error');
+    }
+
+    public function test_teacher_cannot_access_the_get_preview_state(): void
+    {
+        $admin = $this->admin();
+        $template = $this->createEightPeriodTemplate($admin);
+
+        $this->actingAs($admin)->post(route('bell-timing-templates.apply.preview', $template), [
+            'days' => ['Monday'],
+            'classes' => ['Class 3'],
+        ]);
+
+        $response = $this->actingAs($this->teacherUser())->get(route('bell-timing-templates.apply.preview.show', $template));
+
+        $response->assertForbidden();
+    }
+
+    public function test_unauthenticated_user_cannot_access_the_get_preview_state(): void
+    {
+        $admin = $this->admin();
+        $template = $this->createEightPeriodTemplate($admin);
+
+        $this->actingAs($admin)->post(route('bell-timing-templates.apply.preview', $template), [
+            'days' => ['Monday'],
+            'classes' => ['Class 3'],
+        ]);
+
+        // actingAs() persists the authenticated user across requests within
+        // a test until explicitly logged out -- log out here so this GET is
+        // genuinely unauthenticated, the same way a fresh visitor would be.
+        auth()->logout();
+
+        $response = $this->get(route('bell-timing-templates.apply.preview.show', $template));
+
+        $response->assertStatus(302);
+    }
+
+    public function test_get_request_to_the_exact_preview_path_no_longer_returns_405(): void
+    {
+        $admin = $this->admin();
+        $template = $this->createEightPeriodTemplate($admin);
+
+        $this->actingAs($admin)->post(route('bell-timing-templates.apply.preview', $template), [
+            'days' => ['Monday'],
+            'classes' => ['Class 3'],
+        ]);
+
+        // This reproduces the original real-browser defect: a plain GET
+        // navigation (refresh / bookmark / retyped address bar URL) to the
+        // exact same path the POST used.
+        $response = $this->actingAs($admin)->get('/bell-timing-templates/' . $template->id . '/apply/preview');
+
+        $response->assertOk();
+    }
+
+    public function test_apply_confirm_route_remains_post_only(): void
+    {
+        $admin = $this->admin();
+        $template = $this->createEightPeriodTemplate($admin);
+
+        $response = $this->actingAs($admin)->get('/bell-timing-templates/' . $template->id . '/apply/confirm');
+
+        $response->assertStatus(405);
+    }
+
+    public function test_apply_confirm_remains_the_only_action_that_writes_bell_timing_rows(): void
+    {
+        $admin = $this->admin();
+        $template = $this->createEightPeriodTemplate($admin);
+
+        $this->actingAs($admin)->post(route('bell-timing-templates.apply.preview', $template), [
+            'days' => ['Monday'],
+            'classes' => ['Class 3'],
+        ]);
+        $this->actingAs($admin)->get(route('bell-timing-templates.apply.preview.show', $template));
+        $this->actingAs($admin)->get(route('bell-timing-templates.apply.preview.show', $template));
+
+        $this->assertSame(0, BellTiming::where('class_section', 'Class 3')->count(), 'Preview steps (POST or GET) must never apply anything.');
+
+        $this->actingAs($admin)->post(route('bell-timing-templates.apply.confirm', $template), [
+            'days' => ['Monday'],
+            'decisions' => ['Class 3' => ['action' => 'apply']],
+        ]);
+
+        $this->assertSame(8, BellTiming::where('class_section', 'Class 3')->count(), 'Apply Confirm is the only step that writes timetable rows.');
     }
 }

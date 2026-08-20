@@ -469,7 +469,12 @@ Route::middleware(['auth'])->group(function () {
     // /bell-timing/..., so no collision risk with the resource route above,
     // but the same literal-before-resource discipline is kept anyway.
     Route::get('/bell-timing-templates/{bellTimingTemplate}/apply', [App\Http\Controllers\BellTimingTemplateController::class, 'applyForm'])->name('bell-timing-templates.apply.form');
+    // Post/Redirect/Get: the POST validates the selection and stashes it in
+    // the session, then redirects to the GET route below so the resulting
+    // page is safely refreshable/bookmarkable instead of sitting at a
+    // POST-only URL (see bell-timing-templates.apply.preview.show).
     Route::post('/bell-timing-templates/{bellTimingTemplate}/apply/preview', [App\Http\Controllers\BellTimingTemplateController::class, 'applyPreview'])->name('bell-timing-templates.apply.preview');
+    Route::get('/bell-timing-templates/{bellTimingTemplate}/apply/preview', [App\Http\Controllers\BellTimingTemplateController::class, 'applyPreviewShow'])->name('bell-timing-templates.apply.preview.show');
     Route::post('/bell-timing-templates/{bellTimingTemplate}/apply/confirm', [App\Http\Controllers\BellTimingTemplateController::class, 'applyConfirm'])->name('bell-timing-templates.apply.confirm');
     Route::post('/bell-timing-templates/{bellTimingTemplate}/duplicate', [App\Http\Controllers\BellTimingTemplateController::class, 'duplicate'])->name('bell-timing-templates.duplicate');
     Route::resource('bell-timing-templates', App\Http\Controllers\BellTimingTemplateController::class)
