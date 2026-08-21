@@ -16,22 +16,58 @@ use App\Models\TimetableSlot;
  * An unguarded delete() can therefore either silently destroy a published
  * timetable slot / availability block, or throw a raw, unhandled
  * QueryException. Every place in the app that deletes BellTiming rows
- * must check the same thing here, once, instead of each maintaining its
- * own slightly different query -- starting with Bulk Delete, which needs
- * the per-id breakdown checkEach() provides.
+ * (BellTimingController::destroy(), BellTimingTemplateService's Replace/
+ * Customize/Copy-Matching excess-row deletion, and any future bulk
+ * delete) must check the same thing here, once, instead of each
+ * maintaining its own slightly different query.
  *
  * Deliberately pure: no HTTP, redirect, flash, or exception-throwing
  * behavior lives here -- callers decide how to react to a block (a
- * friendly redirect for the controller, etc).
+ * friendly redirect for the controller, a RuntimeException for the
+ * Template Apply transaction, etc).
  */
 class BellTimingDependencyChecker
 {
     /**
-     * Checks a batch of BellTiming ids against all three dependency
-     * tables, keyed per id -- needed wherever a caller must show or act
-     * on per-record blocking (e.g. Bulk Delete's preview: "these 18 are
-     * safe, these 3 are blocked, here's exactly which ones and why").
-     * Exactly one query per table regardless of how many ids are passed,
+     * @param int|array<int>|\Illuminate\Support\Collection<int, int> $bellTimingIds one or more bell_timings.id values
+     * @return array{
+     *     timetable_slots_total: int,
+     *     timetable_slots_published: int,
+     *     timetable_slots_other: int,
+     *     teacher_substitutions: int,
+     *     teacher_availabilities: int,
+     * }
+     */
+    public function check($bellTimingIds): array
+    {
+        $ids = collect($bellTimingIds)->flatten()->filter()->unique()->values()->all();
+
+        if (empty($ids)) {
+            return $this->emptyResult();
+        }
+
+        // One whereIn query per table regardless of how many ids were
+        // passed in -- avoids N+1 whether the caller is checking a single
+        // record (the controller) or a whole batch of excess ids at once
+        // (Template Apply's Replace/Customize/Copy-Matching deletion).
+        $slots = TimetableSlot::whereIn('bell_timing_id', $ids)->get(['status']);
+        $publishedSlots = $slots->where('status', TimetableSlot::STATUS_PUBLISHED)->count();
+
+        return [
+            'timetable_slots_total' => $slots->count(),
+            'timetable_slots_published' => $publishedSlots,
+            'timetable_slots_other' => $slots->count() - $publishedSlots,
+            'teacher_substitutions' => TeacherSubstitution::whereIn('bell_timing_id', $ids)->count(),
+            'teacher_availabilities' => TeacherAvailability::whereIn('bell_timing_id', $ids)->count(),
+        ];
+    }
+
+    /**
+     * Same three queries as check(), but keyed per id instead of collapsed
+     * into one aggregate -- needed wherever a caller must show or act on
+     * per-record blocking (e.g. Bulk Delete's preview: "these 18 are safe,
+     * these 3 are blocked, here's exactly which ones and why"). Still
+     * exactly one query per table regardless of how many ids are passed,
      * so a caller checking a whole batch never causes N+1.
      *
      * @param array<int> $bellTimingIds
@@ -117,5 +153,16 @@ class BellTimingDependencyChecker
         }
 
         return implode(', ', $parts);
+    }
+
+    private function emptyResult(): array
+    {
+        return [
+            'timetable_slots_total' => 0,
+            'timetable_slots_published' => 0,
+            'timetable_slots_other' => 0,
+            'teacher_substitutions' => 0,
+            'teacher_availabilities' => 0,
+        ];
     }
 }

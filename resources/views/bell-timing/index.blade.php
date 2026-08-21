@@ -189,16 +189,10 @@
                                                                class="btn btn-outline-warning" title="Edit">
                                                                 <i class="bi bi-pencil"></i>
                                                             </a>
-                                                            <form action="{{ route('bell-timing.destroy', $timing) }}" 
-                                                                  method="POST" 
-                                                                  style="display: inline;"
-                                                                  onsubmit="return confirm('Delete this bell timing?');">
-                                                                @csrf
-                                                                @method('DELETE')
-                                                                <button type="submit" class="btn btn-outline-danger" title="Delete">
-                                                                    <i class="bi bi-trash"></i>
-                                                                </button>
-                                                            </form>
+                                                            <a href="{{ route('bell-timing.delete.confirm', $timing) }}"
+                                                               class="btn btn-outline-danger" title="Delete">
+                                                                <i class="bi bi-trash"></i>
+                                                            </a>
                                                         </div>
                                                     </div>
                                                 </div>

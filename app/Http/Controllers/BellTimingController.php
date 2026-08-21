@@ -207,12 +207,54 @@ class BellTimingController extends Controller
     }
 
     /**
+     * Delete-confirmation screen. Read-only: runs the exact same
+     * dependency check destroy() re-runs before actually deleting, so
+     * what the admin sees here is never stale by the time they click
+     * through -- if it somehow changes in between, destroy()'s own
+     * re-check catches it rather than trusting this page's snapshot.
+     */
+    public function confirmDelete(BellTiming $bellTiming)
+    {
+        $this->authorize('delete', $bellTiming);
+
+        $dependencies = $this->dependencyChecker->check($bellTiming->id);
+
+        return view('bell-timing.confirm-delete', [
+            'bellTiming' => $bellTiming,
+            'dependencies' => $dependencies,
+            'blocked' => $this->dependencyChecker->isBlocked($dependencies),
+        ]);
+    }
+
+    /**
      * Remove the specified bell timing from storage.
+     *
+     * Never blindly cascades: timetable_slots.bell_timing_id and
+     * teacher_availabilities.bell_timing_id both use ON DELETE CASCADE,
+     * so an unguarded delete() here would silently destroy a published
+     * timetable slot or a teacher availability block. teacher_substitutions
+     * has no cascade at all (default RESTRICT), so it would instead throw
+     * a raw, unhandled QueryException straight to the admin as a 500.
+     * The dependency check below is re-run here -- independent of
+     * confirmDelete()'s own check -- specifically so a dependency created
+     * between viewing the confirmation screen and submitting it is still
+     * caught immediately before the delete, not after.
      */
     public function destroy(BellTiming $bellTiming)
     {
         $this->authorize('delete', $bellTiming);
-        $bellTiming->delete();
+
+        $dependencies = $this->dependencyChecker->check($bellTiming->id);
+
+        if ($this->dependencyChecker->isBlocked($dependencies)) {
+            return redirect()->route('bell-timing.delete.confirm', $bellTiming)
+                ->with('error', 'Cannot delete this Bell Timing -- it is currently used by ' .
+                    $this->dependencyChecker->summarize($dependencies) . '. Resolve these dependencies before deleting.');
+        }
+
+        DB::transaction(function () use ($bellTiming) {
+            $bellTiming->delete();
+        });
 
         return redirect()->route('bell-timing.index')
                          ->with('success', 'Bell timing deleted successfully!');

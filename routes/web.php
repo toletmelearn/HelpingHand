@@ -473,6 +473,10 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/bell-timing/save-as-template', [App\Http\Controllers\BellTimingTemplateController::class, 'saveAsTemplateForm'])->name('bell-timing.save-as-template');
     Route::post('/bell-timing/save-as-template', [App\Http\Controllers\BellTimingTemplateController::class, 'saveAsTemplateStore'])->name('bell-timing.save-as-template.store');
     Route::resource('bell-timing', App\Http\Controllers\BellTimingController::class);
+    // Delete-confirmation screen: GET-only, computes and displays the same
+    // server-side dependency check destroy() re-runs before actually
+    // deleting -- see BellTimingController::confirmDelete()/destroy().
+    Route::get('/bell-timing/{bellTiming}/delete', [App\Http\Controllers\BellTimingController::class, 'confirmDelete'])->name('bell-timing.delete.confirm');
 
     // Bell Timing Templates -- a completely separate URL segment from
     // /bell-timing/..., so no collision risk with the resource route above,
