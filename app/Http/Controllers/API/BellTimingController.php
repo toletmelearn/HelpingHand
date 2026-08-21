@@ -4,11 +4,17 @@ namespace App\Http\Controllers\API;
 
 use App\Models\BellTiming;
 use App\Models\Student;
+use App\Services\Timetable\BellTimingDependencyChecker;
+use Illuminate\Database\QueryException;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 
 class BellTimingController extends BaseApiController
 {
+    public function __construct(private BellTimingDependencyChecker $dependencyChecker)
+    {
+    }
+
     /**
      * Display a listing of the resource.
      */
@@ -172,14 +178,36 @@ class BellTimingController extends BaseApiController
 
     /**
      * Remove the specified resource from storage.
+     *
+     * Never blindly cascades -- same rule as the web controller's
+     * destroy() (see BellTimingDependencyChecker's own docblock for why
+     * timetable_slots/teacher_availabilities cascade and
+     * teacher_substitutions restricts). Reuses the shared checker rather
+     * than duplicating the dependency queries.
      */
     public function destroy(int $id): JsonResponse
     {
         try {
             $bellTiming = BellTiming::findOrFail($id);
+
+            $dependencies = $this->dependencyChecker->check($bellTiming->id);
+
+            if ($this->dependencyChecker->isBlocked($dependencies)) {
+                return $this->error(
+                    'Cannot delete this Bell Timing -- it is currently used by ' .
+                        $this->dependencyChecker->summarize($dependencies) . '. Resolve these dependencies before deleting.',
+                    409
+                );
+            }
+
             $bellTiming->delete();
 
             return $this->success(null, 'Bell timing deleted successfully');
+        } catch (QueryException $e) {
+            // Defense in depth: the dependency check above should already
+            // prevent this in every known case, but a raw SQL/constraint
+            // error must never reach the API client regardless.
+            return $this->error('Failed to delete bell timing: it is still referenced by other records.', 409);
         } catch (\Exception $e) {
             return $this->error('Failed to delete bell timing: ' . $e->getMessage());
         }
