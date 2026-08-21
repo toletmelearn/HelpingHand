@@ -53,6 +53,11 @@
                         <i class="bi bi-journals"></i> Templates
                     </a>
                 @endif
+                @if(Auth::user()->hasRole('admin'))
+                    <a href="{{ route('bell-timing.bulk-delete') }}" class="btn btn-outline-danger">
+                        <i class="bi bi-trash3"></i> Bulk Delete
+                    </a>
+                @endif
             </div>
         </div>
 

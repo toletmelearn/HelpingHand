@@ -49,6 +49,20 @@ class BellTimingPolicy
     }
 
     /**
+     * Determine whether the user can use Bulk Delete. Deliberately its own
+     * ability rather than reusing delete() -- delete() is checked against
+     * one specific $bellTiming instance, but a bulk operation authorizes
+     * before any records are even resolved, so there's no single instance
+     * to check against. Kept admin-only, matching delete(), but as an
+     * explicit ability so the permission this gates is unambiguous (a
+     * batch operation across many records, not one).
+     */
+    public function bulkManage(User $user): bool
+    {
+        return $user->hasRole('admin');
+    }
+
+    /**
      * Determine whether the user can restore the model.
      */
     public function restore(User $user, BellTiming $bellTiming): bool

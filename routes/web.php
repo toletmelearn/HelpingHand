@@ -457,6 +457,15 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/bell-timing/daily', [App\Http\Controllers\BellTimingController::class, 'todaysSchedule'])->name('bell-timing.daily');
     Route::get('/bell-timing/bulk-create', [App\Http\Controllers\BellTimingController::class, 'bulkCreate'])->name('bell-timing.bulk-create');
     Route::post('/bell-timing/bulk-create', [App\Http\Controllers\BellTimingController::class, 'bulkCreate'])->name('bell-timing.bulk-create.process');
+    // Bulk Delete -- same literal-before-resource requirement as the
+    // routes above. Selection is always by (class_section, day_of_week,
+    // academic_year, semester) tuples, never by raw BellTiming id --
+    // preview and confirm both re-resolve the actual ids server-side on
+    // every request (see BellTimingController::bulkDeletePreview()/
+    // bulkDeleteConfirm()).
+    Route::get('/bell-timing/bulk-delete', [App\Http\Controllers\BellTimingController::class, 'bulkDeleteForm'])->name('bell-timing.bulk-delete');
+    Route::post('/bell-timing/bulk-delete/preview', [App\Http\Controllers\BellTimingController::class, 'bulkDeletePreview'])->name('bell-timing.bulk-delete.preview');
+    Route::post('/bell-timing/bulk-delete/confirm', [App\Http\Controllers\BellTimingController::class, 'bulkDeleteConfirm'])->name('bell-timing.bulk-delete.confirm');
     Route::get('/bell-timing/print/{classSection?}/{academicYear?}', [App\Http\Controllers\BellTimingController::class, 'printTimetable'])->name('bell-timing.print');
     // Same literal-before-resource requirement as above: these two also sit
     // under /bell-timing/... and must be registered before the resource's

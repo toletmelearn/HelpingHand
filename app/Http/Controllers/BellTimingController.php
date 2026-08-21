@@ -5,12 +5,18 @@ namespace App\Http\Controllers;
 use App\Models\BellTiming;
 use App\Models\Student;
 use App\Models\User;
+use App\Services\Timetable\BellTimingDependencyChecker;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
 
 class BellTimingController extends Controller
 {
+    public function __construct(private BellTimingDependencyChecker $dependencyChecker)
+    {
+    }
+
     /**
      * Display a listing of the bell timings.
      */
@@ -210,6 +216,238 @@ class BellTimingController extends Controller
 
         return redirect()->route('bell-timing.index')
                          ->with('success', 'Bell timing deleted successfully!');
+    }
+
+    /**
+     * Bulk Delete step 1: pick which (class_section, day_of_week,
+     * academic_year, semester) schedules to delete. Grouped, not a flat
+     * per-record list -- an admin should never have to select hundreds
+     * of individual periods one at a time. Never hard-codes a period
+     * count; whatever exists is whatever's counted.
+     */
+    public function bulkDeleteForm()
+    {
+        $this->authorize('bulkManage', BellTiming::class);
+
+        $groups = $this->bulkDeleteGroups();
+
+        return view('bell-timing.bulk-delete', compact('groups'));
+    }
+
+    /**
+     * Bulk Delete step 2: resolve the selected schedules to real
+     * BellTiming rows (server-side, from the tuple keys -- never from a
+     * client-supplied id list) and split them into safe/blocked via the
+     * shared dependency checker, batched (one query per dependency table
+     * regardless of selection size). No writes happen here.
+     */
+    public function bulkDeletePreview(Request $request)
+    {
+        $this->authorize('bulkManage', BellTiming::class);
+
+        $selections = $this->extractSelectedGroups($request);
+
+        if (empty($selections)) {
+            return redirect()->route('bell-timing.bulk-delete')
+                ->with('error', 'Please select at least one class/day schedule.');
+        }
+
+        $rows = $this->resolveSelectedBellTimings($selections);
+
+        if ($rows->isEmpty()) {
+            return redirect()->route('bell-timing.bulk-delete')
+                ->with('error', 'No matching schedules were found for the selected classes/days. They may have already been changed or removed.');
+        }
+
+        $dependencies = $this->dependencyChecker->checkEach($rows->pluck('id')->all());
+
+        $safe = [];
+        $blocked = [];
+        foreach ($rows as $row) {
+            $dep = $dependencies[$row->id] ?? [];
+            if ($this->dependencyChecker->isBlocked($dep)) {
+                $blocked[] = ['bellTiming' => $row, 'reason' => $this->dependencyChecker->summarize($dep)];
+            } else {
+                $safe[] = $row;
+            }
+        }
+
+        return view('bell-timing.bulk-delete-preview', [
+            'selections' => $selections,
+            'groupsSummary' => $this->summarizeSelectedRows($rows),
+            'safeCount' => count($safe),
+            'blocked' => $blocked,
+        ]);
+    }
+
+    /**
+     * Bulk Delete step 3: re-derive the selection from the same tuple
+     * keys and re-run the dependency checker immediately before deleting
+     * -- independent of whatever bulkDeletePreview() showed, exactly the
+     * same "never trust the earlier screen's snapshot" rule destroy()
+     * already follows for a single record. Only ever deletes ids that
+     * are safe at this exact moment; blocked ones are preserved and
+     * reported, never silently dropped.
+     */
+    public function bulkDeleteConfirm(Request $request)
+    {
+        $this->authorize('bulkManage', BellTiming::class);
+
+        $selections = $this->extractSelectedGroups($request);
+
+        if (empty($selections)) {
+            return redirect()->route('bell-timing.bulk-delete')
+                ->with('error', 'Please select at least one class/day schedule.');
+        }
+
+        $rows = $this->resolveSelectedBellTimings($selections);
+
+        if ($rows->isEmpty()) {
+            return redirect()->route('bell-timing.bulk-delete')
+                ->with('error', 'No matching schedules were found for the selected classes/days. They may have already been changed or removed.');
+        }
+
+        $dependencies = $this->dependencyChecker->checkEach($rows->pluck('id')->all());
+
+        $safeIds = [];
+        $blockedCount = 0;
+        foreach ($rows as $row) {
+            $dep = $dependencies[$row->id] ?? [];
+            if ($this->dependencyChecker->isBlocked($dep)) {
+                $blockedCount++;
+            } else {
+                $safeIds[] = $row->id;
+            }
+        }
+
+        if (empty($safeIds)) {
+            return redirect()->route('bell-timing.bulk-delete')
+                ->with('error', "Nothing was deleted -- all {$blockedCount} selected Bell Timing(s) are currently blocked by existing dependencies.");
+        }
+
+        DB::transaction(function () use ($safeIds) {
+            BellTiming::whereIn('id', $safeIds)->delete();
+        });
+
+        $deletedCount = count($safeIds);
+        $message = "Deleted {$deletedCount} Bell Timing(s).";
+        if ($blockedCount > 0) {
+            $message .= " {$blockedCount} were skipped because they are still in use.";
+        }
+
+        return redirect()->route('bell-timing.index')->with('success', $message);
+    }
+
+    /**
+     * The Bulk Delete selection screen's grouped list -- one row per
+     * distinct (class_section, day_of_week, academic_year, semester)
+     * combination that actually exists, with a live period count. Never
+     * assumes a fixed period count or a fixed set of days.
+     */
+    private function bulkDeleteGroups()
+    {
+        // Day-of-week ordering is done in PHP, not SQL (MySQL's FIELD()
+        // has no portable equivalent -- same reason BellTiming's own
+        // getWeeklySchedule()/getTimetableForClass() sort day order in
+        // PHP rather than in the query).
+        $daysOrder = array_flip(['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']);
+
+        return BellTiming::selectRaw('class_section, day_of_week, academic_year, semester, COUNT(*) as period_count')
+            ->groupBy('class_section', 'day_of_week', 'academic_year', 'semester')
+            ->get()
+            ->sortBy(fn ($g) => $daysOrder[$g->day_of_week] ?? 99)
+            ->sortBy('class_section')
+            ->values();
+    }
+
+    /**
+     * Reads which grouped rows the admin checked and returns their
+     * (class_section, day_of_week, academic_year, semester) tuples only
+     * -- never a BellTiming id. These tuples are what both
+     * bulkDeletePreview() and bulkDeleteConfirm() independently re-query
+     * against on every request; a tampered/fabricated tuple simply
+     * resolves to zero rows rather than exposing anything, since it can
+     * only ever match real rows via a genuine WHERE clause.
+     */
+    private function extractSelectedGroups(Request $request): array
+    {
+        $request->validate([
+            'groups' => 'required|array',
+            'groups.*.selected' => 'nullable|string',
+            'groups.*.class_section' => 'nullable|string|max:50',
+            'groups.*.day_of_week' => 'nullable|string|max:20',
+            'groups.*.academic_year' => 'nullable|string|max:20',
+            'groups.*.semester' => 'nullable|string|max:20',
+        ]);
+
+        return collect($request->input('groups', []))
+            ->filter(fn ($g) => ($g['selected'] ?? null) === '1')
+            ->map(fn ($g) => [
+                'class_section' => ($g['class_section'] ?? '') === '' ? null : $g['class_section'],
+                'day_of_week' => ($g['day_of_week'] ?? '') === '' ? null : $g['day_of_week'],
+                'academic_year' => ($g['academic_year'] ?? '') === '' ? null : $g['academic_year'],
+                'semester' => ($g['semester'] ?? '') === '' ? null : $g['semester'],
+            ])
+            ->values()
+            ->all();
+    }
+
+    /**
+     * Resolves the exact BellTiming rows for a set of selection tuples in
+     * ONE query (an OR of AND-tuple conditions), regardless of how many
+     * tuples were selected -- avoids looping a query per selected
+     * class/day. This is the sole place selection tuples become real ids.
+     */
+    private function resolveSelectedBellTimings(array $selections): \Illuminate\Support\Collection
+    {
+        return BellTiming::where(function ($outer) use ($selections) {
+            foreach ($selections as $selection) {
+                $outer->orWhere(function ($inner) use ($selection) {
+                    $this->applySelectionTuple($inner, $selection);
+                });
+            }
+        })->get();
+    }
+
+    private function applySelectionTuple($query, array $selection): void
+    {
+        foreach (['class_section', 'day_of_week', 'academic_year', 'semester'] as $column) {
+            $value = $selection[$column];
+            if (is_null($value)) {
+                $query->whereNull($column);
+            } else {
+                $query->where($column, $value);
+            }
+        }
+    }
+
+    /**
+     * Groups already-resolved rows back into the same class/day/period-count
+     * shape the selection screen uses, purely for the preview's "Selected:"
+     * list -- derived from the freshly-queried rows, never from anything
+     * the client echoed back.
+     */
+    private function summarizeSelectedRows(\Illuminate\Support\Collection $rows): array
+    {
+        return $rows->groupBy(fn (BellTiming $r) => implode('|', [
+                $r->class_section ?? '',
+                $r->day_of_week ?? '',
+                $r->academic_year ?? '',
+                $r->semester ?? '',
+            ]))
+            ->map(function ($group) {
+                $first = $group->first();
+
+                return [
+                    'class_section' => $first->class_section,
+                    'day_of_week' => $first->day_of_week,
+                    'academic_year' => $first->academic_year,
+                    'semester' => $first->semester,
+                    'period_count' => $group->count(),
+                ];
+            })
+            ->values()
+            ->all();
     }
 
     /**
