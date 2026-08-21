@@ -5,7 +5,6 @@ namespace App\Services\Timetable;
 use App\Models\BellTiming;
 use App\Models\BellTimingTemplate;
 use App\Models\BellTimingTemplateSlot;
-use App\Models\TimetableSlot;
 use App\Models\User;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -18,15 +17,23 @@ use RuntimeException;
  *
  * Core safety rule (see class docblocks on BellTimingTemplate/Slot for the
  * "why"): applying a template NEVER deletes a BellTiming row that a live
- * TimetableSlot references. Where an existing row's structure position
- * still exists in the new desired structure, it is UPDATED IN PLACE
- * (same id preserved -- zero FK/cascade risk). Only genuinely excess rows
- * (positions the new structure no longer needs) are ever deleted, and only
- * after confirming no TimetableSlot references them; if any do, the whole
- * apply is aborted before anything is written (see applyToClasses()).
+ * TimetableSlot, teacher_substitutions, or teacher_availabilities row
+ * references (checked via the shared BellTimingDependencyChecker -- the
+ * same checker BellTimingController's single-delete flow uses, so there
+ * is exactly one dependency rule in the app, not two). Where an existing
+ * row's structure position still exists in the new desired structure, it
+ * is UPDATED IN PLACE (same id preserved -- zero FK/cascade risk). Only
+ * genuinely excess rows (positions the new structure no longer needs) are
+ * ever deleted, and only after confirming nothing depends on them; if
+ * anything does, the whole apply is aborted before anything is written
+ * (see applyToClasses()).
  */
 class BellTimingTemplateService
 {
+    public function __construct(private BellTimingDependencyChecker $dependencyChecker)
+    {
+    }
+
     /**
      * Build a template from an explicit list of slot definitions
      * (period_name, start_time, end_time, is_break, period_type,
@@ -284,7 +291,9 @@ class BellTimingTemplateService
      * position-by-position (by order_index): overlapping positions are
      * UPDATED IN PLACE (id preserved, zero FK risk); genuinely new
      * positions are INSERTED; genuinely excess existing positions are
-     * DELETED only after confirming no TimetableSlot references them.
+     * DELETED only after confirming nothing depends on them (via the
+     * shared BellTimingDependencyChecker -- timetable_slots,
+     * teacher_substitutions, and teacher_availabilities).
      */
     private function applyToClassDay(string $classSection, string $day, array $desiredSlots, ?string $academicYear, ?string $semester, User $user, string $action): array
     {
@@ -316,10 +325,12 @@ class BellTimingTemplateService
         // Excess existing rows this new structure no longer needs.
         if ($existingCount > $desiredCount) {
             $excessIds = $existing->slice($desiredCount)->pluck('id')->all();
+            $dependencies = $this->dependencyChecker->check($excessIds);
 
-            if (TimetableSlot::whereIn('bell_timing_id', $excessIds)->exists()) {
+            if ($this->dependencyChecker->isBlocked($dependencies)) {
                 throw new RuntimeException(
-                    "Cannot apply to {$classSection} on {$day}: an existing period is used by a live timetable and cannot be removed. " .
+                    "Cannot apply to {$classSection} on {$day}: an existing period is used by " .
+                    $this->dependencyChecker->summarize($dependencies) . ' and cannot be removed. ' .
                     'Remove or regenerate that timetable first, or choose Skip for this class.'
                 );
             }

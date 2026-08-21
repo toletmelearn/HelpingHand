@@ -7,8 +7,11 @@ use App\Models\BellTimingTemplate;
 use App\Models\ParentModel;
 use App\Models\Role;
 use App\Models\SchoolClass;
+use App\Models\Section;
 use App\Models\Subject;
 use App\Models\Teacher;
+use App\Models\TeacherAvailability;
+use App\Models\TeacherSubstitution;
 use App\Models\TimetableSlot;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -958,5 +961,222 @@ class BellTimingTemplateTest extends TestCase
         ]);
 
         $this->assertSame(8, BellTiming::where('class_section', 'Class 3')->count(), 'Apply Confirm is the only step that writes timetable rows.');
+    }
+
+    // ============================================================
+    // Z. Template Replace dependency safety (Phase 2) -- the excess-row
+    // deletion inside applyToClassDay() now goes through the same shared
+    // BellTimingDependencyChecker BellTimingController::destroy() uses,
+    // instead of a timetable_slots-only check. These mirror
+    // test_apply_is_blocked_when_it_would_remove_a_period_used_by_a_live_timetable_slot
+    // (which already covers the original TimetableSlot case, unchanged)
+    // for the two dependency types that were previously unchecked.
+    // ============================================================
+
+    /** @return array{0: SchoolClass, 1: Section, 2: Subject, 3: Teacher} */
+    private function makeDependencyFixtures(string $suffix): array
+    {
+        $schoolClass = SchoolClass::create(['name' => "Replace Safety Class $suffix", 'class_order' => 900, 'is_active' => true]);
+        $section = Section::create(['name' => 'A', 'class_id' => $schoolClass->id]);
+        $subject = Subject::create(['name' => "Replace Safety Subject $suffix", 'code' => "RS-$suffix", 'is_active' => true]);
+        $teacher = Teacher::create(['name' => "Replace Safety Teacher $suffix", 'status' => 'active']);
+
+        return [$schoolClass, $section, $subject, $teacher];
+    }
+
+    public function test_replace_succeeds_when_excess_bell_timings_have_no_dependencies(): void
+    {
+        $admin = $this->admin();
+        $sixPeriodSlots = array_slice($this->eightPeriodSlots(), 0, 6);
+        $this->actingAs($admin)->post(route('bell-timing-templates.store'), ['name' => 'Six Period Replace', 'slots' => $sixPeriodSlots]);
+        $template = BellTimingTemplate::where('name', 'Six Period Replace')->firstOrFail();
+
+        $this->seedClassSchedule('Class 22', 'Monday', $this->eightPeriodSlots());
+
+        $response = $this->actingAs($admin)->post(route('bell-timing-templates.apply.confirm', $template), [
+            'days' => ['Monday'],
+            'decisions' => ['Class 22' => ['action' => 'replace']],
+        ]);
+
+        $response->assertRedirect(route('bell-timing-templates.index'));
+        $response->assertSessionHas('success');
+        $this->assertSame(6, BellTiming::where('class_section', 'Class 22')->count());
+    }
+
+    public function test_replace_is_blocked_when_an_excess_bell_timing_has_a_timetable_slot(): void
+    {
+        $admin = $this->admin();
+        [$schoolClass, , $subject, $teacher] = $this->makeDependencyFixtures('TS');
+        $sixPeriodSlots = array_slice($this->eightPeriodSlots(), 0, 6);
+        $this->actingAs($admin)->post(route('bell-timing-templates.store'), ['name' => 'Six Period Replace TS', 'slots' => $sixPeriodSlots]);
+        $template = BellTimingTemplate::where('name', 'Six Period Replace TS')->firstOrFail();
+
+        $this->seedClassSchedule('Class 23', 'Monday', $this->eightPeriodSlots());
+        $excessRow = BellTiming::where('class_section', 'Class 23')->orderBy('order_index')->get()->last();
+        TimetableSlot::create([
+            'school_class_id' => $schoolClass->id,
+            'bell_timing_id' => $excessRow->id,
+            'subject_id' => $subject->id,
+            'teacher_id' => $teacher->id,
+            'academic_year' => '2026-2027',
+            'status' => TimetableSlot::STATUS_DRAFT,
+        ]);
+        $before = BellTiming::where('class_section', 'Class 23')->count();
+
+        $response = $this->actingAs($admin)->post(route('bell-timing-templates.apply.confirm', $template), [
+            'days' => ['Monday'],
+            'decisions' => ['Class 23' => ['action' => 'replace']],
+        ]);
+
+        $response->assertRedirect();
+        $response->assertSessionHas('error');
+        $this->assertSame($before, BellTiming::where('class_section', 'Class 23')->count());
+        $this->assertDatabaseHas('bell_timings', ['id' => $excessRow->id]);
+        $this->assertDatabaseHas('timetable_slots', ['bell_timing_id' => $excessRow->id]);
+    }
+
+    public function test_replace_is_blocked_when_an_excess_bell_timing_has_a_published_timetable_slot(): void
+    {
+        $admin = $this->admin();
+        [$schoolClass, , $subject, $teacher] = $this->makeDependencyFixtures('PUB');
+        $sixPeriodSlots = array_slice($this->eightPeriodSlots(), 0, 6);
+        $this->actingAs($admin)->post(route('bell-timing-templates.store'), ['name' => 'Six Period Replace PUB', 'slots' => $sixPeriodSlots]);
+        $template = BellTimingTemplate::where('name', 'Six Period Replace PUB')->firstOrFail();
+
+        $this->seedClassSchedule('Class 24', 'Monday', $this->eightPeriodSlots());
+        $excessRow = BellTiming::where('class_section', 'Class 24')->orderBy('order_index')->get()->last();
+        TimetableSlot::create([
+            'school_class_id' => $schoolClass->id,
+            'bell_timing_id' => $excessRow->id,
+            'subject_id' => $subject->id,
+            'teacher_id' => $teacher->id,
+            'academic_year' => '2026-2027',
+            'status' => TimetableSlot::STATUS_PUBLISHED,
+        ]);
+        $before = BellTiming::where('class_section', 'Class 24')->count();
+
+        $response = $this->actingAs($admin)->post(route('bell-timing-templates.apply.confirm', $template), [
+            'days' => ['Monday'],
+            'decisions' => ['Class 24' => ['action' => 'replace']],
+        ]);
+
+        $response->assertRedirect();
+        $response->assertSessionHas('error');
+        $this->assertStringContainsString('published', strtolower(session('error')));
+        $this->assertSame($before, BellTiming::where('class_section', 'Class 24')->count());
+        $this->assertDatabaseHas('bell_timings', ['id' => $excessRow->id]);
+        $this->assertDatabaseHas('timetable_slots', ['bell_timing_id' => $excessRow->id, 'status' => 'published']);
+    }
+
+    public function test_replace_is_blocked_when_an_excess_bell_timing_has_a_teacher_substitution(): void
+    {
+        $admin = $this->admin();
+        [$schoolClass, $section, $subject, $teacher] = $this->makeDependencyFixtures('SUB');
+        $sixPeriodSlots = array_slice($this->eightPeriodSlots(), 0, 6);
+        $this->actingAs($admin)->post(route('bell-timing-templates.store'), ['name' => 'Six Period Replace SUB', 'slots' => $sixPeriodSlots]);
+        $template = BellTimingTemplate::where('name', 'Six Period Replace SUB')->firstOrFail();
+
+        $this->seedClassSchedule('Class 25', 'Monday', $this->eightPeriodSlots());
+        $excessRow = BellTiming::where('class_section', 'Class 25')->orderBy('order_index')->get()->last();
+        $substitution = TeacherSubstitution::create([
+            'substitution_date' => now()->toDateString(),
+            'absent_teacher_id' => $teacher->id,
+            'class_id' => $schoolClass->id,
+            'section_id' => $section->id,
+            'subject_id' => $subject->id,
+            'period_number' => 1,
+            'bell_timing_id' => $excessRow->id,
+            'created_by' => $admin->id,
+        ]);
+        $before = BellTiming::where('class_section', 'Class 25')->count();
+
+        // Before this fix, this would have thrown a raw, unhandled
+        // QueryException (teacher_substitutions.bell_timing_id has no
+        // cascade -- default RESTRICT) instead of a friendly redirect.
+        $response = $this->actingAs($admin)->post(route('bell-timing-templates.apply.confirm', $template), [
+            'days' => ['Monday'],
+            'decisions' => ['Class 25' => ['action' => 'replace']],
+        ]);
+
+        $response->assertRedirect();
+        $response->assertSessionHas('error');
+        $this->assertSame($before, BellTiming::where('class_section', 'Class 25')->count());
+        $this->assertDatabaseHas('bell_timings', ['id' => $excessRow->id]);
+        $this->assertDatabaseHas('teacher_substitutions', ['id' => $substitution->id]);
+    }
+
+    public function test_replace_is_blocked_when_an_excess_bell_timing_has_teacher_availability(): void
+    {
+        $admin = $this->admin();
+        [, , , $teacher] = $this->makeDependencyFixtures('AVAIL');
+        $sixPeriodSlots = array_slice($this->eightPeriodSlots(), 0, 6);
+        $this->actingAs($admin)->post(route('bell-timing-templates.store'), ['name' => 'Six Period Replace AVAIL', 'slots' => $sixPeriodSlots]);
+        $template = BellTimingTemplate::where('name', 'Six Period Replace AVAIL')->firstOrFail();
+
+        $this->seedClassSchedule('Class 26', 'Monday', $this->eightPeriodSlots());
+        $excessRow = BellTiming::where('class_section', 'Class 26')->orderBy('order_index')->get()->last();
+        // teacher_availabilities.bell_timing_id cascades on delete -- before
+        // this fix, this row would have been silently destroyed with no
+        // warning at all instead of blocking the Replace.
+        $availability = TeacherAvailability::create([
+            'teacher_id' => $teacher->id,
+            'bell_timing_id' => $excessRow->id,
+        ]);
+        $before = BellTiming::where('class_section', 'Class 26')->count();
+
+        $response = $this->actingAs($admin)->post(route('bell-timing-templates.apply.confirm', $template), [
+            'days' => ['Monday'],
+            'decisions' => ['Class 26' => ['action' => 'replace']],
+        ]);
+
+        $response->assertRedirect();
+        $response->assertSessionHas('error');
+        $this->assertSame($before, BellTiming::where('class_section', 'Class 26')->count());
+        $this->assertDatabaseHas('bell_timings', ['id' => $excessRow->id]);
+        $this->assertDatabaseHas('teacher_availabilities', ['id' => $availability->id]);
+    }
+
+    public function test_successful_replace_remains_transactional_when_another_class_is_blocked(): void
+    {
+        $admin = $this->admin();
+        [$schoolClass, , $subject, $teacher] = $this->makeDependencyFixtures('TXN');
+        $sixPeriodSlots = array_slice($this->eightPeriodSlots(), 0, 6);
+        $this->actingAs($admin)->post(route('bell-timing-templates.store'), ['name' => 'Six Period Replace TXN', 'slots' => $sixPeriodSlots]);
+        $template = BellTimingTemplate::where('name', 'Six Period Replace TXN')->firstOrFail();
+
+        // Class 27 is a perfectly valid Replace on its own (no dependencies).
+        $this->seedClassSchedule('Class 27', 'Monday', $this->eightPeriodSlots());
+        $validExcessRow = BellTiming::where('class_section', 'Class 27')->orderBy('order_index')->get()->last();
+
+        // Class 28's excess row has a teacher substitution -- this must
+        // abort the WHOLE transaction, not just skip Class 28.
+        $this->seedClassSchedule('Class 28', 'Monday', $this->eightPeriodSlots());
+        $blockedExcessRow = BellTiming::where('class_section', 'Class 28')->orderBy('order_index')->get()->last();
+        TeacherSubstitution::create([
+            'substitution_date' => now()->toDateString(),
+            'absent_teacher_id' => $teacher->id,
+            'class_id' => $schoolClass->id,
+            'section_id' => Section::create(['name' => 'B', 'class_id' => $schoolClass->id])->id,
+            'subject_id' => $subject->id,
+            'period_number' => 1,
+            'bell_timing_id' => $blockedExcessRow->id,
+            'created_by' => $admin->id,
+        ]);
+
+        $response = $this->actingAs($admin)->post(route('bell-timing-templates.apply.confirm', $template), [
+            'days' => ['Monday'],
+            'decisions' => [
+                'Class 27' => ['action' => 'replace'],
+                'Class 28' => ['action' => 'replace'],
+            ],
+        ]);
+
+        $response->assertRedirect();
+        $response->assertSessionHas('error');
+        // Class 27's valid Replace must NOT have been partially applied --
+        // the whole transaction rolled back because Class 28 failed.
+        $this->assertSame(8, BellTiming::where('class_section', 'Class 27')->count(), 'Class 27 must be untouched: the whole transaction rolled back.');
+        $this->assertDatabaseHas('bell_timings', ['id' => $validExcessRow->id]);
+        $this->assertSame(8, BellTiming::where('class_section', 'Class 28')->count());
     }
 }
