@@ -54,6 +54,9 @@
                     </a>
                 @endif
                 @if(Auth::user()->hasRole('admin'))
+                    <a href="{{ route('bell-timing.bulk-edit') }}" class="btn btn-outline-warning">
+                        <i class="bi bi-pencil-square"></i> Bulk Edit
+                    </a>
                     <a href="{{ route('bell-timing.bulk-delete') }}" class="btn btn-outline-danger">
                         <i class="bi bi-trash3"></i> Bulk Delete
                     </a>

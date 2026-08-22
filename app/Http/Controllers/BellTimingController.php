@@ -9,6 +9,7 @@ use App\Services\Timetable\BellTimingDependencyChecker;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 use Carbon\Carbon;
 
 class BellTimingController extends Controller
@@ -413,13 +414,23 @@ class BellTimingController extends Controller
      */
     private function extractSelectedGroups(Request $request): array
     {
+        // These hidden fields are submitted for every row rendered on the
+        // selection screen, not just the ones checked -- so the max: limits
+        // here must tolerate whatever the widest real value in the table
+        // is, or a single unrelated row (e.g. an academic_year like
+        // "2026-2027-WALKTHROUGH", 21 chars) fails validation for the
+        // entire request with no visible error (neither selection screen
+        // renders $errors), silently bouncing the admin back to the same
+        // page. bell_timings.academic_year/semester are plain unconstrained
+        // VARCHAR(255) columns, so 50 (matching class_section's own limit)
+        // is a generous, still-real ceiling rather than an arbitrary one.
         $request->validate([
             'groups' => 'required|array',
             'groups.*.selected' => 'nullable|string',
             'groups.*.class_section' => 'nullable|string|max:50',
             'groups.*.day_of_week' => 'nullable|string|max:20',
-            'groups.*.academic_year' => 'nullable|string|max:20',
-            'groups.*.semester' => 'nullable|string|max:20',
+            'groups.*.academic_year' => 'nullable|string|max:50',
+            'groups.*.semester' => 'nullable|string|max:50',
         ]);
 
         return collect($request->input('groups', []))
@@ -490,6 +501,358 @@ class BellTimingController extends Controller
             })
             ->values()
             ->all();
+    }
+
+    /**
+     * Bulk Edit step 1: pick which (class_section, day_of_week,
+     * academic_year, semester) schedules to edit. Same grouped list Bulk
+     * Delete already uses (bulkDeleteGroups() is reused unmodified) --
+     * one selection screen serves both destructive operations.
+     */
+    public function bulkEditForm()
+    {
+        $this->authorize('bulkManage', BellTiming::class);
+
+        $groups = $this->bulkDeleteGroups();
+
+        return view('bell-timing.bulk-edit', compact('groups'));
+    }
+
+    /**
+     * Bulk Edit step 2: resolve the selection (server-side, from the
+     * tuple keys -- reuses extractSelectedGroups()/resolveSelectedBellTimings()
+     * unmodified) and offer the distinct period_name values actually
+     * present, so the admin can only ever target a period that exists in
+     * at least one selected schedule.
+     */
+    public function bulkEditTarget(Request $request)
+    {
+        $this->authorize('bulkManage', BellTiming::class);
+
+        $selections = $this->extractSelectedGroups($request);
+
+        if (empty($selections)) {
+            return redirect()->route('bell-timing.bulk-edit')
+                ->with('error', 'Please select at least one class/day schedule.');
+        }
+
+        $rows = $this->resolveSelectedBellTimings($selections);
+
+        if ($rows->isEmpty()) {
+            return redirect()->route('bell-timing.bulk-edit')
+                ->with('error', 'No matching schedules were found for the selected classes/days. They may have already been changed or removed.');
+        }
+
+        $periodNames = $rows->pluck('period_name')->unique()->sort()->values();
+
+        return view('bell-timing.bulk-edit-target', [
+            'selections' => $selections,
+            'periodNames' => $periodNames,
+            'groupsSummary' => $this->summarizeSelectedRows($rows),
+        ]);
+    }
+
+    /**
+     * Bulk Edit step 3: match the target period per (class, day) --
+     * never by position -- and show every selected schedule's outcome
+     * individually: matched (with an old->new diff and a dependency
+     * warning if one applies, via the shared checker's existing
+     * checkEach()/isBlocked()/summarize(), unmodified), missing (that
+     * exact period_name doesn't exist there), or ambiguous (it exists
+     * more than once -- the schema has no unique constraint preventing
+     * that, so it's checked for rather than assumed away). No writes
+     * happen here. Nothing is ever guessed.
+     */
+    public function bulkEditPreview(Request $request)
+    {
+        $this->authorize('bulkManage', BellTiming::class);
+
+        // The target screen (bulk-edit-target) that submits here is itself
+        // only reachable via POST -- it has no GET route, since rendering
+        // it requires the posted selection tuples. If either validate()
+        // call below threw and were left to Laravel's default behavior,
+        // the automatic redirect-back would 302 to the Referer (this same
+        // POST-only /bulk-edit/target URL), and the browser's follow-up GET
+        // would 405 -- the exact PRG defect already fixed once for Template
+        // preview earlier in this project. extractSelectedGroups() can only
+        // fail this validation via a tampered request (the UI always
+        // submits well-formed hidden fields), so on that failure there is
+        // no sensible form to redisplay -- fall back to the safe,
+        // GET-accessible selection screen instead. validateBulkEditPayload()
+        // can fail via ordinary admin typos (e.g. end time before start
+        // time), so that case re-renders the actual target form directly,
+        // with errors/old input bound by hand since there's no redirect to
+        // carry session-flashed input/errors through.
+        try {
+            $selections = $this->extractSelectedGroups($request);
+        } catch (ValidationException $e) {
+            return redirect()->route('bell-timing.bulk-edit')
+                ->with('error', 'The submitted selection was invalid. Please start over.');
+        }
+
+        if (empty($selections)) {
+            return redirect()->route('bell-timing.bulk-edit')
+                ->with('error', 'Please select at least one class/day schedule.');
+        }
+
+        try {
+            $validated = $this->validateBulkEditPayload($request);
+        } catch (ValidationException $e) {
+            $request->flash();
+            $rows = $this->resolveSelectedBellTimings($selections);
+
+            if ($rows->isEmpty()) {
+                return redirect()->route('bell-timing.bulk-edit')
+                    ->with('error', 'No matching schedules were found for the selected classes/days. They may have already been changed or removed.');
+            }
+
+            return response()
+                ->view('bell-timing.bulk-edit-target', [
+                    'selections' => $selections,
+                    'periodNames' => $rows->pluck('period_name')->unique()->sort()->values(),
+                    'groupsSummary' => $this->summarizeSelectedRows($rows),
+                    'errors' => (new \Illuminate\Support\ViewErrorBag)->put('default', $e->validator->errors()),
+                ], 422);
+        }
+
+        $rows = $this->resolveSelectedBellTimings($selections);
+
+        if ($rows->isEmpty()) {
+            return redirect()->route('bell-timing.bulk-edit')
+                ->with('error', 'No matching schedules were found for the selected classes/days. They may have already been changed or removed.');
+        }
+
+        [$matched, $missing, $ambiguous] = $this->matchTargetPeriod($rows, $validated['target_period_name']);
+
+        $attributes = $this->buildBulkEditAttributes($validated);
+
+        $dependencies = $this->dependencyChecker->checkEach($matched->pluck('id')->all());
+
+        $preview = $matched->map(function (BellTiming $row) use ($attributes, $dependencies) {
+            $dep = $dependencies[$row->id] ?? [];
+            $old = [
+                'start_time' => $row->start_time->format('H:i'),
+                'end_time' => $row->end_time->format('H:i'),
+                'period_name' => $row->period_name,
+                'custom_label' => $row->custom_label,
+                'color_code' => $row->color_code,
+            ];
+
+            return [
+                'bellTiming' => $row,
+                'old' => $old,
+                'new' => array_merge($old, $attributes),
+                'warning' => $this->dependencyChecker->isBlocked($dep),
+                'reason' => $this->dependencyChecker->summarize($dep),
+                'known_updated_at' => $row->updated_at->toISOString(),
+            ];
+        })->values();
+
+        return view('bell-timing.bulk-edit-preview', [
+            'selections' => $selections,
+            'payload' => $validated,
+            'preview' => $preview,
+            'missing' => $missing,
+            'ambiguous' => $ambiguous,
+        ]);
+    }
+
+    /**
+     * Bulk Edit step 4: re-derive absolutely everything from scratch --
+     * independent of whatever bulkEditPreview() showed -- exactly the
+     * same "never trust the earlier screen's snapshot" rule destroy()
+     * and bulkDeleteConfirm() already follow. A matched row is only
+     * updated if its updated_at still matches what preview recorded;
+     * anything that changed in between (or vanished, or became
+     * ambiguous) is excluded and reported, never overwritten. Dependency
+     * warnings never block here -- only staleness, missing/ambiguous
+     * matches, validation, and authorization can prevent an update.
+     */
+    public function bulkEditConfirm(Request $request)
+    {
+        $this->authorize('bulkManage', BellTiming::class);
+
+        // Confirm's own screen (bulk-edit-preview) is likewise POST-only,
+        // so any validation failure left to Laravel's default back()-
+        // redirect would 405 the same way -- see the identical guard in
+        // bulkEditPreview() above. Reaching any of these catches at all
+        // means the hidden fields carried forward from preview were
+        // tampered with (the UI never submits invalid values here), so
+        // there is no sensible form to redisplay -- send the admin back to
+        // a safe, GET-accessible starting point instead.
+        try {
+            $selections = $this->extractSelectedGroups($request);
+        } catch (ValidationException $e) {
+            return redirect()->route('bell-timing.bulk-edit')
+                ->with('error', 'The submitted selection was invalid. Please start over.');
+        }
+
+        if (empty($selections)) {
+            return redirect()->route('bell-timing.bulk-edit')
+                ->with('error', 'Please select at least one class/day schedule.');
+        }
+
+        try {
+            $validated = $this->validateBulkEditPayload($request);
+            $request->validate([
+                'known_state' => 'nullable|array',
+                'known_state.*' => 'nullable|string',
+            ]);
+        } catch (ValidationException $e) {
+            return redirect()->route('bell-timing.bulk-edit')
+                ->with('error', 'The submitted changes were invalid. Please start over.');
+        }
+
+        $knownState = $request->input('known_state', []);
+
+        $rows = $this->resolveSelectedBellTimings($selections);
+
+        if ($rows->isEmpty()) {
+            return redirect()->route('bell-timing.bulk-edit')
+                ->with('error', 'No matching schedules were found for the selected classes/days. They may have already been changed or removed.');
+        }
+
+        [$matched, $missing, $ambiguous] = $this->matchTargetPeriod($rows, $validated['target_period_name']);
+
+        $toUpdateIds = [];
+        $changedSincePreview = 0;
+
+        foreach ($matched as $row) {
+            $known = $knownState[$row->id] ?? null;
+            if ($known === null || $known !== $row->updated_at->toISOString()) {
+                $changedSincePreview++;
+                continue;
+            }
+            $toUpdateIds[] = $row->id;
+        }
+
+        if (empty($toUpdateIds)) {
+            return redirect()->route('bell-timing.bulk-edit')
+                ->with('error', 'Nothing was updated -- every matched schedule changed since preview, was not found, or was ambiguous. Please review and try again.');
+        }
+
+        $attributes = $this->buildBulkEditAttributes($validated);
+
+        DB::transaction(function () use ($toUpdateIds, $attributes) {
+            BellTiming::whereIn('id', $toUpdateIds)->update($attributes);
+        });
+
+        $message = 'Updated ' . count($toUpdateIds) . ' Bell Timing(s).';
+        if (!empty($missing)) {
+            $message .= ' ' . count($missing) . ' schedule(s) did not have that period.';
+        }
+        if (!empty($ambiguous)) {
+            $message .= ' ' . count($ambiguous) . ' schedule(s) had an ambiguous match and were skipped.';
+        }
+        if ($changedSincePreview > 0) {
+            $message .= " {$changedSincePreview} schedule(s) changed since preview and were skipped.";
+        }
+
+        return redirect()->route('bell-timing.index')->with('success', $message);
+    }
+
+    /**
+     * Shared validation for the target-period/new-value payload, used
+     * identically by both bulkEditPreview() and bulkEditConfirm() so the
+     * two steps can never silently drift apart. Only the five whitelisted
+     * fields (start_time+end_time as a pair, period_name, custom_label,
+     * color_code) can ever be requested -- class_section, academic_year,
+     * semester, order_index, id, and every ownership field are simply
+     * never read from the request at all, anywhere in this flow.
+     */
+    private function validateBulkEditPayload(Request $request): array
+    {
+        $validated = $request->validate([
+            'target_period_name' => 'required|string|max:100',
+
+            'change_time' => 'nullable|in:1',
+            'new_start_time' => 'required_if:change_time,1|nullable|date_format:H:i',
+            'new_end_time' => 'required_if:change_time,1|nullable|date_format:H:i|after:new_start_time',
+
+            'change_period_name' => 'nullable|in:1',
+            'new_period_name' => 'required_if:change_period_name,1|nullable|string|max:100',
+
+            'change_custom_label' => 'nullable|in:1',
+            'new_custom_label' => 'nullable|string|max:100',
+
+            'change_color_code' => 'nullable|in:1',
+            'new_color_code' => 'required_if:change_color_code,1|nullable|regex:/^#[0-9A-F]{6}$/i',
+        ]);
+
+        $hasAnyChange = collect(['change_time', 'change_period_name', 'change_custom_label', 'change_color_code'])
+            ->contains(fn ($key) => ($validated[$key] ?? null) === '1');
+
+        if (!$hasAnyChange) {
+            throw ValidationException::withMessages([
+                'change_time' => 'Select at least one field to change.',
+            ]);
+        }
+
+        return $validated;
+    }
+
+    /**
+     * Builds the update() attribute array strictly from the checked
+     * change_* flags -- explicit whitelist, nothing else can ever appear
+     * here regardless of what else the request might contain.
+     */
+    private function buildBulkEditAttributes(array $validated): array
+    {
+        $attributes = [];
+
+        if (($validated['change_time'] ?? null) === '1') {
+            $attributes['start_time'] = $validated['new_start_time'];
+            $attributes['end_time'] = $validated['new_end_time'];
+        }
+        if (($validated['change_period_name'] ?? null) === '1') {
+            $attributes['period_name'] = $validated['new_period_name'];
+        }
+        if (($validated['change_custom_label'] ?? null) === '1') {
+            $attributes['custom_label'] = $validated['new_custom_label'];
+        }
+        if (($validated['change_color_code'] ?? null) === '1') {
+            $attributes['color_code'] = $validated['new_color_code'];
+        }
+
+        return $attributes;
+    }
+
+    /**
+     * Matches the target period_name against the resolved rows, grouped
+     * by (class_section, day_of_week) -- never by position/order_index.
+     * A group with no matching period_name is "missing"; a group with
+     * more than one row sharing that exact name is "ambiguous" (the
+     * schema has no unique constraint preventing duplicate names, so
+     * this is checked for rather than assumed away). Only an exact
+     * single match is ever eligible for editing -- never guessed.
+     *
+     * @return array{0: \Illuminate\Support\Collection<int, BellTiming>, 1: array, 2: array}
+     */
+    private function matchTargetPeriod(\Illuminate\Support\Collection $rows, string $periodName): array
+    {
+        $matched = collect();
+        $missing = [];
+        $ambiguous = [];
+
+        $rows->groupBy(fn (BellTiming $r) => implode('|', [$r->class_section ?? '', $r->day_of_week ?? '']))
+            ->each(function ($groupRows) use ($periodName, &$matched, &$missing, &$ambiguous) {
+                $hits = $groupRows->where('period_name', $periodName)->values();
+                $first = $groupRows->first();
+                $identity = [
+                    'class_section' => $first->class_section,
+                    'day_of_week' => $first->day_of_week,
+                ];
+
+                if ($hits->count() === 1) {
+                    $matched->push($hits->first());
+                } elseif ($hits->count() > 1) {
+                    $ambiguous[] = $identity + ['count' => $hits->count()];
+                } else {
+                    $missing[] = $identity;
+                }
+            });
+
+        return [$matched, $missing, $ambiguous];
     }
 
     /**

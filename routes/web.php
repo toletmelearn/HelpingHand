@@ -466,6 +466,15 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/bell-timing/bulk-delete', [App\Http\Controllers\BellTimingController::class, 'bulkDeleteForm'])->name('bell-timing.bulk-delete');
     Route::post('/bell-timing/bulk-delete/preview', [App\Http\Controllers\BellTimingController::class, 'bulkDeletePreview'])->name('bell-timing.bulk-delete.preview');
     Route::post('/bell-timing/bulk-delete/confirm', [App\Http\Controllers\BellTimingController::class, 'bulkDeleteConfirm'])->name('bell-timing.bulk-delete.confirm');
+    // Bulk Edit -- same literal-before-resource requirement and the same
+    // selection-tuple/server-side-re-resolve discipline as Bulk Delete
+    // above. Target period matching is by (class_section, day_of_week,
+    // period_name), never by position -- see BellTimingController::
+    // bulkEditTarget()/bulkEditPreview()/bulkEditConfirm().
+    Route::get('/bell-timing/bulk-edit', [App\Http\Controllers\BellTimingController::class, 'bulkEditForm'])->name('bell-timing.bulk-edit');
+    Route::post('/bell-timing/bulk-edit/target', [App\Http\Controllers\BellTimingController::class, 'bulkEditTarget'])->name('bell-timing.bulk-edit.target');
+    Route::post('/bell-timing/bulk-edit/preview', [App\Http\Controllers\BellTimingController::class, 'bulkEditPreview'])->name('bell-timing.bulk-edit.preview');
+    Route::post('/bell-timing/bulk-edit/confirm', [App\Http\Controllers\BellTimingController::class, 'bulkEditConfirm'])->name('bell-timing.bulk-edit.confirm');
     Route::get('/bell-timing/print/{classSection?}/{academicYear?}', [App\Http\Controllers\BellTimingController::class, 'printTimetable'])->name('bell-timing.print');
     // Same literal-before-resource requirement as above: these two also sit
     // under /bell-timing/... and must be registered before the resource's
