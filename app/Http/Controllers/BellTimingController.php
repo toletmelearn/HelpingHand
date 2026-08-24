@@ -4,6 +4,8 @@ namespace App\Http\Controllers;
 
 use App\Models\BellTiming;
 use App\Models\Student;
+use App\Models\TeacherSubstitution;
+use App\Models\TimetableSlot;
 use App\Models\User;
 use App\Services\Timetable\BellTimingDependencyChecker;
 use Illuminate\Http\Request;
@@ -228,6 +230,167 @@ class BellTimingController extends Controller
     }
 
     /**
+     * Dependency Resolution Phase A: read-only detail for exactly which
+     * records are blocking this Bell Timing's deletion -- not just "1
+     * draft timetable slot", but which class/subject/teacher/date. Purely
+     * additive to confirmDelete(): same authorization, same dependency
+     * checker, just describe() instead of check(), so this screen can
+     * never disagree with what confirmDelete()/destroy() see. No writes,
+     * no Reassign/Deactivate actions yet -- those are later phases.
+     */
+    public function dependencyDetail(BellTiming $bellTiming)
+    {
+        $this->authorize('delete', $bellTiming);
+
+        $dependencies = $this->dependencyChecker->check($bellTiming->id);
+        $detail = $this->dependencyChecker->describe([$bellTiming->id])[$bellTiming->id]
+            ?? ['timetable_slots' => [], 'teacher_substitutions' => [], 'teacher_availabilities' => []];
+
+        return view('bell-timing.dependency-detail', [
+            'bellTiming' => $bellTiming,
+            'blocked' => $this->dependencyChecker->isBlocked($dependencies),
+            'detail' => $detail,
+        ]);
+    }
+
+    /**
+     * Phase B: read-only reassignment form for one blocking timetable
+     * slot. Deliberately does NOT write anything itself -- the form this
+     * renders submits directly to Admin\TimetableController::update()
+     * (route timetable.update), completely unmodified, so every
+     * validation rule, conflict check, transaction, and authorization
+     * check that endpoint already enforces applies here exactly as it
+     * does everywhere else it's used. This method's only two jobs: (1)
+     * make sure the admin can only reach a slot that actually belongs to
+     * this Bell Timing, and (2) once update() redirects back here on
+     * success, re-run the dependency check live so nothing is ever
+     * inferred from a stale browser-side count.
+     */
+    public function reassignSlotForm(BellTiming $bellTiming, TimetableSlot $slot)
+    {
+        $this->authorize('delete', $bellTiming);
+
+        // The slot id comes from the URL -- never trust it belongs to
+        // this Bell Timing just because both ids were supplied together.
+        abort_unless((int) $slot->bell_timing_id === $bellTiming->id, 404);
+
+        $reassignable = $slot->status !== TimetableSlot::STATUS_ARCHIVED && ! $slot->is_locked;
+
+        if (! $reassignable) {
+            return redirect()->route('bell-timing.dependencies', $bellTiming)
+                ->with('error', 'This timetable slot is archived or locked and cannot be reassigned from here.');
+        }
+
+        $recheck = null;
+        if (session('success')) {
+            // Admin\TimetableController::update() redirects back() on
+            // success, which returns here since this page was the
+            // referrer. Re-fetch and re-check fresh rather than trusting
+            // anything remembered from before the reassignment.
+            $bellTiming->refresh();
+            $dependencies = $this->dependencyChecker->check($bellTiming->id);
+            $recheck = [
+                'blocked' => $this->dependencyChecker->isBlocked($dependencies),
+                'summary' => $this->dependencyChecker->summarize($dependencies),
+            ];
+        }
+
+        $targets = BellTiming::active()
+            ->where('id', '!=', $bellTiming->id)
+            ->orderBy('day_of_week')
+            ->orderBy('order_index')
+            ->get();
+
+        return view('bell-timing.reassign-slot', [
+            'bellTiming' => $bellTiming,
+            'slot' => $slot->fresh(['schoolClass', 'section', 'subject', 'teacher', 'coTeacher']),
+            'targets' => $targets,
+            'recheck' => $recheck,
+        ]);
+    }
+
+    /**
+     * Phase B: read-only reassignment form for one blocking teacher
+     * substitution. Same discipline as reassignSlotForm() -- the form
+     * submits straight to Admin\TeacherSubstitutionController::update()
+     * (route admin.teacher-substitutions.update), completely unmodified. That
+     * endpoint redirects to admin.teacher-substitutions.index on success
+     * (its own existing behavior, left untouched), not back here, so
+     * unlike reassignSlotForm() there is no same-page live recheck to
+     * show -- the form links back to the dependency screen instead,
+     * which always re-checks fresh whenever it's opened.
+     */
+    public function reassignSubstitutionForm(BellTiming $bellTiming, TeacherSubstitution $substitution)
+    {
+        $this->authorize('delete', $bellTiming);
+
+        abort_unless((int) $substitution->bell_timing_id === $bellTiming->id, 404);
+
+        $targets = BellTiming::active()
+            ->where('id', '!=', $bellTiming->id)
+            ->orderBy('day_of_week')
+            ->orderBy('order_index')
+            ->get();
+
+        return view('bell-timing.reassign-substitution', [
+            'bellTiming' => $bellTiming,
+            'substitution' => $substitution->fresh(['absentTeacher', 'class', 'section', 'subject']),
+            'targets' => $targets,
+        ]);
+    }
+
+    /**
+     * Phase C: read-only confirmation screen before deactivating a Bell
+     * Timing. Same authorization and same live dependency lookup as
+     * dependencyDetail() -- shown so the admin sees exactly what they're
+     * choosing to leave alone (not delete) before confirming.
+     */
+    public function deactivateConfirm(BellTiming $bellTiming)
+    {
+        $this->authorize('delete', $bellTiming);
+
+        $dependencies = $this->dependencyChecker->check($bellTiming->id);
+        $detail = $this->dependencyChecker->describe([$bellTiming->id])[$bellTiming->id]
+            ?? ['timetable_slots' => [], 'teacher_substitutions' => [], 'teacher_availabilities' => []];
+
+        return view('bell-timing.deactivate-confirm', [
+            'bellTiming' => $bellTiming,
+            'blocked' => $this->dependencyChecker->isBlocked($dependencies),
+            'detail' => $detail,
+        ]);
+    }
+
+    /**
+     * Phase C: deactivate (never delete) a Bell Timing -- an alternative
+     * for when the admin has dependencies they don't want to touch.
+     * Deliberately its own small, tightly-scoped write rather than routed
+     * through the general update() action above: that endpoint's policy
+     * allows admin OR teacher (it's the everyday single-record edit
+     * form), which would let a teacher deactivate through the back door.
+     * This reuses the same 'delete' ability every other action in this
+     * dependency-resolution flow already uses -- admin-only, without
+     * inventing a new ability. Idempotent: an already-inactive Bell
+     * Timing is a no-op, not an error, so a stale confirmation page or a
+     * doubled submission is always safe.
+     */
+    public function deactivate(BellTiming $bellTiming)
+    {
+        $this->authorize('delete', $bellTiming);
+
+        if (! $bellTiming->is_active) {
+            return redirect()->route('bell-timing.index')
+                ->with('success', 'This Bell Timing is already inactive.');
+        }
+
+        DB::transaction(function () use ($bellTiming) {
+            $bellTiming->update(['is_active' => false]);
+        });
+
+        return redirect()->route('bell-timing.index')
+            ->with('success', 'Bell Timing deactivated -- hidden from new schedules, but existing timetable/history records are unchanged.');
+    }
+
+    /**
      * Remove the specified bell timing from storage.
      *
      * Never blindly cascades: timetable_slots.bell_timing_id and
@@ -283,6 +446,15 @@ class BellTimingController extends Controller
      * client-supplied id list) and split them into safe/blocked via the
      * shared dependency checker, batched (one query per dependency table
      * regardless of selection size). No writes happen here.
+     *
+     * Phase D: blocked entries also carry describe()'s per-record detail
+     * (the same data dependencyDetail() already renders) so the preview
+     * can show WHICH class/subject/teacher/date is blocking each one --
+     * not just a count -- and so the view can link straight to the
+     * existing Phase A/B/C screens (View Dependencies / Reassign /
+     * Deactivate) for each one. Pure addition to what was already being
+     * computed here; checkEach()/isBlocked()/summarize() calls and the
+     * safe/blocked split itself are unchanged.
      */
     public function bulkDeletePreview(Request $request)
     {
@@ -314,6 +486,14 @@ class BellTimingController extends Controller
                 $safe[] = $row;
             }
         }
+
+        $blockedIds = array_map(fn ($b) => $b['bellTiming']->id, $blocked);
+        $blockedDetail = $this->dependencyChecker->describe($blockedIds);
+        foreach ($blocked as &$b) {
+            $b['detail'] = $blockedDetail[$b['bellTiming']->id]
+                ?? ['timetable_slots' => [], 'teacher_substitutions' => [], 'teacher_availabilities' => []];
+        }
+        unset($b);
 
         return view('bell-timing.bulk-delete-preview', [
             'selections' => $selections,
@@ -373,9 +553,9 @@ class BellTimingController extends Controller
         });
 
         $deletedCount = count($safeIds);
-        $message = "Deleted {$deletedCount} Bell Timing(s).";
+        $message = "{$deletedCount} Bell Timing(s) deleted.";
         if ($blockedCount > 0) {
-            $message .= " {$blockedCount} were skipped because they are still in use.";
+            $message .= " {$blockedCount} Bell Timing(s) were protected because dependencies were detected.";
         }
 
         return redirect()->route('bell-timing.index')->with('success', $message);

@@ -486,6 +486,29 @@ Route::middleware(['auth'])->group(function () {
     // server-side dependency check destroy() re-runs before actually
     // deleting -- see BellTimingController::confirmDelete()/destroy().
     Route::get('/bell-timing/{bellTiming}/delete', [App\Http\Controllers\BellTimingController::class, 'confirmDelete'])->name('bell-timing.delete.confirm');
+    // Dependency Resolution Phase A: read-only detail of exactly which
+    // records block this Bell Timing's deletion. Extra path segment
+    // ("/dependencies") past the resource's own GET bell-timing/{bell_timing}
+    // show route, so it can never collide with it regardless of ordering --
+    // see BellTimingController::dependencyDetail().
+    Route::get('/bell-timing/{bellTiming}/dependencies', [App\Http\Controllers\BellTimingController::class, 'dependencyDetail'])->name('bell-timing.dependencies');
+    // Dependency Resolution Phase B: read-only reassignment forms. Neither
+    // of these writes anything -- each renders a form that submits
+    // straight to the existing, unmodified timetable.update / teacher-
+    // substitutions.update routes, reusing their own validation,
+    // authorization, and transaction handling in full. Extra path
+    // segments past both the resource show route and bell-timing.dependencies,
+    // so no collision risk regardless of registration order.
+    Route::get('/bell-timing/{bellTiming}/dependencies/slots/{slot}/reassign', [App\Http\Controllers\BellTimingController::class, 'reassignSlotForm'])->name('bell-timing.dependencies.reassign-slot');
+    Route::get('/bell-timing/{bellTiming}/dependencies/substitutions/{substitution}/reassign', [App\Http\Controllers\BellTimingController::class, 'reassignSubstitutionForm'])->name('bell-timing.dependencies.reassign-substitution');
+    // Dependency Resolution Phase C: deactivate instead of delete. Sets
+    // is_active=false only -- never deletes/touches timetable_slots,
+    // teacher_substitutions, or teacher_availabilities. GET shows a
+    // read-only confirmation (same dependency lookup as dependencyDetail());
+    // POST is the only route that writes, gated by the same admin-only
+    // 'delete' ability the rest of this flow already uses.
+    Route::get('/bell-timing/{bellTiming}/deactivate', [App\Http\Controllers\BellTimingController::class, 'deactivateConfirm'])->name('bell-timing.deactivate.confirm');
+    Route::post('/bell-timing/{bellTiming}/deactivate', [App\Http\Controllers\BellTimingController::class, 'deactivate'])->name('bell-timing.deactivate');
 
     // Bell Timing Templates -- a completely separate URL segment from
     // /bell-timing/..., so no collision risk with the resource route above,

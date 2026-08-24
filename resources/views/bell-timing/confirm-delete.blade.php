@@ -49,7 +49,10 @@
                     @endif
                     <p class="text-muted small">Resolve these dependencies before deleting.</p>
 
-                    <a href="{{ route('bell-timing.index') }}" class="btn btn-secondary"><i class="bi bi-arrow-left"></i> Go Back</a>
+                    <div class="d-flex gap-2">
+                        <a href="{{ route('bell-timing.index') }}" class="btn btn-secondary"><i class="bi bi-arrow-left"></i> Go Back</a>
+                        <a href="{{ route('bell-timing.dependencies', $bellTiming) }}" class="btn btn-outline-primary"><i class="bi bi-diagram-3"></i> View Dependency Details</a>
+                    </div>
                 @else
                     <p class="text-success"><i class="bi bi-check-circle"></i> This Bell Timing is not currently used by another timetable/dependency.</p>
 

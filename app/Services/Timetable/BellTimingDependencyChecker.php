@@ -116,6 +116,111 @@ class BellTimingDependencyChecker
     }
 
     /**
+     * Per-record detail (not just counts) for every dependency on the given
+     * Bell Timing ids -- powers the dependency-resolution screen, where an
+     * admin needs to see WHICH class/subject/teacher/date each blocking
+     * record actually is, and whether it can even be reassigned, not just
+     * "1 draft/archived timetable slot". Read-only -- same N+1-safe,
+     * one-query-per-table shape as checkEach(), just with relations eager
+     * loaded instead of collapsed into a count. Does not change what
+     * check()/checkEach()/isBlocked()/summarize() return or how any
+     * existing caller (destroy(), Bulk Delete, Bulk Edit's warnings,
+     * Template Replace) behaves -- purely additive.
+     *
+     * @param array<int> $bellTimingIds
+     * @return array<int, array{
+     *     timetable_slots: array<int, array{id: int, status: string, is_locked: bool, reassignable: bool, class_name: ?string, section_name: ?string, subject_name: ?string, teacher_name: ?string, co_teacher_name: ?string}>,
+     *     teacher_substitutions: array<int, array{id: int, status: ?string, substitution_date: ?string, absent_teacher_name: ?string, class_name: ?string, section_name: ?string, subject_name: ?string}>,
+     *     teacher_availabilities: array<int, array{id: int, teacher_id: int, teacher_name: ?string}>,
+     * }> keyed by bell_timing_id
+     */
+    public function describe(array $bellTimingIds): array
+    {
+        $ids = collect($bellTimingIds)->flatten()->filter()->unique()->values()->all();
+
+        if (empty($ids)) {
+            return [];
+        }
+
+        $slotsByBellTiming = TimetableSlot::with(['schoolClass', 'section', 'subject', 'teacher', 'coTeacher'])
+            ->whereIn('bell_timing_id', $ids)
+            ->get()
+            ->groupBy('bell_timing_id');
+
+        $substitutionsByBellTiming = TeacherSubstitution::with(['absentTeacher', 'class', 'section', 'subject'])
+            ->whereIn('bell_timing_id', $ids)
+            ->get()
+            ->groupBy('bell_timing_id');
+
+        $availabilitiesByBellTiming = TeacherAvailability::with('teacher')
+            ->whereIn('bell_timing_id', $ids)
+            ->get()
+            ->groupBy('bell_timing_id');
+
+        $result = [];
+
+        foreach ($ids as $id) {
+            $slots = $slotsByBellTiming->get($id, collect())->map(function (TimetableSlot $slot) {
+                return [
+                    'id' => $slot->id,
+                    'status' => $slot->status,
+                    'is_locked' => (bool) $slot->is_locked,
+                    // Archived slots can never be edited at all --
+                    // Admin\TimetableController::update() refuses them
+                    // outright -- and a locked slot must be unlocked
+                    // elsewhere first. The view uses this flag to decide
+                    // whether to show a Reassign link, rather than
+                    // re-deriving (and potentially getting wrong) the same
+                    // rule from status/is_locked itself.
+                    'reassignable' => $slot->status !== TimetableSlot::STATUS_ARCHIVED && ! $slot->is_locked,
+                    'class_name' => optional($slot->schoolClass)->name,
+                    'section_name' => optional($slot->section)->name,
+                    'subject_name' => optional($slot->subject)->name,
+                    'teacher_name' => optional($slot->teacher)->name,
+                    'co_teacher_name' => optional($slot->coTeacher)->name,
+                ];
+            })->values()->all();
+
+            $substitutions = $substitutionsByBellTiming->get($id, collect())->map(function (TeacherSubstitution $sub) {
+                return [
+                    'id' => $sub->id,
+                    'status' => $sub->status,
+                    'substitution_date' => $sub->substitution_date?->toDateString(),
+                    'absent_teacher_name' => optional($sub->absentTeacher)->name,
+                    'class_name' => optional($sub->class)->name,
+                    'section_name' => optional($sub->section)->name,
+                    'subject_name' => optional($sub->subject)->name,
+                ];
+            })->values()->all();
+
+            $availabilities = $availabilitiesByBellTiming->get($id, collect())->map(function (TeacherAvailability $avail) {
+                return [
+                    'id' => $avail->id,
+                    // Phase B: TeacherAvailability has no safe single-record
+                    // reassign path (its update() endpoint resyncs a
+                    // teacher's WHOLE blocked-period grid from a submitted
+                    // "desired state" array, not one row -- reassigning
+                    // just this row risks clobbering an unrelated change
+                    // made to the same grid in between). teacher_id is
+                    // exposed here only so the view can link out to that
+                    // teacher's own grid for a manual fix, never to build a
+                    // single-row write path around it.
+                    'teacher_id' => $avail->teacher_id,
+                    'teacher_name' => optional($avail->teacher)->name,
+                ];
+            })->values()->all();
+
+            $result[$id] = [
+                'timetable_slots' => $slots,
+                'teacher_substitutions' => $substitutions,
+                'teacher_availabilities' => $availabilities,
+            ];
+        }
+
+        return $result;
+    }
+
+    /**
      * @param array{timetable_slots_total: int, teacher_substitutions: int, teacher_availabilities: int} $dependencies
      */
     public function isBlocked(array $dependencies): bool
