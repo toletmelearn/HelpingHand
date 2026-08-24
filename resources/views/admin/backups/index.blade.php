@@ -83,7 +83,7 @@
                                                 Actions
                                             </button>
                                             <ul class="dropdown-menu">
-                                                @if($backup->isCompleted() && file_exists(storage_path('app/' . $backup->path . $backup->filename)))
+                                                @if($backup->isCompleted() && file_exists(app(\App\Services\Backup\DatabaseBackupService::class)->filePathFor($backup)))
                                                     <li><a class="dropdown-item" href="{{ route('admin.backups.download', $backup->id) }}"><i class="fas fa-download text-primary"></i> Download</a></li>
                                                 @elseif($backup->isCompleted())
                                                     <li><a class="dropdown-item disabled text-muted" href="#" tabindex="-1" aria-disabled="true"><i class="fas fa-exclamation-triangle text-warning"></i> File missing</a></li>
@@ -132,19 +132,20 @@
             <form method="POST" action="{{ route('admin.backups.store') }}">
                 @csrf
                 <div class="modal-body">
+                    <p class="text-muted small">
+                        V1 supports a real database-only backup, stored locally. File backups and
+                        cloud/off-machine storage are not implemented yet.
+                    </p>
                     <div class="mb-3">
                         <label for="type" class="form-label">Backup Type</label>
                         <select name="type" id="type" class="form-control" required>
-                            <option value="full">Full Backup</option>
                             <option value="database">Database Only</option>
-                            <option value="files">Files Only</option>
                         </select>
                     </div>
                     <div class="mb-3">
                         <label for="location" class="form-label">Storage Location</label>
                         <select name="location" id="location" class="form-control" required>
                             <option value="local">Local</option>
-                            <option value="cloud">Cloud</option>
                         </select>
                     </div>
                     <div class="mb-3">
@@ -175,16 +176,13 @@
                     <div class="mb-3">
                         <label for="schedule_type" class="form-label">Backup Type</label>
                         <select name="type" id="schedule_type" class="form-control" required>
-                            <option value="full">Full Backup</option>
                             <option value="database">Database Only</option>
-                            <option value="files">Files Only</option>
                         </select>
                     </div>
                     <div class="mb-3">
                         <label for="schedule_location" class="form-label">Storage Location</label>
                         <select name="location" id="schedule_location" class="form-control" required>
                             <option value="local">Local</option>
-                            <option value="cloud">Cloud</option>
                         </select>
                     </div>
                     <div class="mb-3">

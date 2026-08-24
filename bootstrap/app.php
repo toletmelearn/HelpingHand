@@ -36,6 +36,7 @@ return Application::configure(basePath: dirname(__DIR__))
         //
     })
     ->withSchedule(function ($schedule) {
+        $schedule->command('backup:run')->daily()->onOneServer();
         $schedule->command('reminders:send-all')->daily();
         $schedule->command('reminders:retry-failed')->hourly();
         $schedule->call(function () {

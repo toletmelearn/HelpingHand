@@ -38,6 +38,7 @@ class AuthServiceProvider extends ServiceProvider
         'App\Models\Student' => 'App\Policies\StudentPolicy',
         'App\Models\Teacher' => 'App\Policies\TeacherPolicy',
         'App\Models\ParentModel' => 'App\Policies\ParentPolicy',
+        'App\Models\Backup' => 'App\Policies\BackupPolicy',
         'App\Models\Attendance' => 'App\Policies\AttendancePolicy',
         'App\Models\Fee' => 'App\Policies\FeePolicy',
         'App\Models\FeeStructure' => 'App\Policies\FeeStructurePolicy',

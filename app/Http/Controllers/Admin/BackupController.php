@@ -4,11 +4,10 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Backup;
+use App\Services\Backup\DatabaseBackupService;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Artisan;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Auth;
-use Exception;
+use Illuminate\Support\Str;
 
 class BackupController extends Controller
 {
@@ -16,14 +15,16 @@ class BackupController extends Controller
     {
         $this->middleware('auth');
     }
-    
+
     /**
      * Display a listing of the resource.
      */
     public function index()
     {
+        $this->authorize('viewAny', Backup::class);
+
         $backups = Backup::with('creator')->latest()->paginate(20);
-        
+
         return view('admin.backups.index', compact('backups'));
     }
 
@@ -32,67 +33,51 @@ class BackupController extends Controller
      */
     public function create()
     {
+        $this->authorize('create', Backup::class);
+
         return view('admin.backups.create');
     }
 
     /**
      * Store a newly created resource in storage.
+     *
+     * V1 only supports a real database backup stored locally -- "full"/
+     * "files" and "cloud" are deliberately not accepted here rather than
+     * silently accepted and doing nothing, which is exactly the false-
+     * success problem this fix replaces.
      */
-    public function store(Request $request)
+    public function store(Request $request, DatabaseBackupService $service)
     {
+        $this->authorize('create', Backup::class);
+
         $request->validate([
-            'type' => 'required|in:full,database,files',
-            'location' => 'required|in:local,cloud',
+            'type' => 'required|in:database',
+            'location' => 'required|in:local',
             'notes' => 'nullable|string',
         ]);
-        
-        // Create backup record
+
         $backup = Backup::create([
-            'filename' => 'backup_' . date('Y-m-d_H-i-s') . '.zip',
-            'path' => 'backups/' . date('Y/m/d') . '/',
+            'filename' => 'backup_' . now()->format('Y-m-d_H-i-s') . '_' . Str::random(8) . '.zip',
+            'path' => 'backups/' . now()->format('Y/m/d'),
             'type' => $request->type,
             'location' => $request->location,
+            'size' => 0,
             'status' => 'pending',
             'notes' => $request->notes,
             'created_by' => Auth::id(),
         ]);
-        
-        // For now, we'll simulate the backup process
-        // In a real implementation, you'd use Laravel's queue system
+
         try {
-            // Simulate backup process
-            $exitCode = Artisan::call('config:cache'); // Just a sample command to simulate
-            
-            $backup->update([
-                'status' => 'completed',
-                'completed_at' => now(),
-                'size' => rand(1000000, 5000000), // Random size for demo
-            ]);
-        } catch (Exception $e) {
-            $backup->update(['status' => 'failed']);
+            $service->create($backup);
+        } catch (\Throwable $e) {
+            return redirect()->route('admin.backups.index')
+                ->with('error', 'Backup failed: ' . $e->getMessage());
         }
 
-        // Ensure a placeholder file exists for local completed backups so Download appears
-        if ($backup->status === 'completed' && $backup->location === 'local') {
-            $fullPath = storage_path('app/' . $backup->path);
-            if (!is_dir($fullPath)) {
-                @mkdir($fullPath, 0755, true);
-            }
+        $service->pruneOldBackups((int) config('backup.retention_count', 14));
 
-            $filePath = $fullPath . $backup->filename;
-            if (!file_exists($filePath)) {
-                $zip = new \ZipArchive();
-                if ($zip->open($filePath, \ZipArchive::CREATE) === TRUE) {
-                    $content = "Placeholder backup file for {$backup->filename}\nGenerated: " . date('c') . "\n\nThis file was created so the application can serve the download. Replace with a real backup if needed.";
-                    $zip->addFromString('README.txt', $content);
-                    $zip->close();
-                    $backup->update(['size' => filesize($filePath)]);
-                }
-            }
-        }
-        
         return redirect()->route('admin.backups.index')
-                         ->with('success', 'Backup process started successfully. Please check status later.');
+            ->with('success', 'Backup completed successfully.');
     }
 
     /**
@@ -100,8 +85,10 @@ class BackupController extends Controller
      */
     public function show(Backup $backup)
     {
+        $this->authorize('view', $backup);
+
         $backup->load('creator');
-        
+
         return view('admin.backups.show', compact('backup'));
     }
 
@@ -124,105 +111,74 @@ class BackupController extends Controller
     /**
      * Remove the specified resource from storage.
      */
-    public function destroy(Backup $backup)
+    public function destroy(Backup $backup, DatabaseBackupService $service)
     {
+        $this->authorize('delete', $backup);
+
         try {
-            // Delete the backup file
-            Storage::disk('local')->delete($backup->path . $backup->filename);
-            
-            // Delete the database record
-            $backup->delete();
-            
+            $service->delete($backup);
+
             return redirect()->route('admin.backups.index')
-                             ->with('success', 'Backup deleted successfully.');
-        } catch (Exception $e) {
+                ->with('success', 'Backup deleted successfully.');
+        } catch (\Throwable $e) {
             return redirect()->back()->withErrors(['error' => 'Failed to delete backup: ' . $e->getMessage()]);
         }
     }
-    
+
     /**
-     * Download the backup file
+     * Download the backup file.
      */
-    public function download(Backup $backup)
+    public function download(Backup $backup, DatabaseBackupService $service)
     {
-        $filePath = storage_path('app/' . $backup->path . $backup->filename);
-        
-        if (!file_exists($filePath)) {
+        $this->authorize('download', $backup);
+
+        $filePath = $service->filePathFor($backup);
+        $backupsRoot = realpath(storage_path('app/backups'));
+        $resolved = realpath($filePath);
+
+        // Defense in depth: even though filename/path always come from the
+        // Backup record (never raw user input), refuse to serve anything
+        // that doesn't resolve inside the backups directory.
+        if ($resolved === false || $backupsRoot === false || ! str_starts_with($resolved, $backupsRoot)) {
+            abort(404);
+        }
+
+        if (! file_exists($resolved)) {
             return redirect()->back()->withErrors(['error' => 'Backup file not found.']);
         }
-        
-        return response()->download($filePath, $backup->filename);
+
+        return response()->download($resolved, $backup->filename);
     }
-    
+
     /**
-     * Create a manual backup
-     */
-    public function createManual(Request $request)
-    {
-        $request->validate([
-            'type' => 'required|in:full,database,files',
-            'location' => 'required|in:local,cloud',
-            'notes' => 'nullable|string',
-        ]);
-        
-        // Create backup record
-        $backup = Backup::create([
-            'filename' => 'manual_backup_' . date('Y-m-d_H-i-s') . '.zip',
-            'path' => 'backups/manual/' . date('Y/m/d') . '/',
-            'type' => $request->type,
-            'location' => $request->location,
-            'status' => 'pending',
-            'notes' => $request->notes,
-            'created_by' => Auth::id(),
-        ]);
-        
-        // Perform backup synchronously for manual backup
-        try {
-            $exitCode = Artisan::call('backup:run', [
-                '--only-db' => $request->type === 'database',
-                '--only-files' => $request->type === 'files',
-            ]);
-            
-            $backup->update([
-                'status' => $exitCode === 0 ? 'completed' : 'failed',
-                'completed_at' => now(),
-                'size' => filesize(storage_path('app/' . $backup->path . $backup->filename)),
-            ]);
-            
-            return redirect()->route('admin.backups.index')
-                             ->with('success', 'Manual backup created successfully.');
-        } catch (Exception $e) {
-            $backup->update(['status' => 'failed']);
-            
-            return redirect()->back()->withErrors(['error' => 'Failed to create backup: ' . $e->getMessage()]);
-        }
-    }
-    
-    /**
-     * Schedule a backup
+     * Schedule a backup for a future date. Still a write path that creates
+     * a Backup record, so it falls under the same admin-only gate as
+     * creating one directly.
      */
     public function schedule(Request $request)
     {
+        $this->authorize('create', Backup::class);
+
         $request->validate([
-            'type' => 'required|in:full,database,files',
-            'location' => 'required|in:local,cloud',
+            'type' => 'required|in:database',
+            'location' => 'required|in:local',
             'schedule_date' => 'required|date',
             'notes' => 'nullable|string',
         ]);
-        
-        // Create scheduled backup record
+
         Backup::create([
-            'filename' => 'scheduled_backup_' . date('Y-m-d_H-i-s') . '.zip',
-            'path' => 'backups/scheduled/' . date('Y/m/d') . '/',
+            'filename' => 'scheduled_backup_' . now()->format('Y-m-d_H-i-s') . '_' . Str::random(8) . '.zip',
+            'path' => 'backups/scheduled/' . now()->format('Y/m/d'),
             'type' => $request->type,
             'location' => $request->location,
+            'size' => 0,
             'status' => 'pending',
             'notes' => $request->notes,
             'created_by' => Auth::id(),
             'scheduled_at' => $request->schedule_date,
         ]);
-        
+
         return redirect()->route('admin.backups.index')
-                         ->with('success', 'Backup scheduled successfully.');
+            ->with('success', 'Backup scheduled successfully.');
     }
 }
