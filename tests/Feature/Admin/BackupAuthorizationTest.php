@@ -34,7 +34,7 @@ class BackupAuthorizationTest extends TestCase
 
         $this->app->bind(DatabaseBackupService::class, function () {
             return new class extends DatabaseBackupService {
-                public function create(\App\Models\Backup $backup): void
+                public function create(\App\Models\Backup $backup, ?string $connection = null, ?array $dbConfigOverride = null): void
                 {
                     $backup->update([
                         'status' => 'completed',

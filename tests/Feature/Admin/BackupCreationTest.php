@@ -37,7 +37,7 @@ class BackupCreationTest extends TestCase
             return new class($shouldFail) extends DatabaseBackupService {
                 public function __construct(private bool $shouldFail) {}
 
-                public function create(Backup $backup): void
+                public function create(Backup $backup, ?string $connection = null, ?array $dbConfigOverride = null): void
                 {
                     if ($this->shouldFail) {
                         // Mirrors the real service's own contract: create()

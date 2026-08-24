@@ -181,6 +181,7 @@ class AppServiceProvider extends ServiceProvider
             \App\Console\Commands\BackupRunCommand::class,
             \App\Console\Commands\SendFeeReminders::class,
             \App\Console\Commands\RetryFailedReminders::class,
+            \App\Console\Commands\BackupRestoreCommand::class,
         ]);
     }
 

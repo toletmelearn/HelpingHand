@@ -29,20 +29,140 @@ class DatabaseBackupService
     }
 
     /**
+     * The one directory backup files are ever allowed to resolve inside.
+     * Used both by download() (existing) and restore's integrity check
+     * (new) so a Backup record's path/filename can never cause a file
+     * outside this directory to be read or served.
+     */
+    public function backupsRoot(): ?string
+    {
+        $root = storage_path('app/backups');
+        File::ensureDirectoryExists($root);
+
+        return realpath($root) ?: null;
+    }
+
+    /**
+     * Resolve a Backup's file path and confirm it genuinely lives inside
+     * backupsRoot() -- refuses (returns null) rather than trusting the
+     * record's path/filename fields blindly.
+     */
+    public function containedFilePathFor(Backup $backup): ?string
+    {
+        $path = $this->filePathFor($backup);
+        $resolved = realpath($path);
+        $root = $this->backupsRoot();
+
+        if ($resolved === false || $root === null || ! str_starts_with($resolved, $root)) {
+            return null;
+        }
+
+        return $resolved;
+    }
+
+    /**
+     * Verify a backup file's integrity end to end -- exists, contained
+     * inside backupsRoot(), a genuinely valid ZIP, contains both expected
+     * members, metadata parses and has the required keys, and the
+     * extracted SQL's SHA-256 matches what the backup itself recorded.
+     * Extracts dump.sql/metadata.json into $workDir and returns their
+     * paths plus the parsed, verified metadata. Throws with a specific,
+     * human-readable reason on any failure -- callers (restore) must
+     * never proceed past a thrown exception here.
+     */
+    public function verifyAndExtract(Backup $backup, string $workDir): array
+    {
+        $zipPath = $this->containedFilePathFor($backup);
+        if ($zipPath === null) {
+            throw new \RuntimeException('Backup file is missing or resolves outside the backups directory.');
+        }
+
+        if (! File::exists($zipPath)) {
+            throw new \RuntimeException("Backup file does not exist on disk: {$zipPath}");
+        }
+
+        $zip = new \ZipArchive();
+        $openResult = $zip->open($zipPath, \ZipArchive::CHECKCONS);
+        if ($openResult !== true) {
+            throw new \RuntimeException("Backup ZIP failed integrity check (code {$openResult}).");
+        }
+
+        if ($zip->locateName('dump.sql') === false) {
+            $zip->close();
+            throw new \RuntimeException('Backup ZIP does not contain dump.sql.');
+        }
+        if ($zip->locateName('metadata.json') === false) {
+            $zip->close();
+            throw new \RuntimeException('Backup ZIP does not contain metadata.json.');
+        }
+
+        File::ensureDirectoryExists($workDir);
+        if (! $zip->extractTo($workDir, ['dump.sql', 'metadata.json'])) {
+            $zip->close();
+            throw new \RuntimeException('Failed to extract backup ZIP contents.');
+        }
+        $zip->close();
+
+        $sqlPath = $workDir . DIRECTORY_SEPARATOR . 'dump.sql';
+        $metaPath = $workDir . DIRECTORY_SEPARATOR . 'metadata.json';
+
+        if (! File::exists($sqlPath) || File::size($sqlPath) === 0) {
+            throw new \RuntimeException('Extracted dump.sql is missing or empty.');
+        }
+        if (! File::exists($metaPath)) {
+            throw new \RuntimeException('Extracted metadata.json is missing.');
+        }
+
+        $metadata = json_decode(File::get($metaPath), true);
+        if (! is_array($metadata) || json_last_error() !== JSON_ERROR_NONE) {
+            throw new \RuntimeException('metadata.json is malformed and could not be parsed.');
+        }
+        foreach (['database', 'tables', 'sql'] as $requiredKey) {
+            if (! array_key_exists($requiredKey, $metadata)) {
+                throw new \RuntimeException("metadata.json is missing the required [{$requiredKey}] key.");
+            }
+        }
+        if (! isset($metadata['sql']['sha256']) || ! is_string($metadata['sql']['sha256'])) {
+            throw new \RuntimeException('metadata.json is missing a valid sql.sha256 checksum.');
+        }
+
+        $actualChecksum = hash_file('sha256', $sqlPath);
+        if (! hash_equals($metadata['sql']['sha256'], $actualChecksum)) {
+            throw new \RuntimeException(
+                "Checksum mismatch -- backup file may be corrupt or tampered with. Expected [{$metadata['sql']['sha256']}], got [{$actualChecksum}]."
+            );
+        }
+
+        return [
+            'sql_path' => $sqlPath,
+            'metadata_path' => $metaPath,
+            'metadata' => $metadata,
+        ];
+    }
+
+    /**
      * Create a real database backup for the given (already-persisted,
      * status=pending) Backup record. Every stage is individually wrapped so
      * a failure anywhere marks the record 'failed' with a real reason
      * logged -- it is never left/reported as 'completed' unless every
      * stage genuinely succeeded.
+     *
+     * $connection/$dbConfigOverride let a caller point the dump at a
+     * database other than the app's own default connection (e.g. the
+     * mandatory pre-restore backup of a restore's target database) --
+     * both must be provided together, and the connection must already be
+     * registered (see DatabaseRestoreService::withTemporaryConnection()).
+     * When omitted, behavior is unchanged: the app's own default
+     * connection is used, exactly as before this parameter existed.
      */
-    public function create(Backup $backup): void
+    public function create(Backup $backup, ?string $connection = null, ?array $dbConfigOverride = null): void
     {
         $workDir = storage_path('app/tmp/backups/' . $backup->id . '-' . Str::random(8));
         File::ensureDirectoryExists($workDir);
 
         try {
-            $connection = config('database.default');
-            $dbConfig = config("database.connections.{$connection}");
+            $connection = $connection ?? config('database.default');
+            $dbConfig = $dbConfigOverride ?? config("database.connections.{$connection}");
 
             $sqlPath = $workDir . '/dump.sql';
             $this->runStage('mysqldump', fn () => $this->runMysqldump($dbConfig, $sqlPath));

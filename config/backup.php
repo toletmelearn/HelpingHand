@@ -20,6 +20,21 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | mysql Binary Path
+    |--------------------------------------------------------------------------
+    |
+    | Path to the mysql client executable used by `php artisan backup:restore`
+    | to import a verified backup's SQL into a target database. Same
+    | Windows/XAMPP default as mysqldump_path above.
+    |
+    */
+    'mysql_path' => env(
+        'MYSQL_PATH',
+        PHP_OS_FAMILY === 'Windows' ? 'C:/xampp/mysql/bin/mysql.exe' : 'mysql'
+    ),
+
+    /*
+    |--------------------------------------------------------------------------
     | Retention
     |--------------------------------------------------------------------------
     |
