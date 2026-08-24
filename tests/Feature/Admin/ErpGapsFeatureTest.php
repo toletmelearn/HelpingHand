@@ -364,8 +364,17 @@ class ErpGapsFeatureTest extends TestCase
         parent::tearDown();
     }
 
+    /**
+     * P0 security fix: the "stripe checkout" button honestly reports card
+     * payment as unavailable (no gateway is wired up), and the old
+     * "stripe-success" callback -- which previously let this exact request
+     * fabricate a real fee_collections row with no ownership or gateway
+     * verification -- has been removed entirely. See
+     * tests/Feature/Parent/ParentPaymentCallbackDisabledTest.php for the
+     * full IDOR/regression coverage of that removal.
+     */
     /** @test */
-    public function test_parent_can_process_mock_stripe_checkout(): void
+    public function test_parent_stripe_checkout_is_honestly_disabled_and_no_payment_can_be_fabricated(): void
     {
         $student = Student::create(['name' => 'Jane Kid', 'class' => '8-A']);
         $parent = ParentModel::create([
@@ -390,23 +399,24 @@ class ErpGapsFeatureTest extends TestCase
         $response = $this->actingAs($parent, 'parent')->get('/parent/payments/pay-fees');
         $response->assertStatus(200);
 
-        // Perform Redirect Checkout
+        // The checkout button redirects back with an honest "unavailable" message -- never creates a payment.
         $response = $this->actingAs($parent, 'parent')->post('/parent/payments/stripe-checkout', [
             'fee_structure_id' => $feeStructure,
             'amount' => 5000.00
         ]);
+        $response->assertRedirect(route('parent.payments.pay-fees'));
+        $response->assertSessionHas('error');
 
-        $response->assertRedirect();
-
-        // Perform Successful Callback
-        $response = $this->actingAs($parent, 'parent')->get(route('parent.payments.stripe-success', [
+        // The old callback route no longer exists at all.
+        $this->assertFalse(\Illuminate\Support\Facades\Route::has('parent.payments.stripe-success'));
+        $rawResponse = $this->actingAs($parent, 'parent')->get('/parent/payments/stripe-success?' . http_build_query([
             'student_id' => $student->id,
             'fee_structure_id' => $feeStructure,
-            'amount' => 5000.00
+            'amount' => 5000.00,
         ]));
+        $rawResponse->assertNotFound();
 
-        $response->assertRedirect(route('parent.payments.pay-fees'));
-        $this->assertDatabaseHas('fee_collections', [
+        $this->assertDatabaseMissing('fee_collections', [
             'student_id' => $student->id,
             'fee_structure_id' => $feeStructure,
             'final_amount' => 5000.00,

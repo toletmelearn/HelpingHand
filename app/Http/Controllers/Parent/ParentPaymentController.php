@@ -234,13 +234,9 @@ class ParentPaymentController extends Controller
      * There is no working payment gateway wired up yet -- the previous
      * "Pay with Card" button called a pure mock (PaymentGatewayService,
      * now removed) that logged a fake session and redirected back to this
-     * same page without ever recording a payment or reaching
-     * callbackSuccess() below. Rather than leave a button that silently
-     * does nothing, this now tells the parent honestly that online card
-     * payment isn't available yet. callbackSuccess() stays fully working
-     * as the tested payment-recording endpoint -- it's the shared target
-     * a real online payment method (e.g. the planned UPI flow) will post
-     * to once one exists.
+     * same page without ever recording a payment. Rather than leave a
+     * button that silently does nothing, this tells the parent honestly
+     * that online card payment isn't available yet.
      */
     public function processStripePayment(Request $request)
     {
@@ -253,24 +249,21 @@ class ParentPaymentController extends Controller
             ->with('error', 'Online card payment is not available yet. Please contact the school office for payment options.');
     }
 
-    public function callbackSuccess(Request $request)
-    {
-        $request->validate([
-            'student_id' => 'required|exists:students,id',
-            'fee_structure_id' => 'required',
-            'amount' => 'required|numeric',
-        ]);
-
-        LedgerService::allocateOnlinePayment(
-            (int) $request->student_id,
-            (float) $request->amount,
-            'online',
-            [
-                'fee_structure_id' => $request->fee_structure_id,
-                'remarks' => 'Online payment via parent checkout portal',
-            ]
-        );
-
-        return redirect()->route('parent.payments.pay-fees')->with('success', "Payment of ₹{$request->amount} processed successfully.");
-    }
+    // callbackSuccess() was removed here (P0 security fix): it accepted
+    // student_id/fee_structure_id/amount as plain request input with no
+    // ownership check and no real payment-gateway verification of any
+    // kind, and credited a real fee_collections row via
+    // LedgerService::allocateOnlinePayment() -- any authenticated parent
+    // could fabricate a payment on any student's ledger via a crafted
+    // GET request. It had no legitimate caller (no view/button ever
+    // linked to it -- confirmed by repository-wide search) and no
+    // functioning gateway ever called it either, since
+    // processStripePayment() above was already disabled. The verified,
+    // safe path for recording a real payment remains the existing
+    // UPI-claim-matching workflow (submitClaim()/submitCashDepositClaim()
+    // below, confirmed only by an admin/accountant or the matching engine
+    // via PaymentClaimMatchingService -- never directly from parent
+    // input). A future real payment gateway must post to a new,
+    // ownership-and-signature-verified endpoint, not a resurrected
+    // version of this one.
 }
