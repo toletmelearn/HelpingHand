@@ -115,6 +115,19 @@ class SectionController extends Controller
                 ->with('error', "Cannot delete section \"{$section->name}\": it is configured as a valid admission option for {$classSectionCount} class(es). Remove those class configurations first.");
         }
 
+        // Timetable Hardening pass: timetable_slots.section_id carries a
+        // real DB foreign key (ON DELETE CASCADE), but Section uses
+        // SoftDeletes -- delete() never fires it (same nuance already
+        // documented above for students/class_sections). Without this
+        // check, soft-deleting a Section silently orphaned every
+        // timetable_slots row still pointing at it (the grid would keep
+        // showing a "deleted" section's lessons with no warning at all).
+        $timetableSlotCount = \Illuminate\Support\Facades\DB::table('timetable_slots')->where('section_id', $section->id)->count();
+        if ($timetableSlotCount > 0) {
+            return redirect()->route('admin.sections.index')
+                ->with('error', "Cannot delete section \"{$section->name}\": {$timetableSlotCount} timetable slot(s) reference it.");
+        }
+
         $section->delete();
 
         return redirect()->route('admin.sections.index')

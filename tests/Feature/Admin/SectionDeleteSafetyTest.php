@@ -83,6 +83,36 @@ class SectionDeleteSafetyTest extends TestCase
         $this->assertDatabaseHas('sections', ['id' => $section->id, 'deleted_at' => null]);
     }
 
+    /**
+     * Timetable Hardening pass: timetable_slots.section_id was never
+     * checked by this dependency guard -- since Section uses SoftDeletes,
+     * the column's real DB foreign key (ON DELETE CASCADE) never fires on
+     * an ordinary delete() either, so a section still referenced by live
+     * timetable slots could previously be soft-deleted with no warning at
+     * all, leaving the grid silently pointing at a "deleted" section.
+     */
+    public function test_section_referenced_by_a_timetable_slot_cannot_be_deleted(): void
+    {
+        $section = Section::create(['name' => 'Timetable Section', 'capacity' => 40]);
+        $class = SchoolClass::create(['name' => 'Grade Y', 'class_order' => 2, 'capacity' => 40]);
+        $subject = \App\Models\Subject::create(['name' => 'Subj', 'code' => 'SEC' . uniqid()]);
+        $teacher = \App\Models\Teacher::create(['name' => 'T']);
+        $timing = \App\Models\BellTiming::create([
+            'day_of_week' => 'Monday', 'period_name' => 'P1', 'start_time' => '08:00:00', 'end_time' => '08:45:00',
+            'is_active' => true, 'is_break' => false, 'order_index' => 1,
+        ]);
+        \App\Models\TimetableSlot::create([
+            'school_class_id' => $class->id, 'section_id' => $section->id, 'bell_timing_id' => $timing->id,
+            'subject_id' => $subject->id, 'teacher_id' => $teacher->id,
+        ]);
+
+        $response = $this->actingAs($this->admin)->delete(route('admin.sections.destroy', $section->id));
+
+        $response->assertRedirect(route('admin.sections.index'));
+        $response->assertSessionHas('error');
+        $this->assertDatabaseHas('sections', ['id' => $section->id, 'deleted_at' => null]);
+    }
+
     public function test_non_admin_cannot_delete_a_section(): void
     {
         $section = Section::create(['name' => 'Protected Section', 'capacity' => 40]);
