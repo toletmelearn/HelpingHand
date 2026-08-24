@@ -18,6 +18,8 @@ class AdminParentController extends Controller
 
     public function index(Request $request)
     {
+        $this->authorize('viewAny', ParentModel::class);
+
         $query = ParentModel::with('students.schoolClass', 'students.section');
 
         if ($request->filled('search')) {
@@ -65,12 +67,14 @@ class AdminParentController extends Controller
     public function show($id)
     {
         $parent = ParentModel::with('students.schoolClass', 'students.section')->findOrFail($id);
+        $this->authorize('view', $parent);
         return view('admin.parents.show', compact('parent'));
     }
 
     public function update(Request $request, $id)
     {
         $parent = ParentModel::findOrFail($id);
+        $this->authorize('update', $parent);
 
         $request->validate([
             'name' => 'required|string|max:255',
@@ -90,6 +94,7 @@ class AdminParentController extends Controller
     public function resetPassword(Request $request, $id)
     {
         $parent = ParentModel::findOrFail($id);
+        $this->authorize('resetPassword', $parent);
 
         $request->validate([
             'password' => 'required|string|min:6|confirmed',

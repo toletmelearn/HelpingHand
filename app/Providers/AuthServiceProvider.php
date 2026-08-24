@@ -37,6 +37,7 @@ class AuthServiceProvider extends ServiceProvider
         // Additional policies that should be registered
         'App\Models\Student' => 'App\Policies\StudentPolicy',
         'App\Models\Teacher' => 'App\Policies\TeacherPolicy',
+        'App\Models\ParentModel' => 'App\Policies\ParentPolicy',
         'App\Models\Attendance' => 'App\Policies\AttendancePolicy',
         'App\Models\Fee' => 'App\Policies\FeePolicy',
         'App\Models\FeeStructure' => 'App\Policies\FeeStructurePolicy',
