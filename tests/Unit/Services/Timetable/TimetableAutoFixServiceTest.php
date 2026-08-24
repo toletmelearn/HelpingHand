@@ -134,6 +134,67 @@ class TimetableAutoFixServiceTest extends TestCase
         $this->assertFalse($result['applied']);
     }
 
+    /**
+     * Timetable Hardening pass: the final updateOrCreate() for $newPlacement
+     * matches by NATURAL KEY (class, section, bell_timing, status), not by
+     * row id -- and TimetableConflictResolver deliberately treats an
+     * existing row at that exact key as "self" rather than a conflict (see
+     * classSectionOverlapConflicts()'s documented same-section exclusion),
+     * so a locked row sitting there is never surfaced as a "blocker"
+     * through the normal UI flow at all. $blockingSlotId is caller-supplied
+     * and never verified to be the row actually occupying the destination,
+     * so a direct call naming a genuinely unrelated (unlocked) blocker
+     * while a DIFFERENT, locked row already occupies the destination must
+     * still be rejected, not silently overwritten.
+     */
+    public function test_apply_blocker_relocation_rejects_when_the_destination_is_occupied_by_a_locked_slot(): void
+    {
+        $timings = $this->makeGrid();
+        $newClass = SchoolClass::create(['name' => 'New Class', 'class_order' => 1, 'is_active' => true]);
+        $blockerClass = SchoolClass::create(['name' => 'Blocker Class', 'class_order' => 2, 'is_active' => true]);
+        $subject = Subject::create(['name' => 'Science', 'code' => 'AF' . uniqid()]);
+        // A different subject for the locked row -- otherwise
+        // subjectPerDayConflicts() (a genuine, pre-existing resolver rule)
+        // would already reject $newPlacement on its own, before this test
+        // ever reaches the destination-occupant guard being exercised here.
+        $otherSubject = Subject::create(['name' => 'History', 'code' => 'AF' . uniqid()]);
+        $sharedTeacher = Teacher::create(['name' => 'Shared Teacher', 'status' => 'active']);
+        $lockedRowTeacher = Teacher::create(['name' => 'Locked Row Teacher', 'status' => 'active']);
+
+        // Genuine, reportable blocker: a DIFFERENT class taught by the same
+        // shared teacher at Monday1 -- a real teacher-overlap conflict.
+        $blocker = TimetableSlot::create([
+            'school_class_id' => $blockerClass->id, 'bell_timing_id' => $timings['Monday1']->id,
+            'subject_id' => $subject->id, 'teacher_id' => $sharedTeacher->id,
+        ]);
+
+        // A locked slot already sitting at the exact natural key the new
+        // lesson wants (new class, no section, Monday1, published) -- a
+        // DIFFERENT row from $blocker, invisible to the resolver's
+        // class/section conflict check for the reason documented above.
+        $lockedAtDestination = TimetableSlot::create([
+            'school_class_id' => $newClass->id, 'bell_timing_id' => $timings['Monday1']->id,
+            'subject_id' => $otherSubject->id, 'teacher_id' => $lockedRowTeacher->id, 'is_locked' => true,
+        ]);
+
+        $newPlacement = [
+            'school_class_id' => $newClass->id,
+            'bell_timing_id' => $timings['Monday1']->id,
+            'teacher_id' => $sharedTeacher->id,
+            'subject_id' => $subject->id,
+        ];
+
+        $result = (new TimetableAutoFixService())->applyBlockerRelocation(
+            $newPlacement, $blocker->id, $timings['Monday2']->id
+        );
+
+        $this->assertFalse($result['applied']);
+        $this->assertStringContainsString('locked', $result['message']);
+        $this->assertSame($timings['Monday1']->id, $blocker->fresh()->bell_timing_id, 'The blocker must not have moved either -- nothing in this attempt is applied.');
+        $this->assertSame($lockedRowTeacher->id, $lockedAtDestination->fresh()->teacher_id, 'The locked row must be completely untouched.');
+        $this->assertTrue($lockedAtDestination->fresh()->is_locked);
+    }
+
     // --- Chain repair --------------------------------------------------------
 
     /** Three same-day periods, ordered, so candidate search order is deterministic for chain tests. */
@@ -330,6 +391,48 @@ class TimetableAutoFixServiceTest extends TestCase
         ]);
 
         $this->assertFalse($result['ok']);
+    }
+
+    /**
+     * Timetable Hardening pass: same reasoning as
+     * test_apply_blocker_relocation_rejects_when_the_destination_is_occupied_by_a_locked_slot()
+     * above, for applyChainFix()'s own final updateOrCreate(). A locked row
+     * already sitting at the root destination's exact natural key is
+     * invisible to the resolver's class/section conflict check, so
+     * previewChainFix() reports "no conflict, nothing to move" and this is
+     * called with an empty step list -- exactly what a direct call would
+     * look like, since there is genuinely nothing to discover a chain for.
+     */
+    public function test_apply_chain_fix_rejects_when_the_destination_is_occupied_by_a_locked_slot(): void
+    {
+        [$t1] = $this->makeLinearGrid(1);
+        $newClass = SchoolClass::create(['name' => 'New', 'class_order' => 1, 'is_active' => true]);
+        $subject = Subject::create(['name' => 'Science', 'code' => 'AF' . uniqid()]);
+        // A different subject for the locked row -- otherwise
+        // subjectPerDayConflicts() (a genuine, pre-existing resolver rule)
+        // would already reject $newPlacement on its own, before this test
+        // ever reaches the destination-occupant guard being exercised here.
+        $otherSubject = Subject::create(['name' => 'History', 'code' => 'AF' . uniqid()]);
+        $lockedRowTeacher = Teacher::create(['name' => 'Locked Row Teacher', 'status' => 'active']);
+        $newTeacher = Teacher::create(['name' => 'New Teacher', 'status' => 'active']);
+
+        $lockedAtDestination = TimetableSlot::create([
+            'school_class_id' => $newClass->id, 'bell_timing_id' => $t1->id,
+            'subject_id' => $otherSubject->id, 'teacher_id' => $lockedRowTeacher->id, 'is_locked' => true,
+        ]);
+
+        $newPlacement = [
+            'school_class_id' => $newClass->id, 'bell_timing_id' => $t1->id,
+            'teacher_id' => $newTeacher->id, 'subject_id' => $subject->id,
+        ];
+
+        $result = (new TimetableAutoFixService())->applyChainFix($newPlacement, []);
+
+        $this->assertFalse($result['applied']);
+        $this->assertStringContainsString('locked', $result['message']);
+        $this->assertSame($lockedRowTeacher->id, $lockedAtDestination->fresh()->teacher_id, 'The locked row must be completely untouched.');
+        $this->assertTrue($lockedAtDestination->fresh()->is_locked);
+        $this->assertSame(1, TimetableSlot::count());
     }
 
     public function test_apply_rejects_a_stale_chain_when_a_step_target_is_no_longer_free(): void

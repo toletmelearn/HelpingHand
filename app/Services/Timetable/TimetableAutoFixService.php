@@ -104,6 +104,31 @@ class TimetableAutoFixService
                     return ['applied' => false, 'message' => "This fix is no longer valid -- your lesson would still conflict: {$newPlacementCheck['message']}"];
                 }
 
+                // Timetable Hardening pass: the final updateOrCreate() below
+                // matches by NATURAL KEY (class, section, bell_timing,
+                // status), not by row id -- and the resolver check above
+                // deliberately treats an existing row at that exact key as
+                // "self" rather than a conflict (see resolveSelfId()), so it
+                // would never surface here even if that row is locked or
+                // belongs to a combined group. $blockingSlotId is caller-
+                // supplied and never verified to be the row actually
+                // occupying this destination, so a request naming an
+                // unrelated (unlocked) blocker while the true destination
+                // occupant is locked/combined would otherwise silently
+                // overwrite it. Locked row-for-update, same as $blocker
+                // above, so a concurrent change is still caught.
+                $destinationOccupant = TimetableSlot::where('school_class_id', $newPlacement['school_class_id'])
+                    ->where('section_id', $newPlacement['section_id'] ?? null)
+                    ->where('bell_timing_id', $newPlacement['bell_timing_id'])
+                    ->where('status', $newPlacement['status'] ?? TimetableSlot::STATUS_PUBLISHED)
+                    ->where('id', '!=', $blocker->id)
+                    ->lockForUpdate()
+                    ->first();
+
+                if ($destinationOccupant && ($destinationOccupant->is_locked || $destinationOccupant->combined_class_group_id)) {
+                    return ['applied' => false, 'message' => 'This fix is no longer valid -- the destination period is occupied by a locked or combined-group lesson that cannot be overwritten.'];
+                }
+
                 $originalBellTimingId = $blocker->bell_timing_id;
 
                 $blocker->update(['bell_timing_id' => $blockerNewBellTimingId]);
@@ -289,6 +314,25 @@ class TimetableAutoFixService
             $newPlacementCheck = $this->resolver->check(array_merge($newPlacement, ['ignore_slot_id' => $slotIds]));
             if ($newPlacementCheck['conflict']) {
                 return ['applied' => false, 'message' => "This fix is no longer valid -- your lesson would still conflict: {$newPlacementCheck['message']}"];
+            }
+
+            // Timetable Hardening pass: same reasoning as
+            // applyBlockerRelocation() above -- the final updateOrCreate()
+            // matches by natural key, which the resolver silently treats as
+            // "self" rather than a conflict, so a locked/combined-group row
+            // already sitting at the root destination (and not itself one of
+            // this chain's own moved slots) would otherwise be silently
+            // overwritten with zero warning.
+            $destinationOccupant = TimetableSlot::where('school_class_id', $newPlacement['school_class_id'])
+                ->where('section_id', $newPlacement['section_id'] ?? null)
+                ->where('bell_timing_id', $rootBellTimingId)
+                ->where('status', $newPlacement['status'] ?? TimetableSlot::STATUS_PUBLISHED)
+                ->whereNotIn('id', $slotIds)
+                ->lockForUpdate()
+                ->first();
+
+            if ($destinationOccupant && ($destinationOccupant->is_locked || $destinationOccupant->combined_class_group_id)) {
+                return ['applied' => false, 'message' => 'This fix is no longer valid -- the destination period is occupied by a locked or combined-group lesson that cannot be overwritten.'];
             }
 
             $before = [];
