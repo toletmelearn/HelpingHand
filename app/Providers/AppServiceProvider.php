@@ -178,6 +178,9 @@ class AppServiceProvider extends ServiceProvider
             \App\Console\Commands\DiagnoseCommand::class,
             \App\Console\Commands\CalculateDailyLibraryFines::class,
             \App\Console\Commands\ArchitectureAuditCommand::class,
+            \App\Console\Commands\BackupRunCommand::class,
+            \App\Console\Commands\SendFeeReminders::class,
+            \App\Console\Commands\RetryFailedReminders::class,
         ]);
     }
 
