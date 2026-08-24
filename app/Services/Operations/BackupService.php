@@ -105,60 +105,6 @@ class BackupService
     }
 
     /**
-     * Restore database and/or files from a backup.
-     */
-    public function restoreBackup(int $id): bool
-    {
-        $backup = Backup::findOrFail($id);
-        $filePath = storage_path('app/' . $backup->path);
-
-        if (!file_exists($filePath)) {
-            throw new \Exception("Backup file does not exist on disk.");
-        }
-
-        // Verify Integrity
-        if (!$this->verifyBackup($id)) {
-            throw new \Exception("Backup file integrity check failed.");
-        }
-
-        if ($backup->type === 'database') {
-            $this->restoreDatabaseDump($filePath);
-        } elseif ($backup->type === 'files') {
-            $this->unzipFiles($filePath, storage_path('app/public'));
-        } else { // full backup
-            $tempDir = storage_path('app/backups/restore_temp');
-            if (is_dir($tempDir)) {
-                $this->deleteDir($tempDir);
-            }
-            mkdir($tempDir, 0775, true);
-
-            $zip = new ZipArchive();
-            if ($zip->open($filePath) === true) {
-                $zip->extractTo($tempDir);
-                $zip->close();
-
-                // Restore DB
-                $sqlFile = $tempDir . '/database.sql';
-                if (file_exists($sqlFile)) {
-                    $this->restoreDatabaseDump($sqlFile);
-                }
-
-                // Restore Files
-                $uploadsDir = $tempDir . '/uploads';
-                if (is_dir($uploadsDir)) {
-                    $this->copyDir($uploadsDir, storage_path('app/public'));
-                }
-
-                $this->deleteDir($tempDir);
-            } else {
-                throw new \Exception("Failed to open backup ZIP file.");
-            }
-        }
-
-        return true;
-    }
-
-    /**
      * Verify backup exists and generates matching MD5 hash.
      */
     public function verifyBackup(int $id): bool
@@ -236,29 +182,6 @@ class BackupService
 
             $sql .= "SET FOREIGN_KEY_CHECKS=1;\n";
             file_put_contents($path, $sql);
-        }
-    }
-
-    /**
-     * Restore database from a SQL file.
-     */
-    protected function restoreDatabaseDump(string $path): void
-    {
-        $driver = DB::connection()->getDriverName();
-
-        if ($driver === 'sqlite') {
-            $dbFile = config('database.connections.sqlite.database');
-            // Safely close connection before copying
-            DB::disconnect();
-            copy($path, $dbFile);
-        } else {
-            // Execute MySQL raw query dump
-            $sql = file_get_contents($path);
-            if (empty($sql)) {
-                throw new \Exception("Database backup dump is empty.");
-            }
-
-            DB::unprepared($sql);
         }
     }
 

@@ -347,7 +347,6 @@ Route::middleware(['auth'])->group(function () {
     // Disaster Recovery (Backups)
     Route::get('operations/backup', [App\Http\Controllers\Admin\OperationsController::class, 'backupIndex'])->name('operations.backup');
     Route::post('operations/backup/run', [App\Http\Controllers\Admin\OperationsController::class, 'backupRun'])->name('operations.backup.run');
-    Route::post('operations/backup/restore/{id}', [App\Http\Controllers\Admin\OperationsController::class, 'backupRestore'])->name('operations.backup.restore');
     Route::get('operations/backup/download/{id}', [App\Http\Controllers\Admin\OperationsController::class, 'backupDownload'])->name('operations.backup.download');
     Route::delete('operations/backup/delete/{id}', [App\Http\Controllers\Admin\OperationsController::class, 'backupDelete'])->name('operations.backup.delete');
 

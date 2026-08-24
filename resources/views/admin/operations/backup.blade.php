@@ -27,7 +27,7 @@
                     </ol>
                 </nav>
                 <h3 class="fw-bold text-dark"><i class="bi bi-cloud-arrow-up text-primary me-2"></i> Disaster Recovery Center</h3>
-                <p class="text-muted">Generate instant database dumps or system upload archives, verify backup health, and perform single-click state restoration.</p>
+                <p class="text-muted">Generate instant database dumps or system upload archives and verify backup health. Restore is performed via the secure CLI procedure below.</p>
             </div>
         </div>
     </div>
@@ -79,12 +79,20 @@
                 </form>
             </div>
 
-            <!-- Restore Wizard Card -->
+            <!-- Restore: CLI-only -->
             <div class="card glass-card border-0 p-4">
-                <h5 class="fw-bold text-dark mb-3"><i class="bi bi-arrow-counterclockwise me-1 text-warning"></i> Quick Restore Wizard</h5>
-                <p class="text-muted small">Select an archive from the history table and click "Restore". Restoring will replace current system states. Ensure database constraints are isolated first.</p>
+                <h5 class="fw-bold text-dark mb-3"><i class="bi bi-terminal me-1 text-warning"></i> Database Restore</h5>
+                <p class="text-muted small mb-2">
+                    Database restore is available only through the secure CLI restore procedure.
+                    It is not performed from this page.
+                </p>
+                <p class="text-muted small mb-2">Run on the server, with CLI/administrator access:</p>
+                <pre class="bg-dark text-light p-2 rounded small mb-2" style="white-space: pre-wrap;">php artisan backup:restore {backup_id} --target-database=&lt;database&gt; --confirm=&lt;database&gt;</pre>
                 <div class="alert alert-warning small border-0 bg-warning-subtle text-warning-emphasis mb-0">
-                    <i class="bi bi-exclamation-triangle me-1"></i> <strong>Warning:</strong> Restore operations cannot be undone!
+                    <i class="bi bi-exclamation-triangle me-1"></i>
+                    Restoring replaces the target database's current data. The command requires typed
+                    confirmation, takes an automatic safety backup first, and verifies the result before
+                    finishing. It never accepts credentials on the command line.
                 </div>
             </div>
         </div>
@@ -140,12 +148,6 @@
                                                     <a href="{{ route('operations.backup.download', $item->id) }}" class="btn btn-sm btn-outline-primary" title="Download">
                                                         <i class="bi bi-download"></i>
                                                     </a>
-                                                    <form action="{{ route('operations.backup.restore', $item->id) }}" method="POST" onsubmit="return confirm('WARNING: Are you absolutely sure you want to restore the ERP system to this backup point? All current unsaved changes will be overwritten!')">
-                                                        @csrf
-                                                        <button type="submit" class="btn btn-sm btn-outline-warning" title="Restore">
-                                                            <i class="bi bi-arrow-counterclockwise"></i>
-                                                        </button>
-                                                    </form>
                                                 @endif
                                                 <form action="{{ route('operations.backup.delete', $item->id) }}" method="POST" onsubmit="return confirm('Delete this backup file and entry permanently?')">
                                                     @csrf

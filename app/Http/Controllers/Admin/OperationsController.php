@@ -154,16 +154,6 @@ class OperationsController extends Controller
         }
     }
 
-    public function backupRestore(Request $request, $id)
-    {
-        try {
-            $this->backupService->restoreBackup((int)$id);
-            return redirect()->route('operations.backup')->with('success', 'System restore completed successfully!');
-        } catch (\Throwable $e) {
-            return redirect()->route('operations.backup')->with('error', 'Restore wizard failed: ' . $e->getMessage());
-        }
-    }
-
     public function backupDownload($id)
     {
         $backup = Backup::findOrFail($id);
