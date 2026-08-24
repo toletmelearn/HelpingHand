@@ -103,14 +103,46 @@ class AdminAdmissionController extends Controller
         }
 
         $classes = \App\Models\SchoolClass::orderBy('class_order')->get();
-        $sections = \App\Models\ClassManagement::all()->groupBy('name');
-        $sectionOccupancy = \App\Models\Student::whereNotNull('section_id')
-            ->selectRaw('section_id, count(*) as cnt')
-            ->groupBy('section_id')
-            ->pluck('cnt', 'section_id');
+
+        $sectionsByClassId = [];
+        foreach ($classes as $cls) {
+            $validIds = $this->validSectionIdsForClass($cls);
+            $sectionsByClassId[$cls->id] = empty($validIds)
+                ? collect()
+                : \App\Models\Section::whereIn('id', $validIds)->where('is_active', true)->orderBy('name')->get();
+        }
+
+        $classOccupancy = \App\Models\Student::whereNotNull('class_id')
+            ->selectRaw('class_id, count(*) as cnt')
+            ->groupBy('class_id')
+            ->pluck('cnt', 'class_id');
         $isAdmin = $this->isAdmin(auth()->user());
 
-        return view('admin.admissions.confirm', compact('enquiry', 'classes', 'sections', 'sectionOccupancy', 'isAdmin'));
+        return view('admin.admissions.confirm', compact('enquiry', 'classes', 'sectionsByClassId', 'classOccupancy', 'isAdmin'));
+    }
+
+    /**
+     * Real Sections configured for a class, resolved via the only
+     * currently-populated bridge (legacy_class_map -> class_sections),
+     * never by trusting a client-supplied section_id blindly. If the
+     * class has no legacy_class_map entry (no bridge configured for it),
+     * this returns an empty list -- fails safe, no section is ever
+     * treated as valid for an unbridged class rather than guessing.
+     */
+    private function validSectionIdsForClass(\App\Models\SchoolClass $class): array
+    {
+        $classManagementId = \Illuminate\Support\Facades\DB::table('legacy_class_map')
+            ->where('school_class_id', $class->id)
+            ->value('class_management_id');
+
+        if (!$classManagementId) {
+            return [];
+        }
+
+        return \Illuminate\Support\Facades\DB::table('class_sections')
+            ->where('class_management_id', $classManagementId)
+            ->pluck('section_id')
+            ->all();
     }
 
     public function confirmAdmission(\Illuminate\Http\Request $request, $id)
@@ -124,7 +156,7 @@ class AdminAdmissionController extends Controller
 
         $request->validate([
             'class_id' => 'required|exists:school_classes,id',
-            'section_id' => 'required|exists:class_management,id',
+            'section_id' => 'required|exists:sections,id',
             'date_of_birth' => 'required|date|before:today',
             'gender' => 'required|in:male,female,other',
             'category' => 'required|string|max:50',
@@ -136,19 +168,37 @@ class AdminAdmissionController extends Controller
         ]);
 
         $class = \App\Models\SchoolClass::findOrFail($request->class_id);
-        $section = \App\Models\ClassManagement::findOrFail($request->section_id);
+        $section = \App\Models\Section::findOrFail($request->section_id);
 
-        $occupancy = \App\Models\Student::where('class_id', $class->id)->where('section_id', $section->id)->count();
-        $isOverride = $request->boolean('override_capacity') && $this->isAdmin(auth()->user());
-        if ($occupancy >= $section->capacity && !$isOverride) {
+        // The submitted section_id is real (validated above against the
+        // real sections table), but that alone doesn't prove it belongs
+        // to the selected class -- a tampered/crafted request could pair
+        // a valid class with a valid-but-unrelated section. Reject unless
+        // the real class_sections bridge confirms the pairing.
+        $validSectionIds = $this->validSectionIdsForClass($class);
+        if (!in_array($section->id, $validSectionIds, true)) {
             return redirect()->back()->withInput()->with('error',
-                "Section {$section->name} ({$section->section}) is full ({$occupancy}/{$section->capacity} seats). " .
-                ($this->isAdmin(auth()->user()) ? 'Check the override option to admit anyway.' : 'Please choose another section or contact an admin.')
+                "Section {$section->name} is not configured for {$class->name}. Please choose a valid section for this class, or ask an admin to configure it."
             );
         }
-        if ($occupancy >= $section->capacity && $isOverride) {
+
+        // Capacity is a class-level concept (this matches the pre-fix
+        // behavior's effective meaning -- the legacy ClassManagement rows
+        // this used to read capacity from represented a class/stream, not
+        // an individual room-section), sourced from the real SchoolClass
+        // record already resolved above.
+        $occupancy = \App\Models\Student::where('class_id', $class->id)->count();
+        $capacity = $class->capacity;
+        $isOverride = $request->boolean('override_capacity') && $this->isAdmin(auth()->user());
+        if ($capacity !== null && $occupancy >= $capacity && !$isOverride) {
+            return redirect()->back()->withInput()->with('error',
+                "Class {$class->name} is full ({$occupancy}/{$capacity} seats). " .
+                ($this->isAdmin(auth()->user()) ? 'Check the override option to admit anyway.' : 'Please choose another class or contact an admin.')
+            );
+        }
+        if ($capacity !== null && $occupancy >= $capacity && $isOverride) {
             activity()->causedBy(auth()->user())->performedOn($enquiry)
-                ->withProperties(['section_id' => $section->id, 'occupancy' => $occupancy, 'capacity' => $section->capacity])
+                ->withProperties(['class_id' => $class->id, 'section_id' => $section->id, 'occupancy' => $occupancy, 'capacity' => $capacity])
                 ->log('admission_capacity_overridden');
         }
 
@@ -185,7 +235,7 @@ class AdminAdmissionController extends Controller
                 'class_id' => $class->id,
                 'class' => $class->name,
                 'section_id' => $section->id,
-                'section' => $section->section,
+                'section' => $section->name,
                 'roll_number' => $request->roll_number,
                 'admission_no' => $admissionNo,
                 // Marks this student as a genuinely new admission for the current

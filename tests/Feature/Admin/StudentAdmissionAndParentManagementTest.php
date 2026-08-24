@@ -28,14 +28,43 @@ class StudentAdmissionAndParentManagementTest extends TestCase
         $this->admin->roles()->attach($adminRole->id);
     }
 
+    /**
+     * Phase 2B-i fix: confirmAdmission() now resolves a real Section via
+     * the class_sections bridge (never a bare ClassManagement id) --
+     * builds the full chain a real class needs: SchoolClass ->
+     * legacy_class_map -> ClassManagement (capacity source) ->
+     * class_sections -> a real Section (the value actually written to
+     * students.section_id).
+     */
+    private function createClassWithSection(string $className, int $classOrder, int $capacity = 30): array
+    {
+        $class = SchoolClass::create(['name' => $className, 'class_order' => $classOrder, 'capacity' => $capacity]);
+        $classManagement = ClassManagement::create(['name' => $className, 'section' => '', 'capacity' => $capacity]);
+        \Illuminate\Support\Facades\DB::table('legacy_class_map')->insert([
+            'class_management_id' => $classManagement->id,
+            'school_class_id' => $class->id,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+        $section = \App\Models\Section::create(['name' => 'A', 'capacity' => $capacity]);
+        \Illuminate\Support\Facades\DB::table('class_sections')->insert([
+            'class_management_id' => $classManagement->id,
+            'section_id' => $section->id,
+            'assigned_at' => now(),
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        return [$class, $section];
+    }
+
     /** @test */
     public function admin_can_convert_selected_admission_enquiry_to_student()
     {
         $this->actingAs($this->admin);
 
         // Setup class and section
-        $class = SchoolClass::create(['name' => 'Grade 1', 'class_order' => 1]);
-        $section = ClassManagement::create(['name' => 'Grade 1', 'section' => 'A', 'capacity' => 30]);
+        [$class, $section] = $this->createClassWithSection('Grade 1', 1);
 
         // Selected Enquiry
         $enquiry = AdmissionEnquiry::create([
@@ -88,8 +117,7 @@ class StudentAdmissionAndParentManagementTest extends TestCase
         $receptionist->roles()->attach($receptionistRole->id);
         $this->actingAs($receptionist);
 
-        $class = SchoolClass::create(['name' => 'Grade 2', 'class_order' => 2]);
-        $section = ClassManagement::create(['name' => 'Grade 2', 'section' => 'A', 'capacity' => 30]);
+        [$class, $section] = $this->createClassWithSection('Grade 2', 2);
 
         // Front-office CRM flow only ever produces 'confirmed', never 'selected'.
         $enquiry = AdmissionEnquiry::create([
@@ -149,8 +177,7 @@ class StudentAdmissionAndParentManagementTest extends TestCase
     {
         $this->actingAs($this->admin);
 
-        $class = SchoolClass::create(['name' => 'Grade 3', 'class_order' => 3]);
-        $section = ClassManagement::create(['name' => 'Grade 3', 'section' => 'A', 'capacity' => 30]);
+        [$class, $section] = $this->createClassWithSection('Grade 3', 3);
 
         $generatedAadhaar = [];
 
@@ -191,8 +218,7 @@ class StudentAdmissionAndParentManagementTest extends TestCase
     {
         $this->actingAs($this->admin);
 
-        $class = SchoolClass::create(['name' => 'Grade 4', 'class_order' => 4]);
-        $section = ClassManagement::create(['name' => 'Grade 4', 'section' => 'A', 'capacity' => 30]);
+        [$class, $section] = $this->createClassWithSection('Grade 4', 4);
 
         $enquiry = AdmissionEnquiry::create([
             'candidate_name' => 'Gate Test Kid',
@@ -255,8 +281,7 @@ class StudentAdmissionAndParentManagementTest extends TestCase
             'created_by' => $this->admin->id,
         ]);
 
-        $class = SchoolClass::create(['name' => 'Grade 5', 'class_order' => 5]);
-        $section = ClassManagement::create(['name' => 'Grade 5', 'section' => 'A', 'capacity' => 30]);
+        [$class, $section] = $this->createClassWithSection('Grade 5', 5);
 
         $enquiry = AdmissionEnquiry::create([
             'candidate_name' => 'Notify Test Kid',
@@ -291,8 +316,7 @@ class StudentAdmissionAndParentManagementTest extends TestCase
     {
         $this->actingAs($this->admin);
 
-        $class = SchoolClass::create(['name' => 'Grade 6', 'class_order' => 6]);
-        $section = ClassManagement::create(['name' => 'Grade 6', 'section' => 'A', 'capacity' => 30]);
+        [$class, $section] = $this->createClassWithSection('Grade 6', 6);
 
         $enquiry = AdmissionEnquiry::create([
             'candidate_name' => 'Audit Test Kid',
@@ -329,8 +353,7 @@ class StudentAdmissionAndParentManagementTest extends TestCase
         $receptionist->roles()->attach($receptionistRole->id);
         $this->actingAs($receptionist);
 
-        $class = SchoolClass::create(['name' => 'Grade 7', 'class_order' => 7]);
-        $section = ClassManagement::create(['name' => 'Grade 7', 'section' => 'A', 'capacity' => 1]);
+        [$class, $section] = $this->createClassWithSection('Grade 7', 7, 1);
 
         Student::create([
             'name' => 'Existing Student',
@@ -373,8 +396,7 @@ class StudentAdmissionAndParentManagementTest extends TestCase
     {
         $this->actingAs($this->admin);
 
-        $class = SchoolClass::create(['name' => 'Grade 8', 'class_order' => 8]);
-        $section = ClassManagement::create(['name' => 'Grade 8', 'section' => 'A', 'capacity' => 1]);
+        [$class, $section] = $this->createClassWithSection('Grade 8', 8, 1);
 
         Student::create([
             'name' => 'Existing Student Two',

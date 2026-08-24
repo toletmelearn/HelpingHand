@@ -151,69 +151,66 @@
         const overrideRow = document.getElementById('capacity-override-row');
         const overrideCheckbox = document.getElementById('override_capacity');
 
-        // Parse section records grouped by class name
-        const sectionsData = {
-            @foreach($sections as $className => $classSections)
-                "{{ $className }}": [
+        // Real Section options per class (via the class_sections bridge --
+        // never client-guessable), keyed by class id, plus the class-level
+        // (not per-section) occupancy/capacity this school actually uses.
+        const sectionsByClassId = {
+            @foreach($sectionsByClassId as $classId => $classSections)
+                "{{ $classId }}": [
                     @foreach($classSections as $sec)
-                        {
-                            id: "{{ $sec->id }}",
-                            name: "{{ $sec->section }}",
-                            capacity: {{ (int) $sec->capacity }},
-                            filled: {{ (int) ($sectionOccupancy[$sec->id] ?? 0) }}
-                        },
+                        { id: "{{ $sec->id }}", name: "{{ $sec->name }}" },
                     @endforeach
                 ],
             @endforeach
         };
+        const classCapacity = {
+            @foreach($classes as $cls)
+                "{{ $cls->id }}": { capacity: {{ $cls->capacity !== null ? (int) $cls->capacity : 'null' }}, filled: {{ (int) ($classOccupancy[$cls->id] ?? 0) }} },
+            @endforeach
+        };
 
         function updateSeatInfo() {
-            const selectedId = sectionSelect.value;
-            let matched = null;
-            Object.values(sectionsData).forEach(list => {
-                list.forEach(sec => { if (String(sec.id) === String(selectedId)) matched = sec; });
-            });
+            const classId = classSelect.value;
+            const info = classCapacity[classId];
 
-            if (!matched) {
+            if (!info || info.capacity === null) {
                 seatInfo.textContent = '';
                 overrideRow.style.display = 'none';
                 if (overrideCheckbox) overrideCheckbox.checked = false;
                 return;
             }
 
-            const isFull = matched.filled >= matched.capacity;
-            seatInfo.textContent = `${matched.filled} / ${matched.capacity} seats filled`;
+            const isFull = info.filled >= info.capacity;
+            seatInfo.textContent = `${info.filled} / ${info.capacity} seats filled in this class`;
             seatInfo.classList.toggle('text-danger', isFull);
             overrideRow.style.display = isFull ? '' : 'none';
             if (!isFull && overrideCheckbox) overrideCheckbox.checked = false;
         }
 
         classSelect.addEventListener('change', function () {
-            const selectedOption = this.options[this.selectedIndex];
-            const className = selectedOption.getAttribute('data-name');
+            const classId = this.value;
 
             // Clear current sections
             sectionSelect.innerHTML = '<option value="">-- Select Section --</option>';
 
-            if (className && sectionsData[className]) {
-                sectionsData[className].forEach(sec => {
+            const options = sectionsByClassId[classId];
+            if (classId && options && options.length) {
+                options.forEach(sec => {
                     const opt = document.createElement('option');
                     opt.value = sec.id;
-                    opt.textContent = `${sec.name} (${sec.filled}/${sec.capacity})`;
+                    opt.textContent = sec.name;
                     sectionSelect.appendChild(opt);
                 });
-            } else if (className) {
+            } else if (classId) {
                 const opt = document.createElement('option');
                 opt.value = "";
-                opt.textContent = "-- No Sections Configured --";
+                opt.textContent = "-- No Sections Configured For This Class --";
                 sectionSelect.appendChild(opt);
             } else {
                 sectionSelect.innerHTML = '<option value="">-- Select Class First --</option>';
             }
             updateSeatInfo();
         });
-
-        sectionSelect.addEventListener('change', updateSeatInfo);
     });
 </script>
 @endsection

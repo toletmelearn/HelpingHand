@@ -28,6 +28,29 @@ class AdmissionAutoAssignsFeeStructureTest extends TestCase
 {
     use RefreshDatabase;
 
+    /** Phase 2B-i: confirmAdmission() now resolves a real Section via class_sections, not a bare ClassManagement id -- see AdminAdmissionController::validSectionIdsForClass(). */
+    private function createClassWithSection(string $className, int $classOrder, int $capacity = 40): array
+    {
+        $class = SchoolClass::create(['name' => $className, 'class_order' => $classOrder, 'is_active' => true, 'capacity' => $capacity]);
+        $classManagement = ClassManagement::create(['name' => $className, 'section' => '', 'capacity' => $capacity, 'is_active' => true]);
+        \Illuminate\Support\Facades\DB::table('legacy_class_map')->insert([
+            'class_management_id' => $classManagement->id,
+            'school_class_id' => $class->id,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+        $section = \App\Models\Section::create(['name' => 'A', 'capacity' => $capacity]);
+        \Illuminate\Support\Facades\DB::table('class_sections')->insert([
+            'class_management_id' => $classManagement->id,
+            'section_id' => $section->id,
+            'assigned_at' => now(),
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        return [$class, $section];
+    }
+
     public function test_confirming_admission_auto_assigns_the_class_fee_structure()
     {
         $admin = User::factory()->create(['role' => 'admin']);
@@ -40,8 +63,7 @@ class AdmissionAutoAssignsFeeStructureTest extends TestCase
             'is_current' => true, 'is_active' => true,
         ]);
 
-        $class = SchoolClass::create(['name' => 'Class 3', 'class_order' => 3, 'is_active' => true]);
-        $section = ClassManagement::create(['name' => 'Class 3', 'section' => 'A', 'capacity' => 40, 'is_active' => true]);
+        [$class, $section] = $this->createClassWithSection('Class 3', 3);
 
         $tuitionType = FeeType::create(['name' => 'Tuition Fee', 'status' => 'active']);
         $feeStructure = FeeStructure::create([
@@ -84,8 +106,7 @@ class AdmissionAutoAssignsFeeStructureTest extends TestCase
         $role = Role::firstOrCreate(['name' => 'admin'], ['display_name' => 'Admin']);
         $admin->roles()->attach($role->id);
 
-        $class = SchoolClass::create(['name' => 'Class 9', 'class_order' => 9, 'is_active' => true]);
-        $section = ClassManagement::create(['name' => 'Class 9', 'section' => 'A', 'capacity' => 40, 'is_active' => true]);
+        [$class, $section] = $this->createClassWithSection('Class 9', 9);
 
         $enquiry = AdmissionEnquiry::create([
             'candidate_name' => 'No Fee Setup Kid', 'parent_name' => 'Parent Name',
