@@ -237,6 +237,33 @@ class TimetableController extends Controller
             return back()->with('error', 'Scheduling conflict: ' . $conflictCheck['message']);
         }
 
+        // Timetable Hardening pass: unlike update() (which edits a specific
+        // row by id and already rejects a locked/combined-group target),
+        // this upserts by NATURAL KEY (class, section, bell_timing, status)
+        // -- and TimetableConflictResolver deliberately does NOT flag an
+        // existing row at that exact key as a conflict (it's auto-resolved
+        // as the row being "updated in place", see resolveSelfId()). That
+        // means a locked or combined-group row sitting at this exact cell
+        // would otherwise be silently overwritten by updateOrCreate() below
+        // with zero warning -- the one lifecycle rule the earlier Lock
+        // Integrity audit's sweep of update()/destroy()/lockSlot()/swap/
+        // rebalance/Auto-Fix missed, because store() has no route through
+        // any of those. Checked explicitly here, mirroring update()'s own
+        // rejection messages exactly.
+        $naturalKeyOccupant = TimetableSlot::where('school_class_id', $validated['school_class_id'])
+            ->where('section_id', $validated['section_id'] ?? null)
+            ->where('bell_timing_id', $validated['bell_timing_id'])
+            ->where('status', $status)
+            ->first();
+
+        if ($naturalKeyOccupant && $naturalKeyOccupant->is_locked) {
+            return back()->with('error', 'This lesson is locked -- unlock it first to edit it.')->withInput();
+        }
+
+        if ($naturalKeyOccupant && $naturalKeyOccupant->combined_class_group_id) {
+            return back()->with('error', 'This is a combined-group lesson -- it can\'t be edited from a single cell. Clear it and re-place it via Combined Groups instead.')->withInput();
+        }
+
         // The app-level checkSlotConflicts() above is the primary guard;
         // this catch is the DB-level safety net under it (T1a) -- a race
         // between the check and the write (or any future caller that skips
