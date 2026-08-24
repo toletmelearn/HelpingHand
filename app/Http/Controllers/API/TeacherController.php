@@ -112,6 +112,12 @@ class TeacherController extends BaseApiController
     {
         try {
             $teacher = Teacher::findOrFail($id);
+
+            $blockingDependency = \App\Http\Controllers\TeacherController::blockingTeacherDependency($teacher);
+            if ($blockingDependency !== null) {
+                return $this->error("Cannot delete this teacher: {$blockingDependency}");
+            }
+
             $teacher->delete();
             return $this->success(null, 'Teacher deleted successfully');
         } catch (\Exception $e) {

@@ -222,12 +222,62 @@ class TeacherController extends Controller
     }
 
     // Delete teacher (route-model binding)
+    /**
+     * Dependency-safety fix (same "smallest safe fix" pattern already
+     * applied to Sections): this previously deleted (soft-deleted) any
+     * teacher with zero dependency check, silently dropping an actively
+     * scheduled teacher from Timetable/Substitution/class-assignment
+     * views with no warning.
+     */
     public function destroy(Teacher $teacher)
     {
         $this->authorize('delete', $teacher);
+
+        $blockingDependency = $this->blockingTeacherDependency($teacher);
+        if ($blockingDependency !== null) {
+            return redirect()->route('admin.teachers.index')
+                ->with('error', "Cannot delete this teacher: {$blockingDependency}");
+        }
+
         $teacher->delete();
 
         return redirect()->route('admin.teachers.index')
                          ->with('success', 'Teacher deleted');
+    }
+
+    /**
+     * Returns a human-readable reason if the teacher has a live
+     * dependency, or null if safe to delete. Shared by web and API
+     * delete paths so both enforce the same rule.
+     */
+    public static function blockingTeacherDependency(Teacher $teacher): ?string
+    {
+        $slotCount = \Illuminate\Support\Facades\DB::table('timetable_slots')
+            ->where('teacher_id', $teacher->id)
+            ->orWhere('co_teacher_id', $teacher->id)
+            ->count();
+        if ($slotCount > 0) {
+            return "{$slotCount} timetable slot(s) are currently assigned to this teacher.";
+        }
+
+        $substitutionCount = \Illuminate\Support\Facades\DB::table('teacher_substitutions')
+            ->where('status', '!=', 'cancelled')
+            ->where(function ($q) use ($teacher) {
+                $q->where('absent_teacher_id', $teacher->id)
+                  ->orWhere('substitute_teacher_id', $teacher->id);
+            })
+            ->count();
+        if ($substitutionCount > 0) {
+            return "{$substitutionCount} active teacher substitution(s) reference this teacher.";
+        }
+
+        $assignmentCount = \Illuminate\Support\Facades\DB::table('teacher_class_subject_assignments')
+            ->where('teacher_id', $teacher->id)
+            ->count();
+        if ($assignmentCount > 0) {
+            return "{$assignmentCount} class/subject assignment(s) are currently assigned to this teacher. Remove or reassign them first.";
+        }
+
+        return null;
     }
 }
