@@ -7,12 +7,13 @@ use App\Models\Exam;
 use App\Models\SchoolClass;
 use App\Models\Subject;
 use App\Models\Teacher;
+use App\Services\Exam\ExamDependencyChecker;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
 class ExamController extends Controller
 {
-    public function __construct()
+    public function __construct(private ExamDependencyChecker $dependencyChecker)
     {
         $this->middleware('auth');
     }
@@ -65,6 +66,21 @@ class ExamController extends Controller
         // Validate that passing marks don't exceed total marks
         if ($request->passing_marks > $request->total_marks) {
             return redirect()->back()->withErrors(['passing_marks' => 'Passing marks cannot be greater than total marks.']);
+        }
+
+        // Duplicate prevention: the same class already has an exam for
+        // this subject/term/academic year -- never silently created a
+        // second one before.
+        $duplicate = Exam::where('class_id', $request->class_id)
+            ->where('subject', $request->subject)
+            ->where('academic_year', $request->academic_year)
+            ->where('term', $request->term)
+            ->exists();
+
+        if ($duplicate) {
+            return redirect()->back()->withInput()->withErrors([
+                'subject' => 'An exam for this class, subject, term, and academic year already exists.',
+            ]);
         }
 
         // Normalize status value to match database enum
@@ -137,6 +153,27 @@ class ExamController extends Controller
             return redirect()->back()->withErrors(['passing_marks' => 'Passing marks cannot be greater than total marks.']);
         }
 
+        // Data integrity: once any result has been recorded against this
+        // exam, its class/subject/grading basis must not silently change
+        // underneath already-entered marks -- name/date/time/description/
+        // status remain freely editable (correcting a typo or rescheduling
+        // is fine; changing what the exam even IS or is graded out of is
+        // not).
+        $dependencies = $this->dependencyChecker->check($exam->id);
+        if ($this->dependencyChecker->hasRecordedMarks($dependencies)) {
+            $lockedFieldChanged = (int) $request->class_id !== (int) $exam->class_id
+                || $request->subject !== $exam->subject
+                || (float) $request->total_marks !== (float) $exam->total_marks
+                || (float) $request->passing_marks !== (float) $exam->passing_marks;
+
+            if ($lockedFieldChanged) {
+                return redirect()->back()->withInput()->withErrors([
+                    'total_marks' => 'This exam already has ' . $this->dependencyChecker->summarize($dependencies)
+                        . ' recorded -- class, subject, and marks cannot be changed. Only name, date, time, description, and status may still be edited.',
+                ]);
+            }
+        }
+
         // Normalize status value to match database enum
         $normalizedStatus = $request->status === 'active' ? 'scheduled' : $request->status;
 
@@ -160,7 +197,18 @@ class ExamController extends Controller
     public function destroy(Exam $exam)
     {
         $this->authorize('delete', $exam);
-        
+
+        // results/cbse_results/exam_papers/exam_blueprints/admit_cards/
+        // exam_seating_arrangements all cascade-delete on exams.id --
+        // never let delete() reach the DB unguarded, or a single click
+        // silently wipes every student's recorded marks for this exam.
+        $dependencies = $this->dependencyChecker->check($exam->id);
+        if ($this->dependencyChecker->isBlocked($dependencies)) {
+            return redirect()->route('admin.exams.index')
+                ->with('error', 'Cannot delete this exam -- it is currently used by '
+                    . $this->dependencyChecker->summarize($dependencies) . '. Resolve these dependencies before deleting.');
+        }
+
         $exam->delete();
 
         return redirect()->route('admin.exams.index')

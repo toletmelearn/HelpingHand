@@ -10,10 +10,15 @@ use Illuminate\Support\Facades\Log;
 use App\Models\Exam;
 use App\Models\SchoolClass;
 use App\Models\Subject;
+use App\Services\Exam\ExamDependencyChecker;
 use App\Services\TeacherAcademicService;
 
 class TeacherExamController extends Controller
 {
+    public function __construct(private ExamDependencyChecker $dependencyChecker)
+    {
+    }
+
     /**
      * Display a listing of the resource.
      */
@@ -204,9 +209,13 @@ class TeacherExamController extends Controller
         })->filter();
         $assignedSubjectNames = $academicData['flat_assignments']->pluck('subject_name')->unique()->filter();
         
-        $canAccess = ($exam->created_by == $teacher->id) || 
+        // Exams V1: a teacher with zero class/subject assignments must
+        // NOT fall through to full access -- $assignedClassNames->isEmpty()
+        // previously granted exactly that, so any teacher account with no
+        // assignments configured could view every exam in the school
+        // regardless of which class/subject it belonged to.
+        $canAccess = ($exam->created_by == $teacher->id) ||
                    $teacher->isExamHead() ||
-                   $assignedClassNames->isEmpty() ||
                    ($assignedClassNames->contains($exam->class_name) && $assignedSubjectNames->contains($exam->subject));
         
         if(!$canAccess){
@@ -357,11 +366,16 @@ class TeacherExamController extends Controller
         })->filter();
         $assignedSubjectNames = $academicData['flat_assignments']->pluck('subject_name')->unique()->filter();
         
-        if (!$teacher->isExamHead() && $assignedClassNames->isNotEmpty()) {
+        // Exams V1: same fix as show() above -- a teacher with zero
+        // assignments must not be able to retarget their own exam to an
+        // arbitrary class/subject just because the assignment list was
+        // empty (assignedClassNames->isNotEmpty() previously skipped this
+        // whole check in that case).
+        if (!$teacher->isExamHead()) {
             if (!$assignedClassNames->contains($className)) {
                 return redirect()->back()->withErrors(['class_id' => 'You are not assigned to this class.']);
             }
-            
+
             if (!$assignedSubjectNames->contains($subjectName)) {
                 return redirect()->back()->withErrors(['subject_id' => 'You are not assigned to teach this subject.']);
             }
@@ -399,6 +413,16 @@ class TeacherExamController extends Controller
 
         if (!$allowed) {
             return back()->with('error', 'You can only delete your own exams.');
+        }
+
+        // results/cbse_results/exam_papers/exam_blueprints/admit_cards/
+        // exam_seating_arrangements all cascade-delete on exams.id -- same
+        // guard as Admin\ExamController::destroy(), so a teacher can't
+        // silently wipe recorded marks either.
+        $dependencies = $this->dependencyChecker->check($exam->id);
+        if ($this->dependencyChecker->isBlocked($dependencies)) {
+            return back()->with('error', 'Cannot delete this exam -- it is currently used by '
+                . $this->dependencyChecker->summarize($dependencies) . '. Resolve these dependencies before deleting.');
         }
 
         $exam->delete();
