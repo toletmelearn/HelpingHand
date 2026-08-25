@@ -18,6 +18,8 @@ class HomeworkNoticeController extends Controller
 
     public function index()
     {
+        $this->authorize('viewAny', HomeworkNotice::class);
+
         $homeworkNotices = HomeworkNotice::with(['schoolClass', 'subject', 'assignedBy'])
             ->orderByDesc('created_at')
             ->paginate(20);
@@ -27,6 +29,8 @@ class HomeworkNoticeController extends Controller
 
     public function create()
     {
+        $this->authorize('create', HomeworkNotice::class);
+
         $classes = SchoolClass::active()->orderByOrder()->get();
         $subjects = Subject::orderBy('name')->get();
         $teachers = User::role('teacher')->get();
@@ -36,6 +40,8 @@ class HomeworkNoticeController extends Controller
 
     public function store(Request $request)
     {
+        $this->authorize('create', HomeworkNotice::class);
+
         $request->validate([
             'title' => 'required|string|max:255',
             'description' => 'required|string',
@@ -57,6 +63,8 @@ class HomeworkNoticeController extends Controller
 
     public function show(HomeworkNotice $homeworkNotice)
     {
+        $this->authorize('view', $homeworkNotice);
+
         $homeworkNotice->load(['schoolClass', 'subject', 'assignedBy']);
 
         return view('admin.homework-notices.show', compact('homeworkNotice'));
@@ -64,6 +72,8 @@ class HomeworkNoticeController extends Controller
 
     public function edit(HomeworkNotice $homeworkNotice)
     {
+        $this->authorize('update', $homeworkNotice);
+
         $classes = SchoolClass::active()->orderByOrder()->get();
         $subjects = Subject::orderBy('name')->get();
         $teachers = User::role('teacher')->get();
@@ -73,6 +83,8 @@ class HomeworkNoticeController extends Controller
 
     public function update(Request $request, HomeworkNotice $homeworkNotice)
     {
+        $this->authorize('update', $homeworkNotice);
+
         $request->validate([
             'title' => 'required|string|max:255',
             'description' => 'required|string',
@@ -94,6 +106,8 @@ class HomeworkNoticeController extends Controller
 
     public function destroy(HomeworkNotice $homeworkNotice)
     {
+        $this->authorize('delete', $homeworkNotice);
+
         $homeworkNotice->delete();
 
         return redirect()->route('admin.homework-notices.index')
@@ -102,6 +116,8 @@ class HomeworkNoticeController extends Controller
 
     public function upcoming()
     {
+        $this->authorize('viewAny', HomeworkNotice::class);
+
         $upcomingHomework = HomeworkNotice::with(['schoolClass', 'subject', 'assignedBy'])
             ->homework()
             ->upcomingDue()

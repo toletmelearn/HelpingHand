@@ -8,6 +8,12 @@ use Illuminate\Http\Request;
 
 class NotificationTemplateController extends Controller
 {
+    public function __construct()
+    {
+        $this->middleware('auth');
+        $this->middleware('role:admin');
+    }
+
     public function index()
     {
         $templates = NotificationTemplate::all();
