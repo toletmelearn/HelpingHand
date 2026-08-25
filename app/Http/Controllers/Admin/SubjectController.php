@@ -93,11 +93,33 @@ class SubjectController extends Controller
 
     /**
      * Remove the specified resource from storage.
+     *
+     * Priority audit finding F1: this previously deleted (soft-deleted) any
+     * Subject with zero dependency check -- even one actively referenced by
+     * timetable slots or teacher class/subject assignments. Since Subject
+     * uses SoftDeletes, the real DB foreign keys on both tables (ON DELETE
+     * CASCADE) never fire on this path -- this is the actual, only real
+     * safeguard, matching the same pattern already applied to Sections and
+     * Teachers. exam_papers.subject is a free-text string column (no FK),
+     * and fee_structures has no subject reference at all, so neither is
+     * checked here.
      */
     public function destroy(Subject $subject)
     {
         $this->authorize('delete', $subject);
-        
+
+        $timetableSlotCount = \Illuminate\Support\Facades\DB::table('timetable_slots')->where('subject_id', $subject->id)->count();
+        if ($timetableSlotCount > 0) {
+            return redirect()->route('admin.subjects.index')
+                ->with('error', "Cannot delete subject \"{$subject->name}\": {$timetableSlotCount} timetable slot(s) reference it.");
+        }
+
+        $assignmentCount = \Illuminate\Support\Facades\DB::table('teacher_class_subject_assignments')->where('subject_id', $subject->id)->count();
+        if ($assignmentCount > 0) {
+            return redirect()->route('admin.subjects.index')
+                ->with('error', "Cannot delete subject \"{$subject->name}\": {$assignmentCount} teacher/class assignment(s) reference it. Remove those assignments first.");
+        }
+
         $subject->delete();
 
         return redirect()->route('admin.subjects.index')

@@ -118,6 +118,15 @@ class SchoolClassController extends Controller
      * FeeStructureController::destroy()/FeeTypeController::destroy(). Use
      * destroyWithStudents() for the explicit "delete the class and every
      * student in it" action.
+     *
+     * Priority audit finding F2: this checked only students -- never
+     * timetable_slots.school_class_id, teacher_class_subject_assignments.
+     * class_id, or exam_papers.class_id, all three of which carry a real DB
+     * foreign key (ON DELETE CASCADE) that SoftDeletes prevents from ever
+     * firing on this path. fee_structures.class_name is a free-text string
+     * (no FK), so it isn't checked. destroyWithStudents() is deliberately
+     * left unchanged -- it's the confirmed, explicit "delete this class and
+     * everyone in it" shortcut, not a path this dependency guard applies to.
      */
     public function destroy(SchoolClass $schoolClass)
     {
@@ -130,6 +139,24 @@ class SchoolClassController extends Controller
         if ($hasStudents) {
             return redirect()->back()
                 ->with('error', 'This class still has students assigned to it. Use "Delete Class & Students" if you want to remove them together, or move the students out first.');
+        }
+
+        $timetableSlotCount = DB::table('timetable_slots')->where('school_class_id', $schoolClass->id)->count();
+        if ($timetableSlotCount > 0) {
+            return redirect()->back()
+                ->with('error', "Cannot delete class \"{$schoolClass->name}\": {$timetableSlotCount} timetable slot(s) reference it.");
+        }
+
+        $assignmentCount = DB::table('teacher_class_subject_assignments')->where('class_id', $schoolClass->id)->count();
+        if ($assignmentCount > 0) {
+            return redirect()->back()
+                ->with('error', "Cannot delete class \"{$schoolClass->name}\": {$assignmentCount} teacher/subject assignment(s) reference it. Remove those assignments first.");
+        }
+
+        $examPaperCount = DB::table('exam_papers')->where('class_id', $schoolClass->id)->count();
+        if ($examPaperCount > 0) {
+            return redirect()->back()
+                ->with('error', "Cannot delete class \"{$schoolClass->name}\": {$examPaperCount} exam paper(s) reference it.");
         }
 
         $schoolClass->delete();
