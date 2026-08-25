@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Exam;
+use App\Models\Result;
 use App\Models\Student;
 use App\Services\Academic\AssessmentModeratorService;
 use Illuminate\Http\Request;
@@ -19,12 +20,18 @@ class MarksModerationController extends Controller
 
     public function index(Request $request)
     {
+        $this->authorize('viewAny', Result::class);
+
         $exams = Exam::orderBy('exam_date', 'desc')->paginate(10);
         return view('admin.exams.moderation', compact('exams'));
     }
 
     public function moderate(Request $request)
     {
+        // Bulk write across many results (no single Result instance), same
+        // ability used by ResultEntryController::processBulkEntry().
+        $this->authorize('create', Result::class);
+
         $validated = $request->validate([
             'exam_id' => 'required|exists:exams,id',
             'subject' => 'required|string',
@@ -45,6 +52,8 @@ class MarksModerationController extends Controller
 
     public function applyGrace(Request $request)
     {
+        $this->authorize('create', Result::class);
+
         $validated = $request->validate([
             'student_id' => 'required|exists:students,id',
             'academic_year' => 'required|string',

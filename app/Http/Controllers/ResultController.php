@@ -383,11 +383,10 @@ class ResultController extends Controller
             'term' => 'required|string|max:20',
         ]);
 
-        // Process CSV/XLSX file
-        // Implementation depends on the file format
-        // This is a simplified example
-        
-        return redirect()->back()->with('success', 'Bulk upload completed.');
+        // File parsing is not implemented yet -- report that honestly instead of
+        // a false "completed" success message that would make an admin believe
+        // marks were imported when none were.
+        return redirect()->back()->with('error', 'Bulk upload is not available yet. Please enter results individually.');
     }
 
     /**

@@ -81,7 +81,7 @@ class ResultEntryController extends Controller
             'student_id' => 'required|exists:students,id',
             'exam_id' => 'required|exists:exams,id',
             'subject_id' => 'required|exists:subjects,id',
-            'marks_obtained' => 'required|numeric|min:0',
+            'marks_obtained' => 'required|numeric|min:0|lte:total_marks',
             'total_marks' => 'required|numeric|min:1',
             'academic_year' => 'required|string|max:20',
             'term' => 'required|string|max:20',
@@ -91,6 +91,7 @@ class ResultEntryController extends Controller
             'exam_id.required' => 'Please select an exam',
             'subject_id.required' => 'Please select a subject',
             'marks_obtained.required' => 'Please enter marks obtained',
+            'marks_obtained.lte' => 'Marks obtained cannot exceed total marks',
             'total_marks.required' => 'Please enter total marks',
         ]);
 
@@ -177,17 +178,19 @@ class ResultEntryController extends Controller
             'student_id' => 'required|exists:students,id',
             'exam_id' => 'required|exists:exams,id',
             'subject_id' => 'required|exists:subjects,id',
-            'marks_obtained' => 'required|numeric|min:0',
+            'marks_obtained' => 'required|numeric|min:0|lte:total_marks',
             'total_marks' => 'required|numeric|min:1',
             'academic_year' => 'required|string|max:20',
             'term' => 'required|string|max:20',
             'comments' => 'nullable|string|max:500',
+        ], [
+            'marks_obtained.lte' => 'Marks obtained cannot exceed total marks',
         ]);
 
         // Convert subject_id to subject name
         $subject = Subject::findOrFail($validated['subject_id']);
         $validated['subject'] = $subject->name;
-        
+
         $result->update($validated);
         $result->updateResultStatus();
 
@@ -287,8 +290,10 @@ class ResultEntryController extends Controller
             'term' => 'required|string|max:20',
             'student_marks' => 'required|array',
             'student_marks.*.student_id' => 'required|exists:students,id',
-            'student_marks.*.marks_obtained' => 'required|numeric|min:0',
+            'student_marks.*.marks_obtained' => 'required|numeric|min:0|lte:student_marks.*.total_marks',
             'student_marks.*.total_marks' => 'required|numeric|min:1',
+        ], [
+            'student_marks.*.marks_obtained.lte' => 'Marks obtained cannot exceed total marks',
         ]);
 
         $subject = Subject::findOrFail($validated['subject_id']);

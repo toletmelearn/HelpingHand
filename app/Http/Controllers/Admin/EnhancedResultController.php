@@ -31,6 +31,8 @@ class EnhancedResultController extends Controller
      */
     public function index(Request $request)
     {
+        $this->authorize('viewAny', Result::class);
+
         $perPage = $request->get('per_page', 50);
         $examId = $request->get('exam_id');
         $classId = $request->get('class_id');
@@ -80,6 +82,8 @@ class EnhancedResultController extends Controller
      */
     public function showStudentResult($studentId, $examId)
     {
+        $this->authorize('viewAny', Result::class);
+
         $student = Student::with('schoolClass:id,class_name,section')->findOrFail($studentId);
         $exam = Exam::with('subject:id,name')->findOrFail($examId);
         
@@ -97,6 +101,8 @@ class EnhancedResultController extends Controller
      */
     public function generateOptimizedReport(Request $request)
     {
+        $this->authorize('viewAny', Result::class);
+
         $examId = $request->get('exam_id');
         $classId = $request->get('class_id');
         $format = $request->get('format', 'html'); // html, pdf, excel
@@ -129,6 +135,8 @@ class EnhancedResultController extends Controller
      */
     public function generatePerformanceAnalysis($examId, $classId = null)
     {
+        $this->authorize('viewAny', Result::class);
+
         $exam = Exam::with('subject')->findOrFail($examId);
         $chartData = $this->generateAnalysisChartData($examId, $classId);
         $statistics = $this->resultService->getExamStatistics($examId);
@@ -144,6 +152,8 @@ class EnhancedResultController extends Controller
      */
     public function bulkOperations(Request $request)
     {
+        $this->authorize('update', Result::class);
+
         $this->validate($request, [
             'operation' => 'required|in:lock,unlock,recalculate,clear_cache',
             'result_ids' => 'required|array',
@@ -193,6 +203,8 @@ class EnhancedResultController extends Controller
      */
     public function subjectComparison(Request $request)
     {
+        $this->authorize('viewAny', Result::class);
+
         $examId = $request->get('exam_id');
         $classId = $request->get('class_id');
         $subjectIds = $request->get('subjects', []);
@@ -211,6 +223,8 @@ class EnhancedResultController extends Controller
      */
     public function trendAnalysis(Request $request)
     {
+        $this->authorize('viewAny', Result::class);
+
         $studentId = $request->get('student_id');
         $subjectId = $request->get('subject_id');
         $examIds = $request->get('exams', []);
@@ -229,6 +243,8 @@ class EnhancedResultController extends Controller
      */
     public function accessibleResultView($studentId, $examId)
     {
+        $this->authorize('viewAny', Result::class);
+
         $student = Student::with('schoolClass')->findOrFail($studentId);
         $exam = Exam::with('subject')->findOrFail($examId);
         

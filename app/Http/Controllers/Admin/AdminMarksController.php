@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\Result;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -10,6 +11,8 @@ class AdminMarksController extends Controller
 {
     public function index()
     {
+        $this->authorize('viewAny', Result::class);
+
         $marks = DB::table('results as r')
             ->join('exams as e', 'r.exam_id', '=', 'e.id')
             ->join('students as s', 'r.student_id', '=', 's.id')

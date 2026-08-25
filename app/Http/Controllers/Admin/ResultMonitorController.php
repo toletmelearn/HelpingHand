@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\Result;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -10,11 +11,13 @@ class ResultMonitorController extends Controller
 {
     public function index()
     {
+        $this->authorize('viewAny', Result::class);
+
         $exam = DB::table('exams')->latest()->first();
 
         $data = DB::table('teacher_class_subject_assignments as t')
             ->join('teachers','teachers.id','=','t.teacher_id')
-            ->join('classes','classes.id','=','t.class_id')
+            ->join('school_classes as classes','classes.id','=','t.class_id')
             ->join('subjects','subjects.id','=','t.subject_id')
             ->leftJoin('sections', 'sections.id', '=', 't.section_id') // Join with sections if available
             ->leftJoin('results',function($join) use ($exam){
@@ -42,6 +45,8 @@ class ResultMonitorController extends Controller
 
     public function classResultsView()
     {
+        $this->authorize('viewAny', Result::class);
+
         $classes = DB::table('school_classes')->get();
         $exams = DB::table('exams')->get();
         
@@ -50,6 +55,8 @@ class ResultMonitorController extends Controller
 
     public function classResults()
     {
+        $this->authorize('viewAny', Result::class);
+
         $classes = DB::table('school_classes')->get();
         $exams = DB::table('exams')->get();
         
@@ -80,11 +87,13 @@ class ResultMonitorController extends Controller
     
     public function getResultStatus(Request $request)
     {
+        $this->authorize('viewAny', Result::class);
+
         $examId = $request->input('exam_id');
         
         $data = DB::table('teacher_class_subject_assignments as t')
             ->join('teachers','teachers.id','=','t.teacher_id')
-            ->join('classes','classes.id','=','t.class_id')
+            ->join('school_classes as classes','classes.id','=','t.class_id')
             ->join('subjects','subjects.id','=','t.subject_id')
             ->leftJoin('sections', 'sections.id', '=', 't.section_id')
             ->leftJoin('results',function($join) use ($examId){

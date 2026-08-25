@@ -64,11 +64,13 @@ class ResultController extends Controller
             'student_id' => 'required|exists:students,id',
             'exam_id' => 'required|exists:exams,id',
             'subject' => 'required|string|max:100',
-            'marks_obtained' => 'required|numeric|min:0',
+            'marks_obtained' => 'required|numeric|min:0|lte:total_marks',
             'total_marks' => 'required|numeric|min:1',
             'academic_year' => 'required|string|max:20',
             'term' => 'required|string|max:50',
             'comments' => 'nullable|string'
+        ], [
+            'marks_obtained.lte' => 'Marks obtained cannot exceed total marks',
         ]);
 
         // Calculate percentage
@@ -159,11 +161,13 @@ class ResultController extends Controller
             'student_id' => 'required|exists:students,id',
             'exam_id' => 'required|exists:exams,id',
             'subject' => 'required|string|max:100',
-            'marks_obtained' => 'required|numeric|min:0',
+            'marks_obtained' => 'required|numeric|min:0|lte:total_marks',
             'total_marks' => 'required|numeric|min:1',
             'academic_year' => 'required|string|max:20',
             'term' => 'required|string|max:50',
             'comments' => 'nullable|string'
+        ], [
+            'marks_obtained.lte' => 'Marks obtained cannot exceed total marks',
         ]);
 
         // Calculate percentage
@@ -253,7 +257,7 @@ class ResultController extends Controller
      */
     public function generateReportCard($studentId, $examId)
     {
-        // Implementation here
+        return $this->generateFinalResult($studentId, $examId);
     }
 
     /**

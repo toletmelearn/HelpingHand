@@ -177,8 +177,15 @@ class CBSEResult extends Model
         // Determine grade
         $this->attributes['grade'] = $this->determineGrade();
 
-        // Determine result status
-        $this->attributes['result_status'] = $this->percentage >= 33 ? 'pass' : 'fail';
+        // Determine result status. Use a fresh lookup rather than the $this->exam
+        // relation accessor: autoCalculate() runs from per-field mutators during
+        // mass-assignment, so exam_id may not be set yet on an earlier call, and
+        // the relation would otherwise cache that stale/null result.
+        $passingMarks = $this->exam_id ? Exam::find($this->exam_id)?->passing_marks : null;
+        $passingPercentage = $passingMarks !== null && $maxMarks > 0
+            ? ($passingMarks / $maxMarks) * 100
+            : 33;
+        $this->attributes['result_status'] = $this->percentage >= $passingPercentage ? 'pass' : 'fail';
     }
 
     public function determineGrade()

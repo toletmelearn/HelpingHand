@@ -8,10 +8,12 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 class Result extends Model
 {
     protected $fillable = [
-        'student_id', 'exam_id', 'subject', 'marks_obtained', 'total_marks',
-        'percentage', 'grade', 'academic_year', 'term', 'comments', 'remarks', 
-        'result_status', 'class_rank', 'section_rank', 'is_locked', 'generated_by', 'generated_at',
-        'uploaded_by_teacher_id', 'uploaded_at', 'status',
+        'student_id', 'exam_id', 'subject', 'class_id', 'subject_id', 'marks_obtained', 'total_marks',
+        'percentage', 'grade', 'academic_year', 'term', 'comments', 'remarks',
+        'result_status', 'class_rank', 'section_rank', 'is_locked', 'locked_at',
+        'is_verified', 'verified_by', 'verified_at', 'verification_comments',
+        'generated_by', 'generated_at', 'additional_data',
+        'uploaded_by_teacher_id', 'uploaded_at', 'status', 'approved_by', 'approved_at',
         'original_marks_obtained', 'grace_marks_applied', 'moderated_by', 'moderation_reason'
     ];
     
@@ -22,8 +24,12 @@ class Result extends Model
         'class_rank' => 'integer',
         'section_rank' => 'integer',
         'is_locked' => 'boolean',
+        'locked_at' => 'datetime',
+        'is_verified' => 'boolean',
+        'verified_at' => 'datetime',
         'generated_at' => 'datetime',
         'uploaded_at' => 'datetime',
+        'approved_at' => 'datetime',
         'additional_data' => 'array',
     ];
     
@@ -92,13 +98,14 @@ class Result extends Model
     public function updateResultStatus(): void
     {
         $percentage = $this->calculatePercentage();
-        
-        if ($percentage >= 33) { // Assuming 33% is passing threshold
-            $this->result_status = 'pass';
-        } else {
-            $this->result_status = 'fail';
-        }
-        
+
+        $passingMarks = $this->exam?->passing_marks;
+        $passingPercentage = $passingMarks !== null && $this->total_marks > 0
+            ? ($passingMarks / $this->total_marks) * 100
+            : 33;
+
+        $this->result_status = $percentage >= $passingPercentage ? 'pass' : 'fail';
+
         $this->percentage = $percentage;
         $this->grade = $this->determineGrade();
         $this->save();

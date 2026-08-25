@@ -33,9 +33,17 @@ class ResultPolicy
 
     /**
      * Determine whether the user can update the model.
+     *
+     * Also called against the class as a whole (Admin\ResultController::lockResults/
+     * unlockResults, EnhancedResultController::bulkOperations), where there is no
+     * single instance to check lock state against -- $result must stay optional.
      */
-    public function update(User $user, Result $result): bool
+    public function update(User $user, ?Result $result = null): bool
     {
+        if ($result && ($result->is_verified || $result->is_locked)) {
+            return false;
+        }
+
         return $user->hasRole('admin') || $user->hasPermission('edit-results');
     }
 
@@ -44,6 +52,10 @@ class ResultPolicy
      */
     public function delete(User $user, Result $result): bool
     {
+        if ($result->is_verified || $result->is_locked) {
+            return false;
+        }
+
         return $user->hasRole('admin') || $user->hasPermission('delete-results');
     }
 
@@ -53,5 +65,17 @@ class ResultPolicy
     public function restore(User $user, Result $result): bool
     {
         return $user->hasRole('admin');
+    }
+
+    /**
+     * Determine whether the user can verify/unverify the model.
+     *
+     * Called both with a specific Result instance (ResultEntryController::verify/unverify)
+     * and against the class as a whole (ResultVerificationController::bulkVerify/bulkUnverify),
+     * so $result must stay optional.
+     */
+    public function verify(User $user, ?Result $result = null): bool
+    {
+        return $user->hasRole('admin') || $user->hasPermission('verify-results');
     }
 }
