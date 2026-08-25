@@ -36,6 +36,11 @@
         <div class="d-flex justify-content-between align-items-center mb-4">
             <h1><i class="bi bi-alarm"></i> Bell Timing Management</h1>
             <div>
+                @if(Route::has('admin.dashboard'))
+                    <a href="{{ route('admin.dashboard') }}" class="btn btn-outline-secondary">
+                        <i class="bi bi-house"></i> Dashboard
+                    </a>
+                @endif
                 <a href="{{ route('bell-timing.create') }}" class="btn btn-primary">
                     <i class="bi bi-plus-circle"></i> Add Schedule
                 </a>
