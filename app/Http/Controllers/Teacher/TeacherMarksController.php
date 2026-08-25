@@ -178,6 +178,16 @@ class TeacherMarksController extends Controller
                 // Determine grade
                 $grade = $this->calculateGrade($percentage);
 
+                // Determine pass/fail against the exam's own passing_marks.
+                // results.result_status defaults to 'pass' at the schema
+                // level and this array never set it, so every mark entered
+                // through this route -- the live teacher-facing path --
+                // was silently recorded as a pass regardless of the actual
+                // score. Matches the same exam.passing_marks-aware pattern
+                // already used by Result::updateResultStatus() and
+                // Admin\ResultController::store()/update().
+                $resultStatus = $marksObtained >= $exam->passing_marks ? 'pass' : 'fail';
+
                 // Get status, defaulting to 'present'
                 $status = $markData['status'] ?? 'present';
 
@@ -195,6 +205,7 @@ class TeacherMarksController extends Controller
                         'total_marks' => $exam->total_marks,
                         'percentage' => $percentage,
                         'grade' => $grade,
+                        'result_status' => $resultStatus,
                         'academic_year' => $exam->academic_year,
                         'uploaded_by_teacher_id' => $teacherId,
                         'uploaded_at' => now(),

@@ -306,6 +306,47 @@ class MarksResultsV1CompletionTest extends TestCase
         ]);
     }
 
+    /**
+     * V1 integration pass finding: results.result_status defaults to
+     * 'pass' at the schema level, and TeacherMarksController::store()'s
+     * updateOrCreate() data array never set it -- every mark entered
+     * through the live teacher-facing route was silently recorded as a
+     * pass regardless of the actual score.
+     */
+    public function test_teacher_marks_store_correctly_computes_pass_and_fail(): void
+    {
+        $class = SchoolClass::create(['name' => 'MR Class M', 'class_order' => 983, 'is_active' => true]);
+        $subject = Subject::create(['name' => 'MR Teacher Subject M', 'code' => 'MR-' . uniqid(), 'is_active' => true]);
+        $exam = Exam::create([
+            'name' => 'MR Exam M', 'exam_type' => 'term', 'class_id' => $class->id,
+            'class_name' => $class->name, 'subject' => $subject->name, 'exam_date' => today(),
+            'start_time' => '10:00', 'end_time' => '12:00', 'total_marks' => 100, 'passing_marks' => 40,
+            'academic_year' => '2026-27', 'status' => 'completed',
+        ]);
+        $passingStudent = $this->student($class);
+        $failingStudent = $this->student($class);
+        [$teacher, $login] = $this->teacherLogin('passfail');
+        TeacherClassSubjectAssignment::create([
+            'teacher_id' => $teacher->id, 'class_id' => $class->id, 'subject_id' => $subject->id,
+            'academic_year' => '2026-27',
+        ]);
+
+        $this->actingAs($login, 'teacher')->post(route('teacher.marks.store'), [
+            'exam_id' => $exam->id,
+            'marks' => [
+                ['student_id' => $passingStudent->id, 'marks_obtained' => 85],
+                ['student_id' => $failingStudent->id, 'marks_obtained' => 20],
+            ],
+        ])->assertRedirect();
+
+        $this->assertDatabaseHas('results', [
+            'student_id' => $passingStudent->id, 'exam_id' => $exam->id, 'result_status' => 'pass',
+        ]);
+        $this->assertDatabaseHas('results', [
+            'student_id' => $failingStudent->id, 'exam_id' => $exam->id, 'result_status' => 'fail',
+        ]);
+    }
+
     // --- ResultPolicy::verify ability ---------------------------------------
 
     public function test_non_admin_without_permission_cannot_verify_a_result(): void
@@ -418,5 +459,34 @@ class MarksResultsV1CompletionTest extends TestCase
         $response->assertRedirect();
         $response->assertSessionHas('error');
         $response->assertSessionMissing('success');
+    }
+
+    /**
+     * V1 integration pass finding: resources/views/student/results/show.blade.php
+     * and .../pdf.blade.php did not exist -- StudentResultController::show()/
+     * generatePDF() (correctly ownership-checked) 500'd for every student,
+     * even though student.results.index already links to both.
+     */
+    public function test_student_can_view_and_print_their_own_result(): void
+    {
+        $class = SchoolClass::create(['name' => 'MR Class N', 'class_order' => 984, 'is_active' => true]);
+        $exam = Exam::create([
+            'name' => 'MR Exam N', 'exam_type' => 'term', 'class_id' => $class->id,
+            'class_name' => $class->name, 'subject' => 'Math', 'exam_date' => today(),
+            'start_time' => '10:00', 'end_time' => '12:00', 'total_marks' => 100, 'passing_marks' => 33,
+            'academic_year' => '2026-27', 'status' => 'completed',
+        ]);
+        $student = $this->student($class);
+        $studentUser = User::factory()->create(['role' => 'student']);
+        $studentUser->roles()->attach(Role::firstOrCreate(['name' => 'student'], ['display_name' => 'Student'])->id);
+        $studentUser->student()->save($student);
+        $result = Result::create([
+            'student_id' => $student->id, 'exam_id' => $exam->id, 'subject' => 'Math',
+            'marks_obtained' => 75, 'total_marks' => 100, 'percentage' => 75, 'grade' => 'A2',
+            'academic_year' => '2026-27', 'result_status' => 'pass',
+        ]);
+
+        $this->actingAs($studentUser)->get(route('student.results.show', $result))->assertOk();
+        $this->actingAs($studentUser)->get(route('student.results.generate-pdf', $result))->assertOk();
     }
 }
