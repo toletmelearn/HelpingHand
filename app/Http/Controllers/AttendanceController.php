@@ -456,11 +456,26 @@ class AttendanceController extends Controller
         
         if ($class) {
             $stats = Attendance::getAttendanceStats($date, $class);
-            $attendances = Attendance::where('date', $date)
-                ->where('class', $class)
+            // Two pre-existing defects here, never caught because every
+            // prior test either rendered attendance.reports directly with
+            // hand-built data or never passed a `class` filter through
+            // this controller method over HTTP:
+            //   1. orderBy('student.roll_number') is not a valid column on
+            //      the attendances query -- no join makes "student" a real
+            //      table alias -- so this always threw on execution.
+            //   2. The view calls ->total()/->firstItem()/->lastItem()/
+            //      ->links() on $attendances, i.e. it expects a paginator,
+            //      but this branch returned a plain Collection.
+            // Fixed with an explicit join (so the sort happens in SQL, not
+            // PHP, and survives pagination) plus paginate() to match what
+            // the view actually needs -- same page size as index() above.
+            $attendances = Attendance::where('attendances.date', $date)
+                ->where('attendances.class', $class)
+                ->join('students', 'students.id', '=', 'attendances.student_id')
+                ->orderBy('students.roll_number')
+                ->select('attendances.*')
                 ->with('student')
-                ->orderBy('student.roll_number')
-                ->get();
+                ->paginate(20);
         } else {
             $stats = Attendance::getAttendanceStats($date);
             $attendances = collect(); // Empty collection if no class selected

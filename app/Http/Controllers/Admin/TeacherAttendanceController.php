@@ -14,16 +14,25 @@ class TeacherAttendanceController extends Controller
     public function __construct()
     {
         $this->middleware('auth');
+        $this->middleware('role:admin');
     }
 
     public function index(Request $request)
     {
         // Filter by date
         $date = $request->date ?? now()->toDateString();
-        
-        // Automatically create present records for all teachers if not exists
-        $this->ensureAllTeachersPresent($date);
-        
+
+        // Attendance V1: this listing must stay read-only -- it was
+        // silently fabricating a "present" TeacherAttendance row (feeding
+        // payroll's AttendanceDeductionCalculator) for every teacher, for
+        // WHATEVER date the admin happened to browse to, including past
+        // dates and Sundays, on every single page view. Same anti-pattern
+        // AttendanceController::create() was already fixed to avoid for
+        // student attendance (see ensureAllStudentsPresent()'s docblock).
+        // Explicit marking now only happens through markAllPresent()
+        // (POST, has its own Sunday guard) or the per-teacher store()/
+        // updateAttendance() actions below.
+
         $query = Teacher::with(['teacherAttendances' => function($q) use ($date) {
             $q->whereDate('date', $date);
         }]);
