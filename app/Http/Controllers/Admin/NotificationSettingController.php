@@ -16,6 +16,12 @@ use Illuminate\Support\Facades\Log;
 
 class NotificationSettingController extends Controller
 {
+    public function __construct()
+    {
+        $this->middleware('auth');
+        $this->middleware('role:admin');
+    }
+
     public function index(Request $request)
     {
         $settings = NotificationSetting::with('creator')

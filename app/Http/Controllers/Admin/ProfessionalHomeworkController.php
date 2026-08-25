@@ -11,6 +11,12 @@ use App\Models\TeacherLogin;
 
 class ProfessionalHomeworkController extends Controller
 {
+    public function __construct()
+    {
+        $this->middleware('auth');
+        $this->middleware('role:admin');
+    }
+
     public function index(Request $request)
     {
         $query = HomeworkNotice::with(['schoolClass', 'subject', 'teacherLogin']);

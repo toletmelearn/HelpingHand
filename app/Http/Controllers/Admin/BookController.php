@@ -10,6 +10,12 @@ use App\Models\LibrarySetting;
 
 class BookController extends Controller
 {
+    public function __construct()
+    {
+        $this->middleware('auth');
+        $this->middleware('role:admin');
+    }
+
     public function index()
     {
         $books = Book::where('is_active', true)->withCount('bookIssues as issued_copies')

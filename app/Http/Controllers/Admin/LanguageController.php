@@ -11,6 +11,12 @@ use Illuminate\Support\Facades\App;
 
 class LanguageController extends Controller
 {
+    public function __construct()
+    {
+        $this->middleware('auth');
+        $this->middleware('role:admin');
+    }
+
     public function index(Request $request)
     {
         $languages = Language::orderBy('sort_order')

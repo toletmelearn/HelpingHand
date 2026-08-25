@@ -9,6 +9,12 @@ use Illuminate\Http\Request;
 
 class ExamBlueprintController extends Controller
 {
+    public function __construct()
+    {
+        $this->middleware('auth');
+        $this->middleware('role:admin');
+    }
+
     public function index($examId)
     {
         $exam = Exam::findOrFail($examId);

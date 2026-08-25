@@ -11,6 +11,12 @@ use App\Models\LibrarySetting;
 
 class BookIssueController extends Controller
 {
+    public function __construct()
+    {
+        $this->middleware('auth');
+        $this->middleware('role:admin');
+    }
+
     public function index()
     {
         $bookIssues = BookIssue::with('book', 'student', 'issuer')
