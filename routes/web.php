@@ -98,10 +98,6 @@ Route::middleware(['guest:web'])->group(function () {
     Route::post('/login', [App\Http\Controllers\Auth\CentralLoginController::class, 'login']);
 });
 
-Route::middleware(['auth:web'])->group(function () {
-    Route::get('/admin/dashboard', [App\Http\Controllers\Admin\AdminDashboardController::class, 'index']);
-});
-
 Route::post('/logout', [App\Http\Controllers\Auth\CentralLoginController::class, 'logout'])->name('logout');
 
 

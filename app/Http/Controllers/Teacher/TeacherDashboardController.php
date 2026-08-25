@@ -73,16 +73,24 @@ class TeacherDashboardController extends Controller
                         ->get();
 
                     // Results uploaded by teacher (use teacher->id)
-                    // FIXED: Table name is 'results' not 'marks'
+                    // FIXED: Table name is 'results' not 'marks'. Column is
+                    // uploaded_by_teacher_id -- results has no teacher_id
+                    // column at all, so this previously threw on every load,
+                    // was swallowed by the catch below, and silently wiped
+                    // out every other section of this dashboard with it.
                     $uploadedResults = \Illuminate\Support\Facades\DB::table('results')
-                        ->where('teacher_id', $teacher->id)
+                        ->where('uploaded_by_teacher_id', $teacher->id)
                         ->count();
 
-                    // Notices (all recent)
-                    $notices = \Illuminate\Support\Facades\DB::table('notices')
-                        ->latest()
-                        ->take(5)
-                        ->get();
+                    // Notices: there is no notices table/system anywhere in
+                    // this schema (only the unrelated homework_notices
+                    // feature below) -- this query previously threw on every
+                    // load, unconditionally, and (being inside the same try
+                    // block) took every other section of this dashboard down
+                    // with it. Matches AdminDashboardController's own
+                    // 'notices_count' => 5 placeholder for the same
+                    // not-yet-built concept -- not invented here either.
+                    $notices = collect();
 
                         // Homework assigned by teacher (use teacher->id)
                     // FIXED: Table name is 'homework_notices' not 'homework'
@@ -93,15 +101,27 @@ class TeacherDashboardController extends Controller
                         ->take(5)
                         ->get();
 
-                    // Fetch invigilator duties
-                    $invigilatorDuties = \App\Models\ExamInvigilatorDuty::where('teacher_id', $teacher->id)
-                        ->with('exam')
-                        ->get();
+                    // Fetch invigilator/relieving duties in their own try/catch:
+                    // exam_invigilator_duties and exam_relieving_duties have no
+                    // migration anywhere in this repo (they exist only in the
+                    // live dev DB), so this throws on a fresh install/CI/test
+                    // run and was previously wiping out every other section of
+                    // this dashboard with it. Same isolation pattern as
+                    // todaysPeriods below.
+                    $invigilatorDuties = collect();
+                    $relievingDuties = collect();
+                    try {
+                        $invigilatorDuties = \App\Models\ExamInvigilatorDuty::where('teacher_id', $teacher->id)
+                            ->with('exam')
+                            ->get();
 
-                    // Fetch relieving duties
-                    $relievingDuties = \App\Models\ExamRelievingDuty::where('teacher_id', $teacher->id)
-                        ->with('exam')
-                        ->get();
+                        $relievingDuties = \App\Models\ExamRelievingDuty::where('teacher_id', $teacher->id)
+                            ->with('exam')
+                            ->get();
+                    } catch (\Exception $e) {
+                        $invigilatorDuties = collect();
+                        $relievingDuties = collect();
+                    }
 
                     // Fetch assigned admission enquiries for this counsellor
                     $assignedEnquiries = collect();

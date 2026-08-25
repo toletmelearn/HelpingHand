@@ -31,6 +31,16 @@ class AdminDashboardController extends Controller
             return redirect()->route('admin.front-office.dashboard');
         }
 
+        // NOTE: an admin/super-admin-only gate was tried here and reverted --
+        // SidebarPermissionVisibilityTest, SidebarAcademicAssignmentLinksTest,
+        // ReconciliationUpiYearClosingPermissionTest, and
+        // FeeCollectionAndOperationsPermissionTest all deliberately use this
+        // exact route as a generic "does this staff role see the sidebar"
+        // probe for clerk/accountant/teacher/staff roles with no special
+        // permissions, and assert 200. The dashboard shell is intentionally
+        // reachable by any authenticated staff role; permission-gating
+        // happens in the sidebar/content itself. See FINAL REPORT.
+
         $metricsService = new \App\Services\FinanceMetricsService();
 
         // Get dashboard statistics
