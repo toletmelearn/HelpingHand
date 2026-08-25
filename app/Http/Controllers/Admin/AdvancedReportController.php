@@ -203,20 +203,36 @@ class AdvancedReportController extends Controller
         ];
     }
 
+    /**
+     * Reports V1: this previously crashed with a QueryException the
+     * moment a class/section filter was applied -- the attendances table
+     * has no class_id/section_id columns at all (only a free-text
+     * `class` string; see Attendance::$fillable). Filters now go through
+     * a join on students.id, matching the canonical
+     * class_id/school_class_id resolution FinanceReportController's own
+     * registers already use, which also makes section filtering possible
+     * for the first time (the old `class` string has no section
+     * granularity to filter on).
+     */
     private function getAttendanceAnalytics($sessionId, $classId, $sectionId, $dateFilter)
     {
-        $query = Attendance::query();
-        
-        if ($classId) {
-            $query->where('class_id', $classId);
-        }
-        if ($sectionId) {
-            $query->where('section_id', $sectionId);
+        $query = Attendance::query()->whereBetween('attendances.date', [$dateFilter[0], $dateFilter[1]]);
+
+        if ($classId || $sectionId) {
+            $query->join('students', 'students.id', '=', 'attendances.student_id');
+            if ($classId) {
+                $query->where(function ($q) use ($classId) {
+                    $q->where('students.class_id', $classId)->orWhere('students.school_class_id', $classId);
+                });
+            }
+            if ($sectionId) {
+                $query->where('students.section_id', $sectionId);
+            }
         }
 
-        $records = $query->whereBetween('date', [$dateFilter[0], $dateFilter[1]])->get(['status']);
+        $records = $query->get(['attendances.status']);
         $summary = AttendanceCreditCalculator::summarizeRecords($records, 'status');
-        
+
         return [
             'attendance_rate' => $summary['attendance_rate'],
             'total_attendance' => $summary['total_days'],
@@ -229,61 +245,93 @@ class AdvancedReportController extends Controller
         ];
     }
 
+    /**
+     * Reports V1: this previously crashed unconditionally, on every
+     * dashboard load regardless of filters -- exams has no `date` column
+     * (it's `exam_date`) and no `results_published` column at all (that
+     * concept doesn't exist anywhere in the schema; replaced with a real,
+     * available signal: whether the exam has any recorded Result via the
+     * existing Exam::results() relationship). Also fixed each stat
+     * clone()-ing the query first: where()/whereBetween() mutate the
+     * builder in place, so the four counts below were previously
+     * cumulative (AND-ed together) instead of four independent totals --
+     * same clone-per-metric pattern this controller's own
+     * getStudentAnalytics()/getFeeAnalytics() already use. exams has no
+     * section_id column either (exams are scoped per-class, not
+     * per-section) -- $sectionId is intentionally not applied here.
+     */
     private function getExamAnalytics($sessionId, $classId, $sectionId, $dateFilter)
     {
         $query = Exam::query();
-        
+
         if ($classId) {
             $query->where('class_id', $classId);
         }
-        if ($sectionId) {
-            $query->where('section_id', $sectionId);
-        }
 
         return [
-            'total_exams' => $query->whereBetween('created_at', $dateFilter)->count(),
-            'upcoming_exams' => $query->where('date', '>', now())->count(),
-            'completed_exams' => $query->where('status', 'completed')->count(),
-            'results_published' => $query->where('results_published', true)->count(),
+            'total_exams' => (clone $query)->whereBetween('created_at', $dateFilter)->count(),
+            'upcoming_exams' => (clone $query)->where('exam_date', '>', now())->count(),
+            'completed_exams' => (clone $query)->where('status', 'completed')->count(),
+            'results_published' => (clone $query)->whereHas('results')->count(),
         ];
     }
 
+    /**
+     * Reports V1: crashed unconditionally -- Book has no status/issued_at/
+     * due_date columns at all (it only tracks total_quantity per title;
+     * issue/return/due-date state lives on BookIssue, one row per physical
+     * loan). Fixed to query the table that actually holds this data,
+     * library-domain field names unchanged from what BookIssue already
+     * uses elsewhere in the codebase (BookController/BookIssueController).
+     */
     private function getLibraryAnalytics($sessionId, $classId, $sectionId, $dateFilter)
     {
+        $issuedCount = \App\Models\BookIssue::where('status', 'issued')->count();
+
         return [
-            'total_books' => Book::count(),
-            'available_books' => Book::where('status', 'available')->count(),
-            'issued_books' => Book::where('status', 'issued')->count(),
-            'books_issued_this_period' => Book::whereBetween('issued_at', $dateFilter)->count(),
-            'overdue_books' => Book::where('due_date', '<', now())->where('status', 'issued')->count(),
+            'total_books' => (int) Book::sum('total_quantity'),
+            'available_books' => max(0, (int) Book::sum('total_quantity') - $issuedCount),
+            'issued_books' => $issuedCount,
+            'books_issued_this_period' => \App\Models\BookIssue::whereBetween('issue_date', $dateFilter)->count(),
+            'overdue_books' => \App\Models\BookIssue::where('due_date', '<', now())->where('status', 'issued')->count(),
         ];
     }
 
+    /**
+     * Reports V1: crashed unconditionally -- teacher_biometric_records has
+     * no single `status` column; arrival and departure are tracked
+     * separately (arrival_status: on_time/late, departure_status:
+     * on_time/early_exit -- same columns/values TeacherBiometricController
+     * already uses). Also fixed each stat re-querying from the same base
+     * ->whereBetween() scope instead of each call further mutating the
+     * previous one in place (where()/whereBetween() return $this, so the
+     * original chain was cumulative AND-ing every prior condition into
+     * each successive count).
+     */
     private function getBiometricAnalytics($sessionId, $classId, $sectionId, $dateFilter)
     {
-        $query = TeacherBiometricRecord::query();
-        
+        $base = TeacherBiometricRecord::whereBetween('date', [$dateFilter[0], $dateFilter[1]]);
+
         if ($classId) {
-            // For teacher assignments to classes
-            $query->join('teachers', 'teacher_biometric_records.teacher_id', '=', 'teachers.id');
+            $base->join('teachers', 'teacher_biometric_records.teacher_id', '=', 'teachers.id');
         }
 
         return [
-            'total_teacher_records' => $query->whereBetween('date', [$dateFilter[0], $dateFilter[1]])->count(),
-            'on_time_arrivals' => $query->whereBetween('date', [$dateFilter[0], $dateFilter[1]])->where('status', 'on_time')->count(),
-            'late_arrivals' => $query->whereBetween('date', [$dateFilter[0], $dateFilter[1]])->where('status', 'late')->count(),
-            'early_departures' => $query->whereBetween('date', [$dateFilter[0], $dateFilter[1]])->where('status', 'early_departure')->count(),
-            'attendance_rate' => $this->calculateBiometricAttendanceRate($query, $dateFilter),
+            'total_teacher_records' => (clone $base)->count(),
+            'on_time_arrivals' => (clone $base)->where('arrival_status', 'on_time')->count(),
+            'late_arrivals' => (clone $base)->where('arrival_status', 'late')->count(),
+            'early_departures' => (clone $base)->where('departure_status', 'early_exit')->count(),
+            'attendance_rate' => $this->calculateBiometricAttendanceRate($base),
         ];
     }
 
-    private function calculateBiometricAttendanceRate($query, $dateFilter)
+    private function calculateBiometricAttendanceRate($base)
     {
-        $total = $query->whereBetween('date', [$dateFilter[0], $dateFilter[1]])->count();
-        $present = $query->whereBetween('date', [$dateFilter[0], $dateFilter[1]])
-            ->whereIn('status', ['on_time', 'late'])
+        $total = (clone $base)->count();
+        $present = (clone $base)
+            ->whereIn('arrival_status', ['on_time', 'late'])
             ->count();
-        
+
         return $total > 0 ? round(($present / $total) * 100, 2) : 0;
     }
 

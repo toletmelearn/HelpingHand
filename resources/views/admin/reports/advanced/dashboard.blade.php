@@ -350,7 +350,7 @@
                                     <td>{{ $studentStats['total_students'] }}</td>
                                     <td>â‚¹{{ number_format($feeStats['total_fees_collected'] + $feeStats['pending_dues']) }}</td>
                                     <td>{{ $attendanceStats['total_attendance'] }}</td>
-                                    <td>{{ Exam::count() }}</td>
+                                    <td>{{ \App\Models\Exam::count() }}</td>
                                 </tr>
                             </tbody>
                         </table>
