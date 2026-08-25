@@ -17,6 +17,13 @@ class FeeAutomationController extends Controller
     public function __construct()
     {
         $this->middleware('auth');
+        // Fees V1: matches Admin\FeeCollectionController's own
+        // view-fees/can-manage-fees split -- this controller had only
+        // 'auth', so any authenticated account of any role could view
+        // pending fees, the defaulters list, and the fee dashboard, and
+        // even trigger WhatsApp reminders to parents.
+        $this->middleware('permission:view-fees')->only(['pendingFees', 'defaulters', 'feeDashboard']);
+        $this->middleware('permission:can-manage-fees')->only(['sendWhatsappReminder']);
     }
 
     public function pendingFees()

@@ -638,6 +638,17 @@ Route::middleware(['auth'])->group(function () {
         // the controller (view-fees).
         Route::get('fees/dashboard', [App\Http\Controllers\Admin\AccountantDashboardController::class, 'index'])->name('fees.dashboard');
 
+        // Fee Automation Routes -- must be registered BEFORE the 'fees'
+        // resource below, otherwise its implicit-bound GET fees/{fee} show
+        // route matches "pending"/"defaulters-list" as the {fee} id first
+        // and 404s on the Fee model lookup instead of ever reaching these
+        // (same class of ordering bug fixed for bell-timing/attendance
+        // routes elsewhere in this codebase).
+        Route::get('fees/pending', [App\Http\Controllers\Admin\FeeAutomationController::class, 'pendingFees'])->name('fees.pending');
+        Route::get('fees/defaulters-list', [App\Http\Controllers\Admin\FeeAutomationController::class, 'defaulters'])->name('fees.defaulters');
+        Route::get('fee-dashboard', [App\Http\Controllers\Admin\FeeAutomationController::class, 'feeDashboard'])->name('fee-dashboard');
+        Route::post('fees/send-whatsapp-reminder', [App\Http\Controllers\Admin\FeeAutomationController::class, 'sendWhatsappReminder'])->name('fees.send-whatsapp-reminder');
+
         // Fee Collection -- gated by permission inside the controller itself
         // (view-fees/can-manage-fees), not a hardcoded role.
         Route::resource('fees', App\Http\Controllers\Admin\FeeCollectionController::class)->only(['index', 'store', 'show']);
@@ -679,12 +690,9 @@ Route::middleware(['auth'])->group(function () {
             Route::get('financial-accounts/{id}/export-excel', [App\Http\Controllers\Admin\StudentFinancialAccountController::class, 'exportExcel'])->name('financial-accounts.export.excel');
 
             // Parent Routes (moved to main route group)
-                
-            // Fee Automation Routes
-            Route::get('fees/pending', [App\Http\Controllers\Admin\FeeAutomationController::class, 'pendingFees'])->name('fees.pending');
-            Route::get('fees/defaulters-list', [App\Http\Controllers\Admin\FeeAutomationController::class, 'defaulters'])->name('fees.defaulters');
-            Route::get('fee-dashboard', [App\Http\Controllers\Admin\FeeAutomationController::class, 'feeDashboard'])->name('fee-dashboard');
-            Route::post('fees/send-whatsapp-reminder', [App\Http\Controllers\Admin\FeeAutomationController::class, 'sendWhatsappReminder'])->name('fees.send-whatsapp-reminder');
+
+            // Fee Automation Routes moved above Route::resource('fees', ...)
+            // to fix a route-ordering conflict -- see the comment there.
         });
 
         // Reconciliation Center -- gated by permission inside the controller
