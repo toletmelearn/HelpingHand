@@ -54,9 +54,17 @@ class BellTimingController extends Controller
         
         // Get unique values for filters
         $daysOfWeek = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
-        $classSections = Student::distinct()->pluck('class')->filter()->sortBy('class');
+        // Sourced from SchoolClass/BellTiming (not Student::class) -- same
+        // fix already proven in edit() -- so every class a schedule was
+        // actually created for is filterable, not just classes that
+        // happen to have a matching students.class string.
+        $classSections = \App\Models\SchoolClass::active()->orderByOrder()->pluck('name')
+            ->merge(BellTiming::whereNotNull('class_section')->distinct()->pluck('class_section'))
+            ->unique()
+            ->sort()
+            ->values();
         $academicYears = BellTiming::distinct()->pluck('academic_year')->filter();
-        
+
         return view('bell-timing.index', compact('bellTimings', 'daysOfWeek', 'classSections', 'academicYears'));
     }
 
@@ -67,7 +75,12 @@ class BellTimingController extends Controller
     {
         $this->authorize('create', BellTiming::class);
         $daysOfWeek = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
-        $classSections = Student::distinct()->pluck('class')->filter()->sortBy('class');
+        // Same canonical-source fix as index()/edit() -- see index() for rationale.
+        $classSections = \App\Models\SchoolClass::active()->orderByOrder()->pluck('name')
+            ->merge(BellTiming::whereNotNull('class_section')->distinct()->pluck('class_section'))
+            ->unique()
+            ->sort()
+            ->values();
         $currentYear = date('Y');
         $academicYears = [
             $currentYear . '-' . ($currentYear + 1),

@@ -102,8 +102,21 @@ class TimetableController extends Controller
         // academic year -- the exact same scoping GeneratorService itself
         // uses, so the grid always reflects the bell-timing set the slots
         // were actually generated against.
+        //
+        // UAT Test 15 fix: also scoped to the selected class's own
+        // BellTiming::class_section (or the "All Classes" null rows),
+        // mirroring GeneratorService's own class_section matching -- the
+        // Schedule Class Period modal previously offered every class's
+        // periods with no way to tell them apart. This is a UI convenience
+        // only; store()/update() independently re-validate ownership
+        // server-side regardless of what this query returns.
+        $selectedClass = $schoolClassId ? $classes->firstWhere('id', (int) $schoolClassId) : null;
+
         $bellTimings = BellTiming::active()->orderBy('order_index')
             ->when($academicYear, fn ($q) => $q->where('academic_year', $academicYear))
+            ->when($selectedClass, fn ($q) => $q->where(function ($q2) use ($selectedClass) {
+                $q2->whereNull('class_section')->orWhere('class_section', $selectedClass->name);
+            }))
             ->get();
 
         if ($schoolClassId) {
@@ -195,6 +208,24 @@ class TimetableController extends Controller
         ]));
     }
 
+    /**
+     * UAT Test 15 fix: BellTiming.class_section is a bare string with no
+     * FK to SchoolClass, so `exists:bell_timings,id` validation alone
+     * never proves the chosen period actually belongs to the class being
+     * scheduled. A null class_section is BellTiming's own established
+     * "All Classes" / general-schedule semantics and is valid for every
+     * class -- everything else must match the selected class's name
+     * exactly, the same string GeneratorService already matches on.
+     */
+    private function bellTimingOwnershipError(BellTiming $bellTiming, SchoolClass $schoolClass): ?string
+    {
+        if ($bellTiming->class_section !== null && $bellTiming->class_section !== $schoolClass->name) {
+            return "This period slot belongs to \"{$bellTiming->class_section}\", not \"{$schoolClass->name}\" -- choose a period that belongs to the selected class.";
+        }
+
+        return null;
+    }
+
     public function store(Request $request)
     {
         $this->authorize('create', [
@@ -213,6 +244,20 @@ class TimetableController extends Controller
             'room_number' => 'nullable|string|max:50',
             'status' => 'nullable|in:draft,published',
         ]);
+
+        // UAT Test 15 fix: `exists:bell_timings,id` above only proves the
+        // row exists, never that it belongs to the class being scheduled --
+        // BellTiming.class_section has no FK to SchoolClass, so nothing
+        // upstream (the grid's dropdown scoping, TimetableConflictResolver)
+        // can be trusted alone to prevent a wrong-class bell_timing_id from
+        // being submitted directly. This is the actual safety net.
+        $ownershipError = $this->bellTimingOwnershipError(
+            BellTiming::findOrFail($validated['bell_timing_id']),
+            SchoolClass::findOrFail($validated['school_class_id'])
+        );
+        if ($ownershipError) {
+            return back()->withInput()->with('error', $ownershipError);
+        }
 
         // T4b item 4: the manual editor works on whichever grid the user
         // is looking at -- a hidden 'status' field on the form carries the
@@ -378,6 +423,17 @@ class TimetableController extends Controller
         $destinationCoTeacherId = ! empty($validated['co_teacher_id']) ? (int) $validated['co_teacher_id'] : null;
 
         $this->authorize('create', [TimetableSlot::class, $destinationClassId, $destinationSectionId]);
+
+        // UAT Test 15 fix: same ownership check as store() -- an edit can
+        // move a lesson to a different class/period, so this must be
+        // re-verified here too, not assumed from the slot's prior state.
+        $ownershipError = $this->bellTimingOwnershipError(
+            BellTiming::findOrFail($validated['bell_timing_id']),
+            SchoolClass::findOrFail($destinationClassId)
+        );
+        if ($ownershipError) {
+            return back()->withInput()->with('error', $ownershipError);
+        }
 
         $proposedPlacement = [
             'school_class_id' => $destinationClassId,

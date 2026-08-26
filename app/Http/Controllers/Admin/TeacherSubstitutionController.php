@@ -9,6 +9,7 @@ use App\Models\Teacher;
 use App\Models\SchoolClass;
 use App\Models\Section;
 use App\Models\Subject;
+use App\Models\TeacherAvailability;
 use App\Models\TimetableSlot;
 use App\Models\User;
 use App\Services\Timetable\SubstituteFinderService;
@@ -76,6 +77,35 @@ class TeacherSubstitutionController extends Controller
         $bellTimings = BellTiming::teachingType()->where('is_active', true)->orderBy('order_index')->get();
 
         return view('admin.teacher-substitutions.create', compact('teachers', 'classes', 'sections', 'subjects', 'bellTimings'));
+    }
+
+    /**
+     * UAT Test 21 defect fix: SubstituteFinderService (used by
+     * suggestSubstitutes()'s automatic suggestion after store()) already
+     * excludes teachers with a TeacherAvailability(is_available=false) row
+     * for the relevant bell timing -- but update(), assignSubstitute(),
+     * and assignFromSlot() all accept a client-supplied
+     * substitute_teacher_id directly, with no equivalent check, so a
+     * manually-chosen substitute could bypass availability entirely.
+     * Reuses the exact same TeacherAvailability semantics and message
+     * wording TimetableConflictResolver::teacherAvailabilityConflicts()
+     * already uses for the Timetable grid, rather than inventing a second
+     * availability rule.
+     */
+    private function substituteAvailabilityError(int $substituteTeacherId, int $bellTimingId): ?string
+    {
+        $blocked = TeacherAvailability::where('teacher_id', $substituteTeacherId)
+            ->where('bell_timing_id', $bellTimingId)
+            ->where('is_available', false)
+            ->exists();
+
+        if (! $blocked) {
+            return null;
+        }
+
+        $teacherName = Teacher::find($substituteTeacherId)->name ?? 'This teacher';
+
+        return "{$teacherName} has been marked unavailable for this period.";
     }
 
     public function store(Request $request)
@@ -158,6 +188,16 @@ class TeacherSubstitutionController extends Controller
             'reason' => 'nullable|string|max:1000',
         ]);
 
+        if ($request->filled('substitute_teacher_id')) {
+            $availabilityError = $this->substituteAvailabilityError(
+                (int) $request->substitute_teacher_id,
+                (int) $request->bell_timing_id
+            );
+            if ($availabilityError) {
+                return back()->withInput()->with('error', $availabilityError);
+            }
+        }
+
         $teacherSubstitution->update([
             'substitution_date' => $request->substitution_date,
             'absent_teacher_id' => $request->absent_teacher_id,
@@ -218,6 +258,14 @@ class TeacherSubstitutionController extends Controller
         $request->validate([
             'substitute_teacher_id' => 'required|exists:teachers,id'
         ]);
+
+        $availabilityError = $this->substituteAvailabilityError(
+            (int) $request->substitute_teacher_id,
+            (int) $teacherSubstitution->bell_timing_id
+        );
+        if ($availabilityError) {
+            return back()->with('error', $availabilityError);
+        }
 
         $teacherSubstitution->update([
             'substitute_teacher_id' => $request->substitute_teacher_id,
@@ -399,6 +447,17 @@ class TeacherSubstitutionController extends Controller
                 'teacher_id' => $validated['absent_teacher_id'],
                 'date' => $validated['substitution_date'],
             ])->with('error', 'A substitution for this teacher and period is already recorded.');
+        }
+
+        $availabilityError = $this->substituteAvailabilityError(
+            (int) $validated['substitute_teacher_id'],
+            (int) $validated['bell_timing_id']
+        );
+        if ($availabilityError) {
+            return redirect()->route('admin.teacher-substitutions.absent-today', [
+                'teacher_id' => $validated['absent_teacher_id'],
+                'date' => $validated['substitution_date'],
+            ])->with('error', $availabilityError);
         }
 
         TeacherSubstitution::create([

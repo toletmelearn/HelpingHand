@@ -380,7 +380,7 @@
                             <option value="">-- Choose Period --</option>
                             @foreach($bellTimings as $t)
                                 <option value="{{ $t->id }}">
-                                    {{ $t->day_of_week }} - {{ $t->period_name }} ({{ $t->start_time->format('H:i') }} - {{ $t->end_time->format('H:i') }})
+                                    {{ $t->day_of_week }} - {{ $t->period_name }} ({{ $t->start_time->format('H:i') }} - {{ $t->end_time->format('H:i') }}){{ $t->class_section ? '' : ' (All Classes)' }}
                                 </option>
                             @endforeach
                         </select>
@@ -492,7 +492,7 @@
                         <select name="bell_timing_id" id="edit_bell_timing_id" class="form-control" required onchange="triggerEditConflictCheck()">
                             @foreach($bellTimings as $t)
                                 <option value="{{ $t->id }}">
-                                    {{ $t->day_of_week }} - {{ $t->period_name }} ({{ $t->start_time->format('H:i') }} - {{ $t->end_time->format('H:i') }})
+                                    {{ $t->day_of_week }} - {{ $t->period_name }} ({{ $t->start_time->format('H:i') }} - {{ $t->end_time->format('H:i') }}){{ $t->class_section ? '' : ' (All Classes)' }}
                                 </option>
                             @endforeach
                         </select>
