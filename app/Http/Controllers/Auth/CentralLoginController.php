@@ -76,9 +76,9 @@ class CentralLoginController extends Controller
                     }
                     
                     if ($user->hasRole('admin')) {
-                        return redirect()->intended('/home');
+                        return redirect()->intended(route('admin.dashboard'));
                     }
-                    
+
                     // For other web users, redirect to home
                     return redirect()->intended('/home');
                 }
