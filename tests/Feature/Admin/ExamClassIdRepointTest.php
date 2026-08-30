@@ -69,7 +69,7 @@ class ExamClassIdRepointTest extends TestCase
 
         $exam = Exam::create([
             'name' => 'Repoint Test Exam', 'exam_type' => 'term', 'class_id' => $realClass->id,
-            'class_name' => $realClass->name, 'subject' => 'Math',
+            'class_name' => $realClass->name, 'subject_id' => \App\Models\Subject::firstOrCreate(['name' => 'Math'], ['code' => 'Math', 'is_active' => true])->id, 'subject' => 'Math',
             'exam_date' => today()->addDays(5), 'start_time' => '10:00', 'end_time' => '12:00',
             'total_marks' => 100, 'passing_marks' => 33,
             'academic_year' => '2026-27', 'status' => 'active',
@@ -93,7 +93,7 @@ class ExamClassIdRepointTest extends TestCase
         $emptyClass = SchoolClass::create(['name' => 'Class 11', 'class_order' => 11, 'is_active' => true]);
         $exam = Exam::create([
             'name' => 'Empty Class Exam', 'exam_type' => 'term', 'class_id' => $emptyClass->id,
-            'class_name' => $emptyClass->name, 'subject' => 'Math',
+            'class_name' => $emptyClass->name, 'subject_id' => \App\Models\Subject::firstOrCreate(['name' => 'Math'], ['code' => 'Math', 'is_active' => true])->id, 'subject' => 'Math',
             'exam_date' => today()->addDays(5), 'start_time' => '10:00', 'end_time' => '12:00',
             'total_marks' => 100, 'passing_marks' => 33,
             'academic_year' => '2026-27', 'status' => 'active',
@@ -116,7 +116,7 @@ class ExamClassIdRepointTest extends TestCase
         $emptyClass = SchoolClass::create(['name' => 'Class 12', 'class_order' => 12, 'is_active' => true]);
         $exam = Exam::create([
             'name' => 'Empty Seating Exam', 'exam_type' => 'term', 'class_id' => $emptyClass->id,
-            'class_name' => $emptyClass->name, 'subject' => 'Math',
+            'class_name' => $emptyClass->name, 'subject_id' => \App\Models\Subject::firstOrCreate(['name' => 'Math'], ['code' => 'Math', 'is_active' => true])->id, 'subject' => 'Math',
             'exam_date' => today()->addDays(5), 'start_time' => '10:00', 'end_time' => '12:00',
             'total_marks' => 100, 'passing_marks' => 33,
             'academic_year' => '2026-27', 'status' => 'active',
@@ -134,7 +134,7 @@ class ExamClassIdRepointTest extends TestCase
         $emptyClass = SchoolClass::create(['name' => 'Class 8', 'class_order' => 8, 'is_active' => true]);
         $exam = Exam::create([
             'name' => 'Empty Generate Exam', 'exam_type' => 'term', 'class_id' => $emptyClass->id,
-            'class_name' => $emptyClass->name, 'subject' => 'Math',
+            'class_name' => $emptyClass->name, 'subject_id' => \App\Models\Subject::firstOrCreate(['name' => 'Math'], ['code' => 'Math', 'is_active' => true])->id, 'subject' => 'Math',
             'exam_date' => today()->addDays(5), 'start_time' => '10:00', 'end_time' => '12:00',
             'total_marks' => 100, 'passing_marks' => 33,
             'academic_year' => '2026-27', 'status' => 'active',
@@ -174,6 +174,7 @@ class ExamClassIdRepointTest extends TestCase
     {
         $admin = $this->makeAdmin();
         $schoolClass = SchoolClass::create(['name' => 'Class 6', 'class_order' => 6, 'is_active' => true]);
+        \App\Models\Subject::firstOrCreate(['name' => 'Math'], ['code' => 'Math', 'is_active' => true]);
 
         $response = $this->actingAs($admin)->post(route('admin.exams.store'), [
             'name' => 'Valid Class Exam',

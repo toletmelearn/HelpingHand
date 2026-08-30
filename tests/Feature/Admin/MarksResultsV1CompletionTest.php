@@ -94,7 +94,7 @@ class MarksResultsV1CompletionTest extends TestCase
         $class = SchoolClass::create(['name' => 'MR Class A', 'class_order' => 971, 'is_active' => true]);
         $exam = Exam::create([
             'name' => 'MR Exam A', 'exam_type' => 'term', 'class_id' => $class->id,
-            'class_name' => $class->name, 'subject' => 'Math', 'exam_date' => today(),
+            'class_name' => $class->name, 'subject_id' => \App\Models\Subject::firstOrCreate(['name' => 'Math'], ['code' => 'Math', 'is_active' => true])->id, 'subject' => 'Math', 'exam_date' => today(),
             'start_time' => '10:00', 'end_time' => '12:00', 'total_marks' => 100, 'passing_marks' => 33,
             'academic_year' => '2026-27', 'status' => 'completed',
         ]);
@@ -121,7 +121,7 @@ class MarksResultsV1CompletionTest extends TestCase
         $class = SchoolClass::create(['name' => 'MR Class B', 'class_order' => 972, 'is_active' => true]);
         $exam = Exam::create([
             'name' => 'MR Exam B', 'exam_type' => 'term', 'class_id' => $class->id,
-            'class_name' => $class->name, 'subject' => 'Math', 'exam_date' => today(),
+            'class_name' => $class->name, 'subject_id' => \App\Models\Subject::firstOrCreate(['name' => 'Math'], ['code' => 'Math', 'is_active' => true])->id, 'subject' => 'Math', 'exam_date' => today(),
             'start_time' => '10:00', 'end_time' => '12:00', 'total_marks' => 100, 'passing_marks' => 33,
             'academic_year' => '2026-27', 'status' => 'completed',
         ]);
@@ -152,7 +152,7 @@ class MarksResultsV1CompletionTest extends TestCase
         $class = SchoolClass::create(['name' => 'MR Class C', 'class_order' => 973, 'is_active' => true]);
         $exam = Exam::create([
             'name' => 'MR Exam C', 'exam_type' => 'term', 'class_id' => $class->id,
-            'class_name' => $class->name, 'subject' => 'Math', 'exam_date' => today(),
+            'class_name' => $class->name, 'subject_id' => \App\Models\Subject::firstOrCreate(['name' => 'Math'], ['code' => 'Math', 'is_active' => true])->id, 'subject' => 'Math', 'exam_date' => today(),
             'start_time' => '10:00', 'end_time' => '12:00', 'total_marks' => 100, 'passing_marks' => 33,
             'academic_year' => '2026-27', 'status' => 'completed',
         ]);
@@ -176,7 +176,7 @@ class MarksResultsV1CompletionTest extends TestCase
         // Passing threshold is 50%, well above the old hardcoded 33%.
         $exam = Exam::create([
             'name' => 'MR Exam D', 'exam_type' => 'term', 'class_id' => $class->id,
-            'class_name' => $class->name, 'subject' => 'Math', 'exam_date' => today(),
+            'class_name' => $class->name, 'subject_id' => \App\Models\Subject::firstOrCreate(['name' => 'Math'], ['code' => 'Math', 'is_active' => true])->id, 'subject' => 'Math', 'exam_date' => today(),
             'start_time' => '10:00', 'end_time' => '12:00', 'total_marks' => 100, 'passing_marks' => 50,
             'academic_year' => '2026-27', 'status' => 'completed',
         ]);
@@ -198,7 +198,7 @@ class MarksResultsV1CompletionTest extends TestCase
         $class = SchoolClass::create(['name' => 'MR Class E', 'class_order' => 975, 'is_active' => true]);
         $exam = Exam::create([
             'name' => 'MR Exam E', 'exam_type' => 'term', 'class_id' => $class->id,
-            'class_name' => $class->name, 'subject' => 'Math', 'exam_date' => today(),
+            'class_name' => $class->name, 'subject_id' => \App\Models\Subject::firstOrCreate(['name' => 'Math'], ['code' => 'Math', 'is_active' => true])->id, 'subject' => 'Math', 'exam_date' => today(),
             'start_time' => '10:00', 'end_time' => '12:00', 'total_marks' => 100, 'passing_marks' => 50,
             'academic_year' => '2026-27', 'status' => 'completed',
         ]);
@@ -223,7 +223,7 @@ class MarksResultsV1CompletionTest extends TestCase
         $subject = Subject::create(['name' => 'MR Teacher Subject', 'code' => 'MR-' . uniqid(), 'is_active' => true]);
         $exam = Exam::create([
             'name' => 'MR Exam F', 'exam_type' => 'term', 'class_id' => $class->id,
-            'class_name' => $class->name, 'subject' => $subject->name, 'exam_date' => today(),
+            'class_name' => $class->name, 'subject_id' => $subject->id, 'subject' => $subject->name, 'exam_date' => today(),
             'start_time' => '10:00', 'end_time' => '12:00', 'total_marks' => 100, 'passing_marks' => 33,
             'academic_year' => '2026-27', 'status' => 'completed',
         ]);
@@ -256,7 +256,7 @@ class MarksResultsV1CompletionTest extends TestCase
         $subject = Subject::create(['name' => 'MR Teacher Subject G', 'code' => 'MR-' . uniqid(), 'is_active' => true]);
         $exam = Exam::create([
             'name' => 'MR Exam G', 'exam_type' => 'term', 'class_id' => $class->id,
-            'class_name' => $class->name, 'subject' => $subject->name, 'exam_date' => today(),
+            'class_name' => $class->name, 'subject_id' => $subject->id, 'subject' => $subject->name, 'exam_date' => today(),
             'start_time' => '10:00', 'end_time' => '12:00', 'total_marks' => 50, 'passing_marks' => 17,
             'academic_year' => '2026-27', 'status' => 'completed',
         ]);
@@ -283,7 +283,7 @@ class MarksResultsV1CompletionTest extends TestCase
         $subject = Subject::create(['name' => 'MR Teacher Subject H', 'code' => 'MR-' . uniqid(), 'is_active' => true]);
         $exam = Exam::create([
             'name' => 'MR Exam H', 'exam_type' => 'term', 'class_id' => $class->id,
-            'class_name' => $class->name, 'subject' => $subject->name, 'exam_date' => today(),
+            'class_name' => $class->name, 'subject_id' => $subject->id, 'subject' => $subject->name, 'exam_date' => today(),
             'start_time' => '10:00', 'end_time' => '12:00', 'total_marks' => 100, 'passing_marks' => 33,
             'academic_year' => '2019-2020', 'status' => 'completed', // deliberately not the current year
         ]);
@@ -319,7 +319,7 @@ class MarksResultsV1CompletionTest extends TestCase
         $subject = Subject::create(['name' => 'MR Teacher Subject M', 'code' => 'MR-' . uniqid(), 'is_active' => true]);
         $exam = Exam::create([
             'name' => 'MR Exam M', 'exam_type' => 'term', 'class_id' => $class->id,
-            'class_name' => $class->name, 'subject' => $subject->name, 'exam_date' => today(),
+            'class_name' => $class->name, 'subject_id' => $subject->id, 'subject' => $subject->name, 'exam_date' => today(),
             'start_time' => '10:00', 'end_time' => '12:00', 'total_marks' => 100, 'passing_marks' => 40,
             'academic_year' => '2026-27', 'status' => 'completed',
         ]);
@@ -355,7 +355,7 @@ class MarksResultsV1CompletionTest extends TestCase
         $class = SchoolClass::create(['name' => 'MR Class I', 'class_order' => 979, 'is_active' => true]);
         $exam = Exam::create([
             'name' => 'MR Exam I', 'exam_type' => 'term', 'class_id' => $class->id,
-            'class_name' => $class->name, 'subject' => 'Math', 'exam_date' => today(),
+            'class_name' => $class->name, 'subject_id' => \App\Models\Subject::firstOrCreate(['name' => 'Math'], ['code' => 'Math', 'is_active' => true])->id, 'subject' => 'Math', 'exam_date' => today(),
             'start_time' => '10:00', 'end_time' => '12:00', 'total_marks' => 100, 'passing_marks' => 33,
             'academic_year' => '2026-27', 'status' => 'completed',
         ]);
@@ -389,7 +389,7 @@ class MarksResultsV1CompletionTest extends TestCase
         $class = SchoolClass::create(['name' => 'MR Class J', 'class_order' => 980, 'is_active' => true]);
         $exam = Exam::create([
             'name' => 'MR Exam J', 'exam_type' => 'term', 'class_id' => $class->id,
-            'class_name' => $class->name, 'subject' => 'Math', 'exam_date' => today(),
+            'class_name' => $class->name, 'subject_id' => \App\Models\Subject::firstOrCreate(['name' => 'Math'], ['code' => 'Math', 'is_active' => true])->id, 'subject' => 'Math', 'exam_date' => today(),
             'start_time' => '10:00', 'end_time' => '12:00', 'total_marks' => 100, 'passing_marks' => 33,
             'academic_year' => '2026-27', 'status' => 'completed',
         ]);
@@ -421,7 +421,7 @@ class MarksResultsV1CompletionTest extends TestCase
         $class = SchoolClass::create(['name' => 'MR Class K', 'class_order' => 981, 'is_active' => true]);
         $exam = Exam::create([
             'name' => 'MR Exam K', 'exam_type' => 'term', 'class_id' => $class->id,
-            'class_name' => $class->name, 'subject' => 'Math', 'exam_date' => today(),
+            'class_name' => $class->name, 'subject_id' => \App\Models\Subject::firstOrCreate(['name' => 'Math'], ['code' => 'Math', 'is_active' => true])->id, 'subject' => 'Math', 'exam_date' => today(),
             'start_time' => '10:00', 'end_time' => '12:00', 'total_marks' => 100, 'passing_marks' => 33,
             'academic_year' => '2026-27', 'status' => 'completed',
         ]);
@@ -445,7 +445,7 @@ class MarksResultsV1CompletionTest extends TestCase
         $class = SchoolClass::create(['name' => 'MR Class L', 'class_order' => 982, 'is_active' => true]);
         $exam = Exam::create([
             'name' => 'MR Exam L', 'exam_type' => 'term', 'class_id' => $class->id,
-            'class_name' => $class->name, 'subject' => 'Math', 'exam_date' => today(),
+            'class_name' => $class->name, 'subject_id' => \App\Models\Subject::firstOrCreate(['name' => 'Math'], ['code' => 'Math', 'is_active' => true])->id, 'subject' => 'Math', 'exam_date' => today(),
             'start_time' => '10:00', 'end_time' => '12:00', 'total_marks' => 100, 'passing_marks' => 33,
             'academic_year' => '2026-27', 'status' => 'completed',
         ]);
@@ -472,7 +472,7 @@ class MarksResultsV1CompletionTest extends TestCase
         $class = SchoolClass::create(['name' => 'MR Class N', 'class_order' => 984, 'is_active' => true]);
         $exam = Exam::create([
             'name' => 'MR Exam N', 'exam_type' => 'term', 'class_id' => $class->id,
-            'class_name' => $class->name, 'subject' => 'Math', 'exam_date' => today(),
+            'class_name' => $class->name, 'subject_id' => \App\Models\Subject::firstOrCreate(['name' => 'Math'], ['code' => 'Math', 'is_active' => true])->id, 'subject' => 'Math', 'exam_date' => today(),
             'start_time' => '10:00', 'end_time' => '12:00', 'total_marks' => 100, 'passing_marks' => 33,
             'academic_year' => '2026-27', 'status' => 'completed',
         ]);

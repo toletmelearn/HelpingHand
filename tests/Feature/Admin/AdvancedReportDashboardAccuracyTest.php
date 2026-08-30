@@ -110,15 +110,18 @@ class AdvancedReportDashboardAccuracyTest extends TestCase
     {
         $class = SchoolClass::create(['name' => 'AR Exam Class', 'class_order' => 994, 'is_active' => true]);
 
+        $mathSubject = \App\Models\Subject::firstOrCreate(['name' => 'Math'], ['code' => 'Math', 'is_active' => true]);
+        $scienceSubject = \App\Models\Subject::firstOrCreate(['name' => 'Science'], ['code' => 'Science', 'is_active' => true]);
+
         $completedExam = Exam::create([
             'name' => 'AR Completed Exam', 'exam_type' => 'term', 'class_id' => $class->id,
-            'class_name' => $class->name, 'subject' => 'Math', 'exam_date' => today()->subDays(5),
+            'class_name' => $class->name, 'subject_id' => $mathSubject->id, 'subject' => 'Math', 'exam_date' => today()->subDays(5),
             'start_time' => '10:00', 'end_time' => '12:00', 'total_marks' => 100, 'passing_marks' => 33,
             'academic_year' => '2026-27', 'status' => 'completed',
         ]);
         $upcomingExam = Exam::create([
             'name' => 'AR Upcoming Exam', 'exam_type' => 'term', 'class_id' => $class->id,
-            'class_name' => $class->name, 'subject' => 'Science', 'exam_date' => today()->addDays(10),
+            'class_name' => $class->name, 'subject_id' => $scienceSubject->id, 'subject' => 'Science', 'exam_date' => today()->addDays(10),
             'start_time' => '10:00', 'end_time' => '12:00', 'total_marks' => 100, 'passing_marks' => 33,
             'academic_year' => '2026-27', 'status' => 'scheduled',
         ]);

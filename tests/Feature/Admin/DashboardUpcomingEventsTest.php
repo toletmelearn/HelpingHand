@@ -4,6 +4,8 @@ namespace Tests\Feature\Admin;
 
 use App\Models\AcademicEvent;
 use App\Models\Exam;
+use App\Models\SchoolClass;
+use App\Models\Subject;
 use App\Services\ProfessionalDashboardService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -16,11 +18,16 @@ class DashboardUpcomingEventsTest extends TestCase
     {
         \Carbon\Carbon::setTestNow('2026-07-21 00:00:00');
 
+        $class = SchoolClass::firstOrCreate(['name' => 'Class 10'], ['class_order' => 10, 'is_active' => true]);
+        $subject = Subject::firstOrCreate(['name' => 'Science'], ['code' => 'Science', 'is_active' => true]);
+
         Exam::create([
             'name' => 'Unit Test 1',
             'exam_type' => 'unit_test',
-            'class_name' => 'Class 10',
-            'subject' => 'Science',
+            'class_id' => $class->id,
+            'class_name' => $class->name,
+            'subject_id' => $subject->id,
+            'subject' => $subject->name,
             'exam_date' => '2026-07-23',
             'start_time' => '09:00',
             'end_time' => '11:00',

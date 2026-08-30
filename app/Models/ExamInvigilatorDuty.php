@@ -11,7 +11,14 @@ class ExamInvigilatorDuty extends Model
         'exam_id',
         'teacher_id',
         'room_number',
-        'role'
+        'role',
+        'assigned_by',
+        'assigned_at',
+        'notes',
+    ];
+
+    protected $casts = [
+        'assigned_at' => 'datetime',
     ];
 
     public function exam(): BelongsTo

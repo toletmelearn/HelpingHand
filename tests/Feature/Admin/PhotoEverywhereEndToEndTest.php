@@ -93,8 +93,11 @@ class PhotoEverywhereEndToEndTest extends TestCase
 
     public function test_admit_card_screen_preview_and_pdf_show_student_photo()
     {
+        $photoExamClass = SchoolClass::create(['name' => 'Class 5', 'class_order' => 905, 'is_active' => true]);
+        $photoExamSubject = \App\Models\Subject::firstOrCreate(['name' => 'Math'], ['code' => 'Math', 'is_active' => true]);
         $exam = Exam::create([
-            'name' => 'Mid Term', 'exam_type' => 'term', 'class_name' => 'Class 5', 'subject' => 'Math',
+            'name' => 'Mid Term', 'exam_type' => 'term', 'class_id' => $photoExamClass->id, 'class_name' => $photoExamClass->name,
+            'subject_id' => $photoExamSubject->id, 'subject' => 'Math',
             'exam_date' => today()->addDays(10), 'start_time' => '10:00', 'end_time' => '12:00',
             'total_marks' => 100, 'passing_marks' => 33,
             'academic_year' => '2026-27', 'status' => 'active',
@@ -137,14 +140,16 @@ class PhotoEverywhereEndToEndTest extends TestCase
 
     public function test_result_pdf_and_single_subject_result_show_student_photo()
     {
+        $resultExamClass = SchoolClass::create(['name' => 'Class 5', 'class_order' => 906, 'is_active' => true]);
+        $subject = \App\Models\Subject::create(['name' => 'Mathematics', 'code' => 'MATH']);
+
         $exam = Exam::create([
-            'name' => 'Final Exam', 'exam_type' => 'term', 'class_name' => 'Class 5', 'subject' => 'Math',
+            'name' => 'Final Exam', 'exam_type' => 'term', 'class_id' => $resultExamClass->id, 'class_name' => 'Class 5',
+            'subject_id' => $subject->id, 'subject' => 'Math',
             'exam_date' => today(), 'start_time' => '10:00', 'end_time' => '12:00',
             'total_marks' => 100, 'passing_marks' => 33,
             'academic_year' => '2026-27', 'status' => 'active',
         ]);
-
-        $subject = \App\Models\Subject::create(['name' => 'Mathematics', 'code' => 'MATH']);
 
         $result = CBSEResult::create([
             'student_id' => $this->student->id, 'exam_id' => $exam->id, 'subject_id' => $subject->id,
@@ -210,9 +215,10 @@ class PhotoEverywhereEndToEndTest extends TestCase
         // students.school_class_id), not the legacy class/class_name
         // string pair -- see remediation Task 7.
         $schoolClass = SchoolClass::create(['name' => 'Class 5', 'class_order' => 5, 'is_active' => true]);
+        $seatingSubject = \App\Models\Subject::firstOrCreate(['name' => 'Math'], ['code' => 'Math', 'is_active' => true]);
         $exam = Exam::create([
             'name' => 'Seating Exam', 'exam_type' => 'term', 'class_id' => $schoolClass->id, 'class_name' => $schoolClass->name,
-            'subject' => 'Math', 'exam_date' => today()->addDays(5), 'start_time' => '10:00', 'end_time' => '12:00',
+            'subject_id' => $seatingSubject->id, 'subject' => 'Math', 'exam_date' => today()->addDays(5), 'start_time' => '10:00', 'end_time' => '12:00',
             'total_marks' => 100, 'passing_marks' => 33,
             'academic_year' => '2026-27', 'status' => 'active',
         ]);

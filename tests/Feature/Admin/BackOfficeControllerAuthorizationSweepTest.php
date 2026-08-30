@@ -5,8 +5,10 @@ namespace Tests\Feature\Admin;
 use App\Models\Exam;
 use App\Models\Permission;
 use App\Models\Role;
+use App\Models\SchoolClass;
 use App\Models\Student;
 use App\Models\StudentStatus;
+use App\Models\Subject;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -121,9 +123,13 @@ class BackOfficeControllerAuthorizationSweepTest extends TestCase
 
     private function makeExam(): Exam
     {
+        $class = SchoolClass::firstOrCreate(['name' => '5'], ['class_order' => 5, 'is_active' => true]);
+        $subject = Subject::firstOrCreate(['name' => 'Maths'], ['code' => 'Maths', 'is_active' => true]);
+
         return Exam::create([
             'name' => 'Half Yearly', 'exam_type' => 'half_yearly',
-            'class_name' => '5', 'subject' => 'Maths', 'exam_date' => now()->addDays(10),
+            'class_id' => $class->id, 'class_name' => $class->name,
+            'subject_id' => $subject->id, 'subject' => $subject->name, 'exam_date' => now()->addDays(10),
             'start_time' => '09:00', 'end_time' => '11:00', 'academic_year' => '2026-2027',
             'total_marks' => 100, 'passing_marks' => 33, 'status' => 'scheduled',
         ]);

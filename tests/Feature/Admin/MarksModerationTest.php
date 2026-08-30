@@ -6,6 +6,8 @@ use Tests\TestCase;
 use App\Models\User;
 use App\Models\Role;
 use App\Models\Exam;
+use App\Models\SchoolClass;
+use App\Models\Subject;
 use App\Models\Student;
 use App\Models\Result;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -27,11 +29,16 @@ class MarksModerationTest extends TestCase
         $adminRole = Role::firstOrCreate(['name' => 'admin'], ['display_name' => 'Admin']);
         $this->adminUser->roles()->attach($adminRole->id);
 
+        $class = SchoolClass::firstOrCreate(['name' => 'Grade 10'], ['class_order' => 10, 'is_active' => true]);
+        $subject = Subject::firstOrCreate(['name' => 'Mathematics'], ['code' => 'Mathematics', 'is_active' => true]);
+
         $this->exam = Exam::create([
             'name' => 'Term 1 Geometry Exam',
             'exam_type' => 'mid_term',
-            'class_name' => 'Grade 10',
-            'subject' => 'Mathematics',
+            'class_id' => $class->id,
+            'class_name' => $class->name,
+            'subject_id' => $subject->id,
+            'subject' => $subject->name,
             'exam_date' => '2026-07-15',
             'start_time' => '09:00:00',
             'end_time' => '12:00:00',

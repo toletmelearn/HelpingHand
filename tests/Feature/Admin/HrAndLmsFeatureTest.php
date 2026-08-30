@@ -177,6 +177,8 @@ class HrAndLmsFeatureTest extends TestCase
         $schema->create('school_classes', function ($table) {
             $table->bigIncrements('id');
             $table->string('name');
+            $table->unsignedInteger('class_order')->nullable();
+            $table->boolean('is_active')->default(true);
             $table->timestamps();
             $table->softDeletes();
         });
@@ -185,6 +187,7 @@ class HrAndLmsFeatureTest extends TestCase
             $table->bigIncrements('id');
             $table->string('name');
             $table->string('code')->nullable();
+            $table->boolean('is_active')->default(true);
             $table->timestamps();
             $table->softDeletes();
         });
@@ -193,7 +196,9 @@ class HrAndLmsFeatureTest extends TestCase
             $table->bigIncrements('id');
             $table->string('name');
             $table->string('exam_type')->nullable();
+            $table->unsignedBigInteger('class_id')->nullable();
             $table->string('class_name')->nullable();
+            $table->unsignedBigInteger('subject_id')->nullable();
             $table->string('subject')->nullable();
             $table->date('exam_date')->nullable();
             $table->time('start_time')->nullable();
@@ -697,11 +702,16 @@ class HrAndLmsFeatureTest extends TestCase
             'password' => Hash::make('password123'),
         ]);
 
+        $examClass = SchoolClass::firstOrCreate(['name' => 'Class 8'], ['class_order' => 8, 'is_active' => true]);
+        $examSubject = Subject::firstOrCreate(['name' => 'Science'], ['code' => 'Science', 'is_active' => true]);
+
         $exam = Exam::create([
             'name' => 'Mid Term',
             'exam_type' => 'mid_term',
-            'class_name' => 'Class 8',
-            'subject' => 'Science',
+            'class_id' => $examClass->id,
+            'class_name' => $examClass->name,
+            'subject_id' => $examSubject->id,
+            'subject' => $examSubject->name,
             'exam_date' => now()->format('Y-m-d'),
             'start_time' => '09:00:00',
             'end_time' => '12:00:00',

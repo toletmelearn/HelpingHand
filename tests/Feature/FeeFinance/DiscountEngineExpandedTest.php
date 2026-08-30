@@ -35,9 +35,13 @@ class DiscountEngineExpandedTest extends TestCase
 
     private function makeExamId(): int
     {
+        $class = \App\Models\SchoolClass::firstOrCreate(['name' => 'Class 10'], ['class_order' => 10, 'is_active' => true]);
+        $subject = \App\Models\Subject::firstOrCreate(['name' => 'Science'], ['code' => 'Science', 'is_active' => true]);
+
         return \App\Models\Exam::create([
-            'name' => 'Test Exam', 'exam_type' => 'mid_term', 'class_name' => 'Class 10',
-            'subject' => 'Science', 'exam_date' => '2026-07-01', 'start_time' => '09:00:00',
+            'name' => 'Test Exam', 'exam_type' => 'mid_term',
+            'class_id' => $class->id, 'class_name' => $class->name,
+            'subject_id' => $subject->id, 'subject' => $subject->name, 'exam_date' => '2026-07-01', 'start_time' => '09:00:00',
             'end_time' => '12:00:00', 'total_marks' => 100, 'passing_marks' => 33, 'academic_year' => '2026',
         ])->id;
     }

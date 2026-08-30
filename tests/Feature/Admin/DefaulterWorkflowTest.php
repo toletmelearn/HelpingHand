@@ -194,6 +194,7 @@ class DefaulterWorkflowTest extends TestCase
         $exam = Exam::create([
             'name' => 'Midterm',
             'exam_type' => 'mid_term',
+            'class_id' => $this->schoolClass->id,
             'class_name' => 'Class 10',
             'subject' => 'Science',
             'exam_date' => '2026-07-01',
@@ -239,7 +240,7 @@ class DefaulterWorkflowTest extends TestCase
     public function reaching_exam_restriction_auto_revokes_the_admit_card_and_an_override_restores_it()
     {
         $exam = Exam::create([
-            'name' => 'Midterm', 'exam_type' => 'mid_term', 'class_name' => 'Class 10',
+            'name' => 'Midterm', 'exam_type' => 'mid_term', 'class_id' => $this->schoolClass->id, 'class_name' => 'Class 10',
             'subject' => 'Science', 'exam_date' => '2026-07-01', 'start_time' => '09:00:00',
             'end_time' => '12:00:00', 'total_marks' => 100, 'passing_marks' => 33,
             'academic_year' => '2026', 'academic_session_id' => 1,
@@ -294,7 +295,7 @@ class DefaulterWorkflowTest extends TestCase
         Role::where('name', 'admin')->first()->grantPermission($overridePermission->name);
 
         $exam = Exam::create([
-            'name' => 'Midterm', 'exam_type' => 'mid_term', 'class_name' => 'Class 10',
+            'name' => 'Midterm', 'exam_type' => 'mid_term', 'class_id' => $this->schoolClass->id, 'class_name' => 'Class 10',
             'subject' => 'Science', 'exam_date' => '2026-07-01', 'start_time' => '09:00:00',
             'end_time' => '12:00:00', 'total_marks' => 100, 'passing_marks' => 33,
             'academic_year' => '2026', 'academic_session_id' => 1,

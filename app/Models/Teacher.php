@@ -97,6 +97,59 @@ class Teacher extends Authenticatable
         return $this->belongsToMany(ClassManagement::class, 'class_teacher', 'teacher_id', 'class_id');
     }
 
+    /**
+     * Academic setup completion (Class Teacher assignment): the canonical
+     * source of "is this teacher the class teacher of school_classes.id X"
+     * is teacher_class_subject_assignments.is_class_teacher, not classes()
+     * above -- that relation is backed by the class_teacher pivot table,
+     * which has zero rows in real use and nothing writes to it. Use this
+     * method (or isClassTeacherOfSchoolClass()) instead of classes() for any
+     * genuine class-teacher authorization/lookup going forward.
+     */
+    public function classTeacherSchoolClassIds(): array
+    {
+        return TeacherClassSubjectAssignment::where('teacher_id', $this->id)
+            ->where('is_class_teacher', true)
+            ->pluck('class_id')
+            ->unique()
+            ->values()
+            ->all();
+    }
+
+    public function isClassTeacherOfSchoolClass(int $schoolClassId): bool
+    {
+        return in_array($schoolClassId, $this->classTeacherSchoolClassIds(), true);
+    }
+
+    /**
+     * Admit Card workflow: section-aware version of the above, for
+     * authorizing an action against one specific Student rather than a
+     * whole class. A class-teacher assignment with a null section_id
+     * covers the whole class (same "null = whole class" convention used
+     * throughout this codebase -- TimetableSlotPolicy::
+     * teacherAssignedToClassSection(), TeacherSubjectAssignmentController's
+     * section-ownership check, etc.); one with a specific section_id only
+     * covers students in that exact section.
+     */
+    public function isClassTeacherOfStudent(Student $student): bool
+    {
+        $classId = $student->school_class_id ?? $student->class_id;
+        if (! $classId) {
+            return false;
+        }
+
+        return TeacherClassSubjectAssignment::where('teacher_id', $this->id)
+            ->where('is_class_teacher', true)
+            ->where('class_id', $classId)
+            ->where(function ($q) use ($student) {
+                $q->whereNull('section_id');
+                if ($student->section_id) {
+                    $q->orWhere('section_id', $student->section_id);
+                }
+            })
+            ->exists();
+    }
+
     public function documents()
     {
         return $this->hasMany(TeacherDocument::class);
@@ -120,6 +173,18 @@ class Teacher extends Authenticatable
     public function absentSubstitutions()
     {
         return $this->hasMany(\App\Models\TeacherSubstitution::class, 'absent_teacher_id');
+    }
+
+    public function invigilationDuties()
+    {
+        return $this->belongsToMany(\App\Models\Exam::class, 'exam_invigilator_duties', 'teacher_id', 'exam_id')
+            ->withPivot('room_number', 'role', 'assigned_by', 'assigned_at', 'notes')
+            ->withTimestamps();
+    }
+
+    public function relievingDuties()
+    {
+        return $this->hasMany(\App\Models\ExamRelievingDuty::class, 'teacher_id');
     }
 
     public function substituteSubstitutions()

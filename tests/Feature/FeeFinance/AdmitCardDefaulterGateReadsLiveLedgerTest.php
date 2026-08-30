@@ -27,8 +27,9 @@ class AdmitCardDefaulterGateReadsLiveLedgerTest extends TestCase
     private function makeAdmitCard(User $admin, string $studentName, int $classOrder): AdmitCard
     {
         $class = SchoolClass::create(['name' => "Class {$classOrder}", 'class_order' => $classOrder, 'is_active' => true]);
+        $subject = \App\Models\Subject::firstOrCreate(['name' => 'Math'], ['code' => 'Math', 'is_active' => true]);
         $exam = Exam::create([
-            'name' => 'Term Exam', 'exam_type' => 'term', 'class_name' => $class->name, 'subject' => 'Math',
+            'name' => 'Term Exam', 'exam_type' => 'term', 'class_id' => $class->id, 'class_name' => $class->name, 'subject_id' => $subject->id, 'subject' => 'Math',
             'exam_date' => today()->addDays(10), 'start_time' => '10:00', 'end_time' => '12:00',
             'total_marks' => 100, 'passing_marks' => 33, 'academic_year' => '2026-2027', 'status' => 'active',
         ]);

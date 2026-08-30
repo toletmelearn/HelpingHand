@@ -51,7 +51,7 @@ class ExamController extends Controller
             'name' => 'required|string|max:255',
             'exam_type' => 'required|string|max:100',
             'class_id' => 'required|exists:school_classes,id',
-            'subject' => 'required|string|max:100',
+            'subject' => 'required|string|max:100|exists:subjects,name',
             'exam_date' => 'required|date',
             'start_time' => 'required|date_format:H:i',
             'end_time' => 'required|date_format:H:i|after:start_time',
@@ -86,15 +86,21 @@ class ExamController extends Controller
         // Normalize status value to match database enum
         $normalizedStatus = $request->status === 'active' ? 'scheduled' : $request->status;
 
-        // class_name is derived from the chosen class_id, never trusted
-        // from the request -- kept populated for backward display
-        // compatibility with readers that still show the free-text label.
+        // class_name/subject_id are derived from the chosen class_id/subject
+        // name, never trusted from the request. class_name is kept
+        // populated for backward display compatibility with readers that
+        // still show the free-text label. subject_id was never written
+        // here before -- every admin-created exam had a NULL subject_id
+        // until this fix (see 2026_08_29_120100_backfill_exams_subject_id_
+        // from_subject_name migration for the historical cleanup).
         $schoolClass = SchoolClass::findOrFail($request->class_id);
+        $subjectModel = Subject::where('name', $request->subject)->firstOrFail();
 
         Exam::create(array_merge(
             $request->except(['status', 'class_name']),
             [
                 'class_name' => $schoolClass->name,
+                'subject_id' => $subjectModel->id,
                 'status' => $normalizedStatus,
                 'created_by' => Auth::id()
             ]
@@ -136,7 +142,7 @@ class ExamController extends Controller
             'name' => 'required|string|max:255',
             'exam_type' => 'required|string|max:100',
             'class_id' => 'required|exists:school_classes,id',
-            'subject' => 'required|string|max:100',
+            'subject' => 'required|string|max:100|exists:subjects,name',
             'exam_date' => 'required|date',
             'start_time' => 'required|date_format:H:i',
             'end_time' => 'required|date_format:H:i|after:start_time',
@@ -178,11 +184,13 @@ class ExamController extends Controller
         $normalizedStatus = $request->status === 'active' ? 'scheduled' : $request->status;
 
         $schoolClass = SchoolClass::findOrFail($request->class_id);
+        $subjectModel = Subject::where('name', $request->subject)->firstOrFail();
 
         $exam->update(array_merge(
             $request->except(['status', 'class_name']),
             [
                 'class_name' => $schoolClass->name,
+                'subject_id' => $subjectModel->id,
                 'status' => $normalizedStatus,
             ]
         ));

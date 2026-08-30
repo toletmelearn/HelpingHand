@@ -49,9 +49,11 @@ class ExamDependencyProtectionTest extends TestCase
 
     private function makeExam(SchoolClass $class, array $overrides = []): Exam
     {
+        $subject = \App\Models\Subject::firstOrCreate(['name' => 'Math'], ['code' => 'Math', 'is_active' => true]);
+
         return Exam::create(array_merge([
             'name' => 'Dependency Test Exam', 'exam_type' => 'term', 'class_id' => $class->id,
-            'class_name' => $class->name, 'subject' => 'Math',
+            'class_name' => $class->name, 'subject_id' => $subject->id, 'subject' => 'Math',
             'exam_date' => today()->addDays(5), 'start_time' => '10:00', 'end_time' => '12:00',
             'total_marks' => 100, 'passing_marks' => 33,
             'academic_year' => '2026-27', 'term' => 'Term 1', 'status' => 'active',
@@ -166,6 +168,7 @@ class ExamDependencyProtectionTest extends TestCase
         $admin = $this->admin();
         $class = SchoolClass::create(['name' => 'Non Dup Class', 'class_order' => 956, 'is_active' => true]);
         $this->makeExam($class);
+        \App\Models\Subject::firstOrCreate(['name' => 'Science'], ['code' => 'Science', 'is_active' => true]);
 
         $response = $this->actingAs($admin)->post(route('admin.exams.store'), [
             'name' => 'Science Exam', 'exam_type' => 'term', 'class_id' => $class->id,

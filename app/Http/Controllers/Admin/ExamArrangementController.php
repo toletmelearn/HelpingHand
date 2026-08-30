@@ -207,16 +207,32 @@ class ExamArrangementController extends Controller
             'duties.*.role' => 'required|string|max:100',
         ]);
 
-        DB::transaction(function () use ($exam, $request) {
+        // Resolve a display label for who made this assignment -- Admin or
+        // a Teacher-guard user (Exam Head/Exam Cell), matching checkAccess()
+        // above. Stored as a string (not a FK) since the two guards don't
+        // share a common id space.
+        $assignedByLabel = (Auth::check() && Auth::user()->role === 'admin')
+            ? 'Admin: ' . Auth::user()->name
+            : optional(Auth::guard('teacher')->user()?->teacher)->name;
+
+        DB::transaction(function () use ($exam, $request, $assignedByLabel) {
             foreach ($request->duties as $dutyData) {
+                // Keyed on (exam_id, teacher_id) to match the table's real
+                // unique constraint -- a teacher can only be in one room at
+                // a time for a given exam. Previously keyed on
+                // (exam_id, room_number), which let the same teacher be
+                // assigned to two different rooms and threw a DB integrity
+                // error on the second insert instead of updating the first.
                 ExamInvigilatorDuty::updateOrCreate(
                     [
                         'exam_id' => $exam->id,
-                        'room_number' => $dutyData['room_number'],
+                        'teacher_id' => $dutyData['teacher_id'],
                     ],
                     [
-                        'teacher_id' => $dutyData['teacher_id'],
+                        'room_number' => $dutyData['room_number'],
                         'role' => $dutyData['role'],
+                        'assigned_by' => $assignedByLabel,
+                        'assigned_at' => now(),
                     ]
                 );
             }

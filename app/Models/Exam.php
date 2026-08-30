@@ -56,6 +56,34 @@ class Exam extends Model
     {
         return $this->belongsTo(Subject::class, 'subject', 'name');
     }
+
+    // FK-based subject relation (subject_id is now populated + enforced
+    // NOT NULL -- see 2026_08_29 migrations). subjectInfo() above still
+    // reads the free-text `subject` column and is left untouched since
+    // existing callers depend on it; this is the new, correct relation for
+    // anything written going forward.
+    public function subject(): BelongsTo
+    {
+        return $this->belongsTo(Subject::class, 'subject_id');
+    }
+
+    // Invigilators assigned to this exam (exam_invigilator_duties pivot).
+    public function invigilators()
+    {
+        return $this->belongsToMany(Teacher::class, 'exam_invigilator_duties', 'exam_id', 'teacher_id')
+            ->withPivot('room_number', 'role', 'assigned_by', 'assigned_at', 'notes')
+            ->withTimestamps();
+    }
+
+    public function invigilatorDuties(): HasMany
+    {
+        return $this->hasMany(ExamInvigilatorDuty::class);
+    }
+
+    public function relievingDuties(): HasMany
+    {
+        return $this->hasMany(ExamRelievingDuty::class);
+    }
     
     // Define relationship with teacher who created the exam
     public function teacher()

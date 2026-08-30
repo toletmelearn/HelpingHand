@@ -168,15 +168,17 @@ class DashboardV1CompletionTest extends TestCase
     public function test_admin_dashboard_upcoming_exams_count_matches_exam_records(): void
     {
         $class = SchoolClass::create(['name' => 'Dash Class C', 'class_order' => 963, 'is_active' => true]);
+        $mathSubject = \App\Models\Subject::firstOrCreate(['name' => 'Math'], ['code' => 'Math', 'is_active' => true]);
+        $scienceSubject = \App\Models\Subject::firstOrCreate(['name' => 'Science'], ['code' => 'Science', 'is_active' => true]);
         Exam::create([
             'name' => 'Dash Upcoming Exam', 'exam_type' => 'term', 'class_id' => $class->id,
-            'class_name' => $class->name, 'subject' => 'Math', 'exam_date' => today()->addDays(5),
+            'class_name' => $class->name, 'subject_id' => $mathSubject->id, 'subject' => 'Math', 'exam_date' => today()->addDays(5),
             'start_time' => '10:00', 'end_time' => '12:00', 'total_marks' => 100, 'passing_marks' => 33,
             'academic_year' => '2026-27', 'status' => 'scheduled',
         ]);
         Exam::create([
             'name' => 'Dash Far Away Exam', 'exam_type' => 'term', 'class_id' => $class->id,
-            'class_name' => $class->name, 'subject' => 'Science', 'exam_date' => today()->addDays(60),
+            'class_name' => $class->name, 'subject_id' => $scienceSubject->id, 'subject' => 'Science', 'exam_date' => today()->addDays(60),
             'start_time' => '10:00', 'end_time' => '12:00', 'total_marks' => 100, 'passing_marks' => 33,
             'academic_year' => '2026-27', 'status' => 'scheduled',
         ]);
@@ -196,7 +198,7 @@ class DashboardV1CompletionTest extends TestCase
         $subject = \App\Models\Subject::create(['name' => 'Dash Subject D', 'code' => 'DD' . uniqid(), 'is_active' => true]);
         $exam = Exam::create([
             'name' => 'Dash Exam D', 'exam_type' => 'term', 'class_id' => $class->id,
-            'class_name' => $class->name, 'subject' => $subject->name, 'exam_date' => today(),
+            'class_name' => $class->name, 'subject_id' => $subject->id, 'subject' => $subject->name, 'exam_date' => today(),
             'start_time' => '10:00', 'end_time' => '12:00', 'total_marks' => 100, 'passing_marks' => 33,
             'academic_year' => '2026-27', 'status' => 'completed',
         ]);
