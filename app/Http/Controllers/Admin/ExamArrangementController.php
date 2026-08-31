@@ -9,13 +9,14 @@ use App\Models\Teacher;
 use App\Models\ExamSeatingArrangement;
 use App\Models\ExamInvigilatorDuty;
 use App\Models\ExamRelievingDuty;
+use App\Services\Exam\ExamTimetableConflictChecker;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 
 class ExamArrangementController extends Controller
 {
-    public function __construct()
+    public function __construct(private ExamTimetableConflictChecker $timetableConflicts)
     {
         // Enforce basic authentication
         $this->middleware(function ($request, $next) {
@@ -207,6 +208,22 @@ class ExamArrangementController extends Controller
             'duties.*.role' => 'required|string|max:100',
         ]);
 
+        // A teacher already scheduled to teach a class per the live
+        // timetable during this exam's own date/time window can't also
+        // invigilate it -- nothing checked this before; the picker offered
+        // every active teacher with no filtering at all.
+        foreach ($request->duties as $dutyData) {
+            $conflict = $this->timetableConflicts->teachingConflictFor(
+                (int) $dutyData['teacher_id'], $exam->exam_date, $exam->start_time, $exam->end_time
+            );
+            if ($conflict) {
+                $teacherName = Teacher::find($dutyData['teacher_id'])->name ?? 'This teacher';
+                return redirect()->back()->withErrors([
+                    'duties' => "{$teacherName} is already scheduled to teach {$conflict['class_name']} during this exam's time -- choose a different invigilator.",
+                ]);
+            }
+        }
+
         // Resolve a display label for who made this assignment -- Admin or
         // a Teacher-guard user (Exam Head/Exam Cell), matching checkAccess()
         // above. Stored as a string (not a FK) since the two guards don't
@@ -277,6 +294,40 @@ class ExamArrangementController extends Controller
             'duties.*.time_slot' => 'required|string|max:100',
             'duties.*.room_number' => 'required|string|max:100',
         ]);
+
+        // exam_relieving_duties has no unique constraint (unlike invigilator
+        // duties, which are keyed on exam_id+teacher_id) -- this table is
+        // replaced wholesale on every save, so the one thing worth guarding
+        // here is the same teacher appearing twice for the same time_slot
+        // in a single submission, which would otherwise silently double-book
+        // them with no error at all.
+        $seen = [];
+        foreach ($request->duties as $dutyData) {
+            $key = $dutyData['teacher_id'] . '|' . $dutyData['time_slot'];
+            if (isset($seen[$key])) {
+                $teacherName = Teacher::find($dutyData['teacher_id'])->name ?? 'This teacher';
+                return redirect()->back()->withErrors([
+                    'duties' => "{$teacherName} is listed twice for the same time slot ({$dutyData['time_slot']}).",
+                ]);
+            }
+            $seen[$key] = true;
+        }
+
+        // Same check as invigilation: a relieving teacher is meant to cover
+        // someone else's class during this exam, which they can't do if
+        // the timetable already has them teaching a different class at
+        // this exact time.
+        foreach ($request->duties as $dutyData) {
+            $conflict = $this->timetableConflicts->teachingConflictFor(
+                (int) $dutyData['teacher_id'], $exam->exam_date, $exam->start_time, $exam->end_time
+            );
+            if ($conflict) {
+                $teacherName = Teacher::find($dutyData['teacher_id'])->name ?? 'This teacher';
+                return redirect()->back()->withErrors([
+                    'duties' => "{$teacherName} is already scheduled to teach {$conflict['class_name']} during this exam's time -- choose a different teacher for relieving duty.",
+                ]);
+            }
+        }
 
         DB::transaction(function () use ($exam, $request) {
             // Clear existing relieving duties first

@@ -7,15 +7,42 @@ use App\Models\Exam;
 use App\Models\SchoolClass;
 use App\Models\Subject;
 use App\Models\Teacher;
+use App\Models\TeacherClassSubjectAssignment;
 use App\Services\Exam\ExamDependencyChecker;
+use App\Services\Exam\ExamWriteValidator;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
 class ExamController extends Controller
 {
-    public function __construct(private ExamDependencyChecker $dependencyChecker)
-    {
+    public function __construct(
+        private ExamDependencyChecker $dependencyChecker,
+        private ExamWriteValidator $writeValidator,
+    ) {
         $this->middleware('auth');
+    }
+
+    /**
+     * Sync-audit loophole L-01: nothing ever checked that a class/subject
+     * pair being examined was actually part of that class's curriculum --
+     * an exam could be created for a subject the class never had a
+     * teacher assigned for. Deliberately advisory, not a hard block:
+     * test_exam_create_with_a_valid_class_id_derives_class_name_
+     * automatically (ExamClassIdRepointTest) creates a brand-new class
+     * with zero assignments and expects the exam to be created
+     * successfully -- schools legitimately schedule exams before
+     * finishing teacher-assignment setup. Matches the same
+     * advisory-not-blocking precedent DatesheetConflictChecker::
+     * subjectHasNoAssignedTeacher() already established for the same
+     * scenario.
+     */
+    private function curriculumWarning(int $classId, int $subjectId): ?string
+    {
+        $assigned = TeacherClassSubjectAssignment::where('class_id', $classId)
+            ->where('subject_id', $subjectId)
+            ->exists();
+
+        return $assigned ? null : 'No teacher is currently assigned to teach this subject for this class -- the exam was still created.';
     }
     
     /**
@@ -64,20 +91,14 @@ class ExamController extends Controller
         ]);
 
         // Validate that passing marks don't exceed total marks
-        if ($request->passing_marks > $request->total_marks) {
+        if (!$this->writeValidator->marksValid((float) $request->total_marks, (float) $request->passing_marks)) {
             return redirect()->back()->withErrors(['passing_marks' => 'Passing marks cannot be greater than total marks.']);
         }
 
         // Duplicate prevention: the same class already has an exam for
         // this subject/term/academic year -- never silently created a
         // second one before.
-        $duplicate = Exam::where('class_id', $request->class_id)
-            ->where('subject', $request->subject)
-            ->where('academic_year', $request->academic_year)
-            ->where('term', $request->term)
-            ->exists();
-
-        if ($duplicate) {
+        if ($this->writeValidator->duplicateExists((int) $request->class_id, $request->subject, $request->academic_year, $request->term)) {
             return redirect()->back()->withInput()->withErrors([
                 'subject' => 'An exam for this class, subject, term, and academic year already exists.',
             ]);
@@ -106,8 +127,10 @@ class ExamController extends Controller
             ]
         ));
 
+        $warning = $this->curriculumWarning($schoolClass->id, $subjectModel->id);
+
         return redirect()->route('admin.exams.index')
-                         ->with('success', 'Exam created successfully.');
+                         ->with('success', 'Exam created successfully.' . ($warning ? " {$warning}" : ''));
     }
 
     /**
@@ -155,7 +178,7 @@ class ExamController extends Controller
         ]);
 
         // Validate that passing marks don't exceed total marks
-        if ($request->passing_marks > $request->total_marks) {
+        if (!$this->writeValidator->marksValid((float) $request->total_marks, (float) $request->passing_marks)) {
             return redirect()->back()->withErrors(['passing_marks' => 'Passing marks cannot be greater than total marks.']);
         }
 
@@ -195,8 +218,10 @@ class ExamController extends Controller
             ]
         ));
 
+        $warning = $this->curriculumWarning($schoolClass->id, $subjectModel->id);
+
         return redirect()->route('admin.exams.index')
-                         ->with('success', 'Exam updated successfully.');
+                         ->with('success', 'Exam updated successfully.' . ($warning ? " {$warning}" : ''));
     }
 
     /**

@@ -62,7 +62,14 @@ class Exam extends Model
     // reads the free-text `subject` column and is left untouched since
     // existing callers depend on it; this is the new, correct relation for
     // anything written going forward.
-    public function subject(): BelongsTo
+    //
+    // Deliberately NOT named subject(): `subject` is also a populated
+    // fillable string attribute (line 12), and Eloquent's getAttribute()
+    // always resolves a real attribute before it ever considers a
+    // same-named relation method -- a method called subject() would be
+    // permanently unreachable via $exam->subject, silently returning the
+    // string instead. subjectModel() avoids that collision.
+    public function subjectModel(): BelongsTo
     {
         return $this->belongsTo(Subject::class, 'subject_id');
     }

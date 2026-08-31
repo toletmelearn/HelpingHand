@@ -198,4 +198,65 @@ class ExamClassIdRepointTest extends TestCase
             'class_name' => 'Class 6',
         ]);
     }
+
+    // Sync-audit loophole L-01: creating an exam never checked whether the
+    // class/subject pair was actually part of the curriculum
+    // (TeacherClassSubjectAssignment). Advisory, not blocking -- the test
+    // above already relies on exam creation succeeding with zero
+    // assignments, so this only adds a warning flash, never a rejection.
+    public function test_exam_create_warns_when_no_teacher_is_assigned_for_the_class_subject(): void
+    {
+        $admin = $this->makeAdmin();
+        $schoolClass = SchoolClass::create(['name' => 'Class 7', 'class_order' => 7, 'is_active' => true]);
+        \App\Models\Subject::firstOrCreate(['name' => 'Math'], ['code' => 'Math7', 'is_active' => true]);
+
+        $response = $this->actingAs($admin)->post(route('admin.exams.store'), [
+            'name' => 'Unassigned Subject Exam',
+            'exam_type' => 'term',
+            'class_id' => $schoolClass->id,
+            'subject' => 'Math',
+            'exam_date' => today()->addDays(5)->toDateString(),
+            'start_time' => '10:00',
+            'end_time' => '12:00',
+            'total_marks' => 100,
+            'passing_marks' => 33,
+            'academic_year' => '2026-27',
+            'term' => 'Term 1',
+            'status' => 'active',
+        ]);
+
+        $response->assertSessionHas('success');
+        $this->assertStringContainsString('No teacher is currently assigned', session('success'));
+        $this->assertDatabaseHas('exams', ['name' => 'Unassigned Subject Exam']);
+    }
+
+    public function test_exam_create_does_not_warn_when_a_teacher_is_assigned(): void
+    {
+        $admin = $this->makeAdmin();
+        $schoolClass = SchoolClass::create(['name' => 'Class 8', 'class_order' => 8, 'is_active' => true]);
+        $subject = \App\Models\Subject::firstOrCreate(['name' => 'Math'], ['code' => 'Math8', 'is_active' => true]);
+        $teacher = \App\Models\Teacher::create(['name' => 'Assigned Teacher']);
+        \App\Models\TeacherClassSubjectAssignment::create([
+            'teacher_id' => $teacher->id, 'class_id' => $schoolClass->id, 'subject_id' => $subject->id,
+            'is_class_teacher' => false,
+        ]);
+
+        $response = $this->actingAs($admin)->post(route('admin.exams.store'), [
+            'name' => 'Assigned Subject Exam',
+            'exam_type' => 'term',
+            'class_id' => $schoolClass->id,
+            'subject' => 'Math',
+            'exam_date' => today()->addDays(5)->toDateString(),
+            'start_time' => '10:00',
+            'end_time' => '12:00',
+            'total_marks' => 100,
+            'passing_marks' => 33,
+            'academic_year' => '2026-27',
+            'term' => 'Term 1',
+            'status' => 'active',
+        ]);
+
+        $response->assertSessionHas('success');
+        $this->assertStringNotContainsString('No teacher is currently assigned', session('success'));
+    }
 }
