@@ -120,6 +120,12 @@ class SubjectController extends Controller
                 ->with('error', "Cannot delete subject \"{$subject->name}\": {$assignmentCount} teacher/class assignment(s) reference it. Remove those assignments first.");
         }
 
+        $examCount = \Illuminate\Support\Facades\DB::table('exams')->where('subject_id', $subject->id)->count();
+        if ($examCount > 0) {
+            return redirect()->route('admin.subjects.index')
+                ->with('error', "Cannot delete subject \"{$subject->name}\": {$examCount} exam(s) reference it.");
+        }
+
         $subject->delete();
 
         return redirect()->route('admin.subjects.index')

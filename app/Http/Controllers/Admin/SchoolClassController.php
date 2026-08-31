@@ -159,6 +159,12 @@ class SchoolClassController extends Controller
                 ->with('error', "Cannot delete class \"{$schoolClass->name}\": {$examPaperCount} exam paper(s) reference it.");
         }
 
+        $examCount = DB::table('exams')->where('class_id', $schoolClass->id)->count();
+        if ($examCount > 0) {
+            return redirect()->back()
+                ->with('error', "Cannot delete class \"{$schoolClass->name}\": {$examCount} exam(s) reference it.");
+        }
+
         $schoolClass->delete();
 
         return redirect()->route('admin.school-classes.index')

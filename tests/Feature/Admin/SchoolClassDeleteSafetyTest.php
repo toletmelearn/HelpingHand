@@ -100,6 +100,25 @@ class SchoolClassDeleteSafetyTest extends TestCase
         $this->assertDatabaseHas('school_classes', ['id' => $class->id, 'deleted_at' => null]);
     }
 
+    public function test_class_referenced_by_an_exam_cannot_be_deleted(): void
+    {
+        $class = SchoolClass::create(['name' => 'Scheduled Class', 'class_order' => 6, 'is_active' => true]);
+        $subject = Subject::create(['name' => 'Physics', 'code' => 'PHY' . uniqid()]);
+
+        \App\Models\Exam::create([
+            'name' => 'Term Exam', 'exam_type' => 'term', 'class_id' => $class->id,
+            'class_name' => $class->name, 'subject_id' => $subject->id, 'subject' => $subject->name,
+            'exam_date' => today()->addDays(5), 'start_time' => '10:00', 'end_time' => '12:00',
+            'total_marks' => 100, 'passing_marks' => 33,
+            'academic_year' => '2026-27', 'status' => 'active',
+        ]);
+
+        $response = $this->actingAs($this->admin)->delete(route('admin.school-classes.destroy', $class->id));
+
+        $response->assertSessionHas('error');
+        $this->assertDatabaseHas('school_classes', ['id' => $class->id, 'deleted_at' => null]);
+    }
+
     public function test_non_admin_cannot_delete_a_class(): void
     {
         $class = SchoolClass::create(['name' => 'Protected Class', 'class_order' => 5, 'is_active' => true]);

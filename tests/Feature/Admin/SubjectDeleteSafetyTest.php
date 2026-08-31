@@ -87,6 +87,26 @@ class SubjectDeleteSafetyTest extends TestCase
         $this->assertDatabaseHas('subjects', ['id' => $subject->id, 'deleted_at' => null]);
     }
 
+    public function test_subject_referenced_by_an_exam_cannot_be_deleted(): void
+    {
+        $subject = Subject::create(['name' => 'Chemistry', 'code' => 'CHM' . uniqid()]);
+        $class = SchoolClass::create(['name' => 'Grade Z', 'class_order' => 3, 'is_active' => true]);
+
+        \App\Models\Exam::create([
+            'name' => 'Term Exam', 'exam_type' => 'term', 'class_id' => $class->id,
+            'class_name' => $class->name, 'subject_id' => $subject->id, 'subject' => $subject->name,
+            'exam_date' => today()->addDays(5), 'start_time' => '10:00', 'end_time' => '12:00',
+            'total_marks' => 100, 'passing_marks' => 33,
+            'academic_year' => '2026-27', 'status' => 'active',
+        ]);
+
+        $response = $this->actingAs($this->admin)->delete(route('admin.subjects.destroy', $subject->id));
+
+        $response->assertRedirect(route('admin.subjects.index'));
+        $response->assertSessionHas('error');
+        $this->assertDatabaseHas('subjects', ['id' => $subject->id, 'deleted_at' => null]);
+    }
+
     public function test_non_admin_cannot_delete_a_subject(): void
     {
         $subject = Subject::create(['name' => 'Protected Subject', 'code' => 'PRO' . uniqid()]);
