@@ -10,6 +10,7 @@ use App\Models\Subject;
 use App\Models\Teacher;
 use App\Models\TeacherAvailability;
 use App\Models\TeacherSubstitution;
+use App\Models\TimetableSlot;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -46,7 +47,8 @@ class TeacherSubstitutionAvailabilityTest extends TestCase
             'is_active' => true, 'is_break' => false, 'order_index' => 1,
         ]);
         $class = SchoolClass::create(['name' => 'Availability Class', 'class_order' => 970301, 'is_active' => true]);
-        $section = Section::create(['name' => 'A', 'class_id' => $class->id]);
+        $section = Section::create(['name' => 'A']);
+        $this->bridgeSectionToClass($class, $section);
         $subject = Subject::create(['name' => 'Availability Subject', 'code' => 'AVL-' . uniqid(), 'is_active' => true]);
         $absentTeacher = Teacher::create(['name' => 'Absent Teacher', 'status' => 'active']);
         $availableTeacher = Teacher::create(['name' => 'Available Teacher', 'status' => 'active']);
@@ -198,6 +200,32 @@ class TeacherSubstitutionAvailabilityTest extends TestCase
 
         $response->assertRedirect(route('admin.teacher-substitutions.index'));
         $this->assertSame($f['availableTeacher']->id, $substitution->fresh()->substitute_teacher_id);
+    }
+
+    // Sync-audit loophole L-15: the only thing ever checked was an explicit
+    // TeacherAvailability(is_available=false) row -- nothing derived
+    // availability from the substitute's actual TimetableSlot load, so a
+    // substitute could be handed two classes at the same period.
+    public function test_assign_substitute_rejects_a_teacher_already_teaching_another_class_that_period(): void
+    {
+        $f = $this->fixtures();
+        $admin = $this->admin();
+        $substitution = $this->pendingSubstitution($f);
+
+        $busyTeacher = Teacher::create(['name' => 'Timetabled Elsewhere', 'status' => 'active']);
+        $otherClass = SchoolClass::create(['name' => 'Other Class', 'class_order' => 970302, 'is_active' => true]);
+        TimetableSlot::create([
+            'school_class_id' => $otherClass->id, 'bell_timing_id' => $f['bellTiming']->id,
+            'subject_id' => $f['subject']->id, 'teacher_id' => $busyTeacher->id,
+            'status' => TimetableSlot::STATUS_PUBLISHED,
+        ]);
+
+        $response = $this->actingAs($admin)->post(route('admin.teacher-substitutions.assign', $substitution), [
+            'substitute_teacher_id' => $busyTeacher->id,
+        ]);
+
+        $response->assertSessionHas('error');
+        $this->assertDatabaseHas('teacher_substitutions', ['id' => $substitution->id, 'status' => 'pending']);
     }
 
     // 5. Existing automatic substitute suggestion behavior still passes:

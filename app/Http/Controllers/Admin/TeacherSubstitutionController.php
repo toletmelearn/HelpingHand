@@ -80,6 +80,68 @@ class TeacherSubstitutionController extends Controller
     }
 
     /**
+     * UAT Test 21 defect fix: the Period/Bell Timing selector on the
+     * create/edit forms previously listed every active teaching period
+     * from every class, with no way to tell them apart -- the same
+     * defect already fixed for the Timetable grid. Called via JS when
+     * the Class select changes, so the dropdown only ever OFFERS periods
+     * that actually belong to the selected class (or the "All Classes"
+     * null rows) -- a UI convenience only; store()/update()/
+     * assignFromSlot() independently re-validate ownership server-side
+     * regardless of what this returns.
+     */
+    public function bellTimingsForClass(Request $request)
+    {
+        $this->authorize('create', TeacherSubstitution::class);
+
+        $validated = $request->validate([
+            'class_id' => 'required|exists:school_classes,id',
+        ]);
+
+        $schoolClass = SchoolClass::findOrFail($validated['class_id']);
+
+        $bellTimings = BellTiming::teachingType()->where('is_active', true)
+            ->where(function ($q) use ($schoolClass) {
+                $q->whereNull('class_section')->orWhere('class_section', $schoolClass->name);
+            })
+            ->orderBy('order_index')
+            ->get();
+
+        return response()->json($bellTimings->map(fn (BellTiming $t) => [
+            'id' => $t->id,
+            'label' => $t->day_of_week . ' - ' . $t->period_name . ' (' . $t->start_time->format('H:i') . '-' . $t->end_time->format('H:i') . ')',
+        ]));
+    }
+
+    /**
+     * UAT Test 21 defect fix (Section architecture): the Section
+     * dropdown previously listed every Section row globally, including
+     * accidental orphan duplicates sharing a name with a real one (e.g.
+     * two rows both named "A") -- called via JS when the Class select
+     * changes, so the dropdown only ever OFFERS the class's real
+     * sections, resolved via the canonical legacy_class_map ->
+     * class_sections bridge (SchoolClass::validSectionIds()). A UI
+     * convenience only; store()/update()/assignFromSlot() independently
+     * re-validate ownership server-side regardless of what this returns.
+     */
+    public function sectionsForClass(Request $request)
+    {
+        $this->authorize('create', TeacherSubstitution::class);
+
+        $validated = $request->validate([
+            'class_id' => 'required|exists:school_classes,id',
+        ]);
+
+        $schoolClass = SchoolClass::findOrFail($validated['class_id']);
+        $sections = Section::whereIn('id', $schoolClass->validSectionIds())->orderBy('name')->get();
+
+        return response()->json($sections->map(fn (Section $s) => [
+            'id' => $s->id,
+            'label' => $s->name,
+        ]));
+    }
+
+    /**
      * UAT Test 21 defect fix: SubstituteFinderService (used by
      * suggestSubstitutes()'s automatic suggestion after store()) already
      * excludes teachers with a TeacherAvailability(is_available=false) row
@@ -99,13 +161,97 @@ class TeacherSubstitutionController extends Controller
             ->where('is_available', false)
             ->exists();
 
-        if (! $blocked) {
-            return null;
+        if ($blocked) {
+            $teacherName = Teacher::find($substituteTeacherId)->name ?? 'This teacher';
+
+            return "{$teacherName} has been marked unavailable for this period.";
         }
 
-        $teacherName = Teacher::find($substituteTeacherId)->name ?? 'This teacher';
+        // Sync-audit loophole L-15: an explicit unavailability flag was the
+        // ONLY thing checked here -- nothing derived availability from the
+        // substitute's actual live TimetableSlot load, so a substitute
+        // could be handed two classes at the same period. Same bell_timing
+        // both tables key on, so this is a direct match, not an overlap
+        // resolution.
+        $busySlot = TimetableSlot::where('bell_timing_id', $bellTimingId)
+            ->where('status', TimetableSlot::STATUS_PUBLISHED)
+            ->where(fn ($q) => $q->where('teacher_id', $substituteTeacherId)->orWhere('co_teacher_id', $substituteTeacherId))
+            ->with('schoolClass')
+            ->first();
 
-        return "{$teacherName} has been marked unavailable for this period.";
+        if ($busySlot) {
+            $teacherName = Teacher::find($substituteTeacherId)->name ?? 'This teacher';
+
+            return "{$teacherName} is already scheduled to teach " . ($busySlot->schoolClass->name ?? 'another class') . ' during this period.';
+        }
+
+        return null;
+    }
+
+    /**
+     * UAT Test 21 defect fix: BellTiming.class_section has no FK to
+     * SchoolClass (same root cause fixed for the Timetable grid in
+     * store()/update() there) -- `exists:bell_timings,id` alone never
+     * proved the chosen period actually belonged to the class this
+     * substitution is FOR, so a substitution could silently anchor
+     * itself to a different class's period. A null class_section is
+     * BellTiming's own "All Classes" semantics and is valid for every
+     * class. Section-level scoping is deliberately not attempted here:
+     * BellTiming has no section-level granularity at all in the current
+     * schema (confirmed by inspection), so there is nothing to check.
+     */
+    private function bellTimingOwnershipError(BellTiming $bellTiming, SchoolClass $schoolClass): ?string
+    {
+        if ($bellTiming->class_section !== null && $bellTiming->class_section !== $schoolClass->name) {
+            return "This period belongs to \"{$bellTiming->class_section}\", not \"{$schoolClass->name}\" -- choose a period that belongs to the selected class.";
+        }
+
+        return null;
+    }
+
+    /**
+     * UAT Test 21 defect fix (Section architecture): validates the
+     * submitted section_id is actually one of the selected class's real
+     * sections per SchoolClass::validSectionIds() (the legacy_class_map
+     * -> class_sections bridge) -- the same "never trust only the
+     * dropdown" principle as bellTimingOwnershipError(). Confirmed live:
+     * without this, a substitution could silently save against an
+     * orphan/duplicate Section row (e.g. one of several rows named "A")
+     * with no real relationship to the class at all.
+     */
+    private function sectionOwnershipError(SchoolClass $schoolClass, int $sectionId): ?string
+    {
+        if (! in_array($sectionId, $schoolClass->validSectionIds(), true)) {
+            $section = Section::find($sectionId);
+            $sectionName = $section->name ?? 'This section';
+
+            return "\"{$sectionName}\" is not a section of \"{$schoolClass->name}\" -- choose a section that actually belongs to this class.";
+        }
+
+        return null;
+    }
+
+    /**
+     * UAT Test 21 defect fix: store()/update() had no protection at all
+     * against recording two active substitutions for the same absent
+     * teacher's same real period on the same date -- assignFromSlot()
+     * already had this exact check, just never applied to the manual
+     * create/edit form. Keyed on bell_timing_id (not section_id, which
+     * isn't yet a reliable identifier on its own) -- bell_timing_id
+     * already uniquely pins down day+period+class now that ownership is
+     * enforced. Cancelled substitutions are excluded, matching
+     * assignFromSlot()'s own established rule.
+     */
+    private function duplicateSubstitutionError(string $date, int $absentTeacherId, int $bellTimingId, ?int $excludeId = null): ?string
+    {
+        $exists = TeacherSubstitution::where('absent_teacher_id', $absentTeacherId)
+            ->where('bell_timing_id', $bellTimingId)
+            ->whereDate('substitution_date', $date)
+            ->where('status', '!=', 'cancelled')
+            ->when($excludeId, fn ($q) => $q->where('id', '!=', $excludeId))
+            ->exists();
+
+        return $exists ? 'A substitution for this teacher and period is already recorded.' : null;
     }
 
     public function store(Request $request)
@@ -121,6 +267,26 @@ class TeacherSubstitutionController extends Controller
             'bell_timing_id' => 'required|exists:bell_timings,id',
             'reason' => 'nullable|string|max:1000',
         ]);
+
+        $schoolClass = SchoolClass::findOrFail($request->class_id);
+
+        $ownershipError = $this->bellTimingOwnershipError(
+            BellTiming::findOrFail($request->bell_timing_id),
+            $schoolClass
+        );
+        if ($ownershipError) {
+            return back()->withInput()->with('error', $ownershipError);
+        }
+
+        $sectionError = $this->sectionOwnershipError($schoolClass, (int) $request->section_id);
+        if ($sectionError) {
+            return back()->withInput()->with('error', $sectionError);
+        }
+
+        $duplicateError = $this->duplicateSubstitutionError($request->substitution_date, (int) $request->absent_teacher_id, (int) $request->bell_timing_id);
+        if ($duplicateError) {
+            return back()->withInput()->with('error', $duplicateError);
+        }
 
         $substitution = TeacherSubstitution::create([
             'substitution_date' => $request->substitution_date,
@@ -187,6 +353,31 @@ class TeacherSubstitutionController extends Controller
             'substitute_teacher_id' => 'nullable|exists:teachers,id',
             'reason' => 'nullable|string|max:1000',
         ]);
+
+        $schoolClass = SchoolClass::findOrFail($request->class_id);
+
+        $ownershipError = $this->bellTimingOwnershipError(
+            BellTiming::findOrFail($request->bell_timing_id),
+            $schoolClass
+        );
+        if ($ownershipError) {
+            return back()->withInput()->with('error', $ownershipError);
+        }
+
+        $sectionError = $this->sectionOwnershipError($schoolClass, (int) $request->section_id);
+        if ($sectionError) {
+            return back()->withInput()->with('error', $sectionError);
+        }
+
+        $duplicateError = $this->duplicateSubstitutionError(
+            $request->substitution_date,
+            (int) $request->absent_teacher_id,
+            (int) $request->bell_timing_id,
+            $teacherSubstitution->id
+        );
+        if ($duplicateError) {
+            return back()->withInput()->with('error', $duplicateError);
+        }
 
         if ($request->filled('substitute_teacher_id')) {
             $availabilityError = $this->substituteAvailabilityError(
@@ -447,6 +638,29 @@ class TeacherSubstitutionController extends Controller
                 'teacher_id' => $validated['absent_teacher_id'],
                 'date' => $validated['substitution_date'],
             ])->with('error', 'A substitution for this teacher and period is already recorded.');
+        }
+
+        $schoolClass = SchoolClass::findOrFail($validated['class_id']);
+
+        $ownershipError = $this->bellTimingOwnershipError(
+            BellTiming::findOrFail($validated['bell_timing_id']),
+            $schoolClass
+        );
+        if ($ownershipError) {
+            return redirect()->route('admin.teacher-substitutions.absent-today', [
+                'teacher_id' => $validated['absent_teacher_id'],
+                'date' => $validated['substitution_date'],
+            ])->with('error', $ownershipError);
+        }
+
+        if (! empty($validated['section_id'])) {
+            $sectionError = $this->sectionOwnershipError($schoolClass, (int) $validated['section_id']);
+            if ($sectionError) {
+                return redirect()->route('admin.teacher-substitutions.absent-today', [
+                    'teacher_id' => $validated['absent_teacher_id'],
+                    'date' => $validated['substitution_date'],
+                ])->with('error', $sectionError);
+            }
         }
 
         $availabilityError = $this->substituteAvailabilityError(
