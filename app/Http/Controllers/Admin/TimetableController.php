@@ -1059,6 +1059,137 @@ class TimetableController extends Controller
      * write happens (found by the Lock Integrity audit: this endpoint
      * previously deleted a locked slot with no resistance at all).
      */
+    /**
+     * UAT Test 17 fix: publishes a class/section's MANUAL draft slots
+     * (timetable_generation_id IS NULL) -- completely separate from
+     * publishGeneration(), which only ever touches generation-tagged
+     * rows, and was the only Publish action that existed before this.
+     *
+     * Deliberately narrower than publishGeneration()'s whole-class
+     * archive: only the SPECIFIC published rows occupying the SAME
+     * (class, section, bell_timing) as a slot in this manual draft are
+     * archived, never the class/section's entire published timetable --
+     * a manual draft is usually just a handful of periods, not a full
+     * regeneration, and archiving unrelated already-published periods
+     * for this same class/section would be a real data-safety
+     * regression, not a "replace the timetable" operation like Generate
+     * intentionally is.
+     *
+     * All-or-nothing: a locked published occupant, or a DB-level
+     * conflict (e.g. the teacher is already published elsewhere at that
+     * bell timing), aborts the whole publish before anything is written.
+     */
+    public function publishManualDraft(Request $request)
+    {
+        $this->authorize('publish', TimetableSlot::class);
+
+        $validated = $request->validate([
+            'school_class_id' => 'required|exists:school_classes,id',
+            'section_id' => 'nullable|exists:sections,id',
+        ]);
+
+        $schoolClassId = (int) $validated['school_class_id'];
+        $sectionId = ! empty($validated['section_id']) ? (int) $validated['section_id'] : null;
+        $sectionNorm = $sectionId ?? 0;
+
+        $draftSlots = TimetableSlot::with('bellTiming')
+            ->where('school_class_id', $schoolClassId)
+            ->where('section_id_norm', $sectionNorm)
+            ->whereNull('timetable_generation_id')
+            ->draft()
+            ->get();
+
+        if ($draftSlots->isEmpty()) {
+            return back()->with('error', 'No manual draft exists for this class/section to publish.');
+        }
+
+        $schoolClass = SchoolClass::findOrFail($schoolClassId);
+
+        foreach ($draftSlots as $draftSlot) {
+            $ownershipError = $this->bellTimingOwnershipError($draftSlot->bellTiming, $schoolClass);
+            if ($ownershipError) {
+                return back()->with('error', "Cannot publish: {$ownershipError}");
+            }
+        }
+
+        try {
+            $publishedCount = DB::transaction(function () use ($draftSlots, $schoolClassId, $sectionNorm) {
+                $count = 0;
+
+                foreach ($draftSlots as $draftSlot) {
+                    $existingPublished = TimetableSlot::where('school_class_id', $schoolClassId)
+                        ->where('section_id_norm', $sectionNorm)
+                        ->where('bell_timing_id', $draftSlot->bell_timing_id)
+                        ->published()
+                        ->first();
+
+                    if ($existingPublished) {
+                        if ($existingPublished->is_locked) {
+                            throw new \RuntimeException(
+                                "\"{$draftSlot->bellTiming->period_name}\" ({$draftSlot->bellTiming->day_of_week}) is currently locked in the published timetable -- unlock it first."
+                            );
+                        }
+
+                        $existingPublished->update(['status' => TimetableSlot::STATUS_ARCHIVED]);
+                    }
+
+                    $draftSlot->update(['status' => TimetableSlot::STATUS_PUBLISHED]);
+                    $count++;
+                }
+
+                return $count;
+            });
+        } catch (\RuntimeException $e) {
+            return back()->with('error', 'Cannot publish: ' . $e->getMessage());
+        } catch (\Illuminate\Database\QueryException $e) {
+            if ((int) $e->errorInfo[1] === 1062) {
+                return back()->with('error', 'Cannot publish: one of these periods conflicts with an existing published lesson elsewhere (e.g. the teacher is already published at the same time in another class).');
+            }
+
+            throw $e;
+        }
+
+        activity()->causedBy(Auth::user())->performedOn($schoolClass)
+            ->withProperties(['school_class_id' => $schoolClassId, 'section_id' => $sectionId, 'published_count' => $publishedCount])
+            ->log('timetable_manual_draft_published');
+
+        $this->notifyAffectedTeachers($draftSlots->load('schoolClass'));
+
+        return back()->with('success', "Manual draft published -- {$publishedCount} period(s) are now live for {$schoolClass->name}.");
+    }
+
+    /**
+     * Phase 2.6: notify every teacher (primary or co-teacher) who has a
+     * slot in what was just published -- nothing did this before. One
+     * notification per teacher, summarizing every class they're affected
+     * by and how many of their own periods changed (not the total
+     * published count, which may include other teachers' periods too).
+     * $slots must have the schoolClass relation already loaded.
+     */
+    private function notifyAffectedTeachers(\Illuminate\Support\Collection $slots): void
+    {
+        $byTeacher = [];
+        foreach ($slots as $slot) {
+            foreach (array_filter([$slot->teacher_id, $slot->co_teacher_id]) as $teacherId) {
+                $byTeacher[$teacherId]['count'] = ($byTeacher[$teacherId]['count'] ?? 0) + 1;
+                $byTeacher[$teacherId]['classes'][$slot->schoolClass->name ?? 'Unknown'] = true;
+            }
+        }
+
+        if (empty($byTeacher)) {
+            return;
+        }
+
+        $logins = \App\Models\TeacherLogin::whereIn('teacher_id', array_keys($byTeacher))->get()->keyBy('teacher_id');
+
+        foreach ($byTeacher as $teacherId => $data) {
+            $login = $logins->get($teacherId);
+            if ($login) {
+                $login->notify(new \App\Notifications\TimetablePublishedNotification(array_keys($data['classes']), $data['count']));
+            }
+        }
+    }
+
     public function destroy($id)
     {
         $slot = TimetableSlot::findOrFail($id);
@@ -1306,6 +1437,12 @@ class TimetableController extends Controller
         activity()->causedBy(Auth::user())->performedOn($generation)
             ->withProperties(['school_class_ids' => $generation->school_class_ids])
             ->log('timetable_generation_published');
+
+        $publishedSlots = TimetableSlot::published()
+            ->where('timetable_generation_id', $generation->id)
+            ->with('schoolClass')
+            ->get();
+        $this->notifyAffectedTeachers($publishedSlots);
 
         return $this->redirectAfterGenerationAction($generation)
             ->with('success', 'Generation published -- this is now the live timetable for the affected classes.');

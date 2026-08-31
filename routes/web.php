@@ -1617,6 +1617,11 @@ Route::middleware(['auth:teacher'])->group(function () {
 
     Route::get('/teacher/salaries', [\App\Http\Controllers\Teacher\TeacherSalaryController::class, 'index'])->name('teacher.salaries.index');
     Route::get('/teacher/salaries/{salary}/pdf', [\App\Http\Controllers\Teacher\TeacherSalaryController::class, 'downloadSlip'])->name('teacher.salaries.pdf');
+
+    // Notifications (Phase 2.6) -- database-channel only, no bell/dropdown
+    // widget since this layout has no header bar to attach one to.
+    Route::get('/teacher/notifications', [\App\Http\Controllers\Teacher\TeacherNotificationController::class, 'index'])->name('teacher.notifications.index');
+    Route::post('/teacher/notifications/{id}/read', [\App\Http\Controllers\Teacher\TeacherNotificationController::class, 'markRead'])->name('teacher.notifications.read');
     
     Route::get('/teacher/homework/{homework}/submissions', [\App\Http\Controllers\Teacher\TeacherHomeworkSubmissionController::class, 'index'])->name('teacher.homework.submissions.index');
     Route::get('/teacher/homework/submissions/{submission}/evaluate', [\App\Http\Controllers\Teacher\TeacherHomeworkSubmissionController::class, 'evaluateForm'])->name('teacher.homework.submissions.evaluate');

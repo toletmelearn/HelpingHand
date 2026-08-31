@@ -111,6 +111,24 @@
                             </a>
                         </li>
                         @endif
+                        @if(Route::has('teacher.notifications.index'))
+                        <li class="nav-item">
+                            <a class="nav-link {{ request()->routeIs('teacher.notifications.*') ? 'active' : '' }}"
+                               href="{{ route('teacher.notifications.index') }}">
+                                <i class="fas fa-bell me-2"></i>Notifications
+                                @php
+                                    try {
+                                        $unreadCount = Auth::guard('teacher')->user()?->unreadNotifications->count() ?? 0;
+                                    } catch (\Throwable $e) {
+                                        $unreadCount = 0;
+                                    }
+                                @endphp
+                                @if($unreadCount > 0)
+                                    <span class="badge bg-danger rounded-pill">{{ $unreadCount > 9 ? '9+' : $unreadCount }}</span>
+                                @endif
+                            </a>
+                        </li>
+                        @endif
                         <li class="nav-item">
                             <a class="nav-link {{ request()->routeIs('teacher.profile') ? 'active' : '' }}" href="{{ route('teacher.profile') }}">
                                 <i class="fas fa-user me-2"></i>Profile
