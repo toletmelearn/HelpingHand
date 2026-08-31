@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use App\Models\Exam;
+use App\Models\GradingSystem;
 use App\Models\Result;
 use App\Models\Student;
 use App\Models\SchoolClass;
@@ -31,9 +32,13 @@ class TeacherMarksController extends Controller
         $assignedClassIds = $assignedAssignments->pluck('class_id')->unique();
         $assignedSubjectIds = $assignedAssignments->pluck('subject_id')->unique();
 
-        // Get exams for assigned classes
-        $exams = Exam::whereIn('class_name', $assignedAssignments->pluck('schoolClass.name')->unique())
-            ->whereIn('subject', $assignedAssignments->pluck('subject.name')->unique())
+        // Sync-audit loophole L-04: matched by class_name/subject string
+        // instead of the enforced class_id/subject_id FKs -- risky given
+        // school_classes.name carries no unique constraint (this codebase
+        // already hit that exact collision once with the legacy
+        // ClassManagement table).
+        $exams = Exam::whereIn('class_id', $assignedClassIds)
+            ->whereIn('subject_id', $assignedSubjectIds)
             ->latest()
             ->paginate(15);
 
@@ -57,37 +62,27 @@ class TeacherMarksController extends Controller
         $teacherId = $teacherLogin->teacher_id;
         $exam = Exam::findOrFail($examId);
 
-        // Verify teacher has access to this exam's class and subject
-        $hasAccess = TeacherClassSubjectAssignment::where('teacher_id', $teacherId)
-            ->whereHas('schoolClass', function ($query) use ($exam) {
-                $query->where('name', $exam->class_name);
-            })
-            ->whereHas('subject', function ($query) use ($exam) {
-                $query->where('name', $exam->subject);
-            })
-            ->exists();
+        // Verify teacher has access to this exam's class and subject.
+        // Sync-audit loophole L-04: matched by class_name/subject string
+        // instead of exam's own enforced class_id/subject_id FKs -- see
+        // index() above for why that's risky.
+        $teacherAssignment = TeacherClassSubjectAssignment::where('teacher_id', $teacherId)
+            ->where('class_id', $exam->class_id)
+            ->where('subject_id', $exam->subject_id)
+            ->first();
 
-        if (!$hasAccess) {
+        if (!$teacherAssignment) {
             return redirect()->back()->with('error', 'You do not have access to upload marks for this exam.');
         }
 
-        // Get the class by name to get the class_id
-        $class = SchoolClass::where('name', $exam->class_name)->first();
+        $class = SchoolClass::find($exam->class_id);
         if (!$class) {
             return back()->with('error', 'Class not found for this exam.');
         }
-        
-        // Get students for this exam's class
-        // First, get the teacher's assignment to see if they're assigned to a specific section
-        $teacherAssignment = TeacherClassSubjectAssignment::where('teacher_id', $teacherId)
-            ->whereHas('schoolClass', function ($query) use ($exam) {
-                $query->where('name', $exam->class_name);
-            })
-            ->whereHas('subject', function ($query) use ($exam) {
-                $query->where('name', $exam->subject);
-            })
-            ->first();
-        
+
+        // Get students for this exam's class, filtered to the teacher's
+        // specific section if they're assigned to one rather than the
+        // whole class.
         $studentsQuery = Student::where('school_class_id', $class->id);
         
         // If teacher is assigned to a specific section, filter by that section
@@ -126,28 +121,24 @@ class TeacherMarksController extends Controller
 
         $exam = Exam::findOrFail($request->exam_id);
 
-        // Verify teacher has access
+        // Verify teacher has access. Sync-audit loophole L-04: matched by
+        // class_name/subject string instead of exam's own enforced
+        // class_id/subject_id FKs -- see index() above for why that's risky.
         $hasAccess = TeacherClassSubjectAssignment::where('teacher_id', $teacherId)
-            ->whereHas('schoolClass', function ($query) use ($exam) {
-                $query->where('name', $exam->class_name);
-            })
-            ->whereHas('subject', function ($query) use ($exam) {
-                $query->where('name', $exam->subject);
-            })
+            ->where('class_id', $exam->class_id)
+            ->where('subject_id', $exam->subject_id)
             ->exists();
 
         if (!$hasAccess) {
             return back()->with('error', 'You do not have access to upload marks for this exam.');
         }
 
-        // Get class_id from class_name
-        $class = SchoolClass::where('name', $exam->class_name)->first();
+        $class = SchoolClass::find($exam->class_id);
         if (!$class) {
             return back()->with('error', 'Class not found for this exam.');
         }
 
-        // Get subject_id from subject name
-        $subject = Subject::where('name', $exam->subject)->first();
+        $subject = Subject::find($exam->subject_id);
         if (!$subject) {
             return back()->with('error', 'Subject not found for this exam.');
         }
