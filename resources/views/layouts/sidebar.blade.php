@@ -1268,10 +1268,19 @@
                         @endif
                         @if(Route::has('admin.special-day-overrides.index'))
                         <li class="nav-item">
-                            <a class="nav-link text-white {{ request()->routeIs('admin.special-day-overrides.*') ? 'active' : '' }}" 
+                            <a class="nav-link text-white {{ request()->routeIs('admin.special-day-overrides.*') ? 'active' : '' }}"
                                href="{{ route('admin.special-day-overrides.index') }}">
                                 <i class="bi bi-calendar-x me-2"></i>
                                 <span>Special Day Overrides</span>
+                            </a>
+                        </li>
+                        @endif
+                        @if(Route::has('admin.school-holidays.index'))
+                        <li class="nav-item">
+                            <a class="nav-link text-white {{ request()->routeIs('admin.school-holidays.*') ? 'active' : '' }}"
+                               href="{{ route('admin.school-holidays.index') }}">
+                                <i class="bi bi-calendar-event me-2"></i>
+                                <span>Holiday Calendar</span>
                             </a>
                         </li>
                         @endif

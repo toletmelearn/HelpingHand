@@ -919,6 +919,9 @@ Route::middleware(['auth'])->group(function () {
 
         // Grading System Management Routes
         Route::resource('grading-systems', App\Http\Controllers\Admin\GradingSystemController::class);
+
+        // School Holiday Calendar Management Routes
+        Route::resource('school-holidays', App\Http\Controllers\Admin\SchoolHolidayController::class)->except(['show']);
         
         // Result Format Management Routes
         Route::resource('result-formats', App\Http\Controllers\Admin\ResultFormatController::class);
