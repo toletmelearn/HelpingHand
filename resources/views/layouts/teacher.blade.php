@@ -66,7 +66,13 @@
                             </a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link {{ request()->routeIs('teacher.exams.*') ? 'active' : '' }}" 
+                            <a class="nav-link {{ request()->routeIs('teacher.datesheets.*') ? 'active' : '' }}"
+                               href="{{ route('teacher.datesheets.index') }}">
+                                <i class="fas fa-calendar-alt me-2"></i>Exam Datesheet
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link {{ request()->routeIs('teacher.exams.*') ? 'active' : '' }}"
                                href="{{ route('teacher.exams.index') }}">
                                 <i class="fas fa-file-alt me-2"></i>My Exams
                             </a>

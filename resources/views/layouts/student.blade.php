@@ -47,6 +47,16 @@
                                     <i class="fas fa-home me-2"></i>Dashboard
                                 </a>
                             </li>
+                            <li class="list-group-item {{ request()->routeIs('student.timetable.*') ? 'active' : '' }}">
+                                <a href="{{ route('student.timetable.today') }}" class="text-decoration-none">
+                                    <i class="fas fa-clock me-2"></i>Timetable
+                                </a>
+                            </li>
+                            <li class="list-group-item {{ request()->routeIs('student.datesheets.*') ? 'active' : '' }}">
+                                <a href="{{ route('student.datesheets.index') }}" class="text-decoration-none">
+                                    <i class="fas fa-calendar-alt me-2"></i>Exam Datesheet
+                                </a>
+                            </li>
                             <li class="list-group-item {{ request()->routeIs('student.exam-papers.*') ? 'active' : '' }}">
                                 <a href="{{ route('student.exam-papers.index') }}" class="text-decoration-none">
                                     <i class="fas fa-file me-2"></i>Exam Papers
