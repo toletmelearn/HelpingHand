@@ -425,6 +425,11 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/exam-papers', [App\Http\Controllers\Student\StudentExamPaperController::class, 'index'])->name('exam-papers.index');
         Route::get('/exam-papers/{id}/download', [App\Http\Controllers\Student\StudentExamPaperController::class, 'download'])->name('exam-papers.download');
         Route::get('/exam-papers/{id}', [App\Http\Controllers\Student\StudentExamPaperController::class, 'show'])->name('exam-papers.show');
+
+        // Timetable (published slots + substitutions), mirroring
+        // Parent\TimetableController's own pattern exactly.
+        Route::get('/timetable/today', [App\Http\Controllers\Student\StudentTimetableController::class, 'today'])->name('timetable.today');
+        Route::get('/timetable/weekly', [App\Http\Controllers\Student\StudentTimetableController::class, 'weekly'])->name('timetable.weekly');
     });
     
 
