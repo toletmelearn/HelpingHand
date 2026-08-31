@@ -125,6 +125,20 @@ Route::prefix('parent')->group(function () {
         Route::get('/receipt/{id}', [ParentDashboardController::class,'downloadReceipt'])
             ->name('parent.receipt.download');
         
+        // Datesheet (published exam schedule) -- own child's class/section only.
+        Route::get('/datesheets', [App\Http\Controllers\Parent\ParentDatesheetController::class, 'index'])
+            ->name('parent.datesheets.index');
+
+        // Admit Cards -- own child only (Admit Card workflow: this route
+        // group didn't exist at all before; mirrors StudentAdmitCardController's
+        // exact ownership pattern).
+        Route::get('/admit-cards', [App\Http\Controllers\Parent\ParentAdmitCardController::class, 'index'])
+            ->name('parent.admit-cards.index');
+        Route::get('/admit-cards/{admitCard}', [App\Http\Controllers\Parent\ParentAdmitCardController::class, 'show'])
+            ->name('parent.admit-cards.show');
+        Route::get('/admit-cards/{admitCard}/download-pdf', [App\Http\Controllers\Parent\ParentAdmitCardController::class, 'downloadPdf'])
+            ->name('parent.admit-cards.download-pdf');
+
         // Exam Papers Routes
         Route::get('/exam-papers', [App\Http\Controllers\Parent\ParentExamPaperController::class, 'index'])
             ->name('parent.exam-papers.index');
@@ -185,6 +199,9 @@ Route::prefix('teacher')->group(function () {
         Route::get('/marks/upload/form', [App\Http\Controllers\Teacher\TeacherMarksController::class, 'uploadForm'])
             ->name('teacher.marks.upload');
         
+        // Datesheet (published exam schedule) -- classes/sections assigned only.
+        Route::get('/datesheets', [App\Http\Controllers\Teacher\TeacherDatesheetController::class, 'index'])->name('teacher.datesheets.index');
+
         // EXAM ROUTES
         Route::get('/exams', [App\Http\Controllers\Teacher\TeacherExamController::class, 'index'])->name('teacher.exams.index');
         Route::get('/exams/create', [App\Http\Controllers\Teacher\TeacherExamController::class, 'create'])->name('teacher.exams.create');
@@ -424,6 +441,9 @@ Route::middleware(['auth'])->group(function () {
         // Exam Papers Routes
         Route::get('/exam-papers', [App\Http\Controllers\Student\StudentExamPaperController::class, 'index'])->name('exam-papers.index');
         Route::get('/exam-papers/{id}/download', [App\Http\Controllers\Student\StudentExamPaperController::class, 'download'])->name('exam-papers.download');
+
+        // Datesheet (published exam schedule) -- own class/section only.
+        Route::get('/datesheets', [App\Http\Controllers\Student\StudentDatesheetController::class, 'index'])->name('datesheets.index');
         Route::get('/exam-papers/{id}', [App\Http\Controllers\Student\StudentExamPaperController::class, 'show'])->name('exam-papers.show');
 
         // Timetable (published slots + substitutions), mirroring
@@ -826,6 +846,24 @@ Route::middleware(['auth'])->group(function () {
         
         // Exam Management Routes - MUST be after specific routes
         Route::resource('exams', App\Http\Controllers\Admin\ExamController::class);
+
+        // Datesheet Management Routes -- the planning/approval layer in
+        // front of Exam. Specific action routes before the implicit
+        // {datesheet} show route, same ordering convention already
+        // established for student-promotions/timetable elsewhere in this
+        // file, to avoid the resource's own show route shadowing them.
+        Route::get('datesheets', [App\Http\Controllers\Admin\DatesheetController::class, 'index'])->name('datesheets.index');
+        Route::get('datesheets/create', [App\Http\Controllers\Admin\DatesheetController::class, 'create'])->name('datesheets.create');
+        Route::post('datesheets', [App\Http\Controllers\Admin\DatesheetController::class, 'store'])->name('datesheets.store');
+        Route::get('datesheets/{datesheet}', [App\Http\Controllers\Admin\DatesheetController::class, 'show'])->name('datesheets.show');
+        Route::post('datesheets/{datesheet}/entries', [App\Http\Controllers\Admin\DatesheetController::class, 'addEntry'])->name('datesheets.entries.store');
+        Route::delete('datesheets/{datesheet}/entries/{entry}', [App\Http\Controllers\Admin\DatesheetController::class, 'removeEntry'])->name('datesheets.entries.destroy');
+        Route::post('datesheets/{datesheet}/submit', [App\Http\Controllers\Admin\DatesheetController::class, 'submit'])->name('datesheets.submit');
+        Route::post('datesheets/{datesheet}/approve', [App\Http\Controllers\Admin\DatesheetController::class, 'approve'])->name('datesheets.approve');
+        Route::post('datesheets/{datesheet}/reject', [App\Http\Controllers\Admin\DatesheetController::class, 'reject'])->name('datesheets.reject');
+        Route::post('datesheets/{datesheet}/publish', [App\Http\Controllers\Admin\DatesheetController::class, 'publish'])->name('datesheets.publish');
+        Route::post('datesheets/{datesheet}/revise', [App\Http\Controllers\Admin\DatesheetController::class, 'revise'])->name('datesheets.revise');
+        Route::get('datesheets/{datesheet}/pdf', [App\Http\Controllers\Admin\DatesheetController::class, 'pdf'])->name('datesheets.pdf');
         
         // Result Management Routes
         Route::resource('results', App\Http\Controllers\Admin\ResultController::class);
