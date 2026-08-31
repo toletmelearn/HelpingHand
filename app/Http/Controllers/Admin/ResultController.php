@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\GradingSystem;
 use App\Models\Result;
 use App\Models\Student;
 use App\Models\Exam;
@@ -79,25 +80,13 @@ class ResultController extends Controller
             $percentage = ($request->marks_obtained / $request->total_marks) * 100;
         }
         
-        // Calculate grade based on percentage (CBSE style)
-        if ($percentage >= 91) {
-            $grade = 'A1';
-        } elseif ($percentage >= 81) {
-            $grade = 'A2';
-        } elseif ($percentage >= 71) {
-            $grade = 'B1';
-        } elseif ($percentage >= 61) {
-            $grade = 'B2';
-        } elseif ($percentage >= 51) {
-            $grade = 'C1';
-        } elseif ($percentage >= 41) {
-            $grade = 'C2';
-        } elseif ($percentage >= 33) {
-            $grade = 'D';
-        } else {
-            $grade = 'F';
-        }
-        
+        // Grade: configured GradingSystem bands take priority, falling
+        // back to the default CBSE ladder only when none are configured
+        // (see calculateCBSEGrade()) -- this used to hardcode its own
+        // ladder here and silently ignore any custom GradingSystem the
+        // school configured.
+        $grade = $this->calculateCBSEGrade($percentage);
+
         // Auto-determine result status based on passing marks
         $exam = Exam::find($request->exam_id);
         $passingMarks = $exam ? $exam->passing_marks : ($request->total_marks * 0.33);
@@ -176,30 +165,16 @@ class ResultController extends Controller
             $percentage = ($request->marks_obtained / $request->total_marks) * 100;
         }
         
-        // Calculate grade based on percentage (CBSE style)
-        if ($percentage >= 91) {
-            $grade = 'A1';
-        } elseif ($percentage >= 81) {
-            $grade = 'A2';
-        } elseif ($percentage >= 71) {
-            $grade = 'B1';
-        } elseif ($percentage >= 61) {
-            $grade = 'B2';
-        } elseif ($percentage >= 51) {
-            $grade = 'C1';
-        } elseif ($percentage >= 41) {
-            $grade = 'C2';
-        } elseif ($percentage >= 33) {
-            $grade = 'D';
-        } else {
-            $grade = 'F';
-        }
-        
+        // Grade: configured GradingSystem bands take priority, falling
+        // back to the default CBSE ladder only when none are configured
+        // (see calculateCBSEGrade()).
+        $grade = $this->calculateCBSEGrade($percentage);
+
         // Auto-determine result status based on passing marks
         $exam = Exam::find($request->exam_id);
         $passingMarks = $exam ? $exam->passing_marks : ($request->total_marks * 0.33);
         $resultStatus = $request->marks_obtained >= $passingMarks ? 'pass' : 'fail';
-        
+
         // Update result with calculated percentage and grade
         $result->update([
             'student_id' => $request->student_id,
@@ -542,6 +517,11 @@ class ResultController extends Controller
      */
     private function calculateCBSEGrade($percentage)
     {
+        $configured = GradingSystem::gradeFor($percentage);
+        if ($configured !== null) {
+            return $configured;
+        }
+
         if ($percentage >= 90) return 'A1';
         if ($percentage >= 80) return 'A2';
         if ($percentage >= 70) return 'B1';
