@@ -202,6 +202,11 @@ Route::prefix('teacher')->group(function () {
         // Datesheet (published exam schedule) -- classes/sections assigned only.
         Route::get('/datesheets', [App\Http\Controllers\Teacher\TeacherDatesheetController::class, 'index'])->name('teacher.datesheets.index');
 
+        // Admit Cards (exam-hall verification) -- classes/sections assigned only.
+        Route::get('/admit-cards', [App\Http\Controllers\Teacher\TeacherAdmitCardController::class, 'index'])->name('teacher.admit-cards.index');
+        Route::get('/admit-cards/{admitCard}', [App\Http\Controllers\Teacher\TeacherAdmitCardController::class, 'show'])->name('teacher.admit-cards.show');
+        Route::get('/admit-cards/{admitCard}/download-pdf', [App\Http\Controllers\Teacher\TeacherAdmitCardController::class, 'downloadPdf'])->name('teacher.admit-cards.download-pdf');
+
         // EXAM ROUTES
         Route::get('/exams', [App\Http\Controllers\Teacher\TeacherExamController::class, 'index'])->name('teacher.exams.index');
         Route::get('/exams/create', [App\Http\Controllers\Teacher\TeacherExamController::class, 'create'])->name('teacher.exams.create');

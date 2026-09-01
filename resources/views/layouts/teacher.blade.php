@@ -96,9 +96,15 @@
                             </a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link {{ request()->routeIs('teacher.exam-papers.*') ? 'active' : '' }}" 
+                            <a class="nav-link {{ request()->routeIs('teacher.exam-papers.*') ? 'active' : '' }}"
                                href="{{ route('teacher.exam-papers.index') }}">
                                 <i class="fas fa-file me-2"></i>Exam Papers
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link {{ request()->routeIs('teacher.admit-cards.*') ? 'active' : '' }}"
+                               href="{{ route('teacher.admit-cards.index') }}">
+                                <i class="fas fa-id-card me-2"></i>Admit Cards
                             </a>
                         </li>
                         @if(Route::has('teacher.leaves.index'))
