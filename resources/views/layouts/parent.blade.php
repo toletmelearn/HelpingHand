@@ -79,6 +79,16 @@
                                     <i class="fas fa-file me-2"></i>Exam Papers
                                 </a>
                             </li>
+                            <li class="list-group-item {{ request()->routeIs('parent.datesheets.*') ? 'active' : '' }}">
+                                <a href="{{ route('parent.datesheets.index') }}" class="text-decoration-none">
+                                    <i class="fas fa-calendar-alt me-2"></i>Exam Datesheet
+                                </a>
+                            </li>
+                            <li class="list-group-item {{ request()->routeIs('parent.admit-cards.*') ? 'active' : '' }}">
+                                <a href="{{ route('parent.admit-cards.index') }}" class="text-decoration-none">
+                                    <i class="fas fa-id-card me-2"></i>Admit Cards
+                                </a>
+                            </li>
                         </ul>
                     </div>
                 </div>

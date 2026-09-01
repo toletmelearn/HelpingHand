@@ -475,9 +475,19 @@
                         <li class="nav-item">
                             <a class="nav-link text-white {{ request()->routeIs('admin.teacher-subject-assignments.*') ? 'active' : '' }}"
                                href="{{ route('admin.teacher-subject-assignments.index') }}"
-                               title="Also where Class Teacher status is set for a specific class AND section (e.g. Class 3, Section B) -- this is what the Timetable module reads.">
+                               title="For Class Teacher status specifically, use the dedicated Class Teacher Assignment screen below.">
                                 <i class="bi bi-arrow-left-right me-2"></i>
                                 <span>Teacher-Subject Assignment</span>
+                            </a>
+                        </li>
+                        @endif
+                        @if(Route::has('admin.class-teachers.index') && (Auth::user()->hasRole('admin') || Auth::user()->hasPermission('view-teacher-subject-assignment') || Auth::user()->hasPermission('manage-teacher-subject-assignment')))
+                        <li class="nav-item">
+                            <a class="nav-link text-white {{ request()->routeIs('admin.class-teachers.*') ? 'active' : '' }}"
+                               href="{{ route('admin.class-teachers.index') }}"
+                               title="Select a Class and Section, then assign or change its Class Teacher directly (a specific view onto the same data as Teacher-Subject Assignment above).">
+                                <i class="bi bi-person-badge me-2"></i>
+                                <span>Class Teacher Assignment</span>
                             </a>
                         </li>
                         @endif
@@ -628,9 +638,19 @@
                 </div>
                 <div class="nav-collapse">
                     <ul class="nav flex-column">
+                        @if(Route::has('admin.datesheets.index') && (Auth::user()->hasRole('admin') || Auth::user()->hasPermission('view-datesheet')))
+                        <li class="nav-item">
+                            <a class="nav-link text-white {{ request()->routeIs('admin.datesheets.*') ? 'active' : '' }}"
+                               href="{{ route('admin.datesheets.index') }}"
+                               title="Plan and publish exam schedules -- publishing a datesheet creates the Exam records below.">
+                                <i class="bi bi-calendar-event me-2"></i>
+                                <span>Datesheets</span>
+                            </a>
+                        </li>
+                        @endif
                         @if(Route::has('admin.exams.index'))
                         <li class="nav-item">
-                            <a class="nav-link text-white {{ request()->routeIs('admin.exams.*') && !request()->routeIs('exams.arrangements.*') ? 'active' : '' }}" 
+                            <a class="nav-link text-white {{ request()->routeIs('admin.exams.*') && !request()->routeIs('exams.arrangements.*') ? 'active' : '' }}"
                                href="{{ route('admin.exams.index') }}">
                                 <i class="bi bi-clipboard me-2"></i>
                                 <span>Exams</span>
