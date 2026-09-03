@@ -8,6 +8,7 @@ use App\Models\Teacher;
 use App\Models\TeacherAvailability;
 use App\Models\TeacherClassSubjectAssignment;
 use App\Models\TimetableSlot;
+use App\Services\TransferTimeValidator;
 use Illuminate\Support\Collection;
 
 /**
@@ -127,6 +128,7 @@ class TimetableConflictResolver
         $conflicts = array_merge($conflicts, $this->teacherOverlapConflicts($placement, $overlappingIds, $academicYear));
         $conflicts = array_merge($conflicts, $this->classSectionOverlapConflicts($placement, $overlappingIds, $academicYear));
         $conflicts = array_merge($conflicts, $this->roomOverlapConflicts($placement, $overlappingIds, $academicYear));
+        $conflicts = array_merge($conflicts, $this->transferTimeConflicts($placement, $bellTiming, $sameDayIds, $academicYear));
         $conflicts = array_merge($conflicts, $this->teacherAvailabilityConflicts($placement, $bellTiming));
         $conflicts = array_merge($conflicts, $this->teacherLoadConflicts($placement, $sameDayIds, $academicYear));
         $conflicts = array_merge($conflicts, $this->subjectPerDayConflicts($placement, $bellTiming, $sameDayIds, $academicYear));
@@ -338,6 +340,68 @@ class TimetableConflictResolver
             'message' => "Room {$roomNumber} is already occupied by Class " . ($existing->schoolClass->name ?? 'another class') . ' during this period.',
             'blocking_slot_id' => $existing->id,
         ]];
+    }
+
+    /**
+     * Priority 1.3: a teacher (or co-teacher) can't be placed into this
+     * period if it leaves too little time to travel from -- or to -- a
+     * DIFFERENT building they're already scheduled in that same day. Only
+     * applies across buildings (TransferTimeValidator no-ops for the same
+     * building, an unmapped room, or a genuinely overlapping period --
+     * that's roomOverlapConflicts()/teacherOverlapConflicts()'s job, not
+     * this one's).
+     */
+    private function transferTimeConflicts(array $placement, BellTiming $bellTiming, Collection $sameDayIds, ?string $academicYear = null): array
+    {
+        $roomNumber = $placement['room_number'] ?? null;
+        if (!$roomNumber) {
+            return [];
+        }
+
+        $people = array_filter([$placement['teacher_id'] ?? null, $placement['co_teacher_id'] ?? null]);
+        if (empty($people)) {
+            return [];
+        }
+
+        $validator = new TransferTimeValidator();
+        $thisSlot = ['room_number' => $roomNumber, 'start' => $bellTiming->start_time->copy(), 'end' => $bellTiming->end_time->copy()];
+
+        $conflicts = [];
+
+        foreach ($people as $personId) {
+            $otherSlots = $this->applyIgnore(
+                TimetableSlot::whereIn('bell_timing_id', $sameDayIds)
+                    ->where('status', $placement['status'] ?? TimetableSlot::STATUS_PUBLISHED)
+                    ->when($academicYear, fn ($q) => $q->where(fn ($q2) => $q2->whereNull('academic_year')->orWhere('academic_year', $academicYear)))
+                    ->where(fn ($q) => $q->where('teacher_id', $personId)->orWhere('co_teacher_id', $personId))
+                    ->whereNotNull('room_number')
+                    ->with('bellTiming'),
+                $placement['ignore_slot_id'] ?? null
+            )->get();
+
+            foreach ($otherSlots as $other) {
+                if (!$other->bellTiming) {
+                    continue;
+                }
+
+                $result = $validator->validateTransferTime((int) $personId, $thisSlot, [
+                    'room_number' => $other->room_number,
+                    'start' => $other->bellTiming->start_time->copy(),
+                    'end' => $other->bellTiming->end_time->copy(),
+                ]);
+
+                if ($result['conflict']) {
+                    $personName = Teacher::find($personId)->name ?? 'This teacher';
+                    $conflicts[] = [
+                        'type' => 'transfer_time',
+                        'message' => "{$personName}: {$result['message']}",
+                        'blocking_slot_id' => $other->id,
+                    ];
+                }
+            }
+        }
+
+        return $conflicts;
     }
 
     /**
