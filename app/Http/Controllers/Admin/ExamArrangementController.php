@@ -9,6 +9,7 @@ use App\Models\Teacher;
 use App\Models\ExamSeatingArrangement;
 use App\Models\ExamInvigilatorDuty;
 use App\Models\ExamRelievingDuty;
+use App\Services\AuditLogService;
 use App\Services\Exam\ExamTimetableConflictChecker;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -16,8 +17,10 @@ use Illuminate\Support\Facades\DB;
 
 class ExamArrangementController extends Controller
 {
-    public function __construct(private ExamTimetableConflictChecker $timetableConflicts)
-    {
+    public function __construct(
+        private ExamTimetableConflictChecker $timetableConflicts,
+        private AuditLogService $auditLog,
+    ) {
         // Enforce basic authentication
         $this->middleware(function ($request, $next) {
             $this->checkAccess();
@@ -116,6 +119,22 @@ class ExamArrangementController extends Controller
         $prefix = $request->seat_prefix ?? 'Seat-';
         $number = $request->start_number;
 
+        // Priority 1.1: a room already seating a DIFFERENT exam whose
+        // date/time overlaps this one is a hard block -- see
+        // ExamTimetableConflictChecker::roomConflictForExam().
+        $conflict = $this->timetableConflicts->roomConflictForExam(
+            $room, $exam->id, $exam->exam_date, $exam->start_time, $exam->end_time
+        );
+        if ($conflict) {
+            $this->auditLog->logSystemAction(
+                Exam::class, $exam->id, 'room_conflict_blocked', 'room_number', '', $room
+            );
+
+            return redirect()->back()->withErrors([
+                'room_number' => "Room \"{$room}\" is already booked for \"{$conflict['exam_name']}\" during this exam's time -- choose a different room.",
+            ]);
+        }
+
         DB::transaction(function () use ($exam, $students, $room, $prefix, &$number) {
             foreach ($students as $student) {
                 ExamSeatingArrangement::updateOrCreate(
@@ -148,6 +167,24 @@ class ExamArrangementController extends Controller
             'seating.*.room_number' => 'required|string|max:100',
             'seating.*.seat_number' => 'required|string|max:100',
         ]);
+
+        // Priority 1.1: same hard block as generateSeating() above, applied
+        // to every distinct room named across this manual submission.
+        $rooms = collect($request->seating)->pluck('room_number')->unique();
+        foreach ($rooms as $room) {
+            $conflict = $this->timetableConflicts->roomConflictForExam(
+                $room, $exam->id, $exam->exam_date, $exam->start_time, $exam->end_time
+            );
+            if ($conflict) {
+                $this->auditLog->logSystemAction(
+                    Exam::class, $exam->id, 'room_conflict_blocked', 'room_number', '', $room
+                );
+
+                return redirect()->back()->withErrors([
+                    'seating' => "Room \"{$room}\" is already booked for \"{$conflict['exam_name']}\" during this exam's time -- choose a different room.",
+                ]);
+            }
+        }
 
         DB::transaction(function () use ($exam, $request) {
             foreach ($request->seating as $seatData) {

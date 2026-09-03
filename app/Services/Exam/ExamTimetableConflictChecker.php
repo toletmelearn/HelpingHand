@@ -3,6 +3,7 @@
 namespace App\Services\Exam;
 
 use App\Models\BellTiming;
+use App\Models\ExamSeatingArrangement;
 use App\Models\TimetableSlot;
 use Carbon\Carbon;
 use Illuminate\Support\Collection;
@@ -87,6 +88,46 @@ class ExamTimetableConflictChecker
         return [
             'slot_id' => $slot->id,
             'section_name' => $slot->section->name ?? null,
+        ];
+    }
+
+    /**
+     * Priority 1.1 (room hard-block): a physical room can't hold two
+     * different exams' seating at once. Room/date/time were freely
+     * re-entered on every seating generate/save with nothing checking them
+     * against OTHER exams already seated in that same room -- unlike
+     * TimetableConflictResolver::roomOverlapConflicts() (weekly timetable
+     * grid) and DatesheetConflictChecker::check() (datesheet entries),
+     * which already hard-block room clashes in their own domains, this is
+     * the exam-seating domain's own room check.
+     *
+     * @return array{exam_id: int, exam_name: string}|null
+     *   The blocking exam's details, or null if the room is free for this
+     *   date/time.
+     */
+    public function roomConflictForExam(string $roomNumber, int $excludeExamId, \DateTimeInterface|string $date, \DateTimeInterface|string $startTime, \DateTimeInterface|string $endTime): ?array
+    {
+        $dateStr = Carbon::parse($date)->format('Y-m-d');
+        $start = Carbon::parse($startTime)->format('H:i:s');
+        $end = Carbon::parse($endTime)->format('H:i:s');
+
+        $seating = ExamSeatingArrangement::where('room_number', $roomNumber)
+            ->where('exam_id', '!=', $excludeExamId)
+            ->whereHas('exam', function ($q) use ($dateStr, $start, $end) {
+                $q->whereDate('exam_date', $dateStr)
+                    ->where('start_time', '<', $end)
+                    ->where('end_time', '>', $start);
+            })
+            ->with('exam')
+            ->first();
+
+        if (!$seating) {
+            return null;
+        }
+
+        return [
+            'exam_id' => $seating->exam_id,
+            'exam_name' => $seating->exam->name ?? 'another exam',
         ];
     }
 
