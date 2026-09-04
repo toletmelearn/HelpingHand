@@ -212,4 +212,41 @@ class TimetablePdfExportTest extends TestCase
         $disposition = $response->headers->get('content-disposition');
         $this->assertStringContainsString('timetable_teacher_', $disposition);
     }
+
+    // --- Room PDF (Item 6: class/teacher/master already had this, room never did) ---
+
+    public function test_room_pdf_export_returns_pdf(): void
+    {
+        $admin = $this->makeAdmin();
+        $data = $this->seedOneSlot();
+        $data['slot']->update(['room_number' => 'Room 9']);
+
+        $response = $this->actingAs($admin)->get(route('timetable.pdf.room', ['room' => 'Room 9']));
+
+        $response->assertOk();
+        $response->assertHeader('content-type', 'application/pdf');
+        $this->assertStringStartsWith('%PDF', $response->getContent());
+    }
+
+    /** Same viewAny-only gate as roomView()/roomExcelExport() -- rooms have no ownership concept in this codebase. */
+    public function test_room_pdf_export_respects_same_authorization_as_room_view(): void
+    {
+        $parent = $this->makeParent();
+        $data = $this->seedOneSlot();
+        $data['slot']->update(['room_number' => 'Room 9']);
+
+        $response = $this->actingAs($parent)->get(route('timetable.pdf.room', ['room' => 'Room 9']));
+
+        $response->assertForbidden();
+    }
+
+    public function test_room_pdf_export_empty_state_when_room_has_no_slots(): void
+    {
+        $admin = $this->makeAdmin();
+
+        $response = $this->actingAs($admin)->get(route('timetable.pdf.room', ['room' => 'Nonexistent Room']));
+
+        $response->assertRedirect();
+        $response->assertSessionHas('error');
+    }
 }

@@ -74,6 +74,9 @@
                     </select>
                 </div>
                 <div class="col-md-3">
+                    <a href="{{ route('timetable.pdf.room', ['room' => $selectedRoom]) }}" class="btn btn-outline-secondary shadow-sm">
+                        <i class="fas fa-file-pdf"></i> PDF
+                    </a>
                     <a href="{{ route('timetable.export.room', ['room' => $selectedRoom]) }}" class="btn btn-outline-success shadow-sm">
                         <i class="fas fa-file-excel"></i> Excel
                     </a>

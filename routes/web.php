@@ -1922,6 +1922,8 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/admin/timetable/pdf/class', [\App\Http\Controllers\Admin\TimetableController::class, 'classPdf'])->name('timetable.pdf.class');
     Route::get('/admin/timetable/pdf/teacher', [\App\Http\Controllers\Admin\TimetableController::class, 'teacherPdf'])->name('timetable.pdf.teacher');
     Route::get('/admin/timetable/pdf/master', [\App\Http\Controllers\Admin\TimetableController::class, 'masterPdf'])->name('timetable.pdf.master');
+    // Item 6: the one grid PDF export class/teacher/master already had that room never got.
+    Route::get('/admin/timetable/pdf/room', [\App\Http\Controllers\Admin\TimetableController::class, 'roomPdf'])->name('timetable.pdf.room');
 
     // Phase 5: Interactive Teacher/Room views (Class view already exists
     // above via timetable.index / the Review & Edit grid).

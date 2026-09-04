@@ -893,6 +893,45 @@ class TimetableController extends Controller
         );
     }
 
+    /**
+     * Item 6: the one grid PDF export class/teacher/master already had that
+     * room never got -- same buildTimetableGrid()-built data roomExcelExport()
+     * above already uses, so the PDF, Excel, and interactive roomView() can
+     * never structurally drift apart. Gated identically to roomView()/
+     * roomExcelExport() (viewAny only -- rooms have no ownership concept in
+     * this codebase, per TimetableSlotPolicy's own documented decision).
+     */
+    public function roomPdf(Request $request)
+    {
+        $this->authorize('viewAny', TimetableSlot::class);
+
+        $request->validate(['room' => 'required|string']);
+        $room = $request->string('room')->toString();
+        $session = AcademicSession::current()->first();
+
+        $slotsQuery = TimetableSlot::with(['bellTiming', 'subject', 'teacher', 'coTeacher', 'schoolClass', 'section'])
+            ->published()
+            ->where('room_number', $room);
+
+        if ((clone $slotsQuery)->doesntExist()) {
+            return back()->with('error', "No timetable slots found for Room {$room} -- nothing to print yet.");
+        }
+
+        [, $periods, $days, $periodMeta, $grid] = $this->buildTimetableGrid($slotsQuery, $session?->code);
+
+        $pdf = Pdf::loadView('admin.timetable.pdf.room', [
+            'room' => $room,
+            'session' => $session,
+            'periods' => $periods,
+            'days' => $days,
+            'periodMeta' => $periodMeta,
+            'grid' => $grid,
+        ]);
+        $pdf->setPaper('A4', 'landscape');
+
+        return $pdf->download($this->pdfFilename('room', $room, $session));
+    }
+
     private function excelFilename(string $type, string $name, ?AcademicSession $session): string
     {
         $safeName = preg_replace('/[^A-Za-z0-9_-]+/', '_', $name);
