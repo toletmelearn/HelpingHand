@@ -6,9 +6,16 @@
 <div class="container-fluid py-4">
     <div class="d-flex align-items-center justify-content-between mb-4">
         <h3 class="mb-0"><i class="fas fa-calendar-week"></i> My Weekly Timetable</h3>
-        <a href="{{ route('teacher.dashboard') }}" class="btn btn-outline-secondary btn-sm">
-            <i class="fas fa-arrow-left"></i> Back to Dashboard
-        </a>
+        <div>
+            @if($teacher && count($days) > 0)
+                <a href="{{ route('teacher.timetable.download-pdf') }}" class="btn btn-primary btn-sm">
+                    <i class="fas fa-file-pdf"></i> Download PDF
+                </a>
+            @endif
+            <a href="{{ route('teacher.dashboard') }}" class="btn btn-outline-secondary btn-sm">
+                <i class="fas fa-arrow-left"></i> Back to Dashboard
+            </a>
+        </div>
     </div>
 
     @if(!$teacher)

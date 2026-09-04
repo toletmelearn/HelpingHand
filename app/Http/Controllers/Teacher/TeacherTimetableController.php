@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Teacher;
 use App\Models\TeacherSubstitution;
 use App\Models\TimetableSlot;
+use App\Services\TimetablePdfGenerator;
 use Illuminate\Support\Facades\Auth;
 
 /**
@@ -131,5 +132,24 @@ class TeacherTimetableController extends Controller
             'periodsByDay' => $periodsByDay,
             'coveringAssignments' => $coveringAssignments,
         ]);
+    }
+
+    /**
+     * Priority 1.4: same server-resolved own-teacher security as index()
+     * above -- no route parameter, nothing for a teacher to tamper with to
+     * download another teacher's timetable.
+     */
+    public function downloadPdf(TimetablePdfGenerator $generator)
+    {
+        $teacherLogin = Auth::guard('teacher')->user();
+        $teacher = $teacherLogin ? Teacher::find($teacherLogin->teacher_id) : null;
+
+        if (!$teacher) {
+            return redirect()->back()->with('error', 'No teacher profile found for this account.');
+        }
+
+        $pdf = $generator->generateTeacherTimetablePdf($teacher);
+
+        return $pdf->download('timetable-' . str_replace(' ', '-', strtolower($teacher->name)) . '.pdf');
     }
 }

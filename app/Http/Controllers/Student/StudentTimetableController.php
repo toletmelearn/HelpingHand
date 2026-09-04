@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\SchoolHoliday;
 use App\Models\TeacherSubstitution;
 use App\Models\TimetableSlot;
+use App\Services\TimetablePdfGenerator;
 use Illuminate\Support\Facades\Auth;
 
 /**
@@ -130,6 +131,24 @@ class StudentTimetableController extends Controller
             });
 
         return view('student.timetable.weekly', compact('student', 'days', 'periodsByDay', 'holidays'));
+    }
+
+    /**
+     * Priority 1.4: same server-resolved own-student security as
+     * today()/weekly() above -- no route parameter, nothing for a student
+     * to tamper with to download another student's timetable.
+     */
+    public function downloadPdf(TimetablePdfGenerator $generator)
+    {
+        $student = Auth::user()->student;
+
+        if (!$student) {
+            return redirect()->back()->with('error', 'No student profile found for this account.');
+        }
+
+        $pdf = $generator->generateStudentTimetablePdf($student);
+
+        return $pdf->download('timetable-' . str_replace(' ', '-', strtolower($student->name)) . '.pdf');
     }
 
     private function todaysPeriods(int $classId, ?int $sectionId, \Carbon\Carbon $date)

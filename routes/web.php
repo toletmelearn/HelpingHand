@@ -186,6 +186,9 @@ Route::prefix('teacher')->group(function () {
         // always the authenticated teacher's own timetable.
         Route::get('/timetable', [App\Http\Controllers\Teacher\TeacherTimetableController::class, 'index'])
             ->name('teacher.timetable');
+        // Priority 1.4: PDF export of the same own-timetable data above.
+        Route::get('/timetable/download-pdf', [App\Http\Controllers\Teacher\TeacherTimetableController::class, 'downloadPdf'])
+            ->name('teacher.timetable.download-pdf');
 
         // My Classes
         Route::get('/my-classes', [App\Http\Controllers\Teacher\TeacherClassController::class, 'index'])
@@ -455,6 +458,8 @@ Route::middleware(['auth'])->group(function () {
         // Parent\TimetableController's own pattern exactly.
         Route::get('/timetable/today', [App\Http\Controllers\Student\StudentTimetableController::class, 'today'])->name('timetable.today');
         Route::get('/timetable/weekly', [App\Http\Controllers\Student\StudentTimetableController::class, 'weekly'])->name('timetable.weekly');
+        // Priority 1.4: PDF export of the same own-timetable data above.
+        Route::get('/timetable/download-pdf', [App\Http\Controllers\Student\StudentTimetableController::class, 'downloadPdf'])->name('timetable.download-pdf');
     });
     
 
@@ -1018,6 +1023,14 @@ Route::middleware(['auth'])->group(function () {
         // restored here -- inventing an update endpoint for a form that
         // doesn't submit anything would be fabricating a feature.
         Route::get('teacher-substitutions/rules', [App\Http\Controllers\Admin\TeacherSubstitutionController::class, 'substitutionRules'])->name('teacher-substitutions.rules');
+        // UAT Test 21 defect fix: class-scoped Bell Timing options for the
+        // create/edit forms' Period dropdown (JS-driven, no page reload).
+        Route::get('teacher-substitutions/bell-timings-for-class', [App\Http\Controllers\Admin\TeacherSubstitutionController::class, 'bellTimingsForClass'])->name('teacher-substitutions.bell-timings-for-class');
+        // UAT Test 21 defect fix (Section architecture): class-scoped Section
+        // options for the create/edit forms' Section dropdown (JS-driven, no
+        // page reload), resolved via the canonical legacy_class_map ->
+        // class_sections bridge (SchoolClass::validSectionIds()).
+        Route::get('teacher-substitutions/sections-for-class', [App\Http\Controllers\Admin\TeacherSubstitutionController::class, 'sectionsForClass'])->name('teacher-substitutions.sections-for-class');
         Route::resource('teacher-substitutions', App\Http\Controllers\Admin\TeacherSubstitutionController::class);
         
                 // Teacher Attendance Management Routes - Specific routes must come before resource route to avoid conflicts
@@ -1033,6 +1046,18 @@ Route::middleware(['auth'])->group(function () {
         
         // Teacher Subject Assignment Management Routes
         Route::resource('teacher-subject-assignments', App\Http\Controllers\Admin\TeacherSubjectAssignmentController::class);
+
+        // Class Teacher assignment (canonical: teacher_class_subject_assignments.is_class_teacher --
+        // see ClassTeacherAssignmentService docblock). A dedicated, focused
+        // Class -> Section -> Teacher screen; writes the same table as the
+        // teacher-subject-assignments form above via the same service, not a
+        // second data store. Named class-teachers.* (not
+        // class-teacher-assignments.*, already taken by the legacy
+        // root-namespace ClassTeacherAssignmentController above).
+        Route::get('class-teachers', [App\Http\Controllers\Admin\ClassTeacherManagementController::class, 'index'])->name('class-teachers.index');
+        Route::get('class-teachers/{schoolClass}', [App\Http\Controllers\Admin\ClassTeacherManagementController::class, 'show'])->name('class-teachers.show');
+        Route::post('class-teachers/{schoolClass}/assign', [App\Http\Controllers\Admin\ClassTeacherManagementController::class, 'assign'])->name('class-teachers.assign');
+        Route::post('class-teachers/{assignment}/remove', [App\Http\Controllers\Admin\ClassTeacherManagementController::class, 'remove'])->name('class-teachers.remove');
         
         // Teacher Class Assignment Management Routes
         Route::resource('teacher-class-assignments', App\Http\Controllers\Admin\TeacherClassAssignmentController::class);
@@ -1578,6 +1603,8 @@ Route::get('/admin/results/final-result/{studentId}/{examId}', [App\Http\Control
             Route::get('/timetable/today', [App\Http\Controllers\Parent\TimetableController::class, 'today'])->name('timetable.today');
             // Timetable pilot-completion pass (Phase 3): weekly companion.
             Route::get('/timetable/weekly', [App\Http\Controllers\Parent\TimetableController::class, 'weekly'])->name('timetable.weekly');
+            // Priority 1.4: PDF export of the same active-child timetable above.
+            Route::get('/timetable/download-pdf', [App\Http\Controllers\Parent\TimetableController::class, 'downloadPdf'])->name('timetable.download-pdf');
         });
     });
     
@@ -1868,6 +1895,11 @@ Route::middleware(['auth'])->group(function () {
     Route::post('/admin/timetable', [\App\Http\Controllers\Admin\TimetableController::class, 'store'])->name('timetable.store');
     Route::patch('/admin/timetable/{slot}', [\App\Http\Controllers\Admin\TimetableController::class, 'update'])->name('timetable.update');
     Route::delete('/admin/timetable/{id}', [\App\Http\Controllers\Admin\TimetableController::class, 'destroy'])->name('timetable.destroy');
+    // UAT Test 17 fix: publishes a class/section's MANUAL draft slots
+    // (timetable_generation_id IS NULL) -- separate from
+    // timetable.generation.publish, which only ever touches
+    // generation-tagged rows.
+    Route::post('/admin/timetable/manual-draft/publish', [\App\Http\Controllers\Admin\TimetableController::class, 'publishManualDraft'])->name('timetable.manual-draft.publish');
     // Phase 5 (Locked Lessons): gated the same as editing the slot (TimetableSlotPolicy::update()).
     Route::post('/admin/timetable/{slot}/lock', [\App\Http\Controllers\Admin\TimetableController::class, 'lockSlot'])->name('timetable.lock');
     Route::post('/admin/timetable/{slot}/unlock', [\App\Http\Controllers\Admin\TimetableController::class, 'unlockSlot'])->name('timetable.unlock');

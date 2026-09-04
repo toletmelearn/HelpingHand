@@ -6,9 +6,16 @@
 <div class="container-fluid">
     <div class="d-flex align-items-center justify-content-between mb-3">
         <h4 class="mb-0">Weekly Timetable @if($student) -- {{ $student->name }} @endif</h4>
-        <a href="{{ route('parent.timetable.today') }}" class="btn btn-outline-secondary btn-sm">
-            <i class="fas fa-calendar-day"></i> Today's View
-        </a>
+        <div>
+            @if($student && count($days) > 0)
+                <a href="{{ route('parent.timetable.download-pdf') }}" class="btn btn-primary btn-sm">
+                    <i class="fas fa-file-pdf"></i> Download PDF
+                </a>
+            @endif
+            <a href="{{ route('parent.timetable.today') }}" class="btn btn-outline-secondary btn-sm">
+                <i class="fas fa-calendar-day"></i> Today's View
+            </a>
+        </div>
     </div>
 
     @if(!$student)

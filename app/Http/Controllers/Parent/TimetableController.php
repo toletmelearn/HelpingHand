@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Parent;
 use App\Http\Controllers\Controller;
 use App\Models\TeacherSubstitution;
 use App\Models\TimetableSlot;
+use App\Services\TimetablePdfGenerator;
 use Illuminate\Support\Facades\Auth;
 
 /**
@@ -143,6 +144,31 @@ class TimetableController extends Controller
             });
 
         return view('parent.timetable.weekly', compact('student', 'days', 'periodsByDay'));
+    }
+
+    /**
+     * Priority 1.4: same session-active-child security as today()/weekly()
+     * above -- $parent->student, never a client-supplied student id, so
+     * nothing to tamper with to download a different family's child's
+     * timetable.
+     */
+    public function downloadPdf(TimetablePdfGenerator $generator)
+    {
+        $parent = Auth::guard('parent')->user();
+
+        if (!$parent) {
+            abort(403, 'Parent not logged in');
+        }
+
+        $student = $parent->student;
+
+        if (!$student) {
+            return redirect()->back()->with('error', 'No student associated with this parent account.');
+        }
+
+        $pdf = $generator->generateParentChildTimetablePdf($student);
+
+        return $pdf->download('timetable-' . str_replace(' ', '-', strtolower($student->name)) . '.pdf');
     }
 
     private function todaysPeriods(int $classId, ?int $sectionId, \Carbon\Carbon $date)
