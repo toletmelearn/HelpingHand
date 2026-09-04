@@ -21,12 +21,38 @@ use Illuminate\Support\Facades\Log;
  * touches it. The TimetableGeneration row is created by the controller
  * BEFORE dispatch (same pattern as StageYearClosingJob/FinancialYearClosing)
  * so the UI has an id to poll immediately, without waiting on the queue.
+ *
+ * Item 4 (reliability): retryable, unlike before -- $tries/backoff below,
+ * and handle()'s catch block now rethrows unconditionally instead of only
+ * in the testing environment. That was safe to change only after
+ * confirming this job is genuinely idempotent: GeneratorService::generate()
+ * itself performs zero DB writes (a pure read-and-compute pass that resets
+ * its own internal state on every call, confirmed by reading it -- no
+ * grep hit for ::create()/->save()/->update()/DB::/::insert() anywhere in
+ * the method), and the only writes happen in the DB::transaction() below,
+ * which deletes this exact class/year's existing drafts and reinserts
+ * fresh ones as a single atomic unit -- a mid-transaction failure rolls
+ * back completely (Eloquent's own behavior), and a failure before the
+ * transaction (inside generate()) touches the database not at all. A
+ * retried attempt from scratch can never accumulate duplicate or
+ * partial state on top of a previous failed one.
  */
 class GenerateTimetableJob implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
     public $timeout;
+
+    /**
+     * 3 attempts total, with growing backoff (1 min, then 5 min) between
+     * them -- enough room for a transient issue (DB deadlock/lock
+     * timeout, momentary resource contention) to clear before the queue
+     * worker tries again automatically, which previously never happened
+     * at all: every failure silently became a terminal, unretried one.
+     */
+    public $tries = 3;
+
+    public $backoff = [60, 300];
 
     /**
      * config('timetable.generator.time_budget_seconds') (default 60) caps
@@ -106,9 +132,36 @@ class GenerateTimetableJob implements ShouldQueue
                 'completed_at' => now(),
             ]);
 
-            if (app()->environment('testing')) {
-                throw $e;
-            }
+            // Item 4: previously only rethrown in the testing environment,
+            // so a production failure was marked FAILED, logged, and never
+            // seen by the queue worker at all -- $tries/backoff above never
+            // had a chance to engage. Always rethrowing lets Laravel's own
+            // retry machinery do its job; each retry re-enters handle() from
+            // the top (status flips back to RUNNING), which is safe -- see
+            // the class docblock for why this job is idempotent.
+            throw $e;
+        }
+    }
+
+    /**
+     * Called once the queue worker has exhausted every retry attempt (or
+     * immediately for a non-retryable failure). handle()'s own catch block
+     * above already marks the generation FAILED on every attempt,
+     * including this last one -- this exists purely as Laravel's
+     * documented safety net for the case that never reaches handle()'s
+     * catch at all (e.g. the job payload itself fails to deserialize),
+     * which would otherwise leave the generation stuck at RUNNING forever
+     * with no record of why.
+     */
+    public function failed(\Throwable $exception): void
+    {
+        $generation = TimetableGeneration::find($this->generationId);
+        if ($generation && $generation->status !== TimetableGeneration::STATUS_FAILED) {
+            $generation->update([
+                'status' => TimetableGeneration::STATUS_FAILED,
+                'error' => $exception->getMessage(),
+                'completed_at' => now(),
+            ]);
         }
     }
 }
