@@ -109,7 +109,7 @@
             <tr>
                 <td>{{ $student->roll_number }}</td>
                 <td>{{ $student->name }}</td>
-                <td>{{ $student->class }}</td>
+                <td>{{ $student->display_class_name }}</td>
                 <td>{{ ucfirst($student->gender) }}</td>
                 <td>{{ $student->section }}</td>
             </tr>

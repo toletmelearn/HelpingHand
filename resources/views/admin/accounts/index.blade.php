@@ -376,7 +376,7 @@
                                             <a href="{{ route('admin.students.show', $parent->student_id) }}" class="text-decoration-none fw-semibold">
                                                 {{ $parent->student->name }}
                                             </a>
-                                            <span class="text-muted d-block" style="font-size: 0.8rem;">Class: {{ $parent->student->schoolClass->name ?? $parent->student->class }}</span>
+                                            <span class="text-muted d-block" style="font-size: 0.8rem;">Class: {{ $parent->student->display_class_name }}</span>
                                         @else
                                             <span class="text-muted">No student linked</span>
                                         @endif

@@ -49,7 +49,7 @@
                     <div class="card-header bg-info text-white">
                         <h5 class="mb-0">
                             <i class="fas fa-info-circle me-2"></i>
-                            Fee Structure for Class: {{ $student->class ?? 'N/A' }}
+                            Fee Structure for Class: {{ $student?->display_class_name ?? 'N/A' }}
                         </h5>
                     </div>
                     <div class="card-body">

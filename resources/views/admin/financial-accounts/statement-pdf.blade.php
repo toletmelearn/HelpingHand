@@ -148,7 +148,7 @@
         </tr>
         <tr>
             <td class="label">Class/Section:</td>
-            <td class="val">{{ $student->schoolClass->name ?? $student->class }} (Section: {{ $student->section ?: 'N/A' }})</td>
+            <td class="val">{{ $student->display_class_name }} (Section: {{ $student->section ?: 'N/A' }})</td>
             <td class="label">Statement Date:</td>
             <td class="val">{{ now()->format('Y-m-d H:i') }}</td>
         </tr>

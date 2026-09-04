@@ -54,7 +54,7 @@
                         </div>
                         <div class="col-sm-6 mb-2">
                             <span class="text-muted d-block">Class / Section</span>
-                            <strong>{{ $student->schoolClass->name ?? $student->class }} (Section: {{ $student->section ?: 'N/A' }})</strong>
+                            <strong>{{ $student->display_class_name }} (Section: {{ $student->section ?: 'N/A' }})</strong>
                         </div>
                         <div class="col-sm-6 mb-2">
                             <span class="text-muted d-block">Outstanding Balance (Due)</span>

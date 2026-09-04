@@ -20,7 +20,7 @@
                         <select class="form-select form-select-sm" onchange="this.form.action='{{ url('/parent/switch-student') }}/' + this.value; this.form.submit();">
                             @foreach($students as $s)
                                 <option value="{{ $s->id }}" {{ $s->id === $student->id ? 'selected' : '' }}>
-                                    Child: {{ $s->name }} ({{ $s->class }})
+                                    Child: {{ $s->name }} ({{ $s->display_class_name }})
                                 </option>
                             @endforeach
                         </select>
@@ -65,7 +65,7 @@
                         @endif
                         <p><strong>Student Name:</strong> {{ $student->name ?? 'N/A' }}</p>
                         <p><strong>Admission Number:</strong> {{ $student->admission_no ?? 'N/A' }}</p>
-                        <p><strong>Class:</strong> {{ $student->class ?? 'N/A' }}</p>
+                        <p><strong>Class:</strong> {{ $student?->display_class_name ?? 'N/A' }}</p>
                         <p><strong>Mobile:</strong> {{ $student->mobile ?? 'N/A' }}</p>
                     </div>
                 </div>

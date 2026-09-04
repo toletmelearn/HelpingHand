@@ -296,7 +296,24 @@ class Student extends Authenticatable
         $foreignKey = ($this->school_class_id === null && $this->class_id !== null) ? 'class_id' : 'school_class_id';
         return $this->belongsTo(SchoolClass::class, $foreignKey);
     }
-    
+
+    /**
+     * The one authoritative "what class does this student display as"
+     * accessor, per the @deprecated notice on the 'class' column above --
+     * prefers the real schoolClass() relation, falls back to the legacy
+     * free-text string only when no FK is set, and never surfaces a raw
+     * "III"/"1"/"NURSERY" value next to a properly-labeled "Class 3"
+     * elsewhere. Safe from Eloquent's attribute-vs-accessor collision that
+     * makes class() above unreachable via ->class (a real 'class' column
+     * always wins property resolution over a same-named relation method):
+     * 'display_class_name' is not a real column, so this accessor is the
+     * only thing that can ever answer to it.
+     */
+    public function getDisplayClassNameAttribute(): string
+    {
+        return $this->schoolClass->name ?? $this->class ?? 'N/A';
+    }
+
     public function section()
     {
         return $this->belongsTo(Section::class, 'section_id');

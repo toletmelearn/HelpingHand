@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use App\Models\CBSEResult;
+use App\Models\GradingSystem;
 use App\Models\Student;
 use App\Models\Exam;
 use App\Models\Subject;
@@ -264,7 +265,7 @@ class ResultController extends Controller
             $data = [
                 'student_name' => $result->student->name,
                 'roll_no' => $result->student->roll_number,
-                'class' => $result->student->schoolClass->name ?? $result->student->class ?? 'N/A',
+                'class' => $result->student->display_class_name,
                 'dob' => $result->student->date_of_birth->format('d/m/Y'),
                 'student_photo' => $result->student->photo_url,
                 'subject_name' => $result->subject->name,
@@ -309,7 +310,7 @@ class ResultController extends Controller
         $data = [
             'student_name' => $result->student->name,
             'father_name' => $result->student->father_name,
-            'class' => $result->student->schoolClass->name ?? $result->student->class ?? 'N/A',
+            'class' => $result->student->display_class_name,
             'section' => $result->student->schoolSection->name ?? $result->student->section ?? '',
             'roll_no' => $result->student->roll_number,
             'admission_no' => $result->student->admission_number,
@@ -429,6 +430,11 @@ class ResultController extends Controller
      */
     private function calculateOverallGrade($percentage)
     {
+        $configured = GradingSystem::gradeFor($percentage);
+        if ($configured !== null) {
+            return $configured;
+        }
+
         if ($percentage >= 91) return 'A1';
         if ($percentage >= 81) return 'A2';
         if ($percentage >= 71) return 'B1';

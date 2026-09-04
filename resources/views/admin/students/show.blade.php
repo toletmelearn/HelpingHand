@@ -85,7 +85,7 @@
                                 </tr>
                                 <tr>
                                     <th>Class:</th>
-                                    <td>{{ $student->schoolClass->name ?? $student->class }}</td>
+                                    <td>{{ $student->display_class_name }}</td>
                                 </tr>
                                 <tr>
                                     <th>Section:</th>

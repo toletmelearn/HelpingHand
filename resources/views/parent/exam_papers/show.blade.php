@@ -14,7 +14,7 @@
                     <div class="row mb-3">
                         <div class="col-md-6">
                             <p><strong>Subject:</strong> {{ $examPaper->subject ?? 'N/A' }}</p>
-                            <p><strong>Class:</strong> {{ $student->class ?? 'N/A' }}</p>
+                            <p><strong>Class:</strong> {{ $student?->display_class_name ?? 'N/A' }}</p>
                         </div>
                         <div class="col-md-6">
                             <p><strong>Exam Type:</strong> {{ $examPaper->exam_type ?? 'N/A' }}</p>

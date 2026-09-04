@@ -26,7 +26,7 @@
                     </div>
                     <div class="card-body">
                         <p><strong>Name:</strong> {{ $student->name }}</p>
-                        <p><strong>Class:</strong> <span class="badge bg-info">{{ $student->class }}</span></p>
+                        <p><strong>Class:</strong> <span class="badge bg-info">{{ $student->display_class_name }}</span></p>
                         <p><strong>Roll Number:</strong> {{ $student->roll_number }}</p>
                         <p><strong>Session:</strong> {{ $student->session ?? 'N/A' }}</p>
                     </div>

@@ -35,7 +35,7 @@
                             <tbody>
                                 @forelse($leaves as $leave)
                                     <tr>
-                                        <td><strong>{{ $leave->student->name }}</strong> (Class: {{ $leave->student->class }})</td>
+                                        <td><strong>{{ $leave->student->name }}</strong> (Class: {{ $leave->student->display_class_name }})</td>
                                         <td>{{ $leave->start_date }}</td>
                                         <td>{{ $leave->end_date }}</td>
                                         <td>{{ $leave->reason }}</td>

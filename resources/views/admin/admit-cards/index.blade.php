@@ -91,7 +91,7 @@
                                         </td>
                                         <td>{{ $admitCard->student->name ?? 'N/A' }}</td>
                                         <td>{{ $admitCard->exam->name ?? 'N/A' }}</td>
-                                        <td>{{ $admitCard->student->class ?? 'N/A' }}</td>
+                                        <td>{{ $admitCard->student?->display_class_name ?? 'N/A' }}</td>
                                         <td>
                                             @if($outstandingFees > 0)
                                                 <span class="badge bg-danger">Defaulter (₹{{ number_format($outstandingFees, 2) }})</span>

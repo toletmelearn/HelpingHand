@@ -27,7 +27,7 @@
                             <label>Select Student</label>
                             <select name="student_id" class="form-control" required>
                                 @foreach($students as $student)
-                                    <option value="{{ $student->id }}">{{ $student->name }} (Class: {{ $student->class }})</option>
+                                    <option value="{{ $student->id }}">{{ $student->name }} (Class: {{ $student->display_class_name }})</option>
                                 @endforeach
                             </select>
                         </div>

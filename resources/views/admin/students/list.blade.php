@@ -40,7 +40,7 @@
                                     <td>{{ $student->id }}</td>
                                     <td>{{ $student->name }}</td>
                                     <td>{{ $student->admission_no ?: 'N/A' }}</td>
-                                    <td>{{ $student->schoolClass->name ?? $student->class ?? 'N/A' }}</td>
+                                    <td>{{ $student->display_class_name }}</td>
                                     <td>{{ $student->section ?: 'N/A' }}</td>
                                     <td>{{ $student->roll_number ?: 'N/A' }}</td>
                                     <td>{{ $student->phone ?: 'N/A' }}</td>

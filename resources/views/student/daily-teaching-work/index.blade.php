@@ -8,7 +8,7 @@
         <div class="col-12">
             <div class="card">
                 <div class="card-header">
-                    <h4>Daily Teaching Work - Class {{ Auth::user()->student->class }} ({{ Auth::user()->student->section }})</h4>
+                    <h4>Daily Teaching Work - Class {{ Auth::user()->student->display_class_name }} ({{ Auth::user()->student->section }})</h4>
                 </div>
                 <div class="card-body">
                     <!-- Filters -->

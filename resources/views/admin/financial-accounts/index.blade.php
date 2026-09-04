@@ -100,7 +100,7 @@
                                         </td>
                                         <td>{{ $student->admission_no ?: 'N/A' }}</td>
                                         <td><strong>{{ $student->name }}</strong></td>
-                                        <td>{{ $student->schoolClass->name ?? $student->class }}</td>
+                                        <td>{{ $student->display_class_name }}</td>
                                         <td>
                                             <span class="{{ $outstanding > 0 ? 'text-danger fw-bold' : ($outstanding < 0 ? 'text-success fw-bold' : 'text-muted') }}">
                                                 ₹{{ number_format($outstanding, 2) }}
