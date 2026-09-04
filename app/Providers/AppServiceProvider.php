@@ -182,6 +182,7 @@ class AppServiceProvider extends ServiceProvider
             \App\Console\Commands\SendFeeReminders::class,
             \App\Console\Commands\RetryFailedReminders::class,
             \App\Console\Commands\BackupRestoreCommand::class,
+            \App\Console\Commands\TimetableIntegrityCheck::class,
         ]);
     }
 
