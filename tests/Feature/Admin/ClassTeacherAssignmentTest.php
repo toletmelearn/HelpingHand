@@ -62,8 +62,8 @@ class ClassTeacherAssignmentTest extends TestCase
 
         $teacher = Teacher::create(['name' => 'CT Teacher', 'status' => 'active']);
         $otherTeacher = Teacher::create(['name' => 'CT Teacher Two', 'status' => 'active']);
-        $subject = Subject::create(['name' => 'CT Subject', 'code' => 'CT-' . uniqid(), 'is_active' => true]);
-        $subject2 = Subject::create(['name' => 'CT Subject Two', 'code' => 'CT-' . uniqid(), 'is_active' => true]);
+        $subject = Subject::create(['name' => 'CT Subject', 'code' => 'CT-'.uniqid(), 'is_active' => true]);
+        $subject2 = Subject::create(['name' => 'CT Subject Two', 'code' => 'CT-'.uniqid(), 'is_active' => true]);
 
         return compact('classFour', 'classFive', 'sectionA', 'sectionB', 'sectionC', 'teacher', 'otherTeacher', 'subject', 'subject2');
     }
@@ -221,7 +221,7 @@ class ClassTeacherAssignmentTest extends TestCase
 
         $this->actingAs($admin)->post(route('admin.class-teachers.assign', $f['classFour']), [
             'section_id' => $f['sectionA']->id, 'teacher_id' => $f['teacher']->id,
-            'subject_id' => $f['subject']->id, 'academic_year' => date('Y') . '-' . (date('Y') + 1),
+            'subject_id' => $f['subject']->id, 'academic_year' => date('Y').'-'.(date('Y') + 1),
         ])->assertSessionHas('success');
 
         // The plain subject assignment from the generic screen is untouched.
@@ -237,7 +237,7 @@ class ClassTeacherAssignmentTest extends TestCase
         $admin = $this->admin();
         TeacherClassSubjectAssignment::create([
             'teacher_id' => $f['teacher']->id, 'class_id' => $f['classFour']->id, 'section_id' => $f['sectionA']->id,
-            'subject_id' => $f['subject']->id, 'academic_year' => date('Y') . '-' . (date('Y') + 1), 'is_class_teacher' => true,
+            'subject_id' => $f['subject']->id, 'academic_year' => date('Y').'-'.(date('Y') + 1), 'is_class_teacher' => true,
         ]);
 
         $this->actingAs($admin)->get(route('admin.class-teachers.index'))
@@ -264,7 +264,7 @@ class ClassTeacherAssignmentTest extends TestCase
         $admin = $this->admin();
         TeacherClassSubjectAssignment::create([
             'teacher_id' => $f['teacher']->id, 'class_id' => $f['classFour']->id, 'section_id' => $f['sectionA']->id,
-            'subject_id' => $f['subject']->id, 'academic_year' => date('Y') . '-' . (date('Y') + 1), 'is_class_teacher' => true,
+            'subject_id' => $f['subject']->id, 'academic_year' => date('Y').'-'.(date('Y') + 1), 'is_class_teacher' => true,
         ]);
 
         $response = $this->actingAs($admin)->get(route('admin.class-teachers.index'));
@@ -299,7 +299,7 @@ class ClassTeacherAssignmentTest extends TestCase
 
         TeacherClassSubjectAssignment::create([
             'teacher_id' => $f['teacher']->id, 'class_id' => $f['classFour']->id, 'section_id' => $f['sectionA']->id,
-            'subject_id' => $f['subject']->id, 'academic_year' => date('Y') . '-' . (date('Y') + 1), 'is_class_teacher' => true,
+            'subject_id' => $f['subject']->id, 'academic_year' => date('Y').'-'.(date('Y') + 1), 'is_class_teacher' => true,
         ]);
 
         $student = Student::create([
@@ -310,7 +310,7 @@ class ClassTeacherAssignmentTest extends TestCase
             'class_id' => $f['classFour']->id, 'school_class_id' => $f['classFour']->id,
         ]);
 
-        $policy = new \App\Policies\ClassTeacherPolicy();
+        $policy = new \App\Policies\ClassTeacherPolicy;
         $this->assertTrue($policy->viewClassStudent($teacherUser, $student));
         $this->assertTrue($policy->updateClassStudent($teacherUser, $student));
 
@@ -334,7 +334,7 @@ class ClassTeacherAssignmentTest extends TestCase
 
         TeacherClassSubjectAssignment::create([
             'teacher_id' => $f['teacher']->id, 'class_id' => $f['classFour']->id, 'section_id' => $f['sectionA']->id,
-            'subject_id' => $f['subject']->id, 'academic_year' => date('Y') . '-' . (date('Y') + 1), 'is_class_teacher' => true,
+            'subject_id' => $f['subject']->id, 'academic_year' => date('Y').'-'.(date('Y') + 1), 'is_class_teacher' => true,
         ]);
 
         $student = Student::create([
@@ -356,7 +356,7 @@ class ClassTeacherAssignmentTest extends TestCase
             'academic_year' => '2026-27', 'term' => 'Term 1',
         ]);
 
-        $policy = new \App\Policies\CBSEResultPolicy();
+        $policy = new \App\Policies\CBSEResultPolicy;
         $this->assertTrue($policy->view($teacherUser, $cbse));
         $this->assertTrue($policy->update($teacherUser, $cbse));
     }
@@ -369,7 +369,7 @@ class ClassTeacherAssignmentTest extends TestCase
 
         TeacherClassSubjectAssignment::create([
             'teacher_id' => $f['teacher']->id, 'class_id' => $f['classFour']->id, 'section_id' => $f['sectionA']->id,
-            'subject_id' => $f['subject']->id, 'academic_year' => date('Y') . '-' . (date('Y') + 1), 'is_class_teacher' => true,
+            'subject_id' => $f['subject']->id, 'academic_year' => date('Y').'-'.(date('Y') + 1), 'is_class_teacher' => true,
         ]);
 
         $this->assertTrue($f['teacher']->fresh()->isClassTeacherOfSchoolClass($f['classFour']->id));

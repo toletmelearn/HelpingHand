@@ -4,11 +4,11 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Exam;
-use App\Models\Student;
-use App\Models\Teacher;
-use App\Models\ExamSeatingArrangement;
 use App\Models\ExamInvigilatorDuty;
 use App\Models\ExamRelievingDuty;
+use App\Models\ExamSeatingArrangement;
+use App\Models\Student;
+use App\Models\Teacher;
 use App\Services\AuditLogService;
 use App\Services\Exam\ExamTimetableConflictChecker;
 use Illuminate\Http\Request;
@@ -24,6 +24,7 @@ class ExamArrangementController extends Controller
         // Enforce basic authentication
         $this->middleware(function ($request, $next) {
             $this->checkAccess();
+
             return $next($request);
         });
     }
@@ -55,7 +56,7 @@ class ExamArrangementController extends Controller
     public function index()
     {
         $exams = Exam::orderBy('exam_date', 'desc')->paginate(15);
-        
+
         // Fetch summaries
         $summaries = [];
         foreach ($exams as $exam) {
@@ -101,7 +102,7 @@ class ExamArrangementController extends Controller
     public function generateSeating(Request $request, $examId)
     {
         $exam = Exam::findOrFail($examId);
-        
+
         $request->validate([
             'room_number' => 'required|string|max:100',
             'seat_prefix' => 'nullable|string|max:10',
@@ -144,14 +145,14 @@ class ExamArrangementController extends Controller
                     ],
                     [
                         'room_number' => $room,
-                        'seat_number' => $prefix . $number,
+                        'seat_number' => $prefix.$number,
                     ]
                 );
                 $number++;
             }
         });
 
-        return redirect()->back()->with('success', 'Successfully auto-generated seating arrangements for ' . $students->count() . ' students.');
+        return redirect()->back()->with('success', 'Successfully auto-generated seating arrangements for '.$students->count().' students.');
     }
 
     /**
@@ -160,7 +161,7 @@ class ExamArrangementController extends Controller
     public function saveSeating(Request $request, $examId)
     {
         $exam = Exam::findOrFail($examId);
-        
+
         $request->validate([
             'seating' => 'required|array',
             'seating.*.student_id' => 'required|exists:students,id',
@@ -211,7 +212,7 @@ class ExamArrangementController extends Controller
     {
         $exam = Exam::findOrFail($examId);
         $teachers = Teacher::active()->orderBy('name')->get();
-        
+
         // Rooms currently assigned to this exam's seating arrangement
         $rooms = ExamSeatingArrangement::where('exam_id', $exam->id)
             ->distinct()
@@ -237,7 +238,7 @@ class ExamArrangementController extends Controller
     public function saveInvigilators(Request $request, $examId)
     {
         $exam = Exam::findOrFail($examId);
-        
+
         $request->validate([
             'duties' => 'required|array',
             'duties.*.room_number' => 'required|string',
@@ -255,6 +256,7 @@ class ExamArrangementController extends Controller
             );
             if ($conflict) {
                 $teacherName = Teacher::find($dutyData['teacher_id'])->name ?? 'This teacher';
+
                 return redirect()->back()->withErrors([
                     'duties' => "{$teacherName} is already scheduled to teach {$conflict['class_name']} during this exam's time -- choose a different invigilator.",
                 ]);
@@ -266,7 +268,7 @@ class ExamArrangementController extends Controller
         // above. Stored as a string (not a FK) since the two guards don't
         // share a common id space.
         $assignedByLabel = (Auth::check() && Auth::user()->role === 'admin')
-            ? 'Admin: ' . Auth::user()->name
+            ? 'Admin: '.Auth::user()->name
             : optional(Auth::guard('teacher')->user()?->teacher)->name;
 
         DB::transaction(function () use ($exam, $request, $assignedByLabel) {
@@ -302,7 +304,7 @@ class ExamArrangementController extends Controller
     {
         $exam = Exam::findOrFail($examId);
         $teachers = Teacher::active()->orderBy('name')->get();
-        
+
         $rooms = ExamSeatingArrangement::where('exam_id', $exam->id)
             ->distinct()
             ->pluck('room_number');
@@ -324,7 +326,7 @@ class ExamArrangementController extends Controller
     public function saveRelieving(Request $request, $examId)
     {
         $exam = Exam::findOrFail($examId);
-        
+
         $request->validate([
             'duties' => 'present|array',
             'duties.*.teacher_id' => 'required|exists:teachers,id',
@@ -340,9 +342,10 @@ class ExamArrangementController extends Controller
         // them with no error at all.
         $seen = [];
         foreach ($request->duties as $dutyData) {
-            $key = $dutyData['teacher_id'] . '|' . $dutyData['time_slot'];
+            $key = $dutyData['teacher_id'].'|'.$dutyData['time_slot'];
             if (isset($seen[$key])) {
                 $teacherName = Teacher::find($dutyData['teacher_id'])->name ?? 'This teacher';
+
                 return redirect()->back()->withErrors([
                     'duties' => "{$teacherName} is listed twice for the same time slot ({$dutyData['time_slot']}).",
                 ]);
@@ -360,6 +363,7 @@ class ExamArrangementController extends Controller
             );
             if ($conflict) {
                 $teacherName = Teacher::find($dutyData['teacher_id'])->name ?? 'This teacher';
+
                 return redirect()->back()->withErrors([
                     'duties' => "{$teacherName} is already scheduled to teach {$conflict['class_name']} during this exam's time -- choose a different teacher for relieving duty.",
                 ]);

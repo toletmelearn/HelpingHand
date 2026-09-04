@@ -29,7 +29,7 @@ class StudentTimetableController extends Controller
     {
         $student = Auth::user()->student;
 
-        if (!$student) {
+        if (! $student) {
             return view('student.timetable.today', [
                 'student' => null,
                 'periods' => collect(),
@@ -43,7 +43,7 @@ class StudentTimetableController extends Controller
         $date = now();
         $isHoliday = SchoolHoliday::isHolidayOn($date);
 
-        if (!$classId || $isHoliday) {
+        if (! $classId || $isHoliday) {
             return view('student.timetable.today', [
                 'student' => $student,
                 'periods' => collect(),
@@ -61,14 +61,14 @@ class StudentTimetableController extends Controller
     {
         $student = Auth::user()->student;
 
-        if (!$student) {
+        if (! $student) {
             return view('student.timetable.weekly', ['student' => null, 'days' => [], 'periodsByDay' => collect(), 'holidays' => collect()]);
         }
 
         $classId = $student->canonicalClassId();
         $sectionId = $student->section_id;
 
-        if (!$classId) {
+        if (! $classId) {
             return view('student.timetable.weekly', ['student' => $student, 'days' => [], 'periodsByDay' => collect(), 'holidays' => collect()]);
         }
 
@@ -103,7 +103,7 @@ class StudentTimetableController extends Controller
             ->where('status', '!=', 'cancelled')
             ->with('substituteTeacher')
             ->get()
-            ->groupBy(fn ($s) => $s->substitution_date->toDateString() . '|' . $s->bell_timing_id);
+            ->groupBy(fn ($s) => $s->substitution_date->toDateString().'|'.$s->bell_timing_id);
 
         $holidays = SchoolHoliday::getHolidaysInRange($weekRangeStart, $weekRangeEnd);
 
@@ -113,7 +113,7 @@ class StudentTimetableController extends Controller
                 $date = $dateByDayOfWeek->get($day);
 
                 return $daySlots->sortBy('bellTiming.order_index')->values()->map(function (TimetableSlot $slot) use ($date, $substitutions) {
-                    $key = $date ? $date->toDateString() . '|' . $slot->bell_timing_id : null;
+                    $key = $date ? $date->toDateString().'|'.$slot->bell_timing_id : null;
                     $sub = $key ? $substitutions->get($key, collect())->first() : null;
                     $isArrangement = (bool) ($sub && $sub->substitute_teacher_id);
 
@@ -142,13 +142,13 @@ class StudentTimetableController extends Controller
     {
         $student = Auth::user()->student;
 
-        if (!$student) {
+        if (! $student) {
             return redirect()->back()->with('error', 'No student profile found for this account.');
         }
 
         $pdf = $generator->generateStudentTimetablePdf($student);
 
-        return $pdf->download('timetable-' . str_replace(' ', '-', strtolower($student->name)) . '.pdf');
+        return $pdf->download('timetable-'.str_replace(' ', '-', strtolower($student->name)).'.pdf');
     }
 
     private function todaysPeriods(int $classId, ?int $sectionId, \Carbon\Carbon $date)

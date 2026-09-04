@@ -43,7 +43,7 @@ class TimetablePdfGenerator
         $gridData = $this->buildGrid($slots, function (TimetableSlot $slot) {
             $className = $slot->schoolClass->name ?? '';
             if ($slot->section) {
-                $className .= ' - ' . $slot->section->name;
+                $className .= ' - '.$slot->section->name;
             }
 
             return array_filter([
@@ -86,9 +86,9 @@ class TimetablePdfGenerator
     }
 
     /**
-     * @param Collection<int, TimetableSlot> $slots
-     * @param callable(TimetableSlot): array<string> $cellLines the lines to
-     *   print inside a cell, e.g. [subject, teacher, room] or [class, subject, room].
+     * @param  Collection<int, TimetableSlot>  $slots
+     * @param  callable(TimetableSlot): array<string>  $cellLines  the lines to
+     *                                                             print inside a cell, e.g. [subject, teacher, room] or [class, subject, room].
      * @return array{days: Collection<int,string>, periods: Collection<int,string>, grid: array}
      */
     private function buildGrid(Collection $slots, callable $cellLines): array

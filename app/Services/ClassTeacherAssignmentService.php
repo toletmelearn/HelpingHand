@@ -51,7 +51,7 @@ class ClassTeacherAssignmentService
         if ($existingClassTeacherCount >= self::MAX_CLASS_TEACHER_ASSIGNMENTS) {
             return [
                 'success' => false,
-                'error' => 'This teacher is already class teacher for the maximum allowed number of classes (' . self::MAX_CLASS_TEACHER_ASSIGNMENTS . ').',
+                'error' => 'This teacher is already class teacher for the maximum allowed number of classes ('.self::MAX_CLASS_TEACHER_ASSIGNMENTS.').',
                 'assignment' => null,
             ];
         }

@@ -2,9 +2,8 @@
 
 namespace App\Policies;
 
-use App\Models\User;
 use App\Models\CBSEResult;
-use Illuminate\Auth\Access\Response;
+use App\Models\User;
 
 class CBSEResultPolicy
 {
@@ -25,7 +24,7 @@ class CBSEResultPolicy
         if ($user->hasRole('admin') || $user->hasRole('principal') || $user->hasPermission('view-results')) {
             return true;
         }
-        
+
         // Teachers can only view results of students in their classes.
         // Academic setup completion: classes() was backed by the always-empty
         // class_teacher pivot (permanently false); the canonical signal is
@@ -33,7 +32,7 @@ class CBSEResultPolicy
         if ($user->hasRole('teacher')) {
             return $user->teacher && $user->teacher->isClassTeacherOfSchoolClass((int) $result->student->class_id);
         }
-        
+
         return false;
     }
 
@@ -54,18 +53,18 @@ class CBSEResultPolicy
         if ($result->is_locked) {
             return false;
         }
-        
+
         // Admin and users with edit-results permission can update all results
         if ($user->hasRole('admin') || $user->hasPermission('edit-results')) {
             return true;
         }
-        
+
         // Teachers can update results of students in their classes (same
         // canonical-source fix as view() above).
         if ($user->hasRole('teacher')) {
             return $user->teacher && $user->teacher->isClassTeacherOfSchoolClass((int) $result->student->class_id);
         }
-        
+
         return false;
     }
 
@@ -78,12 +77,12 @@ class CBSEResultPolicy
         if ($result->is_locked) {
             return false;
         }
-        
+
         // Admin and users with delete-results permission can delete all results
         if ($user->hasRole('admin') || $user->hasPermission('delete-results')) {
             return true;
         }
-        
+
         // Teachers cannot delete results
         return false;
     }

@@ -18,8 +18,8 @@ use Carbon\Carbon;
 class TransferTimeValidator
 {
     /**
-     * @param array{room_number: ?string, start: Carbon, end: Carbon} $slotA
-     * @param array{room_number: ?string, start: Carbon, end: Carbon} $slotB
+     * @param  array{room_number: ?string, start: Carbon, end: Carbon}  $slotA
+     * @param  array{room_number: ?string, start: Carbon, end: Carbon}  $slotB
      * @return array{conflict: bool, message: ?string}
      */
     public function validateTransferTime(int $teacherId, array $slotA, array $slotB): array
@@ -42,7 +42,7 @@ class TransferTimeValidator
 
         // A room not yet mapped to a building can't be judged -- treated as
         // "can't determine, don't block", never a false positive.
-        if (!$roomA?->building_id || !$roomB?->building_id) {
+        if (! $roomA?->building_id || ! $roomB?->building_id) {
             return ['conflict' => false, 'message' => null];
         }
 

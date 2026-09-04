@@ -64,24 +64,24 @@ class TimetableConflictResolver
      *   retired/other-year period or assignment (e.g. a school's own past
      *   test/walkthrough data) can never masquerade as a live collision.
      * @return array{conflict: bool, type: ?string, message: ?string, conflicts: array}
-     *   'conflict'/'type'/'message' mirror the first violation found, for
-     *   callers that only care whether the save should be blocked at all
-     *   (unchanged shape from the pre-existing checkSlotConflicts()).
-     *   'conflicts' holds EVERY violation found, for callers that need the
-     *   full picture (Auto-Fix ranking alternatives, Rebalance explaining
-     *   what broke, an API consumer building its own UI).
+     *                                                                                  'conflict'/'type'/'message' mirror the first violation found, for
+     *                                                                                  callers that only care whether the save should be blocked at all
+     *                                                                                  (unchanged shape from the pre-existing checkSlotConflicts()).
+     *                                                                                  'conflicts' holds EVERY violation found, for callers that need the
+     *                                                                                  full picture (Auto-Fix ranking alternatives, Rebalance explaining
+     *                                                                                  what broke, an API consumer building its own UI).
      */
     public function check(array $placement): array
     {
         $teacherId = $placement['teacher_id'] ?? null;
         $bellTimingId = $placement['bell_timing_id'] ?? null;
 
-        if (!$teacherId || !$bellTimingId) {
+        if (! $teacherId || ! $bellTimingId) {
             return $this->result([]);
         }
 
         $bellTiming = BellTiming::find($bellTimingId);
-        if (!$bellTiming) {
+        if (! $bellTiming) {
             return $this->result([]);
         }
 
@@ -155,7 +155,7 @@ class TimetableConflictResolver
         $first = $conflicts[0] ?? null;
 
         return [
-            'conflict' => !empty($conflicts),
+            'conflict' => ! empty($conflicts),
             'type' => $first['type'] ?? null,
             'message' => $first['message'] ?? null,
             'conflicts' => $conflicts,
@@ -164,14 +164,14 @@ class TimetableConflictResolver
 
     /**
      * @return Collection<int,int> every bell_timing_id on the same day
-     *   whose time range overlaps the target's. Scoped to active,
-     *   current-year bell timings -- a retired/other-year period sharing
-     *   the same day+time (e.g. leftover test-data timings) must never be
-     *   treated as a real collision target. is_active is the hard filter
-     *   (a deactivated timing is never real); academic_year is a tolerant
-     *   filter (only applied when one is known, so untagged legitimate
-     *   rows -- there are none in practice, see check() -- would still
-     *   never be silently hidden).
+     *                             whose time range overlaps the target's. Scoped to active,
+     *                             current-year bell timings -- a retired/other-year period sharing
+     *                             the same day+time (e.g. leftover test-data timings) must never be
+     *                             treated as a real collision target. is_active is the hard filter
+     *                             (a deactivated timing is never real); academic_year is a tolerant
+     *                             filter (only applied when one is known, so untagged legitimate
+     *                             rows -- there are none in practice, see check() -- would still
+     *                             never be silently hidden).
      */
     private function overlappingBellTimingIds(BellTiming $bellTiming, ?string $academicYear): Collection
     {
@@ -183,7 +183,7 @@ class TimetableConflictResolver
             ->when($academicYear, fn ($q) => $q->where('academic_year', $academicYear))
             ->where(function ($query) use ($startTime, $endTime) {
                 $query->where('start_time', '<', $endTime)
-                      ->where('end_time', '>', $startTime);
+                    ->where('end_time', '>', $startTime);
             })
             ->pluck('id');
     }
@@ -267,7 +267,7 @@ class TimetableConflictResolver
                 $personName = Teacher::find($personId)->name ?? 'This teacher';
                 $conflicts[] = [
                     'type' => 'teacher',
-                    'message' => "{$personName} is already scheduled to teach " . ($busy->schoolClass->name ?? 'another class') . ' during this period.',
+                    'message' => "{$personName} is already scheduled to teach ".($busy->schoolClass->name ?? 'another class').' during this period.',
                     'blocking_slot_id' => $busy->id,
                 ];
             }
@@ -292,7 +292,7 @@ class TimetableConflictResolver
     private function classSectionOverlapConflicts(array $placement, Collection $overlappingIds, ?string $academicYear = null): array
     {
         $schoolClassId = $placement['school_class_id'] ?? null;
-        if (!$schoolClassId) {
+        if (! $schoolClassId) {
             return [];
         }
 
@@ -304,13 +304,13 @@ class TimetableConflictResolver
             ->with('section')
             ->first();
 
-        if (!$existing) {
+        if (! $existing) {
             return [];
         }
 
         $message = $existing->section_id === null
             ? 'This class already has a whole-class lesson scheduled during this period -- it applies to every section.'
-            : 'Section ' . ($existing->section->name ?? '') . ' of this class already has a lesson scheduled during this period.';
+            : 'Section '.($existing->section->name ?? '').' of this class already has a lesson scheduled during this period.';
 
         return [[
             'type' => 'class',
@@ -322,7 +322,7 @@ class TimetableConflictResolver
     private function roomOverlapConflicts(array $placement, Collection $overlappingIds, ?string $academicYear = null): array
     {
         $roomNumber = $placement['room_number'] ?? null;
-        if (!$roomNumber) {
+        if (! $roomNumber) {
             return [];
         }
 
@@ -331,13 +331,13 @@ class TimetableConflictResolver
             ->with('schoolClass')
             ->first();
 
-        if (!$existing) {
+        if (! $existing) {
             return [];
         }
 
         return [[
             'type' => 'room',
-            'message' => "Room {$roomNumber} is already occupied by Class " . ($existing->schoolClass->name ?? 'another class') . ' during this period.',
+            'message' => "Room {$roomNumber} is already occupied by Class ".($existing->schoolClass->name ?? 'another class').' during this period.',
             'blocking_slot_id' => $existing->id,
         ]];
     }
@@ -354,7 +354,7 @@ class TimetableConflictResolver
     private function transferTimeConflicts(array $placement, BellTiming $bellTiming, Collection $sameDayIds, ?string $academicYear = null): array
     {
         $roomNumber = $placement['room_number'] ?? null;
-        if (!$roomNumber) {
+        if (! $roomNumber) {
             return [];
         }
 
@@ -363,7 +363,7 @@ class TimetableConflictResolver
             return [];
         }
 
-        $validator = new TransferTimeValidator();
+        $validator = new TransferTimeValidator;
         $thisSlot = ['room_number' => $roomNumber, 'start' => $bellTiming->start_time->copy(), 'end' => $bellTiming->end_time->copy()];
 
         $conflicts = [];
@@ -380,7 +380,7 @@ class TimetableConflictResolver
             )->get();
 
             foreach ($otherSlots as $other) {
-                if (!$other->bellTiming) {
+                if (! $other->bellTiming) {
                     continue;
                 }
 
@@ -452,7 +452,7 @@ class TimetableConflictResolver
 
         foreach ($people as $personId) {
             $teacher = Teacher::find($personId);
-            if (!$teacher) {
+            if (! $teacher) {
                 continue;
             }
 
@@ -481,6 +481,7 @@ class TimetableConflictResolver
                     'type' => 'teacher_day_limit',
                     'message' => "{$teacher->name} is already scheduled for {$dayCount} period(s) that day -- their daily limit is {$maxPerDay}.",
                 ];
+
                 continue;
             }
 
@@ -508,7 +509,7 @@ class TimetableConflictResolver
     {
         $schoolClassId = $placement['school_class_id'] ?? null;
         $subjectId = $placement['subject_id'] ?? null;
-        if (!$schoolClassId || !$subjectId) {
+        if (! $schoolClassId || ! $subjectId) {
             return [];
         }
 
@@ -548,7 +549,7 @@ class TimetableConflictResolver
 
             return [[
                 'type' => 'subject_per_day',
-                'message' => "{$subjectName} already has {$existingCount} period(s) on {$dayName} for this class" . ($cap > 1 ? " (double-period limit is {$cap})" : ' (once a day unless marked as a double period)') . '.',
+                'message' => "{$subjectName} already has {$existingCount} period(s) on {$dayName} for this class".($cap > 1 ? " (double-period limit is {$cap})" : ' (once a day unless marked as a double period)').'.',
             ]];
         }
 

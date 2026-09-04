@@ -28,18 +28,22 @@ class TimetableLockTest extends TestCase
     use RefreshDatabase;
 
     protected SchoolClass $class;
+
     protected Section $section;
+
     protected Subject $subject;
+
     protected Teacher $teacher;
+
     protected BellTiming $timing1;
 
     protected function setUp(): void
     {
         parent::setUp();
 
-        $this->class = SchoolClass::create(['name' => 'Lock Class ' . uniqid(), 'class_order' => random_int(1, 100000), 'is_active' => true]);
+        $this->class = SchoolClass::create(['name' => 'Lock Class '.uniqid(), 'class_order' => random_int(1, 100000), 'is_active' => true]);
         $this->section = Section::create(['name' => 'A', 'class_id' => $this->class->id]);
-        $this->subject = Subject::create(['name' => 'Mathematics', 'code' => 'LOCKT5' . uniqid()]);
+        $this->subject = Subject::create(['name' => 'Mathematics', 'code' => 'LOCKT5'.uniqid()]);
         $this->teacher = Teacher::create(['name' => 'Original Teacher']);
         $this->timing1 = BellTiming::create(['day_of_week' => 'Monday', 'period_name' => 'Period 1', 'start_time' => '08:00:00', 'end_time' => '09:00:00', 'is_active' => true, 'is_break' => false, 'order_index' => 1]);
     }
@@ -58,7 +62,7 @@ class TimetableLockTest extends TestCase
         $user = User::factory()->create();
         $role = Role::firstOrCreate(['name' => 'teacher'], ['display_name' => 'Teacher']);
         $user->roles()->attach($role->id);
-        $teacher = Teacher::create(['name' => 'Test Teacher ' . uniqid()]);
+        $teacher = Teacher::create(['name' => 'Test Teacher '.uniqid()]);
         $teacher->update(['user_id' => $user->id]);
 
         return [$user, $teacher];
@@ -256,7 +260,7 @@ class TimetableLockTest extends TestCase
     public function test_a_locked_combined_group_sibling_blocks_the_whole_group_clear(): void
     {
         $admin = $this->makeAdmin();
-        $otherClass = SchoolClass::create(['name' => 'Combined Sibling Class ' . uniqid(), 'class_order' => random_int(1, 100000), 'is_active' => true]);
+        $otherClass = SchoolClass::create(['name' => 'Combined Sibling Class '.uniqid(), 'class_order' => random_int(1, 100000), 'is_active' => true]);
         $session = AcademicSession::create(['name' => '2026-2027', 'code' => '2026-2027', 'start_date' => '2026-04-01', 'end_date' => '2027-03-31']);
         $group = CombinedClassGroup::create(['name' => 'Combined', 'subject_id' => $this->subject->id, 'academic_session_id' => $session->id]);
         CombinedClassGroupMember::create(['combined_class_group_id' => $group->id, 'school_class_id' => $this->class->id]);

@@ -2,10 +2,9 @@
 
 namespace App\Policies;
 
-use App\Models\User;
-use App\Models\Teacher;
 use App\Models\Student;
-use Illuminate\Auth\Access\Response;
+use App\Models\Teacher;
+use App\Models\User;
 
 class ClassTeacherPolicy
 {
@@ -25,14 +24,14 @@ class ClassTeacherPolicy
         if ($user->hasRole('admin')) {
             return true;
         }
-        
+
         if ($user->hasRole('class-teacher')) {
             // Check if the student belongs to a class assigned to this teacher
             $classTeacher = Teacher::where('user_id', $user->id)->first();
-            if (!$classTeacher) {
+            if (! $classTeacher) {
                 return false;
             }
-            
+
             // Academic setup completion: Teacher::classes() is backed by the
             // class_teacher pivot table, which has zero rows in real use --
             // this check was permanently false for every teacher. The real
@@ -43,7 +42,7 @@ class ClassTeacherPolicy
             // class_management in the first place.
             return $classTeacher->isClassTeacherOfSchoolClass((int) $student->school_class_id);
         }
-        
+
         return false;
     }
 
@@ -55,14 +54,14 @@ class ClassTeacherPolicy
         if ($user->hasRole('admin')) {
             return true;
         }
-        
+
         if ($user->hasRole('class-teacher')) {
             // Check if the student belongs to a class assigned to this teacher
             $classTeacher = Teacher::where('user_id', $user->id)->first();
-            if (!$classTeacher) {
+            if (! $classTeacher) {
                 return false;
             }
-            
+
             // Academic setup completion: Teacher::classes() is backed by the
             // class_teacher pivot table, which has zero rows in real use --
             // this check was permanently false for every teacher. The real
@@ -73,7 +72,7 @@ class ClassTeacherPolicy
             // class_management in the first place.
             return $classTeacher->isClassTeacherOfSchoolClass((int) $student->school_class_id);
         }
-        
+
         return false;
     }
 

@@ -24,9 +24,7 @@ use Illuminate\Http\Request;
  */
 class ClassTeacherManagementController extends Controller
 {
-    public function __construct(private ClassTeacherAssignmentService $service)
-    {
-    }
+    public function __construct(private ClassTeacherAssignmentService $service) {}
 
     /**
      * All classes, each with a quick "N of M sections have a class teacher"
@@ -140,6 +138,6 @@ class ClassTeacherManagementController extends Controller
 
     private function currentAcademicYear(): string
     {
-        return date('Y') . '-' . (date('Y') + 1);
+        return date('Y').'-'.(date('Y') + 1);
     }
 }

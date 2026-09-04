@@ -78,7 +78,7 @@ class TimetableIntegrityCheck extends Command
             return self::SUCCESS;
         }
 
-        $this->error('Found ' . count($collisions) . ' class-wide vs section-specific collision(s):');
+        $this->error('Found '.count($collisions).' class-wide vs section-specific collision(s):');
         $this->table(array_keys($collisions[0]), $collisions);
 
         return self::FAILURE;

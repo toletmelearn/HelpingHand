@@ -32,7 +32,7 @@ class TimetablePdfExportTest extends TestCase
     private function seedTimetable(string $label): array
     {
         $class = SchoolClass::create(['name' => "{$label} Class", 'class_order' => random_int(1, 100000), 'is_active' => true]);
-        $subject = Subject::create(['name' => "{$label} Subject", 'code' => strtoupper($label) . uniqid()]);
+        $subject = Subject::create(['name' => "{$label} Subject", 'code' => strtoupper($label).uniqid()]);
         $teacher = Teacher::create(['name' => "{$label} Teacher", 'status' => 'active']);
         $timing = BellTiming::create([
             'day_of_week' => 'Monday', 'period_name' => 'P1', 'start_time' => '08:00:00', 'end_time' => '08:45:00',
@@ -78,7 +78,7 @@ class TimetablePdfExportTest extends TestCase
         $data = $this->seedTimetable('Beta');
         [$user, $student] = $this->studentUser($data['class']);
 
-        $html = (new TimetablePdfGenerator())->generateTimetableView([
+        $html = (new TimetablePdfGenerator)->generateTimetableView([
             'title' => $student->name,
             'subtitle' => 'Student Timetable',
             'days' => collect(['Monday']),
@@ -98,11 +98,11 @@ class TimetablePdfExportTest extends TestCase
         $student = Student::create([
             'name' => 'PDF Child', 'father_name' => 'F', 'mother_name' => 'M', 'date_of_birth' => '2015-01-01',
             'gender' => 'male', 'category' => 'General', 'aadhaar_number' => (string) random_int(100000000000, 999999999999),
-            'admission_no' => 'ADM-PDF-' . uniqid(), 'phone' => (string) random_int(6000000000, 9999999999),
+            'admission_no' => 'ADM-PDF-'.uniqid(), 'phone' => (string) random_int(6000000000, 9999999999),
             'address' => 'Addr', 'school_class_id' => $data['class']->id,
         ]);
         $parent = ParentModel::create([
-            'name' => 'PDF Parent', 'email' => 'pdfparent' . uniqid() . '@example.com',
+            'name' => 'PDF Parent', 'email' => 'pdfparent'.uniqid().'@example.com',
             'password' => bcrypt('password123'), 'student_id' => $student->id,
         ]);
 
@@ -117,7 +117,7 @@ class TimetablePdfExportTest extends TestCase
         $data = $this->seedTimetable('Delta');
         $login = TeacherLogin::create([
             'teacher_id' => $data['teacher']->id,
-            'username' => 'pdfteacher' . uniqid(),
+            'username' => 'pdfteacher'.uniqid(),
             'password' => Hash::make('password123'),
         ]);
 

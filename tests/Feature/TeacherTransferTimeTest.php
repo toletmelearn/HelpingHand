@@ -2,9 +2,9 @@
 
 namespace Tests\Feature;
 
+use App\Models\BellTiming;
 use App\Models\Building;
 use App\Models\BuildingTransferTime;
-use App\Models\BellTiming;
 use App\Models\Room;
 use App\Models\SchoolClass;
 use App\Models\Subject;
@@ -70,8 +70,8 @@ class TeacherTransferTimeTest extends TestCase
         Room::create(['room_number' => 'Room 102', 'building_id' => $main->id]);
 
         $class = $this->makeClass();
-        $subject1 = Subject::create(['name' => 'Maths', 'code' => 'TT' . uniqid()]);
-        $subject2 = Subject::create(['name' => 'Science', 'code' => 'TT' . uniqid()]);
+        $subject1 = Subject::create(['name' => 'Maths', 'code' => 'TT'.uniqid()]);
+        $subject2 = Subject::create(['name' => 'Science', 'code' => 'TT'.uniqid()]);
         $teacher = Teacher::create(['name' => 'T Teacher', 'status' => 'active']);
 
         $p1 = $this->makeTiming(['period_name' => 'P1', 'start_time' => '08:00', 'end_time' => '08:45', 'order_index' => 1]);
@@ -86,7 +86,7 @@ class TeacherTransferTimeTest extends TestCase
         // A different subject_id than the existing slot's, purely so the
         // pre-existing subject-per-day cap (unrelated to this test) never
         // trips -- this test is isolating transfer-time only.
-        $result = (new TimetableConflictResolver())->check([
+        $result = (new TimetableConflictResolver)->check([
             'school_class_id' => $class->id, 'bell_timing_id' => $p2->id,
             'teacher_id' => $teacher->id, 'subject_id' => $subject2->id,
             'room_number' => 'Room 102',
@@ -95,7 +95,7 @@ class TeacherTransferTimeTest extends TestCase
         $this->assertFalse($result['conflict']);
     }
 
-    public function test_different_buildings_with_gap_OK(): void
+    public function test_different_buildings_with_gap_ok(): void
     {
         $main = Building::create(['name' => 'Main Building', 'transfer_time_in_minutes' => 10]);
         $annex = Building::create(['name' => 'Annex Building', 'transfer_time_in_minutes' => 10]);
@@ -103,8 +103,8 @@ class TeacherTransferTimeTest extends TestCase
         Room::create(['room_number' => 'Annex 1', 'building_id' => $annex->id]);
 
         $class = $this->makeClass();
-        $subject1 = Subject::create(['name' => 'Maths', 'code' => 'TT' . uniqid()]);
-        $subject2 = Subject::create(['name' => 'Science', 'code' => 'TT' . uniqid()]);
+        $subject1 = Subject::create(['name' => 'Maths', 'code' => 'TT'.uniqid()]);
+        $subject2 = Subject::create(['name' => 'Science', 'code' => 'TT'.uniqid()]);
         $teacher = Teacher::create(['name' => 'T Teacher', 'status' => 'active']);
 
         // 15-minute gap between periods -- more than the 10-minute requirement.
@@ -117,7 +117,7 @@ class TeacherTransferTimeTest extends TestCase
             'room_number' => 'Room 101', 'status' => TimetableSlot::STATUS_PUBLISHED,
         ]);
 
-        $result = (new TimetableConflictResolver())->check([
+        $result = (new TimetableConflictResolver)->check([
             'school_class_id' => $class->id, 'bell_timing_id' => $p2->id,
             'teacher_id' => $teacher->id, 'subject_id' => $subject2->id,
             'room_number' => 'Annex 1',
@@ -134,8 +134,8 @@ class TeacherTransferTimeTest extends TestCase
         Room::create(['room_number' => 'Annex 1', 'building_id' => $annex->id]);
 
         $class = $this->makeClass();
-        $subject1 = Subject::create(['name' => 'Maths', 'code' => 'TT' . uniqid()]);
-        $subject2 = Subject::create(['name' => 'Science', 'code' => 'TT' . uniqid()]);
+        $subject1 = Subject::create(['name' => 'Maths', 'code' => 'TT'.uniqid()]);
+        $subject2 = Subject::create(['name' => 'Science', 'code' => 'TT'.uniqid()]);
         $teacher = Teacher::create(['name' => 'T Teacher', 'status' => 'active']);
 
         // Back-to-back periods -- zero gap, less than the 10-minute requirement.
@@ -148,7 +148,7 @@ class TeacherTransferTimeTest extends TestCase
             'room_number' => 'Room 101', 'status' => TimetableSlot::STATUS_PUBLISHED,
         ]);
 
-        $result = (new TimetableConflictResolver())->check([
+        $result = (new TimetableConflictResolver)->check([
             'school_class_id' => $class->id, 'bell_timing_id' => $p2->id,
             'teacher_id' => $teacher->id, 'subject_id' => $subject2->id,
             'room_number' => 'Annex 1',
@@ -173,8 +173,8 @@ class TeacherTransferTimeTest extends TestCase
         Room::create(['room_number' => 'Lab 3A', 'building_id' => $science->id]);
 
         $class = $this->makeClass();
-        $subject1 = Subject::create(['name' => 'Maths', 'code' => 'TT' . uniqid()]);
-        $subject2 = Subject::create(['name' => 'Science', 'code' => 'TT' . uniqid()]);
+        $subject1 = Subject::create(['name' => 'Maths', 'code' => 'TT'.uniqid()]);
+        $subject2 = Subject::create(['name' => 'Science', 'code' => 'TT'.uniqid()]);
         $teacher = Teacher::create(['name' => 'T Teacher', 'status' => 'active']);
 
         // 15-minute gap -- enough for the 10-minute default, NOT enough for
@@ -188,7 +188,7 @@ class TeacherTransferTimeTest extends TestCase
             'room_number' => 'Room 101', 'status' => TimetableSlot::STATUS_PUBLISHED,
         ]);
 
-        $result = (new TimetableConflictResolver())->check([
+        $result = (new TimetableConflictResolver)->check([
             'school_class_id' => $class->id, 'bell_timing_id' => $p2->id,
             'teacher_id' => $teacher->id, 'subject_id' => $subject2->id,
             'room_number' => 'Lab 3A',
@@ -208,9 +208,9 @@ class TeacherTransferTimeTest extends TestCase
         Room::create(['room_number' => 'Annex 1', 'building_id' => $annex->id]);
 
         $class = $this->makeClass();
-        $subject1 = Subject::create(['name' => 'Maths', 'code' => 'TT' . uniqid()]);
-        $subject2 = Subject::create(['name' => 'Physics', 'code' => 'TT' . uniqid()]);
-        $subject3 = Subject::create(['name' => 'Chemistry', 'code' => 'TT' . uniqid()]);
+        $subject1 = Subject::create(['name' => 'Maths', 'code' => 'TT'.uniqid()]);
+        $subject2 = Subject::create(['name' => 'Physics', 'code' => 'TT'.uniqid()]);
+        $subject3 = Subject::create(['name' => 'Chemistry', 'code' => 'TT'.uniqid()]);
         $teacher = Teacher::create(['name' => 'T Teacher', 'status' => 'active']);
 
         // P1 (Main, Room 101) 08:00-08:45 -- same building as P2, fine.
@@ -233,7 +233,7 @@ class TeacherTransferTimeTest extends TestCase
             'room_number' => 'Room 102', 'status' => TimetableSlot::STATUS_PUBLISHED,
         ]);
 
-        $result = (new TimetableConflictResolver())->check([
+        $result = (new TimetableConflictResolver)->check([
             'school_class_id' => $class->id, 'bell_timing_id' => $p3->id,
             'teacher_id' => $teacher->id, 'subject_id' => $subject3->id,
             'room_number' => 'Annex 1',

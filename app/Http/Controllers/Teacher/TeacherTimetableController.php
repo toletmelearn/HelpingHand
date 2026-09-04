@@ -26,7 +26,7 @@ class TeacherTimetableController extends Controller
         $teacherLogin = Auth::guard('teacher')->user();
         $teacher = $teacherLogin ? Teacher::find($teacherLogin->teacher_id) : null;
 
-        if (!$teacher) {
+        if (! $teacher) {
             return view('teacher.timetable.index', [
                 'teacher' => null,
                 'days' => [],
@@ -90,13 +90,13 @@ class TeacherTimetableController extends Controller
             ->whereBetween('substitution_date', [$weekRangeStart, $weekRangeEnd])
             ->with('substituteTeacher', 'absentTeacher')
             ->get()
-            ->groupBy(fn ($s) => $s->substitution_date->toDateString() . '|' . $s->bell_timing_id);
+            ->groupBy(fn ($s) => $s->substitution_date->toDateString().'|'.$s->bell_timing_id);
 
         $periodsByDay = $periodsByDay->map(function ($daySlots, $day) use ($dateByDayOfWeek, $substitutions, $teacher) {
             $date = $dateByDayOfWeek->get($day);
 
             return $daySlots->map(function (TimetableSlot $slot) use ($date, $substitutions, $teacher) {
-                $key = $date ? $date->toDateString() . '|' . $slot->bell_timing_id : null;
+                $key = $date ? $date->toDateString().'|'.$slot->bell_timing_id : null;
                 $arrangement = $key ? $substitutions->get($key, collect())->first() : null;
 
                 // "Team teaching with" from the VIEWER's own perspective --
@@ -144,12 +144,12 @@ class TeacherTimetableController extends Controller
         $teacherLogin = Auth::guard('teacher')->user();
         $teacher = $teacherLogin ? Teacher::find($teacherLogin->teacher_id) : null;
 
-        if (!$teacher) {
+        if (! $teacher) {
             return redirect()->back()->with('error', 'No teacher profile found for this account.');
         }
 
         $pdf = $generator->generateTeacherTimetablePdf($teacher);
 
-        return $pdf->download('timetable-' . str_replace(' ', '-', strtolower($teacher->name)) . '.pdf');
+        return $pdf->download('timetable-'.str_replace(' ', '-', strtolower($teacher->name)).'.pdf');
     }
 }

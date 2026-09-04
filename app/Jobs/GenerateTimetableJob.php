@@ -72,8 +72,9 @@ class GenerateTimetableJob implements ShouldQueue
     public function handle(GeneratorService $service): void
     {
         $generation = TimetableGeneration::find($this->generationId);
-        if (!$generation) {
+        if (! $generation) {
             Log::error("GenerateTimetableJob: TimetableGeneration record not found: {$this->generationId}");
+
             return;
         }
 
@@ -125,7 +126,7 @@ class GenerateTimetableJob implements ShouldQueue
                 'completed_at' => now(),
             ]);
         } catch (\Throwable $e) {
-            Log::error('GenerateTimetableJob failed: ' . $e->getMessage());
+            Log::error('GenerateTimetableJob failed: '.$e->getMessage());
             $generation->update([
                 'status' => TimetableGeneration::STATUS_FAILED,
                 'error' => $e->getMessage(),

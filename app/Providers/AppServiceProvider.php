@@ -2,9 +2,9 @@
 
 namespace App\Providers;
 
-use Illuminate\Support\ServiceProvider;
-use Illuminate\Support\Facades\Blade;
 use App\Console\Commands\RouteHealthCheck;
+use Illuminate\Support\Facades\Blade;
+use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -12,8 +12,8 @@ class AppServiceProvider extends ServiceProvider
     {
         // Register ErpRegistry singleton
         $this->app->singleton(\App\Services\Registry\ErpRegistry::class, function ($app) {
-            $registry = new \App\Services\Registry\ErpRegistry();
-            
+            $registry = new \App\Services\Registry\ErpRegistry;
+
             // Register Default ERP Modules
             $registry->registerModule('Students', ['version' => '1.0.0', 'description' => 'Admissions and Student records management.']);
             $registry->registerModule('Teachers', ['version' => '1.0.0', 'description' => 'HR, experience tracking and teacher substitutions.']);
@@ -72,7 +72,7 @@ class AppServiceProvider extends ServiceProvider
                     ['title' => 'SaaS Subscription', 'url' => '/operations/license', 'icon' => 'bi-card-list'],
                     ['title' => 'Maintenance Mode', 'url' => '/operations/maintenance', 'icon' => 'bi-shield-slash'],
                     ['title' => 'Performance Metric', 'url' => '/operations/performance', 'icon' => 'bi-graph-up-arrow'],
-                ]
+                ],
             ]);
 
             // Timetable Editor Phase B: this "scholastic_scheduler" section
@@ -93,7 +93,7 @@ class AppServiceProvider extends ServiceProvider
                 'links' => [
                     ['title' => 'Circulations Index', 'url' => '/admin/library', 'icon' => 'bi-journal-bookmark-fill'],
                     ['title' => 'Public OPAC Search', 'url' => '/admin/library/opac', 'icon' => 'bi-search'],
-                ]
+                ],
             ]);
 
             $registry->registerSidebarEntry('hostel_manager', [
@@ -102,7 +102,7 @@ class AppServiceProvider extends ServiceProvider
                 'roles' => ['admin', 'super-admin'],
                 'links' => [
                     ['title' => 'Dorm Dashboard', 'url' => '/admin/hostels/dashboard', 'icon' => 'bi-layout-text-window-reverse'],
-                ]
+                ],
             ]);
 
             $registry->registerSidebarEntry('visitor_gate_control', [
@@ -111,7 +111,7 @@ class AppServiceProvider extends ServiceProvider
                 'roles' => ['admin', 'super-admin'],
                 'links' => [
                     ['title' => 'Gate Entries Log', 'url' => '/admin/visitor/log', 'icon' => 'bi-person-badge'],
-                ]
+                ],
             ]);
 
             $registry->registerSidebarEntry('front_office', [
@@ -127,7 +127,7 @@ class AppServiceProvider extends ServiceProvider
                     ['title' => 'Gate Passes', 'url' => '/admin/front-office/gate-passes', 'icon' => 'bi-card-heading'],
                     ['title' => 'Courier Register', 'url' => '/admin/front-office/couriers', 'icon' => 'bi-box-seam'],
                     ['title' => 'Lost & Found', 'url' => '/admin/front-office/lost-found', 'icon' => 'bi-search-heart'],
-                ]
+                ],
             ]);
 
             // Register Phase 7 Sidebar entries
@@ -138,7 +138,7 @@ class AppServiceProvider extends ServiceProvider
                 'links' => [
                     ['title' => 'Marks Moderation', 'url' => '/admin/exams/moderation/index', 'icon' => 'bi-sliders'],
                     ['title' => 'Report & Promotion', 'url' => '/admin/exams/reports/designer', 'icon' => 'bi-file-earmark-pdf'],
-                ]
+                ],
             ]);
 
             return $registry;
@@ -146,7 +146,7 @@ class AppServiceProvider extends ServiceProvider
 
         // Register LedgerService as a singleton
         $this->app->singleton(\App\Services\LedgerService::class, function ($app) {
-            return new \App\Services\LedgerService();
+            return new \App\Services\LedgerService;
         });
 
         // Register ImportEngine as a singleton loaded from ErpRegistry
@@ -155,12 +155,12 @@ class AppServiceProvider extends ServiceProvider
                 $app->make(\App\Services\Imports\ImportNormalizer::class),
                 $app->make(\App\Services\Imports\ImportLookupCache::class)
             );
-            
+
             $registry = $app->make(\App\Services\Registry\ErpRegistry::class);
             foreach ($registry->getImports() as $name => $class) {
                 $engine->registerDefinition($name, $class);
             }
-            
+
             return $engine;
         });
 
@@ -186,7 +186,6 @@ class AppServiceProvider extends ServiceProvider
         ]);
     }
 
-
     /**
      * Bootstrap any application services.
      */
@@ -200,32 +199,32 @@ class AppServiceProvider extends ServiceProvider
 
         // Add custom blade directive for academic year
         Blade::directive('academicYear', function () {
-            return "<?php echo app(App\\Providers\\AppServiceProvider::class)->getCurrentAcademicYear(); ?>";
+            return '<?php echo app(App\\Providers\\AppServiceProvider::class)->getCurrentAcademicYear(); ?>';
         });
 
         // Auto-run migrations for Exam Cell Members, Seating, Invigilators, and Relieving
-        if (!app()->runningUnitTests()) {
+        if (! app()->runningUnitTests()) {
             try {
-                if (\Illuminate\Support\Facades\Schema::hasTable('teachers') && !\Illuminate\Support\Facades\Schema::hasColumn('teachers', 'is_exam_cell_member')) {
+                if (\Illuminate\Support\Facades\Schema::hasTable('teachers') && ! \Illuminate\Support\Facades\Schema::hasColumn('teachers', 'is_exam_cell_member')) {
                     \Illuminate\Support\Facades\Schema::table('teachers', function (\Illuminate\Database\Schema\Blueprint $table) {
                         $table->boolean('is_exam_cell_member')->default(false)->after('is_exam_head');
                     });
                 }
 
                 if (\Illuminate\Support\Facades\Schema::hasTable('parents')) {
-                    if (!\Illuminate\Support\Facades\Schema::hasColumn('parents', 'mobile')) {
+                    if (! \Illuminate\Support\Facades\Schema::hasColumn('parents', 'mobile')) {
                         \Illuminate\Support\Facades\Schema::table('parents', function (\Illuminate\Database\Schema\Blueprint $table) {
                             $table->string('mobile')->nullable()->after('phone');
                         });
                     }
-                    if (!\Illuminate\Support\Facades\Schema::hasColumn('parents', 'admission_number')) {
+                    if (! \Illuminate\Support\Facades\Schema::hasColumn('parents', 'admission_number')) {
                         \Illuminate\Support\Facades\Schema::table('parents', function (\Illuminate\Database\Schema\Blueprint $table) {
                             $table->string('admission_number')->nullable();
                         });
                     }
                 }
 
-                if (!\Illuminate\Support\Facades\Schema::hasTable('exam_seating_arrangements')) {
+                if (! \Illuminate\Support\Facades\Schema::hasTable('exam_seating_arrangements')) {
                     \Illuminate\Support\Facades\Schema::create('exam_seating_arrangements', function (\Illuminate\Database\Schema\Blueprint $table) {
                         $table->id();
                         $table->foreignId('exam_id')->constrained('exams')->onDelete('cascade');
@@ -233,12 +232,12 @@ class AppServiceProvider extends ServiceProvider
                         $table->string('room_number');
                         $table->string('seat_number');
                         $table->timestamps();
-                        
+
                         $table->unique(['exam_id', 'student_id']);
                     });
                 }
 
-                if (!\Illuminate\Support\Facades\Schema::hasTable('exam_invigilator_duties')) {
+                if (! \Illuminate\Support\Facades\Schema::hasTable('exam_invigilator_duties')) {
                     \Illuminate\Support\Facades\Schema::create('exam_invigilator_duties', function (\Illuminate\Database\Schema\Blueprint $table) {
                         $table->id();
                         $table->foreignId('exam_id')->constrained('exams')->onDelete('cascade');
@@ -246,12 +245,12 @@ class AppServiceProvider extends ServiceProvider
                         $table->string('room_number');
                         $table->string('role')->default('Main Invigilator');
                         $table->timestamps();
-                        
+
                         $table->unique(['exam_id', 'teacher_id']);
                     });
                 }
 
-                if (!\Illuminate\Support\Facades\Schema::hasTable('exam_relieving_duties')) {
+                if (! \Illuminate\Support\Facades\Schema::hasTable('exam_relieving_duties')) {
                     \Illuminate\Support\Facades\Schema::create('exam_relieving_duties', function (\Illuminate\Database\Schema\Blueprint $table) {
                         $table->id();
                         $table->foreignId('exam_id')->constrained('exams')->onDelete('cascade');
@@ -308,8 +307,9 @@ class AppServiceProvider extends ServiceProvider
                     // feature can never itself produce an oversized payload.
                     $bindings = array_map(function ($binding) {
                         $value = is_string($binding) ? $binding : json_encode($binding);
+
                         return $value !== null && strlen($value) > 500
-                            ? substr($value, 0, 500) . '...(truncated)'
+                            ? substr($value, 0, 500).'...(truncated)'
                             : $binding;
                     }, $query->bindings);
 
@@ -343,7 +343,7 @@ class AppServiceProvider extends ServiceProvider
     {
         $currentMonth = date('n');
         $currentYear = date('Y');
-        
+
         // Academic year typically starts in April (month 4)
         if ($currentMonth >= 4) {
             $startYear = $currentYear;
@@ -352,7 +352,7 @@ class AppServiceProvider extends ServiceProvider
             $startYear = $currentYear - 1;
             $endYear = $currentYear;
         }
-        
-        return $startYear . '-' . substr($endYear, -2);
+
+        return $startYear.'-'.substr($endYear, -2);
     }
 }

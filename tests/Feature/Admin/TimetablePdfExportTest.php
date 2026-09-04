@@ -170,6 +170,7 @@ class TimetablePdfExportTest extends TestCase
      * never re-created after a year rollover) -- masterTimetableData()
      * only guarded "zero slots", not "zero active periods", so
      * $data['days'] came back empty and the master PDF view's own
+     *
      * @foreach($days as $day) (which owns the ENTIRE page body) silently
      * rendered nothing: a "successful" download of a blank PDF with no
      * error shown anywhere. Must now be a clear, friendly rejection

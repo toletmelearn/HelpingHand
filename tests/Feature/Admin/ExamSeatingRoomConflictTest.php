@@ -36,8 +36,8 @@ class ExamSeatingRoomConflictTest extends TestCase
 
     private function makeExamWithStudent(string $name, string $date, string $start, string $end): Exam
     {
-        $class = SchoolClass::create(['name' => $name . ' Class', 'class_order' => random_int(1000, 999999), 'is_active' => true]);
-        $subject = Subject::create(['name' => 'Maths', 'code' => 'MTH' . uniqid()]);
+        $class = SchoolClass::create(['name' => $name.' Class', 'class_order' => random_int(1000, 999999), 'is_active' => true]);
+        $subject = Subject::create(['name' => 'Maths', 'code' => 'MTH'.uniqid()]);
 
         $exam = Exam::create([
             'name' => $name, 'exam_type' => 'term', 'class_id' => $class->id,
@@ -48,7 +48,7 @@ class ExamSeatingRoomConflictTest extends TestCase
         ]);
 
         Student::create([
-            'name' => $name . ' Student', 'father_name' => 'F', 'mother_name' => 'M',
+            'name' => $name.' Student', 'father_name' => 'F', 'mother_name' => 'M',
             'date_of_birth' => '2013-01-01', 'gender' => 'male', 'category' => 'General',
             'aadhaar_number' => (string) random_int(100000000000, 999999999999),
             'phone' => (string) random_int(6000000000, 9999999999), 'address' => 'Addr',

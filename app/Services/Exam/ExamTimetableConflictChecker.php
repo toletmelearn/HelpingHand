@@ -33,7 +33,7 @@ class ExamTimetableConflictChecker
 {
     /**
      * @return array{slot_id: int, class_name: string, bell_timing_id: int}|null
-     *   The blocking TimetableSlot's details, or null if the teacher is free.
+     *                                                                           The blocking TimetableSlot's details, or null if the teacher is free.
      */
     public function teachingConflictFor(int $teacherId, \DateTimeInterface|string $date, \DateTimeInterface|string $startTime, \DateTimeInterface|string $endTime): ?array
     {
@@ -48,7 +48,7 @@ class ExamTimetableConflictChecker
             ->with('schoolClass')
             ->first();
 
-        if (!$slot) {
+        if (! $slot) {
             return null;
         }
 
@@ -61,11 +61,11 @@ class ExamTimetableConflictChecker
 
     /**
      * @return array{slot_id: int, section_name: ?string}|null
-     *   The blocking TimetableSlot's details, or null if the class/section
-     *   has no lesson scheduled during this window. A whole-class slot
-     *   (section_id null) blocks every section; a section-specific slot
-     *   only blocks that section (or a whole-class exam check, when
-     *   $sectionId is null, is blocked by any section's lesson too).
+     *                                                         The blocking TimetableSlot's details, or null if the class/section
+     *                                                         has no lesson scheduled during this window. A whole-class slot
+     *                                                         (section_id null) blocks every section; a section-specific slot
+     *                                                         only blocks that section (or a whole-class exam check, when
+     *                                                         $sectionId is null, is blocked by any section's lesson too).
      */
     public function classTeachingConflict(int $schoolClassId, ?int $sectionId, \DateTimeInterface|string $date, \DateTimeInterface|string $startTime, \DateTimeInterface|string $endTime): ?array
     {
@@ -81,7 +81,7 @@ class ExamTimetableConflictChecker
             ->with('section')
             ->first();
 
-        if (!$slot) {
+        if (! $slot) {
             return null;
         }
 
@@ -102,8 +102,8 @@ class ExamTimetableConflictChecker
      * the exam-seating domain's own room check.
      *
      * @return array{exam_id: int, exam_name: string}|null
-     *   The blocking exam's details, or null if the room is free for this
-     *   date/time.
+     *                                                     The blocking exam's details, or null if the room is free for this
+     *                                                     date/time.
      */
     public function roomConflictForExam(string $roomNumber, int $excludeExamId, \DateTimeInterface|string $date, \DateTimeInterface|string $startTime, \DateTimeInterface|string $endTime): ?array
     {
@@ -121,7 +121,7 @@ class ExamTimetableConflictChecker
             ->with('exam')
             ->first();
 
-        if (!$seating) {
+        if (! $seating) {
             return null;
         }
 

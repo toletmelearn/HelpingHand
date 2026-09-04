@@ -22,13 +22,13 @@ class TimetableController extends Controller
     {
         $parent = Auth::guard('parent')->user();
 
-        if (!$parent) {
+        if (! $parent) {
             abort(403, 'Parent not logged in');
         }
 
         $student = $parent->student;
 
-        if (!$student) {
+        if (! $student) {
             return view('parent.timetable.today', [
                 'student' => null,
                 'periods' => collect(),
@@ -40,7 +40,7 @@ class TimetableController extends Controller
         $sectionId = $student->section_id;
         $date = now();
 
-        if (!$classId) {
+        if (! $classId) {
             return view('parent.timetable.today', [
                 'student' => $student,
                 'periods' => collect(),
@@ -68,20 +68,20 @@ class TimetableController extends Controller
     {
         $parent = Auth::guard('parent')->user();
 
-        if (!$parent) {
+        if (! $parent) {
             abort(403, 'Parent not logged in');
         }
 
         $student = $parent->student;
 
-        if (!$student) {
+        if (! $student) {
             return view('parent.timetable.weekly', ['student' => null, 'days' => [], 'periodsByDay' => collect()]);
         }
 
         $classId = $student->canonicalClassId();
         $sectionId = $student->section_id;
 
-        if (!$classId) {
+        if (! $classId) {
             return view('parent.timetable.weekly', ['student' => $student, 'days' => [], 'periodsByDay' => collect()]);
         }
 
@@ -118,7 +118,7 @@ class TimetableController extends Controller
             ->where('status', '!=', 'cancelled')
             ->with('substituteTeacher')
             ->get()
-            ->groupBy(fn ($s) => $s->substitution_date->toDateString() . '|' . $s->bell_timing_id);
+            ->groupBy(fn ($s) => $s->substitution_date->toDateString().'|'.$s->bell_timing_id);
 
         $periodsByDay = $slots
             ->groupBy('bellTiming.day_of_week')
@@ -126,7 +126,7 @@ class TimetableController extends Controller
                 $date = $dateByDayOfWeek->get($day);
 
                 return $daySlots->sortBy('bellTiming.order_index')->values()->map(function (TimetableSlot $slot) use ($date, $substitutions) {
-                    $key = $date ? $date->toDateString() . '|' . $slot->bell_timing_id : null;
+                    $key = $date ? $date->toDateString().'|'.$slot->bell_timing_id : null;
                     $sub = $key ? $substitutions->get($key, collect())->first() : null;
                     $isArrangement = (bool) ($sub && $sub->substitute_teacher_id);
 
@@ -156,19 +156,19 @@ class TimetableController extends Controller
     {
         $parent = Auth::guard('parent')->user();
 
-        if (!$parent) {
+        if (! $parent) {
             abort(403, 'Parent not logged in');
         }
 
         $student = $parent->student;
 
-        if (!$student) {
+        if (! $student) {
             return redirect()->back()->with('error', 'No student associated with this parent account.');
         }
 
         $pdf = $generator->generateParentChildTimetablePdf($student);
 
-        return $pdf->download('timetable-' . str_replace(' ', '-', strtolower($student->name)) . '.pdf');
+        return $pdf->download('timetable-'.str_replace(' ', '-', strtolower($student->name)).'.pdf');
     }
 
     private function todaysPeriods(int $classId, ?int $sectionId, \Carbon\Carbon $date)

@@ -32,7 +32,7 @@ class TimetableIntegrityCheckCommandTest extends TestCase
         $class = SchoolClass::create(['name' => "TIC {$label} Class", 'class_order' => random_int(1, 100000), 'is_active' => true]);
         $section = Section::create(['name' => $label]);
         $this->bridgeSectionToClass($class, $section);
-        $subject = Subject::create(['name' => "TIC {$label} Subject", 'code' => 'TIC' . uniqid()]);
+        $subject = Subject::create(['name' => "TIC {$label} Subject", 'code' => 'TIC'.uniqid()]);
         $teacher = Teacher::create(['name' => "TIC {$label} Teacher"]);
         $timing = BellTiming::create([
             'day_of_week' => 'Monday', 'period_name' => 'P1', 'start_time' => '08:00:00', 'end_time' => '08:45:00',
