@@ -120,4 +120,26 @@ class SidebarAcademicAssignmentLinksTest extends TestCase
         $response->assertSee('Class Teacher Assignment');
         $this->actingAs($staff)->get(route('admin.teacher-class-assignments.index'))->assertOk();
     }
+
+    /**
+     * Item 5: "Bell Timings" (the period grid the Timetable is built on)
+     * and "Bell Schedules" (BellSchedule -- physical bell-ringing
+     * configuration with season_type/target_group) are two genuinely
+     * unrelated features with no disambiguating text at all, sitting far
+     * apart in the sidebar with the identical bell icon. Proves each link
+     * now carries a tooltip naming what it is AND pointing at the other,
+     * so an admin who lands on the wrong one can self-correct.
+     */
+    public function test_bell_timings_and_bell_schedules_links_are_disambiguated(): void
+    {
+        $admin = $this->makeUserWithRole('admin');
+
+        $response = $this->actingAs($admin)->get(route('admin.dashboard'));
+
+        $response->assertOk();
+        $response->assertSee('Bell Timings');
+        $response->assertSee('Bell Schedules');
+        $response->assertSee('The period grid the Timetable is built on', false);
+        $response->assertSee('Physical bell-ringing configuration', false);
+    }
 }

@@ -522,7 +522,8 @@
                         @if(Route::has('bell-timing.index') && (Auth::user()->hasRole('admin') || Auth::user()->hasRole('teacher')))
                         <li class="nav-item">
                             <a class="nav-link text-white {{ request()->routeIs('bell-timing.*') ? 'active' : '' }}"
-                               href="{{ route('bell-timing.index') }}">
+                               href="{{ route('bell-timing.index') }}"
+                               title="The period grid the Timetable is built on (Period 1, Period 2, Lunch...). Not to be confused with Bell Schedules below, which is the physical bell-ringing configuration.">
                                 <i class="bi bi-bell me-2"></i>
                                 <span>Bell Timings</span>
                             </a>
@@ -1279,9 +1280,10 @@
                         @endif
                         @if(Route::has('admin.bell-schedules.index'))
                         <li class="nav-item">
-                            <a class="nav-link text-white {{ request()->routeIs('admin.bell-schedules.*') ? 'active' : '' }}" 
-                               href="{{ route('admin.bell-schedules.index') }}">
-                                <i class="bi bi-bell me-2"></i>
+                            <a class="nav-link text-white {{ request()->routeIs('admin.bell-schedules.*') ? 'active' : '' }}"
+                               href="{{ route('admin.bell-schedules.index') }}"
+                               title="Physical bell-ringing configuration (season/target-group variants of when the bell actually rings). Not to be confused with Bell Timings, which is the period grid the Timetable is built on.">
+                                <i class="bi bi-bell-fill me-2"></i>
                                 <span>Bell Schedules</span>
                             </a>
                         </li>
