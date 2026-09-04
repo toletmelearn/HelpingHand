@@ -262,7 +262,7 @@ class AdmitCardController extends Controller
         
         $admitCards = AdmitCard::whereIn('status', ['published', 'locked'])->get();
         $blockedCount = 0;
-        
+
         foreach ($admitCards as $admitCard) {
             // Was reading Student::fees() -- the legacy `fees` table, which
             // nothing in the live fee flow writes to (confirmed: 0 rows
@@ -270,13 +270,22 @@ class AdmitCardController extends Controller
             // how much anyone actually owed. The real, live balance is the
             // ledger's debit-minus-credit total.
             $outstandingFees = $admitCard->student ? \App\Services\LedgerService::getOutstandingBalance($admitCard->student->id) : 0;
-            if ($outstandingFees > 0) {
+            // Admit Card workflow: this used to revoke purely on
+            // outstanding balance, with no awareness of
+            // DefaulterExamOverride at all -- a student a Class Teacher or
+            // Accountant had just explicitly cleared to sit an exam would
+            // be silently re-blocked the next time anyone ran this bulk
+            // action. hasActiveOverride() is the same check
+            // ExamRestrictionService::isRestricted() already relies on
+            // everywhere else; reused here rather than duplicated.
+            $hasOverride = $admitCard->student && \App\Services\ExamRestrictionService::hasActiveOverride($admitCard->student->id, $admitCard->exam_id);
+            if ($outstandingFees > 0 && ! $hasOverride) {
                 if ($admitCard->transitionTo('revoked', Auth::id())) {
                     $blockedCount++;
                 }
             }
         }
-        
+
         return redirect()->back()->with('success', "Successfully blocked {$blockedCount} fee defaulter student admit cards.");
     }
 

@@ -16,6 +16,35 @@ use Illuminate\Support\Facades\DB;
 
 class CombinedClassGroupController extends Controller
 {
+    /**
+     * Section architecture fix: `exists:sections,id` alone only proves the
+     * row exists, never that it actually belongs to the member class it's
+     * paired with -- Sections are globally shared labels (A/B/C/D...)
+     * resolved to a class via the legacy_class_map -> class_management ->
+     * class_sections bridge (SchoolClass::validSectionIds()), the same
+     * pattern already enforced in TimetableController and
+     * TeacherSubstitutionController. Left unvalidated, a mismatched member
+     * pairing would flow straight into
+     * TimetableController::storeCombined(), which trusts each member's
+     * section_id as already-correct. A null section_id is this form's own
+     * "whole class" semantics and is always valid.
+     */
+    private function sectionOwnershipError(SchoolClass $schoolClass, ?int $sectionId): ?string
+    {
+        if ($sectionId === null) {
+            return null;
+        }
+
+        if (! in_array($sectionId, $schoolClass->validSectionIds(), true)) {
+            $section = Section::find($sectionId);
+            $sectionName = $section->name ?? 'This section';
+
+            return "\"{$sectionName}\" is not a section of \"{$schoolClass->name}\" -- choose a section that actually belongs to this class.";
+        }
+
+        return null;
+    }
+
     public function index()
     {
         $this->authorize('viewAny', CombinedClassGroup::class);
@@ -58,6 +87,16 @@ class CombinedClassGroupController extends Controller
             'members.*.school_class_id' => 'required|exists:school_classes,id',
             'members.*.section_id' => 'nullable|exists:sections,id',
         ]);
+
+        foreach ($validated['members'] as $member) {
+            $sectionError = $this->sectionOwnershipError(
+                SchoolClass::findOrFail($member['school_class_id']),
+                $member['section_id'] ?? null
+            );
+            if ($sectionError) {
+                return redirect()->back()->withErrors(['error' => $sectionError])->withInput();
+            }
+        }
 
         $group = DB::transaction(function () use ($validated) {
             $group = CombinedClassGroup::create([
