@@ -1,4 +1,4 @@
-@extends('layouts.app')
+@extends('layouts.admin')
 
 @section('title', 'Result Entry System')
 
@@ -113,7 +113,7 @@
                                         </div>
                                     </td>
                                     <td>
-                                        {{ $result->student->class->name }} 
+                                        {{ $result->student->display_class_name }}
                                         @if($result->student->section)
                                             - {{ $result->student->section->name }}
                                         @endif

@@ -1,4 +1,4 @@
-@extends('layouts.app')
+@extends('layouts.admin')
 
 @section('title', 'Add New Result')
 
@@ -26,7 +26,7 @@
                                         <option value="">Select Student</option>
                                         @foreach($students as $student)
                                             <option value="{{ $student->id }}" {{ old('student_id') == $student->id ? 'selected' : '' }}>
-                                                {{ $student->name }} ({{ $student->class->name }} - {{ $student->section->name ?? 'N/A' }})
+                                                {{ $student->name }} ({{ $student->display_class_name }} - {{ $student->section->name ?? 'N/A' }})
                                             </option>
                                         @endforeach
                                     </select>

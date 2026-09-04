@@ -133,6 +133,26 @@ fixture-cluster cleanup as their classes/sections above.
 
 ---
 
+## Additional fixture student found during Phase 3 investigation
+
+Phase 3 asked me to inventory real students with no `school_class_id` at all before proposing
+any backfill mapping. **Only one student in the entire database has no working class FK**
+(`school_class_id` AND `class_id` both null/unresolvable) — `id=8380`, name **"Debug Student B"**,
+`admission_no="ADM-DEBUG-B"`. Zero dependents (`fee_collections`, `student_fee_assignments`,
+`results`, `attendances`, `admit_cards`, `exam_seating_arrangements` all 0). **Recommendation:
+DELETE**, same as the other 4 UAT fixture students above.
+
+**This resolves Phase 3 entirely — no backfill mapping decision is needed.** The audit's "31
+students with class_id/school_class_id both NULL" figure conflated two different things: 31
+students have `students.class` (the legacy free-text *string*) equal to NULL — but the vast
+majority of those already have a perfectly valid `school_class_id`, which Phase 2's
+`display_class_name` accessor already prefers. A live re-query confirms only the one fixture row
+above genuinely lacks any class relationship. The "XI-" malformed row (`id=8294`, FATIMA KHAN)
+already has `school_class_id=22` ("Class 11") set — it displays correctly today via Phase 2's fix,
+regardless of its garbled legacy string.
+
+---
+
 ## fee_structures (2 matches, separate module)
 
 | id | class_name | real dependents | recommendation |
@@ -200,6 +220,7 @@ explicit go-ahead before Phase 7 touches 49 rows of real assignment history, per
 | Already soft-deleted, zero dependents | 15 school_classes rows, 2 teacher rows, 1 subject row, 1 section row, 1 academic_session row | SKIP — no action needed |
 | Zero-dependent, unambiguously fake | 3 school_classes, 4 teachers, 2 fee_structures | DELETE |
 | Fixture cluster (classes+teachers+subjects+sections+students+combined group, all cross-referencing each other) | 3 classes, 3 teachers, 3 subjects, 2 sections, 4 students, 1 combined group | DELETE as one FK-ordered cluster operation |
+| Additional fixture student found via Phase 3 (zero dependents, zero class FK) | 1 student ("Debug Student B") | DELETE |
 | Real dependent(s) attached, name suggests fixture | 2 school_classes, 5 teachers, 3 subjects | DEACTIVATE, or investigate the one dependent row first |
 | TCSA WALKTHROUGH — confirmed duplicate | 49 rows | DELETE |
 | TCSA WALKTHROUGH — ambiguous, no clean counterpart | 156 rows | **NEEDS YOUR DECISION** (see options above) |
