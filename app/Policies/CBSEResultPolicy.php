@@ -26,11 +26,12 @@ class CBSEResultPolicy
             return true;
         }
         
-        // Teachers can only view results of students in their classes
+        // Teachers can only view results of students in their classes.
+        // Academic setup completion: classes() was backed by the always-empty
+        // class_teacher pivot (permanently false); the canonical signal is
+        // teacher_class_subject_assignments.is_class_teacher.
         if ($user->hasRole('teacher')) {
-            return $user->teacher && $user->teacher->classes()
-                ->where('class_id', $result->student->class_id)
-                ->exists();
+            return $user->teacher && $user->teacher->isClassTeacherOfSchoolClass((int) $result->student->class_id);
         }
         
         return false;
@@ -59,11 +60,10 @@ class CBSEResultPolicy
             return true;
         }
         
-        // Teachers can update results of students in their classes
+        // Teachers can update results of students in their classes (same
+        // canonical-source fix as view() above).
         if ($user->hasRole('teacher')) {
-            return $user->teacher && $user->teacher->classes()
-                ->where('class_id', $result->student->class_id)
-                ->exists();
+            return $user->teacher && $user->teacher->isClassTeacherOfSchoolClass((int) $result->student->class_id);
         }
         
         return false;

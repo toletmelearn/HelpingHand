@@ -249,6 +249,30 @@ class ClassTeacherAssignmentTest extends TestCase
             ->assertSee('CT Teacher');
     }
 
+    /**
+     * Item 3 audit gap: index() computes an "N of M sections have a class
+     * teacher" summary per class (assigned distinct slots -- section rows
+     * plus the always-present "whole class" slot -- intersected against
+     * is_class_teacher=true rows for the current academic year), but
+     * nothing asserted the actual numbers rendered, only that the page
+     * loaded. Class 4 has 2 section slots (A, B) plus the whole-class
+     * slot = 3 total; only Section A is assigned, so 1 of 3.
+     */
+    public function test_index_shows_class_teacher_coverage_summary(): void
+    {
+        $f = $this->fixtures();
+        $admin = $this->admin();
+        TeacherClassSubjectAssignment::create([
+            'teacher_id' => $f['teacher']->id, 'class_id' => $f['classFour']->id, 'section_id' => $f['sectionA']->id,
+            'subject_id' => $f['subject']->id, 'academic_year' => date('Y') . '-' . (date('Y') + 1), 'is_class_teacher' => true,
+        ]);
+
+        $response = $this->actingAs($admin)->get(route('admin.class-teachers.index'));
+
+        $response->assertOk();
+        $response->assertSee('1 / 3 assigned');
+    }
+
     // --- Dependency fixes: ClassTeacherPolicy / CBSEResultPolicy now read the canonical table ---
 
     /**
