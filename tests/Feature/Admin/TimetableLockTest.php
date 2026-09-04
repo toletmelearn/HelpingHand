@@ -279,4 +279,50 @@ class TimetableLockTest extends TestCase
         $this->assertDatabaseHas('timetable_slots', ['id' => $clickedSlot->id]);
         $this->assertDatabaseHas('timetable_slots', ['id' => $lockedSibling->id]);
     }
+
+    /**
+     * Item 2 audit finding: lockSlot() rejects archived rows outright, but
+     * an archived+locked row is still reachable in practice --
+     * publishGeneration()'s bulk archive of a class's previously-published
+     * slots has no is_locked check the way the single-slot publish() path
+     * does. update()/destroy()/publish() all tell the caller to "unlock it
+     * first" when they hit a locked row, so unlockSlot() must remain
+     * available for EVERY status -- mirroring lockSlot()'s archived guard
+     * onto unlockSlot() would permanently strand any row that reaches this
+     * state, for no actual benefit (is_locked has no effect on an archived
+     * row's behaviour anywhere else in the codebase).
+     */
+    public function test_an_archived_locked_slot_can_still_be_unlocked(): void
+    {
+        $admin = $this->makeAdmin();
+        $slot = $this->makeSlot(['status' => 'archived', 'is_locked' => true]);
+
+        $response = $this->actingAs($admin)->post(route('timetable.unlock', $slot));
+
+        $response->assertRedirect();
+        $response->assertSessionHas('success');
+        $this->assertFalse($slot->fresh()->is_locked);
+    }
+
+    /**
+     * Same reasoning as above for the combined-group case -- lockSlot()
+     * itself can never create a combined+locked row, but if one ever
+     * arises through another path, unlockSlot() must still be able to
+     * undo it rather than stranding it behind destroy()'s "unlock it
+     * first" check with no way to satisfy that check.
+     */
+    public function test_a_combined_group_locked_slot_can_still_be_unlocked(): void
+    {
+        $admin = $this->makeAdmin();
+        $session = AcademicSession::create(['name' => '2026-2028', 'code' => '2026-2028-lock', 'start_date' => '2026-04-01', 'end_date' => '2027-03-31']);
+        $group = CombinedClassGroup::create(['name' => 'Combined Unlock', 'subject_id' => $this->subject->id, 'academic_session_id' => $session->id]);
+        CombinedClassGroupMember::create(['combined_class_group_id' => $group->id, 'school_class_id' => $this->class->id]);
+        $slot = $this->makeSlot(['combined_class_group_id' => $group->id, 'is_locked' => true]);
+
+        $response = $this->actingAs($admin)->post(route('timetable.unlock', $slot));
+
+        $response->assertRedirect();
+        $response->assertSessionHas('success');
+        $this->assertFalse($slot->fresh()->is_locked);
+    }
 }

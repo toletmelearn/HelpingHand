@@ -1266,6 +1266,24 @@ class TimetableController extends Controller
         return back()->with('success', 'Lesson locked -- Auto-Fix and future Rebalance will never move it, and it will be carried forward when this class is regenerated.');
     }
 
+    /**
+     * Deliberately has NEITHER of lockSlot()'s two guards -- this is not an
+     * oversight. lockSlot() guards against CREATING a new combined/archived
+     * + locked row; unlockSlot() is the recovery path for one that already
+     * exists, however it got there (e.g. publishGeneration()'s bulk
+     * archive of a class's previously-published slots has no is_locked
+     * check the way the single-slot publish() path does, so an
+     * archived+locked row is a real, reachable state, not just a
+     * hypothetical one). update()/destroy()/publish() all tell the caller
+     * to "unlock it first" when they hit a locked row -- blocking unlock
+     * for ANY status would turn that message into a permanent dead end for
+     * whichever row reached that combination, for zero benefit: is_locked
+     * has no effect on an archived row's behaviour anywhere in the
+     * codebase (BellTimingDependencyChecker/TimetableAutoFixService/
+     * TimetableRebalanceService all exclude STATUS_ARCHIVED independently
+     * of is_locked, not conditioned on it), and a combined-group row can
+     * never actually reach is_locked=true through lockSlot() itself.
+     */
     public function unlockSlot(TimetableSlot $slot)
     {
         $this->authorize('update', $slot);
