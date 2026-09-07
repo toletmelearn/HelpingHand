@@ -26,6 +26,9 @@
                 <a href="{{ route('admin.teacher-subject-assignments.create') }}" class="btn btn-primary btn-lg">
                     <i class="fas fa-plus-circle"></i> Assign New
                 </a>
+                <button type="button" id="bulk-delete-btn" class="btn btn-danger btn-lg" style="display:none;">
+                    <i class="fas fa-trash"></i> Delete Selected (<span id="selected-count">0</span>)
+                </button>
             </div>
         </div>
     </div>
@@ -49,6 +52,11 @@
             <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
         </div>
     @endif
+
+    <div id="bulk-delete-alert" class="alert d-none alert-dismissible fade show" role="alert">
+        <span id="bulk-delete-alert-text"></span>
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
 
     <!-- Filter Section -->
     <div class="row mb-4">
@@ -158,6 +166,9 @@
                         <table class="table table-hover table-striped mb-0">
                             <thead class="table-dark">
                                 <tr>
+                                    <th style="width:2.5rem;">
+                                        <input type="checkbox" id="select-all-checkbox" class="form-check-input" aria-label="Select all assignments">
+                                    </th>
                                     <th>#</th>
                                     <th>Teacher</th>
                                     <th>Class</th>
@@ -172,6 +183,9 @@
                             <tbody>
                                 @forelse($assignments as $index => $assignment)
                                     <tr>
+                                        <td>
+                                            <input type="checkbox" class="form-check-input row-checkbox" value="{{ $assignment->id }}" aria-label="Select assignment {{ $assignment->id }}">
+                                        </td>
                                         <td>{{ $assignments->firstItem() + $index }}</td>
                                         <td>
                                             <strong>{{ $assignment->teacher->name ?? 'N/A' }}</strong>
@@ -227,7 +241,7 @@
                                     </tr>
                                 @empty
                                     <tr>
-                                        <td colspan="9" class="text-center py-5">
+                                        <td colspan="10" class="text-center py-5">
                                             <div class="text-muted">
                                                 <i class="fas fa-inbox fa-3x mb-3"></i>
                                                 <h5>No Assignments Found</h5>
@@ -264,4 +278,83 @@
     'sections' => \App\Models\Section::orderBy('name')->get(),
     'subjects' => \App\Models\Subject::orderBy('name')->get(),
 ])
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const selectAllCheckbox = document.getElementById('select-all-checkbox');
+    const rowCheckboxes = document.querySelectorAll('.row-checkbox');
+    const bulkDeleteBtn = document.getElementById('bulk-delete-btn');
+    const selectedCountSpan = document.getElementById('selected-count');
+    const alertBox = document.getElementById('bulk-delete-alert');
+    const alertText = document.getElementById('bulk-delete-alert-text');
+
+    if (!selectAllCheckbox || rowCheckboxes.length === 0) {
+        return;
+    }
+
+    function updateBulkDeleteButton() {
+        const checkedCount = document.querySelectorAll('.row-checkbox:checked').length;
+        selectedCountSpan.textContent = checkedCount;
+        bulkDeleteBtn.style.display = checkedCount > 0 ? 'inline-block' : 'none';
+    }
+
+    function showAlert(message, type) {
+        alertText.textContent = message;
+        alertBox.className = `alert alert-${type} alert-dismissible fade show`;
+    }
+
+    selectAllCheckbox.addEventListener('change', function () {
+        rowCheckboxes.forEach(checkbox => { checkbox.checked = this.checked; });
+        updateBulkDeleteButton();
+    });
+
+    rowCheckboxes.forEach(checkbox => {
+        checkbox.addEventListener('change', function () {
+            if (!this.checked) {
+                selectAllCheckbox.checked = false;
+            } else if (Array.from(rowCheckboxes).every(cb => cb.checked)) {
+                selectAllCheckbox.checked = true;
+            }
+            updateBulkDeleteButton();
+        });
+    });
+
+    bulkDeleteBtn.addEventListener('click', function () {
+        const selectedIds = Array.from(document.querySelectorAll('.row-checkbox:checked')).map(cb => cb.value);
+        if (selectedIds.length === 0) {
+            return;
+        }
+
+        if (!confirm(`Are you sure you want to delete ${selectedIds.length} assignment(s)? This cannot be undone.`)) {
+            return;
+        }
+
+        bulkDeleteBtn.disabled = true;
+
+        fetch('{{ route("admin.teacher-subject-assignments.bulk-delete") }}', {
+            method: 'DELETE',
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+            },
+            body: JSON.stringify({ ids: selectedIds }),
+        })
+            .then(response => response.json().then(json => ({ status: response.status, json })))
+            .then(({ status, json }) => {
+                if (status === 200 && json.success) {
+                    showAlert(json.message, 'success');
+                    setTimeout(() => window.location.reload(), 800);
+                } else {
+                    showAlert(json.error || 'Something went wrong.', 'danger');
+                    bulkDeleteBtn.disabled = false;
+                }
+            })
+            .catch(() => {
+                showAlert('Network error -- please try again.', 'danger');
+                bulkDeleteBtn.disabled = false;
+            });
+    });
+});
+</script>
 @endsection

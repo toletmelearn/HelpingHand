@@ -414,6 +414,36 @@ class TeacherSubjectAssignmentController extends Controller
         }
     }
 
+    /**
+     * Delete multiple assignments in one request (checkbox multi-select on
+     * the index list). Authorizes against every row that matched, same as
+     * destroy() would for each one individually -- the policy's delete()
+     * check isn't row-data-dependent (it's the same admin/manage-permission
+     * check as create()), so this can't silently skip an authorization a
+     * single delete would have enforced.
+     */
+    public function bulkDelete(Request $request)
+    {
+        $validated = $request->validate([
+            'ids' => 'required|array|min:1',
+            'ids.*' => 'required|integer|exists:teacher_class_subject_assignments,id',
+        ]);
+
+        $assignments = TeacherClassSubjectAssignment::whereIn('id', $validated['ids'])->get();
+
+        foreach ($assignments as $assignment) {
+            $this->authorize('delete', $assignment);
+        }
+
+        $count = TeacherClassSubjectAssignment::whereIn('id', $validated['ids'])->delete();
+
+        return response()->json([
+            'success' => true,
+            'message' => "Deleted {$count} assignment(s).",
+            'deleted_count' => $count,
+        ]);
+    }
+
     public function destroy($id)
     {
         $assignment = TeacherClassSubjectAssignment::findOrFail($id);
