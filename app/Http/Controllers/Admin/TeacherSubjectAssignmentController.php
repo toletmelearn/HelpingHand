@@ -10,9 +10,39 @@ use App\Models\Subject;
 use App\Models\SchoolClass;
 use App\Models\Section;
 use App\Models\TeacherClassSubjectAssignment;
+use App\Services\ClassTeacherAssignmentService;
 
 class TeacherSubjectAssignmentController extends Controller
 {
+    /**
+     * Section architecture fix: `exists:sections,id` alone only proves the
+     * row exists, never that it actually belongs to the class this
+     * assignment is FOR -- Sections are globally shared labels (A/B/C/D...)
+     * resolved to a class via the legacy_class_map -> class_management ->
+     * class_sections bridge (SchoolClass::validSectionIds()), the same
+     * pattern already enforced in TimetableController and
+     * TeacherSubstitutionController. This table is the source of truth
+     * TimetableSlotPolicy::teacherAssignedToClassSection() and
+     * GeneratorService both trust for "who's eligible to teach what", so
+     * an unvalidated pairing here would corrupt both. A null section_id is
+     * this form's own "whole class" semantics and is always valid.
+     */
+    private function sectionOwnershipError(SchoolClass $schoolClass, ?int $sectionId): ?string
+    {
+        if ($sectionId === null) {
+            return null;
+        }
+
+        if (! in_array($sectionId, $schoolClass->validSectionIds(), true)) {
+            $section = Section::find($sectionId);
+            $sectionName = $section->name ?? 'This section';
+
+            return "\"{$sectionName}\" is not a section of \"{$schoolClass->name}\" -- choose a section that actually belongs to this class.";
+        }
+
+        return null;
+    }
+
     /**
      * Display a listing of the resource.
      *
@@ -85,6 +115,14 @@ class TeacherSubjectAssignmentController extends Controller
             'periods_per_week' => 'nullable|integer|min:1|max:12',
             'require_consecutive' => 'boolean',
         ]);
+
+        $sectionError = $this->sectionOwnershipError(
+            SchoolClass::findOrFail($request->class_id),
+            $request->section_id ? (int) $request->section_id : null
+        );
+        if ($sectionError) {
+            return redirect()->back()->withErrors(['error' => $sectionError])->withInput();
+        }
 
         $academicYear = $request->academic_year ?? date('Y') . '-' . (date('Y') + 1);
         $isClassTeacher = $request->has('is_class_teacher');
@@ -195,6 +233,14 @@ class TeacherSubjectAssignmentController extends Controller
             'require_consecutive' => 'boolean',
         ]);
 
+        $sectionError = $this->sectionOwnershipError(
+            SchoolClass::findOrFail($request->class_id),
+            $request->section_id ? (int) $request->section_id : null
+        );
+        if ($sectionError) {
+            return redirect()->back()->withErrors(['error' => $sectionError])->withInput();
+        }
+
         $isClassTeacher = $request->has('is_class_teacher');
         $isPrimarySubjectTeacher = $request->has('is_primary_subject_teacher');
         $requireConsecutive = $request->has('require_consecutive');
@@ -233,6 +279,138 @@ class TeacherSubjectAssignmentController extends Controller
             return redirect()->back()
                 ->withErrors(['error' => 'Error updating assignment: ' . $e->getMessage()])
                 ->withInput();
+        }
+    }
+
+    /**
+     * Bulk-create every class/section/subject assignment for one teacher in
+     * a single request (the "assign a teacher to 5 classes without opening
+     * the form 5 times" flow). Reuses the exact same rules as store():
+     * updateOrCreate keyed on teacher+class+section+subject+year, and
+     * sectionOwnershipError() so a bulk row can't silently attach a section
+     * to a class it doesn't belong to. Class-teacher assignment goes through
+     * ClassTeacherAssignmentService rather than a separate table -- that
+     * service is the one canonical writer of is_class_teacher (see its
+     * docblock), so this bulk endpoint must not bypass it.
+     */
+    public function bulkStore(Request $request)
+    {
+        $this->authorize('create', TeacherClassSubjectAssignment::class);
+
+        $validated = $request->validate([
+            'teacher_id' => 'required|exists:teachers,id',
+            'academic_year' => 'nullable|string|max:20',
+            'assignments' => 'required|array|min:1',
+            'assignments.*.class_id' => 'required|exists:school_classes,id',
+            'assignments.*.section_id' => 'nullable|exists:sections,id',
+            'assignments.*.subject_id' => 'required|exists:subjects,id',
+            'assignments.*.periods_per_week' => 'nullable|integer|min:1|max:12',
+            'make_class_teacher' => 'nullable|boolean',
+            'class_teacher_class_id' => 'nullable|exists:school_classes,id',
+            'class_teacher_section_id' => 'nullable|exists:sections,id',
+        ]);
+
+        $teacherId = (int) $validated['teacher_id'];
+        $academicYear = $validated['academic_year'] ?? date('Y') . '-' . (date('Y') + 1);
+        $assignments = $validated['assignments'];
+
+        // Validate section ownership for every row up front so a bad row
+        // fails the whole batch instead of leaving a partial commit.
+        $classesById = [];
+        foreach ($assignments as $row) {
+            $classId = (int) $row['class_id'];
+            $sectionId = isset($row['section_id']) && $row['section_id'] !== '' ? (int) $row['section_id'] : null;
+
+            if (! isset($classesById[$classId])) {
+                $classesById[$classId] = SchoolClass::findOrFail($classId);
+            }
+
+            $sectionError = $this->sectionOwnershipError($classesById[$classId], $sectionId);
+            if ($sectionError) {
+                return response()->json(['success' => false, 'error' => $sectionError], 422);
+            }
+        }
+
+        $makeClassTeacher = (bool) ($validated['make_class_teacher'] ?? false);
+        $classTeacherClassId = $makeClassTeacher && ! empty($validated['class_teacher_class_id'])
+            ? (int) $validated['class_teacher_class_id']
+            : null;
+        $classTeacherSectionId = $makeClassTeacher && ! empty($validated['class_teacher_section_id'])
+            ? (int) $validated['class_teacher_section_id']
+            : null;
+
+        if ($makeClassTeacher) {
+            if ($classTeacherClassId === null) {
+                return response()->json(['success' => false, 'error' => 'Select a class for the class teacher assignment.'], 422);
+            }
+
+            $matchesClassTeacherRow = collect($assignments)->contains(function ($row) use ($classTeacherClassId, $classTeacherSectionId) {
+                $rowSectionId = isset($row['section_id']) && $row['section_id'] !== '' ? (int) $row['section_id'] : null;
+
+                return (int) $row['class_id'] === $classTeacherClassId && $rowSectionId === $classTeacherSectionId;
+            });
+
+            if (! $matchesClassTeacherRow) {
+                return response()->json([
+                    'success' => false,
+                    'error' => 'The class teacher class/section must match one of the subject assignments above.',
+                ], 422);
+            }
+        }
+
+        DB::beginTransaction();
+        try {
+            $teacher = Teacher::findOrFail($teacherId);
+            $createdCount = 0;
+
+            foreach ($assignments as $row) {
+                $sectionId = isset($row['section_id']) && $row['section_id'] !== '' ? (int) $row['section_id'] : null;
+
+                TeacherClassSubjectAssignment::updateOrCreate(
+                    [
+                        'teacher_id' => $teacherId,
+                        'class_id' => (int) $row['class_id'],
+                        'section_id' => $sectionId,
+                        'subject_id' => (int) $row['subject_id'],
+                        'academic_year' => $academicYear,
+                    ],
+                    [
+                        'periods_per_week' => $row['periods_per_week'] ?? null,
+                    ]
+                );
+                $createdCount++;
+            }
+
+            if ($makeClassTeacher) {
+                $result = app(ClassTeacherAssignmentService::class)->assign(
+                    $classesById[$classTeacherClassId],
+                    $classTeacherSectionId,
+                    $teacherId,
+                    (int) collect($assignments)->firstWhere(fn ($row) => (int) $row['class_id'] === $classTeacherClassId
+                        && (isset($row['section_id']) && $row['section_id'] !== '' ? (int) $row['section_id'] : null) === $classTeacherSectionId
+                    )['subject_id'],
+                    $academicYear
+                );
+
+                if (! $result['success']) {
+                    DB::rollBack();
+                    return response()->json(['success' => false, 'error' => $result['error']], 422);
+                }
+            }
+
+            DB::commit();
+
+            return response()->json([
+                'success' => true,
+                'message' => "Created {$createdCount} assignment(s) for {$teacher->name}.",
+                'data' => [
+                    'teacher_name' => $teacher->name,
+                    'assignments_created' => $createdCount,
+                ],
+            ]);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json(['success' => false, 'error' => 'Failed to create assignments: ' . $e->getMessage()], 422);
         }
     }
 

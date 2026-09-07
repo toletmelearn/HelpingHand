@@ -1045,6 +1045,9 @@ Route::middleware(['auth'])->group(function () {
         // neither method ever existed on the controller.
         
         // Teacher Subject Assignment Management Routes
+        // Bulk-assign-by-teacher: must come before the resource() route so
+        // it isn't swallowed by that resource's POST store route.
+        Route::post('teacher-subject-assignments/bulk-create', [App\Http\Controllers\Admin\TeacherSubjectAssignmentController::class, 'bulkStore'])->name('teacher-subject-assignments.bulk-create');
         Route::resource('teacher-subject-assignments', App\Http\Controllers\Admin\TeacherSubjectAssignmentController::class);
 
         // Class Teacher assignment (canonical: teacher_class_subject_assignments.is_class_teacher --

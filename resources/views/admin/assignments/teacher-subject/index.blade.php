@@ -20,6 +20,9 @@
                 </div>
             </div>
             <div class="text-end mt-2">
+                <button type="button" class="btn btn-warning btn-lg" data-bs-toggle="modal" data-bs-target="#bulkAssignModal">
+                    <i class="fas fa-layer-group"></i> Bulk Assign by Teacher
+                </button>
                 <a href="{{ route('admin.teacher-subject-assignments.create') }}" class="btn btn-primary btn-lg">
                     <i class="fas fa-plus-circle"></i> Assign New
                 </a>
@@ -254,4 +257,11 @@
         </div>
     </div>
 </div>
+
+@include('admin.assignments.teacher-subject._bulk_modal', [
+    'teachers' => $teachers,
+    'classes' => $classes,
+    'sections' => \App\Models\Section::orderBy('name')->get(),
+    'subjects' => \App\Models\Subject::orderBy('name')->get(),
+])
 @endsection
